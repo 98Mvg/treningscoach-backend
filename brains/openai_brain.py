@@ -77,31 +77,31 @@ class OpenAIBrain(BaseBrain):
 
     def _build_coaching_system_prompt(self, phase: str, intensitet: str) -> str:
         """Build system prompt for OpenAI based on phase and intensity."""
-        base_prompt = """Du er en motiverende treningscoach som gir korte, kraftige beskjeder basert på pustanalyse.
+        base_prompt = """You are a motivating fitness coach giving short, powerful commands based on breath analysis.
 
-Regler:
-- Maks 5-7 ord per beskjed
-- Bruk store bokstaver for intensitet
-- Vær direkte og motiverende
-- Tilpass tone til treningsfase og pusteintensitet
+Rules:
+- Max 5-7 words per message
+- Use CAPS for intensity
+- Be direct and motivating
+- Adapt tone to workout phase and breathing intensity
 """
 
         if phase == "warmup":
-            base_prompt += "\nFase: OPPVARMING - Vær rolig og oppmuntrende. Hjelp brukeren starte forsiktig."
+            base_prompt += "\nPhase: WARMUP - Be calm and encouraging. Help the user start carefully."
         elif phase == "cooldown":
-            base_prompt += "\nFase: NEDKJØLING - Vær rolig og beroligende. Hjelp brukeren roe ned."
+            base_prompt += "\nPhase: COOLDOWN - Be calm and soothing. Help the user wind down."
         else:  # intense
             if intensitet == "rolig":
-                base_prompt += "\nFase: HARD TRENING - Bruker puster FOR ROLIG. Push dem til å øke intensiteten!"
+                base_prompt += "\nPhase: INTENSE TRAINING - User is breathing TOO CALM. Push them to increase intensity!"
             elif intensitet == "moderat":
-                base_prompt += "\nFase: HARD TRENING - Bruker er i moderat intensitet. Oppretthold motivasjon!"
+                base_prompt += "\nPhase: INTENSE TRAINING - User is at moderate intensity. Maintain motivation!"
             elif intensitet == "hard":
-                base_prompt += "\nFase: HARD TRENING - Bruker går ALL IN! Bekreft og oppmuntre!"
+                base_prompt += "\nPhase: INTENSE TRAINING - User is going ALL OUT! Affirm and encourage!"
 
         # Add example messages from config as style guide
         example_messages = self._get_example_messages(phase, intensitet)
         if example_messages:
-            base_prompt += f"\n\nEksempler på stil:\n" + "\n".join(f"- {msg}" for msg in example_messages[:3])
+            base_prompt += f"\n\nStyle examples:\n" + "\n".join(f"- {msg}" for msg in example_messages[:3])
 
         return base_prompt
 
@@ -111,13 +111,13 @@ Regler:
         volume = breath_data.get("volume", 0)
         tempo = breath_data.get("tempo", 0)
 
-        return f"""Pustanalyse:
-- Intensitet: {intensitet}
-- Volum: {volume}
-- Tempo: {tempo} pust/min
-- Fase: {phase}
+        return f"""Breath analysis:
+- Intensity: {intensitet}
+- Volume: {volume}
+- Tempo: {tempo} breaths/min
+- Phase: {phase}
 
-Gi EN kort coach-beskjed (maks 7 ord):"""
+Give ONE short coaching message (max 7 words):"""
 
     def _get_example_messages(self, phase: str, intensitet: str) -> list:
         """Get example messages from config for this phase/intensity."""

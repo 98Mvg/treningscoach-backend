@@ -34,38 +34,38 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # After INTENSE_DURATION = cooldown
 
 # ============================================
-# COACH MESSAGES
+# COACH MESSAGES (English for live conversations)
 # ============================================
 COACH_MESSAGES = {
-    "kritisk": ["STOPP! Pust rolig. Du er trygg."],
+    "kritisk": ["STOP! Breathe slowly. You're safe."],
 
     "warmup": [
-        "Start rolig. Vi varmer opp.",
-        "Bra. Hold denne farten.",
-        "Rolig tempo. Fortsett."
+        "Easy start. Warming up.",
+        "Good. Keep this pace.",
+        "Steady tempo. Continue."
     ],
 
     "cooldown": [
-        "Ta ned farten.",
-        "Pust rolig.",
-        "Bra. Rolig ned."
+        "Bring it down.",
+        "Breathe easy.",
+        "Good. Nice and easy."
     ],
 
     "intense": {
         "rolig": [
-            "PUSH! Hardere!",
-            "Du klarer mer!",
-            "Raskere! Nå!"
+            "PUSH! Harder!",
+            "You got more!",
+            "Faster! NOW!"
         ],
         "moderat": [
-            "Fortsett! Du har mer!",
-            "Ikke stopp! Fortsett!",
-            "Bra! Hold farten!"
+            "Keep going! Don't stop!",
+            "You have more in you!",
+            "Good! Hold the pace!"
         ],
         "hard": [
-            "Ja! Hold ut! Ti til!",
-            "Bra! Fortsett!",
-            "Der ja! Fem sekunder!"
+            "YES! Hold on! Ten more!",
+            "Perfect! Keep it up!",
+            "There it is! Five seconds!"
         ]
     }
 }

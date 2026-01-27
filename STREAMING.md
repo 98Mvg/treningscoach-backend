@@ -72,13 +72,13 @@
 POST /chat/start
 {
   "user_id": "user123",
-  "persona": "treningscoach"
+  "persona": "fitness_coach"
 }
 
 Response:
 {
   "session_id": "session_user123_1234567890",
-  "persona": "treningscoach"
+  "persona": "fitness_coach"
 }
 ```
 
@@ -88,16 +88,15 @@ Response:
 POST /chat/stream
 {
   "session_id": "session_...",
-  "message": "Hvordan går det?"
+  "message": "How's it going?"
 }
 
 Response: (SSE stream)
-data: {"token": "Det "}
-data: {"token": "går "}
-data: {"token": "bra! "}
-data: {"token": "Klar "}
-data: {"token": "for "}
-data: {"token": "trening?"}
+data: {"token": "Going "}
+data: {"token": "great! "}
+data: {"token": "Ready "}
+data: {"token": "to "}
+data: {"token": "train?"}
 data: {"done": true}
 ```
 
@@ -132,17 +131,17 @@ from brains.claude_brain import ClaudeBrain
 brain = ClaudeBrain()
 
 messages = [
-    {"role": "user", "content": "Hei! Klar for trening?"}
+    {"role": "user", "content": "Hey! Ready to train?"}
 ]
 
-system_prompt = "Du er en motiverende treningscoach."
+system_prompt = "You are a motivating fitness coach."
 
 # Stream response
 async for token in brain.stream_chat(messages, system_prompt):
     print(token, end="", flush=True)
 
 # Output (token by token):
-# H e l l o !   L a ' s   g o !
+# L e t ' s   G O !   P U S H   I T !
 ```
 
 ### OpenAI Streaming (Already Implemented)
@@ -263,16 +262,21 @@ def stream_chat():
 # backend/persona_manager.py
 
 PERSONAS = {
-    "treningscoach": """Du er en motiverende treningscoach.
-        - Korte, kraftige beskjeder
-        - Bruk store bokstaver for intensitet
-        - Tilpass til brukerens pustenivå""",
+    "fitness_coach": """You are a motivating fitness coach.
+        - Short, powerful messages
+        - Use CAPS for intensity
+        - Adapt to user's breathing level""",
 
-    "calm_coach": """Du er en rolig, beroligende coach.
-        - Snakk lavmælt og støttende
-        - Fokuser på pust og mindfulness""",
+    "calm_coach": """You are a calm, soothing coach.
+        - Speak gently and supportively
+        - Focus on breath and mindfulness""",
 
-    "default": """Du er en hjelpsom AI-assistent."""
+    "drill_sergeant": """You are a tough drill sergeant coach.
+        - Demanding and intense
+        - Push hard but keep them safe
+        - No excuses accepted""",
+
+    "default": """You are a helpful AI assistant."""
 }
 
 def get_system_prompt(persona: str) -> str:
@@ -426,8 +430,8 @@ from brains.claude_brain import ClaudeBrain
 
 async def test():
     brain = ClaudeBrain()
-    messages = [{'role': 'user', 'content': 'Hei!'}]
-    async for token in brain.stream_chat(messages, 'Du er en coach'):
+    messages = [{'role': 'user', 'content': 'Ready to train?'}]
+    async for token in brain.stream_chat(messages, 'You are a motivating coach'):
         print(token, end='', flush=True)
 
 asyncio.run(test())
