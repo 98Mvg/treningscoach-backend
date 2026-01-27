@@ -1,6 +1,6 @@
 # main.py - HOVEDFIL FOR TRENINGSCOACH BACKEND
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context
 from flask_cors import CORS
 import os
 import json
@@ -8,9 +8,12 @@ import wave
 import math
 import random
 import logging
+import asyncio
 from datetime import datetime
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
+from session_manager import SessionManager  # Import Session Manager
+from persona_manager import PersonaManager  # Import Persona Manager
 
 # Configure logging
 logging.basicConfig(
@@ -32,8 +35,9 @@ OUTPUT_FOLDER = 'outputs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# Initialize Brain Router
+# Initialize Brain Router and Managers
 brain_router = BrainRouter()
+session_manager = SessionManager()
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 
 # ============================================
@@ -622,6 +626,290 @@ def switch_brain():
     except Exception as e:
         logger.error(f"Error switching brain: {e}", exc_info=True)
         return jsonify({"error": "Intern serverfeil"}), 500
+
+# ============================================
+# STREAMING CHAT ENDPOINTS
+# ============================================
+
+@app.route('/chat/start', methods=['POST'])
+def chat_start():
+    """
+    Create new conversation session.
+
+    Request body:
+    {
+        "user_id": "user123",
+        "persona": "fitness_coach"  (optional)
+    }
+
+    Returns:
+    {
+        "session_id": "session_...",
+        "persona": "fitness_coach",
+        "available_personas": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'anonymous')
+        persona = data.get('persona', 'fitness_coach')
+
+        # Validate persona
+        if not PersonaManager.validate_persona(persona):
+            return jsonify({
+                "error": f"Invalid persona. Available: {PersonaManager.list_personas()}"
+            }), 400
+
+        # Create session
+        session_id = session_manager.create_session(user_id, persona)
+
+        logger.info(f"Created chat session: {session_id}")
+
+        return jsonify({
+            "session_id": session_id,
+            "persona": persona,
+            "persona_description": PersonaManager.get_persona_description(persona),
+            "available_personas": PersonaManager.list_personas()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error creating session: {e}", exc_info=True)
+        return jsonify({"error": "Failed to create session"}), 500
+
+
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    """
+    Streaming chat endpoint (SSE).
+
+    Request body:
+    {
+        "session_id": "session_...",
+        "message": "How are you?"
+    }
+
+    Response: Server-Sent Events (SSE) stream
+    data: {"token": "Great! "}
+    data: {"token": "Ready "}
+    data: {"token": "to train?"}
+    data: {"done": true}
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_message = data.get('message')
+
+        if not session_id or not user_message:
+            return jsonify({"error": "Missing session_id or message"}), 400
+
+        if not session_manager.session_exists(session_id):
+            return jsonify({"error": "Session not found"}), 404
+
+        # Add user message to history
+        session_manager.add_message(session_id, "user", user_message)
+
+        # Get conversation history
+        messages = session_manager.get_messages(session_id)
+
+        # Get persona system prompt
+        persona = session_manager.get_persona(session_id)
+        system_prompt = PersonaManager.get_system_prompt(persona)
+
+        logger.info(f"Streaming chat: session={session_id}, persona={persona}")
+
+        def generate():
+            """SSE generator function."""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            full_response = ""
+
+            try:
+                async def stream_tokens():
+                    nonlocal full_response
+                    # Get streaming brain
+                    if brain_router.brain and brain_router.brain.supports_streaming():
+                        async for token in brain_router.brain.stream_chat(
+                            messages=messages,
+                            system_prompt=system_prompt
+                        ):
+                            full_response += token
+                            yield f"data: {json.dumps({'token': token})}\n\n"
+                    else:
+                        # Fallback for non-streaming brains
+                        response = brain_router.get_coaching_response(
+                            {"intensitet": "moderat", "volume": 50, "tempo": 20},
+                            "intense"
+                        )
+                        full_response = response
+                        yield f"data: {json.dumps({'token': response})}\n\n"
+
+                # Run async generator
+                async_gen = stream_tokens()
+                while True:
+                    try:
+                        chunk = loop.run_until_complete(async_gen.__anext__())
+                        yield chunk
+                    except StopAsyncIteration:
+                        break
+
+                # Send done signal
+                yield f"data: {json.dumps({'done': True})}\n\n"
+
+                # Save assistant response
+                session_manager.add_message(session_id, "assistant", full_response)
+                logger.info(f"Stream complete: {len(full_response)} chars")
+
+            except Exception as e:
+                logger.error(f"Streaming error: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                loop.close()
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in chat stream: {e}", exc_info=True)
+        return jsonify({"error": "Streaming failed"}), 500
+
+
+@app.route('/chat/message', methods=['POST'])
+def chat_message():
+    """
+    Non-streaming chat endpoint (fallback).
+
+    Request body:
+    {
+        "session_id": "session_...",
+        "message": "How are you?"
+    }
+
+    Returns:
+    {
+        "message": "Great! Ready to train?",
+        "session_id": "session_...",
+        "persona": "fitness_coach"
+    }
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_message = data.get('message')
+
+        if not session_id or not user_message:
+            return jsonify({"error": "Missing session_id or message"}), 400
+
+        if not session_manager.session_exists(session_id):
+            return jsonify({"error": "Session not found"}), 404
+
+        # Add user message
+        session_manager.add_message(session_id, "user", user_message)
+
+        # Get history and persona
+        messages = session_manager.get_messages(session_id)
+        persona = session_manager.get_persona(session_id)
+        system_prompt = PersonaManager.get_system_prompt(persona)
+
+        # Get response
+        if brain_router.brain:
+            loop = asyncio.new_event_loop()
+            response = loop.run_until_complete(
+                brain_router.brain.chat(messages, system_prompt)
+            )
+            loop.close()
+        else:
+            # Fallback to config brain
+            response = brain_router.get_coaching_response(
+                {"intensitet": "moderat", "volume": 50, "tempo": 20},
+                "intense"
+            )
+
+        # Save assistant response
+        session_manager.add_message(session_id, "assistant", response)
+
+        logger.info(f"Chat message: session={session_id}, response_len={len(response)}")
+
+        return jsonify({
+            "message": response,
+            "session_id": session_id,
+            "persona": persona
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error in chat message: {e}", exc_info=True)
+        return jsonify({"error": "Chat failed"}), 500
+
+
+@app.route('/chat/sessions', methods=['GET'])
+def list_sessions():
+    """
+    List all sessions.
+
+    Query params:
+    - user_id: Filter by user (optional)
+
+    Returns:
+    {
+        "sessions": [...]
+    }
+    """
+    try:
+        user_id = request.args.get('user_id')
+        sessions = session_manager.list_sessions(user_id)
+
+        return jsonify({"sessions": sessions}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing sessions: {e}", exc_info=True)
+        return jsonify({"error": "Failed to list sessions"}), 500
+
+
+@app.route('/chat/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a session."""
+    try:
+        session_manager.delete_session(session_id)
+        return jsonify({"success": True, "session_id": session_id}), 200
+
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete session"}), 500
+
+
+@app.route('/chat/personas', methods=['GET'])
+def list_personas():
+    """
+    List all available personas.
+
+    Returns:
+    {
+        "personas": [
+            {"id": "fitness_coach", "description": "..."},
+            ...
+        ]
+    }
+    """
+    try:
+        personas = []
+        for persona_id in PersonaManager.list_personas():
+            personas.append({
+                "id": persona_id,
+                "description": PersonaManager.get_persona_description(persona_id)
+            })
+
+        return jsonify({"personas": personas}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing personas: {e}", exc_info=True)
+        return jsonify({"error": "Failed to list personas"}), 500
 
 # ============================================
 # ERROR HANDLERS
