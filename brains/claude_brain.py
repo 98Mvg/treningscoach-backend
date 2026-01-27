@@ -1,12 +1,12 @@
 #
 # claude_brain.py
-# Claude AI brain adapter
+# Claude AI brain adapter with streaming support
 #
 
 import os
 import random
-from typing import Dict, Any, Optional
-from anthropic import Anthropic
+from typing import Dict, Any, Optional, AsyncIterator, List
+from anthropic import Anthropic, AsyncAnthropic
 from .base_brain import BaseBrain
 import config
 
@@ -14,6 +14,7 @@ import config
 class ClaudeBrain(BaseBrain):
     """
     Claude AI brain implementation using Anthropic API.
+    Supports both legacy coaching mode and new streaming chat mode.
     """
 
     def __init__(self, api_key: Optional[str] = None):
@@ -22,8 +23,17 @@ class ClaudeBrain(BaseBrain):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not found in environment")
+
+        # Sync client for legacy coaching
         self.client = Anthropic(api_key=self.api_key)
+        # Async client for streaming chat
+        self.async_client = AsyncAnthropic(api_key=self.api_key)
+
         self.model = "claude-3-5-sonnet-20241022"
+
+    # ============================================
+    # LEGACY: Breath Coaching Mode
+    # ============================================
 
     def get_coaching_response(
         self,
@@ -42,8 +52,8 @@ class ClaudeBrain(BaseBrain):
             return random.choice(config.COACH_MESSAGES["kritisk"])
 
         # Build context for Claude
-        system_prompt = self._build_system_prompt(phase, intensitet)
-        user_message = self._build_user_message(breath_data, phase)
+        system_prompt = self._build_coaching_system_prompt(phase, intensitet)
+        user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
             # Call Claude API
@@ -65,7 +75,7 @@ class ClaudeBrain(BaseBrain):
             # Fallback to config messages
             return self._get_fallback_message(intensitet, phase)
 
-    def _build_system_prompt(self, phase: str, intensitet: str) -> str:
+    def _build_coaching_system_prompt(self, phase: str, intensitet: str) -> str:
         """Build system prompt for Claude based on phase and intensity."""
         base_prompt = """Du er en motiverende treningscoach som gir korte, kraftige beskjeder basert på pustanalyse.
 
@@ -95,7 +105,7 @@ Regler:
 
         return base_prompt
 
-    def _build_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:
+    def _build_coaching_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:
         """Build user message with breath analysis data."""
         intensitet = breath_data.get("intensitet", "moderat")
         volume = breath_data.get("volume", 0)
@@ -130,6 +140,82 @@ Gi EN kort coach-beskjed (maks 7 ord):"""
             if intensitet in intense_msgs:
                 return random.choice(intense_msgs[intensitet])
             return "Fortsett!"
+
+    # ============================================
+    # NEW: Streaming Chat Mode
+    # ============================================
+
+    def supports_streaming(self) -> bool:
+        """Claude supports streaming."""
+        return True
+
+    async def stream_chat(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> AsyncIterator[str]:
+        """
+        Stream chat response from Claude token by token.
+
+        Args:
+            messages: Conversation history
+            system_prompt: System prompt / persona
+            **kwargs: temperature, max_tokens, etc.
+
+        Yields:
+            Response tokens as they arrive
+        """
+        try:
+            async with self.async_client.messages.stream(
+                model=self.model,
+                max_tokens=kwargs.get("max_tokens", 2048),
+                temperature=kwargs.get("temperature", 0.8),
+                system=system_prompt or "",
+                messages=messages
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield text
+
+        except Exception as e:
+            print(f"Claude streaming error: {e}")
+            # Fallback: yield error message
+            yield f"[Error: {str(e)}]"
+
+    async def chat(
+        self,
+        messages: List[Dict[str, str]],
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> str:
+        """
+        Non-streaming chat (fallback).
+
+        Args:
+            messages: Conversation history
+            system_prompt: System prompt / persona
+            **kwargs: Model parameters
+
+        Returns:
+            Complete response string
+        """
+        try:
+            message = await self.async_client.messages.create(
+                model=self.model,
+                max_tokens=kwargs.get("max_tokens", 2048),
+                temperature=kwargs.get("temperature", 0.8),
+                system=system_prompt or "",
+                messages=messages
+            )
+            return message.content[0].text
+
+        except Exception as e:
+            print(f"Claude chat error: {e}")
+            return f"[Error: {str(e)}]"
+
+    # ============================================
+    # METADATA
+    # ============================================
 
     def get_provider_name(self) -> str:
         """Return provider name."""
