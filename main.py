@@ -1,20 +1,42 @@
 # main.py - HOVEDFIL FOR TRENINGSCOACH BACKEND
 
 from flask import Flask, request, send_file, jsonify
+from flask_cors import CORS
 import os
 import json
 import wave
 import math
 import random
+import logging
 from datetime import datetime
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
+CORS(app)  # Enable CORS for iOS app
+
+# Configuration
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a'}
 
 # Mapper for å lagre filer midlertidig
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ============================================
 # PUSTE-ANALYSE (ENKEL VERSJON)
@@ -97,7 +119,7 @@ def analyze_breath(audio_file_path):
             }
 
     except Exception as e:
-        print(f"Feil ved analyse: {e}")
+        logger.error(f"Feil ved analyse: {e}", exc_info=True)
         return default_analysis()
 
 def default_analysis():
@@ -204,14 +226,48 @@ def generate_voice_mock(text):
 def home():
     """Hjemmeside - viser at backend kjører"""
     return """
-    <h1>🏋️‍♂️ Treningscoach Backend</h1>
-    <p>Backend kjører! ✅</p>
-    <h3>Tilgjengelige endepunkter:</h3>
-    <ul>
-        <li>POST /analyze - Analyser lydopptak</li>
-        <li>POST /coach - Få coach-respons</li>
-        <li>GET /health - Helse-sjekk</li>
-    </ul>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Treningscoach Backend</title>
+        <meta charset="UTF-8">
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+            h1 { color: #2c3e50; }
+            .status { color: #27ae60; font-weight: bold; }
+            .endpoint { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 4px solid #3498db; }
+            code { background: #ecf0f1; padding: 2px 6px; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <h1>🏋️‍♂️ Treningscoach Backend</h1>
+        <p class="status">Backend kjører! ✅</p>
+        <p>Version: 1.1.0 | Updated: 2026-01-27</p>
+
+        <h3>Tilgjengelige endepunkter:</h3>
+        <div class="endpoint">
+            <strong>GET /health</strong><br>
+            Helse-sjekk - verifiser at serveren lever
+        </div>
+        <div class="endpoint">
+            <strong>POST /analyze</strong><br>
+            Analyser lydopptak og returner puste-data<br>
+            Parameters: <code>audio</code> (WAV/MP3 fil)
+        </div>
+        <div class="endpoint">
+            <strong>POST /coach</strong><br>
+            Få coach-respons basert på lydopptak<br>
+            Parameters: <code>audio</code> (WAV fil), <code>phase</code> (warmup/intense/cooldown)
+        </div>
+        <div class="endpoint">
+            <strong>GET /download/&lt;filename&gt;</strong><br>
+            Last ned generert voice-fil
+        </div>
+
+        <h3>Dokumentasjon:</h3>
+        <p>Se <a href="https://github.com/98Mvg/treningscoach-backend">GitHub Repository</a> for fullstendig API-dokumentasjon.</p>
+    </body>
+    </html>
     """
 
 @app.route('/health')
@@ -219,7 +275,13 @@ def health():
     """Enkel helse-sjekk for å se at serveren lever"""
     return jsonify({
         "status": "healthy",
-        "timestamp": datetime.now().isoformat()
+        "version": "1.1.0",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "analyze": "/analyze",
+            "coach": "/coach",
+            "download": "/download/<filename>"
+        }
     })
 
 @app.route('/analyze', methods=['POST'])
@@ -230,27 +292,46 @@ def analyze():
     App sender: MP3/WAV fil
     Backend returnerer: JSON med puste-data
     """
-
-    if 'audio' not in request.files:
-        return jsonify({"error": "Ingen lydfil mottatt"}), 400
-
-    audio_file = request.files['audio']
-
-    # Lagre filen midlertidig
-    filename = f"breath_{datetime.now().timestamp()}.wav"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    audio_file.save(filepath)
-
-    # Analyser pusten
-    breath_data = analyze_breath(filepath)
-
-    # Slett midlertidig fil
     try:
-        os.remove(filepath)
-    except:
-        pass
+        if 'audio' not in request.files:
+            logger.warning("Analyze request missing audio file")
+            return jsonify({"error": "Ingen lydfil mottatt"}), 400
 
-    return jsonify(breath_data)
+        audio_file = request.files['audio']
+
+        if audio_file.filename == '':
+            return jsonify({"error": "Tom filnavn"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"Fil for stor. Maks størrelse: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Lagre filen midlertidig
+        filename = f"breath_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Analyzing audio file: {filename} ({file_size} bytes)")
+
+        # Analyser pusten
+        breath_data = analyze_breath(filepath)
+
+        # Slett midlertidig fil
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        logger.info(f"Analysis complete: {breath_data['intensitet']}")
+        return jsonify(breath_data)
+
+    except Exception as e:
+        logger.error(f"Error in analyze endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Intern serverfeil"}), 500
 
 @app.route('/coach', methods=['POST'])
 def coach():
@@ -264,49 +345,102 @@ def coach():
     Backend returnerer:
     - Coach voice som MP3
     """
-
-    if 'audio' not in request.files:
-        return jsonify({"error": "Ingen lydfil mottatt"}), 400
-
-    audio_file = request.files['audio']
-    phase = request.form.get('phase', 'intense')
-
-    # Lagre filen midlertidig
-    filename = f"breath_{datetime.now().timestamp()}.wav"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    audio_file.save(filepath)
-
-    # Analyser pusten
-    breath_data = analyze_breath(filepath)
-
-    # Få coach-respons (tekst)
-    coach_text = get_coach_response(breath_data, phase)
-
-    # Generer voice (mock for nå)
-    voice_file = generate_voice_mock(coach_text)
-
-    # Slett midlertidig inndata-fil
     try:
-        os.remove(filepath)
-    except:
-        pass
+        if 'audio' not in request.files:
+            logger.warning("Coach request missing audio file")
+            return jsonify({"error": "Ingen lydfil mottatt"}), 400
 
-    # Send tilbake voice-fil + metadata
-    response_data = {
-        "text": coach_text,
-        "breath_analysis": breath_data,
-        "audio_url": f"/download/{os.path.basename(voice_file)}"
-    }
+        audio_file = request.files['audio']
+        phase = request.form.get('phase', 'intense')
 
-    return jsonify(response_data)
+        if audio_file.filename == '':
+            return jsonify({"error": "Tom filnavn"}), 400
+
+        # Validate phase
+        valid_phases = ['warmup', 'intense', 'cooldown']
+        if phase not in valid_phases:
+            return jsonify({"error": f"Ugyldig phase. Må være en av: {', '.join(valid_phases)}"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"Fil for stor. Maks størrelse: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Lagre filen midlertidig
+        filename = f"breath_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}")
+
+        # Analyser pusten
+        breath_data = analyze_breath(filepath)
+
+        # Få coach-respons (tekst)
+        coach_text = get_coach_response(breath_data, phase)
+
+        # Generer voice (mock for nå)
+        voice_file = generate_voice_mock(coach_text)
+
+        # Slett midlertidig inndata-fil
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        # Send tilbake voice-fil + metadata
+        response_data = {
+            "text": coach_text,
+            "breath_analysis": breath_data,
+            "audio_url": f"/download/{os.path.basename(voice_file)}",
+            "phase": phase
+        }
+
+        logger.info(f"Coach response: '{coach_text}' (intensitet: {breath_data['intensitet']})")
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error in coach endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Intern serverfeil"}), 500
 
 @app.route('/download/<filename>')
 def download(filename):
     """Last ned generert voice-fil"""
-    filepath = os.path.join(OUTPUT_FOLDER, filename)
-    if os.path.exists(filepath):
-        return send_file(filepath, mimetype='audio/mpeg')
-    return jsonify({"error": "Fil ikke funnet"}), 404
+    try:
+        # Security: Prevent directory traversal
+        if '..' in filename or '/' in filename:
+            logger.warning(f"Attempted directory traversal: {filename}")
+            return jsonify({"error": "Ugyldig filnavn"}), 400
+
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        if os.path.exists(filepath):
+            logger.info(f"Serving file: {filename}")
+            return send_file(filepath, mimetype='audio/mpeg')
+
+        logger.warning(f"File not found: {filename}")
+        return jsonify({"error": "Fil ikke funnet"}), 404
+
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}", exc_info=True)
+        return jsonify({"error": "Intern serverfeil"}), 500
+
+# ============================================
+# ERROR HANDLERS
+# ============================================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({"error": "Endepunkt ikke funnet"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {error}")
+    return jsonify({"error": "Intern serverfeil"}), 500
 
 # ============================================
 # START SERVER
@@ -314,4 +448,9 @@ def download(filename):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+    logger.info(f"Starting Treningscoach Backend v1.1.0")
+    logger.info(f"Port: {port}, Debug: {debug}")
+
+    app.run(host='0.0.0.0', port=port, debug=debug)
