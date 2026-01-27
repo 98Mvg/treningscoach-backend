@@ -9,6 +9,7 @@ import math
 import random
 import logging
 from datetime import datetime
+import config  # Import central configuration
 
 # Configure logging
 logging.basicConfig(
@@ -20,9 +21,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for iOS app
 
-# Configuration
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a'}
+# Configuration from config.py
+MAX_FILE_SIZE = config.MAX_FILE_SIZE
+ALLOWED_EXTENSIONS = config.ALLOWED_EXTENSIONS
 
 # Mapper for å lagre filer midlertidig
 UPLOAD_FOLDER = 'uploads'
@@ -152,45 +153,19 @@ def get_coach_response(breath_data, phase="intense"):
 
     # SIKKERHETSSJEKK FØRST
     if intensitet == "kritisk":
-        return "STOPP! Pust rolig. Du er trygg."
+        return random.choice(config.COACH_MESSAGES["kritisk"])
 
     # OPPVARMING
     if phase == "warmup":
-        return random.choice([
-            "Start rolig. Vi varmer opp.",
-            "Bra. Hold denne farten.",
-            "Rolig tempo. Fortsett."
-        ])
+        return random.choice(config.COACH_MESSAGES["warmup"])
 
     # NEDKJØLING
     if phase == "cooldown":
-        return random.choice([
-            "Ta ned farten.",
-            "Pust rolig.",
-            "Bra. Rolig ned."
-        ])
+        return random.choice(config.COACH_MESSAGES["cooldown"])
 
     # HARD TRENING
-    if intensitet == "rolig":
-        return random.choice([
-            "PUSH! Hardere!",
-            "Du klarer mer!",
-            "Raskere! Nå!"
-        ])
-
-    elif intensitet == "moderat":
-        return random.choice([
-            "Fortsett! Du har mer!",
-            "Ikke stopp! Fortsett!",
-            "Bra! Hold farten!"
-        ])
-
-    elif intensitet == "hard":
-        return random.choice([
-            "Ja! Hold ut! Ti til!",
-            "Bra! Fortsett!",
-            "Der ja! Fem sekunder!"
-        ])
+    if intensitet in config.COACH_MESSAGES["intense"]:
+        return random.choice(config.COACH_MESSAGES["intense"][intensitet])
 
     return "Fortsett!"
 
