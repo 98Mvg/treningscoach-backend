@@ -92,6 +92,15 @@ INTENSITY_THRESHOLDS = {
 }
 
 # ============================================
+# BRAIN ROUTER CONFIGURATION
+# ============================================
+# Choose which AI brain to use: "claude", "openai", "config"
+# - "claude": Uses Claude AI (requires ANTHROPIC_API_KEY)
+# - "openai": Uses OpenAI GPT (requires OPENAI_API_KEY)
+# - "config": Uses simple config-based messages (no AI, no API key needed)
+ACTIVE_BRAIN = "config"  # Default to config (no API needed)
+
+# ============================================
 # DEPLOYMENT
 # ============================================
 GITHUB_REPO = "https://github.com/98Mvg/treningscoach-backend"

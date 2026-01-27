@@ -10,6 +10,7 @@ import random
 import logging
 from datetime import datetime
 import config  # Import central configuration
+from brain_router import BrainRouter  # Import Brain Router
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +31,10 @@ UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+# Initialize Brain Router
+brain_router = BrainRouter()
+logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 
 # ============================================
 # HELPER FUNCTIONS
@@ -139,7 +144,10 @@ def default_analysis():
 
 def get_coach_response(breath_data, phase="intense"):
     """
-    Velger hva coachen skal si basert på pust-data
+    Velger hva coachen skal si basert på pust-data.
+
+    Now uses Brain Router to abstract AI provider selection.
+    The app doesn't know if this is Claude, OpenAI, or config - it just gets a response.
 
     Args:
         breath_data: Dictionary med stillhet, volum, tempo, intensitet
@@ -148,26 +156,7 @@ def get_coach_response(breath_data, phase="intense"):
     Returns:
         Tekst som coachen skal si
     """
-
-    intensitet = breath_data["intensitet"]
-
-    # SIKKERHETSSJEKK FØRST
-    if intensitet == "kritisk":
-        return random.choice(config.COACH_MESSAGES["kritisk"])
-
-    # OPPVARMING
-    if phase == "warmup":
-        return random.choice(config.COACH_MESSAGES["warmup"])
-
-    # NEDKJØLING
-    if phase == "cooldown":
-        return random.choice(config.COACH_MESSAGES["cooldown"])
-
-    # HARD TRENING
-    if intensitet in config.COACH_MESSAGES["intense"]:
-        return random.choice(config.COACH_MESSAGES["intense"][intensitet])
-
-    return "Fortsett!"
+    return brain_router.get_coaching_response(breath_data, phase)
 
 # ============================================
 # MOCK VOICE GENERATION (til du kobler PersonaPlex)
@@ -568,6 +557,70 @@ def download(filename):
 
     except Exception as e:
         logger.error(f"Error downloading file: {e}", exc_info=True)
+        return jsonify({"error": "Intern serverfeil"}), 500
+
+@app.route('/brain/health', methods=['GET'])
+def brain_health():
+    """
+    Check health of active brain.
+
+    Returns brain status and health information.
+    """
+    try:
+        health = brain_router.health_check()
+        logger.info(f"Brain health check: {health}")
+        return jsonify(health), 200 if health["healthy"] else 503
+
+    except Exception as e:
+        logger.error(f"Error checking brain health: {e}", exc_info=True)
+        return jsonify({
+            "active_brain": "unknown",
+            "healthy": False,
+            "message": str(e)
+        }), 500
+
+@app.route('/brain/switch', methods=['POST'])
+def switch_brain():
+    """
+    Switch to a different brain at runtime.
+
+    Request body:
+    {
+        "brain": "claude" | "openai" | "config"
+    }
+
+    Returns success status and new active brain.
+    """
+    try:
+        data = request.get_json()
+        if not data or 'brain' not in data:
+            return jsonify({"error": "Missing 'brain' parameter"}), 400
+
+        new_brain = data['brain']
+        valid_brains = ['claude', 'openai', 'config']
+
+        if new_brain not in valid_brains:
+            return jsonify({
+                "error": f"Invalid brain. Must be one of: {', '.join(valid_brains)}"
+            }), 400
+
+        success = brain_router.switch_brain(new_brain)
+
+        if success:
+            return jsonify({
+                "success": True,
+                "active_brain": brain_router.get_active_brain(),
+                "message": f"Switched to {new_brain}"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "active_brain": brain_router.get_active_brain(),
+                "message": f"Failed to switch to {new_brain}, stayed on current brain"
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error switching brain: {e}", exc_info=True)
         return jsonify({"error": "Intern serverfeil"}), 500
 
 # ============================================
