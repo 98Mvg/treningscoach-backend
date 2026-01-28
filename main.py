@@ -65,7 +65,7 @@ def analyze_breath(audio_file_path):
     - silence: How much silence there is (0-100%)
     - volume: How loud the breathing is (0-100)
     - tempo: How fast the breathing comes (breaths per minute)
-    - intensity: "calm", "moderatee", "intense", or "critical"
+    - intensity: "calm", "moderate", "intense", or "critical"
     """
 
     try:
@@ -119,7 +119,7 @@ def analyze_breath(audio_file_path):
             if volume_percent < 20 and silence_percent > 50:
                 intensity = "calm"
             elif volume_percent < 40 and tempo < 20:
-                intensity = "moderatee"
+                intensity = "moderate"
             elif volume_percent < 70 and tempo < 35:
                 intensity = "intense"
             else:
@@ -143,7 +143,7 @@ def default_analysis():
         "silence": 50.0,
         "volume": 30.0,
         "tempo": 15.0,
-        "intensity": "moderatee",
+        "intensity": "moderate",
         "duration": 2.0
     }
 
@@ -153,7 +153,7 @@ def default_analysis():
 
 def get_coach_response(breath_data, phase="intense", mode="chat"):
     """
-    Velger hva coachen skal si basert på pust-data.
+    Selects what the coach should say based on breathing data.
 
     Now uses Brain Router to abstract AI provider selection.
     The app doesn't know if this is Claude, OpenAI, or config - it just gets a response.
@@ -161,12 +161,12 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
     STEP 3: Supports switching between chat and realtime_coach modes.
 
     Args:
-        breath_data: Dictionary med stillhet, volum, tempo, intensity
-        phase: "warmup", "intense", eller "cooldown"
+        breath_data: Dictionary with silence, volume, tempo, intensity
+        phase: "warmup", "intense", or "cooldown"
         mode: "chat" (explanatory) or "realtime_coach" (fast, actionable)
 
     Returns:
-        Tekst som coachen skal si
+        Text that the coach should say
     """
     return brain_router.get_coaching_response(breath_data, phase, mode=mode)
 
@@ -176,14 +176,14 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 
 def generate_voice_mock(text):
     """
-    Lager en "fake" lydfil mens vi venter på PersonaPlex
-    I virkeligheten vil denne sende til PersonaPlex API
+    Creates a "fake" audio file while waiting for PersonaPlex
+    In reality this will send to PersonaPlex API
 
-    For nå: kopierer en eksisterende lydfil eller lager stille
+    For now: copies an existing audio file or creates silence
     """
     output_path = os.path.join(OUTPUT_FOLDER, f"coach_{datetime.now().timestamp()}.mp3")
 
-    # TODO: Senere skal dette være:
+    # TODO: Later this should be:
     # response = personaplex_api.generate_speech(text)
     # save_audio(response, output_path)
 
@@ -431,10 +431,10 @@ def health():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """
-    Mottar lydopptak fra app og analyserer pusten
+    Receives audio recording from app and analyzes breathing
 
-    App sender: MP3/WAV fil
-    Backend returnerer: JSON med puste-data
+    App sends: MP3/WAV file
+    Backend returns: JSON with breathing data
     """
     try:
         if 'audio' not in request.files:
@@ -454,17 +454,17 @@ def analyze():
         if file_size > MAX_FILE_SIZE:
             return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
 
-        # Lagre filen midlertidig
+        # Save file temporarily
         filename = f"breath_{datetime.now().timestamp()}.wav"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
         logger.info(f"Analyzing audio file: {filename} ({file_size} bytes)")
 
-        # Analyser pusten
+        # Analyze breathing
         breath_data = analyze_breath(filepath)
 
-        # Slett midlertidig fil
+        # Delete temporary file
         try:
             os.remove(filepath)
         except Exception as e:
@@ -480,15 +480,15 @@ def analyze():
 @app.route('/coach', methods=['POST'])
 def coach():
     """
-    Hovedendepunkt: Mottar lyd, analyserer, returnerer coach-voice
+    Main endpoint: Receives audio, analyzes, returns coach voice
 
-    App sender:
-    - audio: Lydfil
-    - phase: "warmup", "intense", eller "cooldown"
+    App sends:
+    - audio: Audio file
+    - phase: "warmup", "intense", or "cooldown"
     - mode: "chat" or "realtime_coach" (optional, default: "chat")
 
-    Backend returnerer:
-    - Coach voice som MP3
+    Backend returns:
+    - Coach voice as MP3
 
     STEP 3: Supports switching between chat brain and realtime_coach brain
     """
@@ -517,29 +517,29 @@ def coach():
         if file_size > MAX_FILE_SIZE:
             return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
 
-        # Lagre filen midlertidig
+        # Save file temporarily
         filename = f"breath_{datetime.now().timestamp()}.wav"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
         logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}, mode={mode}")
 
-        # Analyser pusten
+        # Analyze breathing
         breath_data = analyze_breath(filepath)
 
-        # Få coach-respons (tekst) - STEP 3: Pass mode to brain router
+        # Get coach response (text) - STEP 3: Pass mode to brain router
         coach_text = get_coach_response(breath_data, phase, mode=mode)
 
-        # Generer voice (mock for nå)
+        # Generate voice (mock for now)
         voice_file = generate_voice_mock(coach_text)
 
-        # Slett midlertidig inndata-fil
+        # Delete temporary input file
         try:
             os.remove(filepath)
         except Exception as e:
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
-        # Send tilbake voice-fil + metadata
+        # Send back voice file + metadata
         response_data = {
             "text": coach_text,
             "breath_analysis": breath_data,
