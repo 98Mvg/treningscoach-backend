@@ -14,6 +14,9 @@ import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
 from persona_manager import PersonaManager  # Import Persona Manager
+from coaching_intelligence import should_coach_speak, calculate_next_interval  # Import coaching intelligence
+from user_memory import UserMemory  # STEP 5: Import user memory
+from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +41,8 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 # Initialize Brain Router and Managers
 brain_router = BrainRouter()
 session_manager = SessionManager()
+user_memory = UserMemory()  # STEP 5: Initialize user memory
+voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 
 # ============================================
@@ -146,21 +151,24 @@ def default_analysis():
 # COACH-LOGIKK
 # ============================================
 
-def get_coach_response(breath_data, phase="intense"):
+def get_coach_response(breath_data, phase="intense", mode="chat"):
     """
     Velger hva coachen skal si basert på pust-data.
 
     Now uses Brain Router to abstract AI provider selection.
     The app doesn't know if this is Claude, OpenAI, or config - it just gets a response.
 
+    STEP 3: Supports switching between chat and realtime_coach modes.
+
     Args:
         breath_data: Dictionary med stillhet, volum, tempo, intensitet
         phase: "warmup", "intense", eller "cooldown"
+        mode: "chat" (explanatory) or "realtime_coach" (fast, actionable)
 
     Returns:
         Tekst som coachen skal si
     """
-    return brain_router.get_coaching_response(breath_data, phase)
+    return brain_router.get_coaching_response(breath_data, phase, mode=mode)
 
 # ============================================
 # MOCK VOICE GENERATION (til du kobler PersonaPlex)
@@ -477,9 +485,12 @@ def coach():
     App sender:
     - audio: Lydfil
     - phase: "warmup", "intense", eller "cooldown"
+    - mode: "chat" or "realtime_coach" (optional, default: "chat")
 
     Backend returnerer:
     - Coach voice som MP3
+
+    STEP 3: Supports switching between chat brain and realtime_coach brain
     """
     try:
         if 'audio' not in request.files:
@@ -488,6 +499,7 @@ def coach():
 
         audio_file = request.files['audio']
         phase = request.form.get('phase', 'intense')
+        mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
 
         if audio_file.filename == '':
             return jsonify({"error": "Tom filnavn"}), 400
@@ -510,13 +522,13 @@ def coach():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
-        logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}")
+        logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}, mode={mode}")
 
         # Analyser pusten
         breath_data = analyze_breath(filepath)
 
-        # Få coach-respons (tekst)
-        coach_text = get_coach_response(breath_data, phase)
+        # Få coach-respons (tekst) - STEP 3: Pass mode to brain router
+        coach_text = get_coach_response(breath_data, phase, mode=mode)
 
         # Generer voice (mock for nå)
         voice_file = generate_voice_mock(coach_text)
@@ -541,6 +553,221 @@ def coach():
     except Exception as e:
         logger.error(f"Error in coach endpoint: {e}", exc_info=True)
         return jsonify({"error": "Intern serverfeil"}), 500
+
+@app.route('/coach/continuous', methods=['POST'])
+def coach_continuous():
+    """
+    Continuous coaching endpoint - optimized for rapid coaching cycles.
+
+    Receives:
+    - audio: Audio chunk (6-10 seconds)
+    - session_id: Workout session identifier
+    - phase: Current workout phase ("warmup", "intense", "cooldown")
+    - last_coaching: Last coaching message (optional)
+    - elapsed_seconds: Total workout time (optional)
+
+    Returns:
+    - text: Coaching message
+    - should_speak: Boolean (whether coach should speak this cycle)
+    - breath_analysis: Breath metrics
+    - audio_url: Coach voice URL (if should_speak is true)
+    - wait_seconds: Optimal time before next tick
+    """
+    try:
+        if 'audio' not in request.files:
+            logger.warning("Continuous coach request missing audio file")
+            return jsonify({"error": "No audio file received"}), 400
+
+        audio_file = request.files['audio']
+        session_id = request.form.get('session_id')
+        phase = request.form.get('phase', 'intense')
+        last_coaching = request.form.get('last_coaching', '')
+        elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
+
+        if not session_id:
+            return jsonify({"error": "session_id is required"}), 400
+
+        if audio_file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+
+        # Validate phase
+        valid_phases = ['warmup', 'intense', 'cooldown']
+        if phase not in valid_phases:
+            return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"File too large. Max: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Save file temporarily
+        filename = f"continuous_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, elapsed={elapsed_seconds}s")
+
+        # Create session if doesn't exist
+        if not session_manager.session_exists(session_id):
+            # Extract user_id from session_id or use a default
+            try:
+                parts = session_id.replace("session_", "").split("_")
+                user_id = parts[0] if parts else "unknown"
+            except:
+                user_id = "unknown"
+
+            # Create session manually with the provided session_id
+            session_manager.sessions[session_id] = {
+                "session_id": session_id,
+                "user_id": user_id,
+                "persona": "fitness_coach",
+                "messages": [],
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "metadata": {}
+            }
+            logger.info(f"✅ Created session: {session_id}")
+            session_manager.init_workout_state(session_id, phase=phase)
+
+            # STEP 5: Inject user memory at session start (once)
+            memory_summary = user_memory.get_memory_summary(user_id)
+            logger.info(f"Memory: {memory_summary}")
+            session_manager.sessions[session_id]["metadata"]["memory"] = memory_summary
+
+        # Analyze breath
+        breath_data = analyze_breath(filepath)
+
+        # Get coaching context
+        coaching_context = session_manager.get_coaching_context(session_id)
+        last_breath = session_manager.get_last_breath_analysis(session_id)
+
+        # STEP 6: Check if coach should stay silent (optimal breathing)
+        should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
+            breath_data=breath_data,
+            phase=phase,
+            last_coaching=last_coaching,
+            elapsed_seconds=elapsed_seconds
+        )
+
+        if should_be_silent:
+            # Silence = confidence
+            logger.info(f"Voice intelligence: staying silent ({silence_reason})")
+            speak_decision = False
+            reason = silence_reason
+        else:
+            # Decide if coach should speak (STEP 1/2 logic)
+            speak_decision, reason = should_coach_speak(
+                current_analysis=breath_data,
+                last_analysis=last_breath,
+                coaching_history=coaching_context["coaching_history"],
+                phase=phase
+            )
+
+        logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
+
+        # STEP 4: Check if we should use pattern-based insight (hybrid mode)
+        pattern_insight = None
+        last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
+
+        if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
+            pattern_insight = brain_router.detect_pattern(
+                breath_history=coaching_context["breath_history"],
+                coaching_history=coaching_context["coaching_history"],
+                phase=phase
+            )
+
+            if pattern_insight:
+                logger.info(f"Pattern detected: {pattern_insight}")
+                # Update last pattern time
+                if workout_state:
+                    workout_state["last_pattern_time"] = elapsed_seconds
+
+        # Get coaching message (pattern insight overrides if available)
+        if pattern_insight and speak_decision:
+            coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
+            logger.info(f"Using pattern insight instead of config message")
+        else:
+            coach_text = get_coach_response_continuous(breath_data, phase)
+
+        # STEP 6: Add human variation to avoid robotic repetition
+        if speak_decision:
+            coach_text = voice_intelligence.add_human_variation(coach_text)
+
+        # Generate voice only if should speak
+        audio_url = None
+        if speak_decision:
+            voice_file = generate_voice_mock(coach_text)
+            audio_url = f"/download/{os.path.basename(voice_file)}"
+
+        # Update session state
+        session_manager.update_workout_state(
+            session_id=session_id,
+            breath_analysis=breath_data,
+            coaching_output=coach_text if speak_decision else None,
+            phase=phase,
+            elapsed_seconds=elapsed_seconds
+        )
+
+        # Calculate next interval
+        workout_state = session_manager.get_workout_state(session_id)
+        recent_coaching_count = len([c for c in coaching_context["coaching_history"] if c]) if coaching_context else 0
+        wait_seconds = calculate_next_interval(
+            phase=phase,
+            intensitet=breath_data.get("intensitet", "moderat"),
+            coaching_frequency=recent_coaching_count
+        )
+
+        # STEP 6: Increase wait time if coach is overtalking
+        if voice_intelligence.should_reduce_frequency(breath_data, coaching_context["coaching_history"]):
+            wait_seconds = min(15, wait_seconds + 3)  # Add 3 seconds, max 15s
+            logger.info(f"Voice intelligence: reducing frequency (new wait: {wait_seconds}s)")
+
+        # STEP 5: Update user memory if critical event occurred
+        if breath_data.get("intensitet") == "kritisk":
+            user_memory.mark_safety_event(user_id)
+            logger.info(f"Memory: marked critical breathing event for user {user_id}")
+
+        # Clean up temp file
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        # Response
+        response_data = {
+            "text": coach_text,
+            "should_speak": speak_decision,
+            "breath_analysis": breath_data,
+            "audio_url": audio_url,
+            "wait_seconds": wait_seconds,
+            "phase": phase,
+            "reason": reason  # For debugging
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error in continuous coaching endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def get_coach_response_continuous(breath_data, phase):
+    """
+    STEP 3: Get coaching message using REALTIME_COACH brain mode.
+
+    Uses BrainRouter with mode="realtime_coach" for fast, actionable cues.
+    Falls back to config messages if brain is disabled.
+    """
+    # STEP 3: Use realtime_coach brain mode (not chat mode)
+    return brain_router.get_coaching_response(
+        breath_data=breath_data,
+        phase=phase,
+        mode="realtime_coach"  # Product-defining: fast, actionable, no explanations
+    )
+
 
 @app.route('/download/<filename>')
 def download(filename):

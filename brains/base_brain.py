@@ -29,7 +29,7 @@ class BaseBrain(ABC):
         self.api_key = api_key
 
     # ============================================
-    # LEGACY: Breath Coaching Mode
+    # BREATH COACHING MODES
     # ============================================
 
     @abstractmethod
@@ -39,7 +39,9 @@ class BaseBrain(ABC):
         phase: str = "intense"
     ) -> str:
         """
-        Generate coaching response based on breath analysis data.
+        Generate coaching response based on breath analysis data (CHAT MODE).
+
+        This is the conversational, explanatory mode for educational coaching.
 
         Args:
             breath_data: Dictionary containing breath analysis metrics
@@ -51,6 +53,33 @@ class BaseBrain(ABC):
 
         Returns:
             String containing coaching message
+        """
+        pass
+
+    @abstractmethod
+    def get_realtime_coaching(
+        self,
+        breath_data: Dict[str, Any],
+        phase: str = "intense"
+    ) -> str:
+        """
+        Generate real-time coaching cue (REALTIME_COACH MODE).
+
+        STEP 3: This is the product-defining real-time coach brain.
+
+        Rules:
+        - Max 1 sentence per response
+        - No explanations
+        - No theory
+        - Actionable only
+        - Spoken language optimized
+
+        Args:
+            breath_data: Dictionary containing breath analysis metrics
+            phase: Current workout phase
+
+        Returns:
+            Short, actionable coaching cue (1 sentence max)
         """
         pass
 

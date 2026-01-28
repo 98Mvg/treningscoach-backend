@@ -177,3 +177,138 @@ class SessionManager:
         if session_id not in self.sessions:
             return "{}"
         return json.dumps(self.sessions[session_id], indent=2)
+
+    # ============================================
+    # CONTINUOUS COACHING STATE MANAGEMENT
+    # ============================================
+
+    def init_workout_state(self, session_id: str, phase: str = "warmup"):
+        """
+        Initialize workout state tracking for continuous coaching.
+
+        Args:
+            session_id: Session identifier
+            phase: Starting phase ("warmup", "intense", "cooldown")
+        """
+        if session_id not in self.sessions:
+            raise ValueError(f"Session {session_id} not found")
+
+        self.sessions[session_id]["workout_state"] = {
+            "current_phase": phase,
+            "breath_history": [],
+            "coaching_history": [],
+            "last_coaching_time": None,
+            "last_pattern_time": None,  # STEP 4: Track when last pattern insight was given
+            "elapsed_seconds": 0,
+            "workout_start": datetime.now().isoformat()
+        }
+
+    def update_workout_state(
+        self,
+        session_id: str,
+        breath_analysis: Optional[Dict] = None,
+        coaching_output: Optional[str] = None,
+        phase: Optional[str] = None,
+        elapsed_seconds: Optional[int] = None
+    ):
+        """
+        Update workout state with latest breath analysis and coaching.
+
+        Args:
+            session_id: Session identifier
+            breath_analysis: Latest breath metrics
+            coaching_output: Latest coaching message (if spoken)
+            phase: Updated workout phase
+            elapsed_seconds: Total workout time
+        """
+        if session_id not in self.sessions:
+            return
+
+        # Initialize if not exists
+        if "workout_state" not in self.sessions[session_id]:
+            self.init_workout_state(session_id)
+
+        workout_state = self.sessions[session_id]["workout_state"]
+
+        # Update breath history
+        if breath_analysis:
+            workout_state["breath_history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "intensitet": breath_analysis.get("intensitet", "unknown"),
+                "tempo": breath_analysis.get("tempo", 0),
+                "volum": breath_analysis.get("volum", 0),
+                "stillhet": breath_analysis.get("stillhet", 0)
+            })
+
+            # Keep only last 10 breath analyses
+            if len(workout_state["breath_history"]) > 10:
+                workout_state["breath_history"] = workout_state["breath_history"][-10:]
+
+        # Update coaching history
+        if coaching_output:
+            workout_state["coaching_history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "text": coaching_output
+            })
+            workout_state["last_coaching_time"] = datetime.now().isoformat()
+
+            # Keep only last 10 coaching messages
+            if len(workout_state["coaching_history"]) > 10:
+                workout_state["coaching_history"] = workout_state["coaching_history"][-10:]
+
+        # Update phase
+        if phase:
+            workout_state["current_phase"] = phase
+
+        # Update elapsed time
+        if elapsed_seconds is not None:
+            workout_state["elapsed_seconds"] = elapsed_seconds
+
+        self.sessions[session_id]["updated_at"] = datetime.now().isoformat()
+
+    def get_workout_state(self, session_id: str) -> Optional[Dict]:
+        """
+        Get current workout state for continuous coaching context.
+
+        Returns:
+            Workout state dict or None if not found
+        """
+        if session_id not in self.sessions:
+            return None
+
+        return self.sessions[session_id].get("workout_state")
+
+    def get_coaching_context(self, session_id: str) -> Dict:
+        """
+        Get coaching context for intelligence decisions.
+
+        Returns:
+            Dict with breath_history, coaching_history, and metadata
+        """
+        workout_state = self.get_workout_state(session_id)
+
+        if not workout_state:
+            return {
+                "breath_history": [],
+                "coaching_history": [],
+                "last_coaching_time": None,
+                "phase": "warmup",
+                "elapsed_seconds": 0
+            }
+
+        return {
+            "breath_history": workout_state.get("breath_history", []),
+            "coaching_history": workout_state.get("coaching_history", []),
+            "last_coaching_time": workout_state.get("last_coaching_time"),
+            "phase": workout_state.get("current_phase", "warmup"),
+            "elapsed_seconds": workout_state.get("elapsed_seconds", 0)
+        }
+
+    def get_last_breath_analysis(self, session_id: str) -> Optional[Dict]:
+        """Get the most recent breath analysis from workout state."""
+        workout_state = self.get_workout_state(session_id)
+
+        if not workout_state or not workout_state.get("breath_history"):
+            return None
+
+        return workout_state["breath_history"][-1]

@@ -100,6 +100,86 @@ INTENSITY_THRESHOLDS = {
 # - "config": Uses simple config-based messages (no AI, no API key needed)
 ACTIVE_BRAIN = "config"  # Default to config (no API needed)
 
+# STEP 4: Hybrid Brain Strategy
+# Use Claude for pattern detection, config for speed
+USE_HYBRID_BRAIN = True  # Enable intelligent fallback
+HYBRID_CLAUDE_FOR_PATTERNS = True  # Use Claude to detect trends over time
+HYBRID_CONFIG_FOR_SPEED = True  # Use config for fast, immediate cues
+
+# ============================================
+# CONTINUOUS COACHING SETTINGS
+# ============================================
+CONTINUOUS_COACHING_ENABLED = True
+DEFAULT_COACHING_INTERVAL = 8  # seconds between coaching ticks
+MIN_COACHING_INTERVAL = 6      # fastest interval
+MAX_COACHING_INTERVAL = 15     # slowest interval
+MIN_TIME_BETWEEN_COACHING = 20  # minimum seconds between spoken messages (prevent over-coaching)
+
+# STEP 2: Intensity-driven message bank with personality
+# Message characteristics:
+#   kritisk → FIRM, SAFETY-FIRST: 1-3 words, urgent tone
+#   rolig → REASSURING, CALM: 3-5 words, gentle encouragement
+#   moderat → GUIDING, ENCOURAGING: 2-4 words, supportive
+#   hard → ASSERTIVE, FOCUSED: 2-3 words, direct motivation
+CONTINUOUS_COACH_MESSAGES = {
+    # KRITISK - Firm, safety-first (1-3 words, URGENT)
+    "kritisk": [
+        "STOP!",
+        "Breathe slow!",
+        "Easy now!",
+        "Slow down!",
+        "Too hard!"
+    ],
+
+    # WARMUP - Reassuring, calm (3-5 words)
+    "warmup": [
+        "Easy pace, nice start.",
+        "Steady, good warmup.",
+        "Gentle, keep warming up.",
+        "Nice and easy.",
+        "Perfect warmup pace."
+    ],
+
+    # COOLDOWN - Reassuring, calm (3-5 words)
+    "cooldown": [
+        "Bring it down, easy now.",
+        "Slow breaths, good cooldown.",
+        "Ease off, nice work.",
+        "Almost done, slow it.",
+        "Perfect, keep slowing down."
+    ],
+
+    # INTENSE PHASE - Personality by intensity level
+    "intense": {
+        # ROLIG during intense - Reassuring but encouraging (3-5 words)
+        "rolig": [
+            "You can push harder!",
+            "More effort, you got this!",
+            "Speed up a bit!",
+            "Give me more power!",
+            "Let's pick up the pace!"
+        ],
+
+        # MODERAT during intense - Guiding, encouraging (2-4 words)
+        "moderat": [
+            "Keep going, good pace!",
+            "Stay with it!",
+            "Nice rhythm, maintain!",
+            "You got this!",
+            "Good work, keep steady!"
+        ],
+
+        # HARD during intense - Assertive, focused (2-3 words)
+        "hard": [
+            "Perfect! Hold it!",
+            "Yes! Strong!",
+            "Keep this!",
+            "Excellent work!",
+            "Ten more seconds!"
+        ]
+    }
+}
+
 # ============================================
 # DEPLOYMENT
 # ============================================

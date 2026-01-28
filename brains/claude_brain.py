@@ -32,8 +32,103 @@ class ClaudeBrain(BaseBrain):
         self.model = "claude-3-5-sonnet-20241022"
 
     # ============================================
-    # LEGACY: Breath Coaching Mode
+    # BREATH COACHING MODES
     # ============================================
+
+    def get_realtime_coaching(
+        self,
+        breath_data: Dict[str, Any],
+        phase: str = "intense"
+    ) -> str:
+        """
+        STEP 3: Real-Time Coach Brain - Fast, actionable, no explanations.
+
+        This is the product-defining mode for continuous workout coaching.
+
+        Rules:
+        - Max 1 sentence (5-10 words)
+        - No explanations, no theory
+        - Actionable commands only
+        - Spoken language optimized
+        """
+        intensitet = breath_data.get("intensitet", "moderat")
+
+        # Critical situations: use config message directly (fastest)
+        if intensitet == "kritisk":
+            return random.choice(config.CONTINUOUS_COACH_MESSAGES["kritisk"])
+
+        # Build ultra-minimal context for Claude
+        system_prompt = self._build_realtime_system_prompt(phase, intensitet)
+        user_message = f"{intensitet} breathing, {phase} phase. One action:"
+
+        try:
+            # Call Claude API with aggressive limits
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=30,  # Force brevity (was 150)
+                temperature=0.9,  # High creativity for variety
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": user_message}
+                ]
+            )
+
+            response = message.content[0].text.strip()
+
+            # Safety: truncate to first sentence if Claude ignores limits
+            if '.' in response:
+                response = response.split('.')[0] + '.'
+
+            return response
+
+        except Exception as e:
+            print(f"Claude real-time API error: {e}")
+            # Fallback to config messages (still fast)
+            return self._get_fallback_message(intensitet, phase)
+
+    def _build_realtime_system_prompt(self, phase: str, intensitet: str) -> str:
+        """Build system prompt for REALTIME COACH mode (STEP 3)."""
+
+        # Core identity: Real-time coach, not chat
+        prompt = """You are a REAL-TIME FITNESS COACH speaking during a live workout.
+
+CRITICAL RULES (this is not chat):
+- Output EXACTLY 1 sentence (max 10 words)
+- Zero explanations, zero theory, zero filler
+- Actionable commands ONLY
+- Spoken language (natural, direct)
+- No bullet points, no structure, no preamble
+
+WRONG (chat mode):
+"Great work! You're breathing hard, which shows you're pushing yourself. Keep maintaining this intensity for the next 30 seconds and remember to stay focused on your form."
+
+RIGHT (realtime_coach mode):
+"Perfect! Hold this pace!"
+
+Your response will be spoken aloud to someone mid-workout. Make it count."""
+
+        # Context-specific guidance
+        if phase == "warmup":
+            prompt += "\n\nPhase: WARMUP - Calm, encouraging, help them start gently."
+        elif phase == "cooldown":
+            prompt += "\n\nPhase: COOLDOWN - Soothing, help them wind down."
+        else:  # intense
+            if intensitet == "rolig":
+                prompt += "\n\nPhase: INTENSE - They're too calm. Push them to increase effort!"
+            elif intensitet == "moderat":
+                prompt += "\n\nPhase: INTENSE - Good pace. Keep them motivated!"
+            elif intensitet == "hard":
+                prompt += "\n\nPhase: INTENSE - They're going hard! Affirm and celebrate!"
+
+        # Add 2-3 style examples from config (STEP 2 messages)
+        if phase == "intense" and intensitet in config.CONTINUOUS_COACH_MESSAGES["intense"]:
+            examples = config.CONTINUOUS_COACH_MESSAGES["intense"][intensitet][:2]
+            prompt += f"\n\nStyle examples:\n" + "\n".join(f'- "{msg}"' for msg in examples)
+        elif phase in ["warmup", "cooldown"]:
+            examples = config.CONTINUOUS_COACH_MESSAGES.get(phase, [])[:2]
+            prompt += f"\n\nStyle examples:\n" + "\n".join(f'- "{msg}"' for msg in examples)
+
+        return prompt
 
     def get_coaching_response(
         self,
@@ -41,8 +136,9 @@ class ClaudeBrain(BaseBrain):
         phase: str = "intense"
     ) -> str:
         """
-        Generate coaching response using Claude.
+        Generate coaching response using Claude (CHAT MODE).
 
+        This is the conversational, explanatory mode for educational coaching.
         Uses the configured messages as guidance, but lets Claude add personality.
         """
         intensitet = breath_data.get("intensitet", "moderat")
