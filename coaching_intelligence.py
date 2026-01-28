@@ -17,7 +17,7 @@ def should_coach_speak(
     Determines whether the coach should speak based on breath analysis and context.
 
     Args:
-        current_analysis: Current breath analysis dict with intensitet, tempo, volum, etc.
+        current_analysis: Current breath analysis dict with intensity, tempo, volume, etc.
         last_analysis: Previous breath analysis (None if first tick)
         coaching_history: List of recent coaching outputs with timestamps
         phase: Current workout phase ("warmup", "intense", "cooldown")
@@ -26,12 +26,12 @@ def should_coach_speak(
         Tuple of (should_speak: bool, reason: str)
     """
 
-    intensitet = current_analysis.get("intensitet", "moderat")
+    intensity = current_analysis.get("intensity", "moderate")
     tempo = current_analysis.get("tempo", 0)
-    volum = current_analysis.get("volum", 0)
+    volume = current_analysis.get("volume", 0)
 
     # Rule 1: Always speak for critical breathing (safety override)
-    if intensitet == "kritisk":
+    if intensity == "critical":
         logger.info("Coach speaking: critical_breathing detected")
         return (True, "critical_breathing")
 
@@ -41,26 +41,26 @@ def should_coach_speak(
         return (True, "first_tick")
 
     # Rule 3: Check for significant changes
-    last_intensitet = last_analysis.get("intensitet", "moderat")
+    last_intensity = last_analysis.get("intensity", "moderate")
     last_tempo = last_analysis.get("tempo", 0)
 
-    intensity_changed = intensitet != last_intensitet
+    intensity_changed = intensity != last_intensity
     tempo_delta = abs(tempo - last_tempo)
     tempo_changed = tempo_delta > 5  # More than 5 breaths/min change
 
     # Rule 4: Skip if no significant change
     if not intensity_changed and not tempo_changed:
-        logger.debug(f"Coach silent: no_change (intensity={intensitet}, tempo={tempo})")
+        logger.debug(f"Coach silent: no_change (intensity={intensity}, tempo={tempo})")
         return (False, "no_change")
 
     # Rule 5: During intense phase, push if breathing is too calm
-    if phase == "intense" and intensitet == "rolig":
+    if phase == "intense" and intensity == "calm":
         logger.info("Coach speaking: push_harder (calm during intense)")
         return (True, "push_harder")
 
-    # Rule 6: During cooldown, remind to slow down if still breathing hard
-    if phase == "cooldown" and intensitet == "hard":
-        logger.info("Coach speaking: slow_down (hard during cooldown)")
+    # Rule 6: During cooldown, remind to slow down if still breathing intense
+    if phase == "cooldown" and intensity == "intense":
+        logger.info("Coach speaking: slow_down (intense during cooldown)")
         return (True, "slow_down")
 
     # Rule 7: Avoid over-coaching (don't speak more than once per 20 seconds)
@@ -83,7 +83,7 @@ def should_coach_speak(
 
     # Rule 8: Speak for any significant intensity or tempo change
     if intensity_changed or tempo_changed:
-        logger.info(f"Coach speaking: change detected (intensity: {last_intensitet}→{intensitet}, tempo Δ{tempo_delta})")
+        logger.info(f"Coach speaking: change detected (intensity: {last_intensity}→{intensity}, tempo Δ{tempo_delta})")
         return (True, "intensity_change")
 
     # Default: stay silent
@@ -92,21 +92,21 @@ def should_coach_speak(
 
 def calculate_next_interval(
     phase: str,
-    intensitet: str,
+    intensity: str,
     coaching_frequency: int = 0
 ) -> int:
     """
     Calculates the optimal wait time before next coaching tick.
 
     INTENSITY-DRIVEN FREQUENCY (STEP 2):
-    - kritisk: 5s (URGENT - safety-first, check frequently)
-    - hard: 6s (FOCUSED - assertive, frequent feedback)
-    - moderat: 8s (GUIDING - balanced, encouraging)
-    - rolig: 12s (REASSURING - calm, give space)
+    - critical: 5s (URGENT - safety-first, check frequently)
+    - intense: 6s (FOCUSED - assertive, frequent feedback)
+    - moderate: 8s (GUIDING - balanced, encouraging)
+    - calm: 12s (REASSURING - calm, give space)
 
     Args:
         phase: Current workout phase
-        intensitet: Current breathing intensity
+        intensity: Current breathing intensity
         coaching_frequency: How many times coached in last minute (for throttling)
 
     Returns:
@@ -115,13 +115,13 @@ def calculate_next_interval(
 
     # Intensity-driven intervals (CRITICAL: shorter, CALM: longer)
     intensity_intervals = {
-        "kritisk": 5,    # URGENT - check every 5 seconds for safety
-        "hard": 6,       # FOCUSED - frequent feedback
-        "moderat": 8,    # GUIDING - balanced pacing
-        "rolig": 12      # REASSURING - give space, don't over-coach
+        "critical": 5,    # URGENT - check every 5 seconds for safety
+        "intense": 6,     # FOCUSED - frequent feedback
+        "moderate": 8,    # GUIDING - balanced pacing
+        "calm": 12        # REASSURING - give space, don't over-coach
     }
 
-    base_interval = intensity_intervals.get(intensitet, 8)
+    base_interval = intensity_intervals.get(intensity, 8)
 
     # Phase adjustments (subtle modifiers)
     phase_modifiers = {
@@ -133,7 +133,7 @@ def calculate_next_interval(
     modifier = phase_modifiers.get(phase, 0)
 
     # Critical breathing overrides phase modifiers (always fast)
-    if intensitet == "kritisk":
+    if intensity == "critical":
         return 5  # Safety-first, ignore phase
 
     # Apply phase modifier
@@ -169,7 +169,7 @@ def get_coaching_context_summary(
     # Recent breath trend
     if len(breath_history) >= 2:
         recent = breath_history[-max_history:]
-        intensities = [b.get("intensitet", "unknown") for b in recent]
+        intensities = [b.get("intensity", "unknown") for b in recent]
         trend = " → ".join(intensities[-3:])  # Last 3
         context_parts.append(f"Breath trend: {trend}")
 
@@ -182,8 +182,8 @@ def get_coaching_context_summary(
 
     # Workout progression
     if breath_history:
-        first_intensity = breath_history[0].get("intensitet", "unknown")
-        current_intensity = breath_history[-1].get("intensitet", "unknown")
+        first_intensity = breath_history[0].get("intensity", "unknown")
+        current_intensity = breath_history[-1].get("intensity", "unknown")
         if first_intensity != current_intensity:
             context_parts.append(f"Progressed from {first_intensity} to {current_intensity}")
 

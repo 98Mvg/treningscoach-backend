@@ -37,7 +37,7 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # COACH MESSAGES (English for live conversations)
 # ============================================
 COACH_MESSAGES = {
-    "kritisk": ["STOP! Breathe slowly. You're safe."],
+    "critical": ["STOP! Breathe slowly. You're safe."],
 
     "warmup": [
         "Easy start. Warming up.",
@@ -52,17 +52,17 @@ COACH_MESSAGES = {
     ],
 
     "intense": {
-        "rolig": [
+        "calm": [
             "PUSH! Harder!",
             "You got more!",
             "Faster! NOW!"
         ],
-        "moderat": [
+        "moderate": [
             "Keep going! Don't stop!",
             "You have more in you!",
             "Good! Hold the pace!"
         ],
-        "hard": [
+        "intense": [
             "YES! Hold on! Ten more!",
             "Perfect! Keep it up!",
             "There it is! Five seconds!"
@@ -85,10 +85,10 @@ VOLUME_AMPLIFICATION = 10  # How much to amplify volume readings
 
 # Intensity classification thresholds
 INTENSITY_THRESHOLDS = {
-    "rolig": {"max_volume": 20, "min_silence": 50},
-    "moderat": {"max_volume": 40, "max_tempo": 20},
-    "hard": {"max_volume": 70, "max_tempo": 35},
-    # Above these = kritisk
+    "calm": {"max_volume": 20, "min_silence": 50},
+    "moderate": {"max_volume": 40, "max_tempo": 20},
+    "intense": {"max_volume": 70, "max_tempo": 35},
+    # Above these = critical
 }
 
 # ============================================
@@ -117,13 +117,13 @@ MIN_TIME_BETWEEN_COACHING = 20  # minimum seconds between spoken messages (preve
 
 # STEP 2: Intensity-driven message bank with personality
 # Message characteristics:
-#   kritisk → FIRM, SAFETY-FIRST: 1-3 words, urgent tone
-#   rolig → REASSURING, CALM: 3-5 words, gentle encouragement
-#   moderat → GUIDING, ENCOURAGING: 2-4 words, supportive
-#   hard → ASSERTIVE, FOCUSED: 2-3 words, direct motivation
+#   critical → FIRM, SAFETY-FIRST: 1-3 words, urgent tone
+#   calm → REASSURING, CALM: 3-5 words, gentle encouragement
+#   moderate → GUIDING, ENCOURAGING: 2-4 words, supportive
+#   intense → ASSERTIVE, FOCUSED: 2-3 words, direct motivation
 CONTINUOUS_COACH_MESSAGES = {
-    # KRITISK - Firm, safety-first (1-3 words, URGENT)
-    "kritisk": [
+    # CRITICAL - Firm, safety-first (1-3 words, URGENT)
+    "critical": [
         "STOP!",
         "Breathe slow!",
         "Easy now!",
@@ -151,8 +151,8 @@ CONTINUOUS_COACH_MESSAGES = {
 
     # INTENSE PHASE - Personality by intensity level
     "intense": {
-        # ROLIG during intense - Reassuring but encouraging (3-5 words)
-        "rolig": [
+        # CALM during intense - Reassuring but encouraging (3-5 words)
+        "calm": [
             "You can push harder!",
             "More effort, you got this!",
             "Speed up a bit!",
@@ -160,8 +160,8 @@ CONTINUOUS_COACH_MESSAGES = {
             "Let's pick up the pace!"
         ],
 
-        # MODERAT during intense - Guiding, encouraging (2-4 words)
-        "moderat": [
+        # MODERATE during intense - Guiding, encouraging (2-4 words)
+        "moderate": [
             "Keep going, good pace!",
             "Stay with it!",
             "Nice rhythm, maintain!",
@@ -169,8 +169,8 @@ CONTINUOUS_COACH_MESSAGES = {
             "Good work, keep steady!"
         ],
 
-        # HARD during intense - Assertive, focused (2-3 words)
-        "hard": [
+        # INTENSE during intense - Assertive, focused (2-3 words)
+        "intense": [
             "Perfect! Hold it!",
             "Yes! Strong!",
             "Keep this!",

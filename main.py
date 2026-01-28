@@ -1,4 +1,4 @@
-# main.py - HOVEDFIL FOR TRENINGSCOACH BACKEND
+# main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
 
 from flask import Flask, request, send_file, jsonify, Response, stream_with_context
 from flask_cors import CORS
@@ -32,7 +32,7 @@ CORS(app)  # Enable CORS for iOS app
 MAX_FILE_SIZE = config.MAX_FILE_SIZE
 ALLOWED_EXTENSIONS = config.ALLOWED_EXTENSIONS
 
-# Mapper for å lagre filer midlertidig
+# Folders for temporary file storage
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -54,36 +54,36 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ============================================
-# PUSTE-ANALYSE (ENKEL VERSJON)
+# BREATH ANALYSIS (SIMPLE VERSION)
 # ============================================
 
 def analyze_breath(audio_file_path):
     """
-    Analyserer lydopptak og returnerer puste-intensitet
+    Analyzes audio recording and returns breathing intensity
 
-    Returnerer:
-    - stillhet: Hvor mye stille pause det er (0-100%)
-    - volum: Hvor høyt pusten er (0-100)
-    - tempo: Hvor raskt pusten kommer (pust per minutt)
-    - intensitet: "rolig", "moderat", "hard", eller "kritisk"
+    Returns:
+    - silence: How much silence there is (0-100%)
+    - volume: How loud the breathing is (0-100)
+    - tempo: How fast the breathing comes (breaths per minute)
+    - intensity: "calm", "moderatee", "intense", or "critical"
     """
 
     try:
-        # Åpner lydfilen
+        # Open audio file
         with wave.open(audio_file_path, 'rb') as wav_file:
-            # Henter ut informasjon
+            # Extract information
             frames = wav_file.readframes(wav_file.getnframes())
             sample_rate = wav_file.getframerate()
             num_channels = wav_file.getnchannels()
             sample_width = wav_file.getsampwidth()
             duration = wav_file.getnframes() / float(sample_rate)
 
-            # Beregn gjennomsnittlig volum (forenklet)
-            # Vi konverterer bytes til tall og finner gjennomsnitt
+            # Calculate average volume (simplified)
+            # Convert bytes to numbers and find average
             samples = []
             for i in range(0, len(frames), sample_width * num_channels):
                 if i + sample_width <= len(frames):
-                    # Les sample (forenklet - tar bare første kanal)
+                    # Read sample (simplified - only first channel)
                     sample = int.from_bytes(
                         frames[i:i+sample_width],
                         byteorder='little',
@@ -94,57 +94,57 @@ def analyze_breath(audio_file_path):
             if not samples:
                 return default_analysis()
 
-            # Beregn gjennomsnittlig volum (normalisert 0-100)
+            # Calculate average volume (normalized 0-100)
             avg_volume = sum(samples) / len(samples)
             max_possible = (2 ** (sample_width * 8 - 1)) - 1
-            volume_percent = min(100, (avg_volume / max_possible) * 100 * 10)  # Forsterket
+            volume_percent = min(100, (avg_volume / max_possible) * 100 * 10)  # Amplified
 
-            # Estimér stillhet basert på hvor mange samples er under en terskel
-            silence_threshold = max_possible * 0.01  # 1% av max
+            # Estimate silence based on how many samples are under a threshold
+            silence_threshold = max_possible * 0.01  # 1% of max
             silent_samples = sum(1 for s in samples if s < silence_threshold)
             silence_percent = (silent_samples / len(samples)) * 100
 
-            # Estimér tempo (forenklet - basert på variasjon i volum)
-            # Flere volum-endringer = raskere pust
+            # Estimate tempo (simplified - based on volume variation)
+            # More volume changes = faster breathing
             changes = 0
             threshold = max_possible * 0.05
             for i in range(1, len(samples)):
                 if abs(samples[i] - samples[i-1]) > threshold:
                     changes += 1
 
-            # Konverter til "pust per minutt" (estimat)
-            tempo = min(60, (changes / duration) * 60 / 10)  # Justert
+            # Convert to "breaths per minute" (estimate)
+            tempo = min(60, (changes / duration) * 60 / 10)  # Adjusted
 
-            # Bestem intensitet
+            # Determine intensity
             if volume_percent < 20 and silence_percent > 50:
-                intensitet = "rolig"
+                intensity = "calm"
             elif volume_percent < 40 and tempo < 20:
-                intensitet = "moderat"
+                intensity = "moderatee"
             elif volume_percent < 70 and tempo < 35:
-                intensitet = "hard"
+                intensity = "intense"
             else:
-                intensitet = "kritisk"
+                intensity = "critical"
 
             return {
-                "stillhet": round(silence_percent, 1),
-                "volum": round(volume_percent, 1),
+                "silence": round(silence_percent, 1),
+                "volume": round(volume_percent, 1),
                 "tempo": round(tempo, 1),
-                "intensitet": intensitet,
-                "varighet": round(duration, 2)
+                "intensity": intensity,
+                "duration": round(duration, 2)
             }
 
     except Exception as e:
-        logger.error(f"Feil ved analyse: {e}", exc_info=True)
+        logger.error(f"Error during analysis: {e}", exc_info=True)
         return default_analysis()
 
 def default_analysis():
-    """Returner standard-analyse hvis noe går galt"""
+    """Return default analysis if something goes wrong"""
     return {
-        "stillhet": 50.0,
-        "volum": 30.0,
+        "silence": 50.0,
+        "volume": 30.0,
         "tempo": 15.0,
-        "intensitet": "moderat",
-        "varighet": 2.0
+        "intensity": "moderatee",
+        "duration": 2.0
     }
 
 # ============================================
@@ -161,7 +161,7 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
     STEP 3: Supports switching between chat and realtime_coach modes.
 
     Args:
-        breath_data: Dictionary med stillhet, volum, tempo, intensitet
+        breath_data: Dictionary med stillhet, volum, tempo, intensity
         phase: "warmup", "intense", eller "cooldown"
         mode: "chat" (explanatory) or "realtime_coach" (fast, actionable)
 
@@ -187,10 +187,10 @@ def generate_voice_mock(text):
     # response = personaplex_api.generate_speech(text)
     # save_audio(response, output_path)
 
-    # For nå: Lag en placeholder-fil
-    # Du kan legge inn noen ferdiginnspilte coach-lydklipp her
+    # For now: Create a placeholder file
+    # You can add pre-recorded coach audio clips here
     with open(output_path, 'wb') as f:
-        f.write(b'')  # Tom fil (placeholder)
+        f.write(b'')  # Empty file (placeholder)
 
     return output_path
 
@@ -439,12 +439,12 @@ def analyze():
     try:
         if 'audio' not in request.files:
             logger.warning("Analyze request missing audio file")
-            return jsonify({"error": "Ingen lydfil mottatt"}), 400
+            return jsonify({"error": "No audio file received"}), 400
 
         audio_file = request.files['audio']
 
         if audio_file.filename == '':
-            return jsonify({"error": "Tom filnavn"}), 400
+            return jsonify({"error": "Empty filename"}), 400
 
         # Validate file size
         audio_file.seek(0, os.SEEK_END)
@@ -452,7 +452,7 @@ def analyze():
         audio_file.seek(0)
 
         if file_size > MAX_FILE_SIZE:
-            return jsonify({"error": f"Fil for stor. Maks størrelse: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+            return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
 
         # Lagre filen midlertidig
         filename = f"breath_{datetime.now().timestamp()}.wav"
@@ -470,12 +470,12 @@ def analyze():
         except Exception as e:
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
-        logger.info(f"Analysis complete: {breath_data['intensitet']}")
+        logger.info(f"Analysis complete: {breath_data['intensity']}")
         return jsonify(breath_data)
 
     except Exception as e:
         logger.error(f"Error in analyze endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Intern serverfeil"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/coach', methods=['POST'])
 def coach():
@@ -495,19 +495,19 @@ def coach():
     try:
         if 'audio' not in request.files:
             logger.warning("Coach request missing audio file")
-            return jsonify({"error": "Ingen lydfil mottatt"}), 400
+            return jsonify({"error": "No audio file received"}), 400
 
         audio_file = request.files['audio']
         phase = request.form.get('phase', 'intense')
         mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
 
         if audio_file.filename == '':
-            return jsonify({"error": "Tom filnavn"}), 400
+            return jsonify({"error": "Empty filename"}), 400
 
         # Validate phase
         valid_phases = ['warmup', 'intense', 'cooldown']
         if phase not in valid_phases:
-            return jsonify({"error": f"Ugyldig phase. Må være en av: {', '.join(valid_phases)}"}), 400
+            return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
 
         # Validate file size
         audio_file.seek(0, os.SEEK_END)
@@ -515,7 +515,7 @@ def coach():
         audio_file.seek(0)
 
         if file_size > MAX_FILE_SIZE:
-            return jsonify({"error": f"Fil for stor. Maks størrelse: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+            return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
 
         # Lagre filen midlertidig
         filename = f"breath_{datetime.now().timestamp()}.wav"
@@ -547,12 +547,12 @@ def coach():
             "phase": phase
         }
 
-        logger.info(f"Coach response: '{coach_text}' (intensitet: {breath_data['intensitet']})")
+        logger.info(f"Coach response: '{coach_text}' (intensity: {breath_data['intensity']})")
         return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Error in coach endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Intern serverfeil"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/coach/continuous', methods=['POST'])
 def coach_continuous():
@@ -716,7 +716,7 @@ def coach_continuous():
         recent_coaching_count = len([c for c in coaching_context["coaching_history"] if c]) if coaching_context else 0
         wait_seconds = calculate_next_interval(
             phase=phase,
-            intensitet=breath_data.get("intensitet", "moderat"),
+            intensity=breath_data.get("intensity", "moderate"),
             coaching_frequency=recent_coaching_count
         )
 
@@ -726,7 +726,7 @@ def coach_continuous():
             logger.info(f"Voice intelligence: reducing frequency (new wait: {wait_seconds}s)")
 
         # STEP 5: Update user memory if critical event occurred
-        if breath_data.get("intensitet") == "kritisk":
+        if breath_data.get("intensity") == "critical":
             user_memory.mark_safety_event(user_id)
             logger.info(f"Memory: marked critical breathing event for user {user_id}")
 
@@ -771,12 +771,12 @@ def get_coach_response_continuous(breath_data, phase):
 
 @app.route('/download/<filename>')
 def download(filename):
-    """Last ned generert voice-fil"""
+    """Download generated voice file"""
     try:
         # Security: Prevent directory traversal
         if '..' in filename or '/' in filename:
             logger.warning(f"Attempted directory traversal: {filename}")
-            return jsonify({"error": "Ugyldig filnavn"}), 400
+            return jsonify({"error": "Invalid filename"}), 400
 
         filepath = os.path.join(OUTPUT_FOLDER, filename)
         if os.path.exists(filepath):
@@ -784,11 +784,11 @@ def download(filename):
             return send_file(filepath, mimetype='audio/mpeg')
 
         logger.warning(f"File not found: {filename}")
-        return jsonify({"error": "Fil ikke funnet"}), 404
+        return jsonify({"error": "File not found"}), 404
 
     except Exception as e:
         logger.error(f"Error downloading file: {e}", exc_info=True)
-        return jsonify({"error": "Intern serverfeil"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/brain/health', methods=['GET'])
 def brain_health():
@@ -852,7 +852,7 @@ def switch_brain():
 
     except Exception as e:
         logger.error(f"Error switching brain: {e}", exc_info=True)
-        return jsonify({"error": "Intern serverfeil"}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 # ============================================
 # STREAMING CHAT ENDPOINTS
@@ -965,7 +965,7 @@ def chat_stream():
                     else:
                         # Fallback for non-streaming brains
                         response = brain_router.get_coaching_response(
-                            {"intensitet": "moderat", "volume": 50, "tempo": 20},
+                            {"intensity": "moderate", "volume": 50, "tempo": 20},
                             "intense"
                         )
                         full_response = response
@@ -1055,7 +1055,7 @@ def chat_message():
         else:
             # Fallback to config brain
             response = brain_router.get_coaching_response(
-                {"intensitet": "moderat", "volume": 50, "tempo": 20},
+                {"intensity": "moderate", "volume": 50, "tempo": 20},
                 "intense"
             )
 
@@ -1145,13 +1145,13 @@ def list_personas():
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
-    return jsonify({"error": "Endepunkt ikke funnet"}), 404
+    return jsonify({"error": "Endpoint not found"}), 404
 
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"Internal server error: {error}")
-    return jsonify({"error": "Intern serverfeil"}), 500
+    return jsonify({"error": "Internal server error"}), 500
 
 # ============================================
 # START SERVER
