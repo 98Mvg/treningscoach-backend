@@ -35,7 +35,7 @@ ALLOWED_EXTENSIONS = config.ALLOWED_EXTENSIONS
 
 # Folders for temporary file storage
 UPLOAD_FOLDER = 'uploads'
-OUTPUT_FOLDER = 'outputs'
+OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), 'output')  # Match tts_service.py
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -543,10 +543,12 @@ def coach():
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
         # Send back voice file + metadata
+        # Convert absolute path to relative path from OUTPUT_FOLDER
+        relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         response_data = {
             "text": coach_text,
             "breath_analysis": breath_data,
-            "audio_url": f"/download/{os.path.basename(voice_file)}",
+            "audio_url": f"/download/{relative_path}",
             "phase": phase
         }
 
@@ -640,36 +642,52 @@ def coach_continuous():
             logger.info(f"Memory: {memory_summary}")
             session_manager.sessions[session_id]["metadata"]["memory"] = memory_summary
 
+            # Mark that this is the first breath of the workout
+            workout_state = session_manager.get_workout_state(session_id)
+            workout_state["is_first_breath"] = True
+
         # Analyze breath
         breath_data = analyze_breath(filepath)
 
-        # Get coaching context
+        # Get coaching context and workout state
         coaching_context = session_manager.get_coaching_context(session_id)
         last_breath = session_manager.get_last_breath_analysis(session_id)
+        workout_state = session_manager.get_workout_state(session_id)
 
-        # STEP 6: Check if coach should stay silent (optimal breathing)
-        should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
-            breath_data=breath_data,
-            phase=phase,
-            last_coaching=last_coaching,
-            elapsed_seconds=elapsed_seconds
-        )
+        # Check if this is the very first breath (welcome message)
+        is_first_breath = workout_state.get("is_first_breath", False)
 
-        if should_be_silent:
-            # Silence = confidence
-            logger.info(f"Voice intelligence: staying silent ({silence_reason})")
-            speak_decision = False
-            reason = silence_reason
+        if is_first_breath:
+            # Always speak on first breath to welcome the user
+            speak_decision = True
+            reason = "welcome_message"
+            workout_state["is_first_breath"] = False  # Clear flag
+            workout_state["use_welcome_phrase"] = True  # Flag to use specific cached phrase
+            logger.info(f"First breath detected - will provide welcome message")
         else:
-            # Decide if coach should speak (STEP 1/2 logic)
-            speak_decision, reason = should_coach_speak(
-                current_analysis=breath_data,
-                last_analysis=last_breath,
-                coaching_history=coaching_context["coaching_history"],
-                phase=phase
+            # STEP 6: Check if coach should stay silent (optimal breathing)
+            should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
+                breath_data=breath_data,
+                phase=phase,
+                last_coaching=last_coaching,
+                elapsed_seconds=elapsed_seconds
             )
 
-        logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
+            if should_be_silent:
+                # Silence = confidence
+                logger.info(f"Voice intelligence: staying silent ({silence_reason})")
+                speak_decision = False
+                reason = silence_reason
+            else:
+                # Decide if coach should speak (STEP 1/2 logic)
+                speak_decision, reason = should_coach_speak(
+                    current_analysis=breath_data,
+                    last_analysis=last_breath,
+                    coaching_history=coaching_context["coaching_history"],
+                    phase=phase
+                )
+
+            logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
 
         # STEP 4: Check if we should use pattern-based insight (hybrid mode)
         pattern_insight = None
@@ -689,21 +707,29 @@ def coach_continuous():
                     workout_state["last_pattern_time"] = elapsed_seconds
 
         # Get coaching message (pattern insight overrides if available)
-        if pattern_insight and speak_decision:
+        use_welcome = workout_state.get("use_welcome_phrase", False)
+        if use_welcome:
+            # Use a specific cached phrase for instant welcome
+            coach_text = "Perfect."  # This phrase is cached (from pregenerate list)
+            workout_state["use_welcome_phrase"] = False  # Clear flag
+            logger.info(f"Using cached welcome phrase: {coach_text}")
+        elif pattern_insight and speak_decision:
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
             logger.info(f"Using pattern insight instead of config message")
         else:
             coach_text = get_coach_response_continuous(breath_data, phase)
 
-        # STEP 6: Add human variation to avoid robotic repetition
-        if speak_decision:
+        # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
+        if speak_decision and not use_welcome:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
         # Generate voice only if should speak
         audio_url = None
         if speak_decision:
             voice_file = generate_voice(coach_text)
-            audio_url = f"/download/{os.path.basename(voice_file)}"
+            # Convert absolute path to relative path from OUTPUT_FOLDER
+            relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
+            audio_url = f"/download/{relative_path}"
 
         # Update session state
         session_manager.update_workout_state(
@@ -715,7 +741,6 @@ def coach_continuous():
         )
 
         # Calculate next interval
-        workout_state = session_manager.get_workout_state(session_id)
         recent_coaching_count = len([c for c in coaching_context["coaching_history"] if c]) if coaching_context else 0
         wait_seconds = calculate_next_interval(
             phase=phase,
@@ -772,19 +797,23 @@ def get_coach_response_continuous(breath_data, phase):
     )
 
 
-@app.route('/download/<filename>')
+@app.route('/download/<path:filename>')
 def download(filename):
     """Download generated voice file"""
     try:
-        # Security: Prevent directory traversal
-        if '..' in filename or '/' in filename:
+        # Security: Prevent directory traversal (but allow cache/ subdirectory)
+        if '..' in filename:
             logger.warning(f"Attempted directory traversal: {filename}")
             return jsonify({"error": "Invalid filename"}), 400
 
+        # Support both direct files and cache/ subdirectory
         filepath = os.path.join(OUTPUT_FOLDER, filename)
+
         if os.path.exists(filepath):
             logger.info(f"Serving file: {filename}")
-            return send_file(filepath, mimetype='audio/mpeg')
+            # Determine mimetype based on file extension
+            mimetype = 'audio/wav' if filename.endswith('.wav') else 'audio/mpeg'
+            return send_file(filepath, mimetype=mimetype)
 
         logger.warning(f"File not found: {filename}")
         return jsonify({"error": "File not found"}), 404

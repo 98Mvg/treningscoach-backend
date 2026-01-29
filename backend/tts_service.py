@@ -66,16 +66,20 @@ def initialize_tts():
 
             logger.info(f"Loading Qwen3-TTS model from {model_name}...")
 
-            # Determine device
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            dtype = torch.bfloat16 if device == "cuda" else torch.float32
+            # Determine device (use CPU for stability on limited RAM)
+            # Note: MPS would require 7+ GB VRAM, so we use CPU with optimizations
+            device = "cpu"
+            dtype = torch.float32
+            logger.info("💻 Using CPU (optimized for stability)")
 
             # Load model using from_pretrained (HuggingFace-style)
+            # Use low_cpu_mem_usage to reduce peak memory consumption
             _TTS_MODEL = Qwen3TTSModel.from_pretrained(
                 model_name,
                 device_map=device,
                 torch_dtype=dtype,
-                trust_remote_code=True
+                trust_remote_code=True,
+                low_cpu_mem_usage=True
             )
 
             logger.info(f"✅ Qwen3-TTS model loaded on {device}")

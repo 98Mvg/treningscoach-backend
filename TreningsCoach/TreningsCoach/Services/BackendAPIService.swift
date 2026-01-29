@@ -12,7 +12,7 @@ class BackendAPIService {
 
     static let shared = BackendAPIService()
 
-    private let baseURL = "https://treningscoach-backend.onrender.com"
+    private let baseURL = AppConfig.backendURL
     private let session: URLSession
 
     private init() {
