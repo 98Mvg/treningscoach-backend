@@ -34,38 +34,75 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # After INTENSE_DURATION = cooldown
 
 # ============================================
+# WELCOME MESSAGES (Gym Companion - Martin Sundby Style)
+# ============================================
+# Spoken once at workout start (before first breath)
+# Purpose: Acknowledge start, set expectations, establish rhythm
+# Tone: Calm, authoritative, friendly
+WELCOME_MESSAGES = {
+    "standard": [
+        "Welcome. Let's start slow. Find your rhythm.",
+        "Good. Breathe in, and out. Settle your shoulders.",
+        "Steady now. Don't rush. Warmup first, intensity later.",
+        "Easy does it. Focus on breathing, not speed.",
+        "Alright, lungs and legs. Let's get them talking."
+    ],
+
+    "beginner_friendly": [
+        "Hi there. Let's start easy and find your rhythm.",
+        "Ready to move? Let's warm up gently.",
+        "Time to begin. Focus on your breathing and ease into it.",
+        "Hello. Start slow and steady. We'll build from here.",
+        "You made it. Let's start easy and feel your body wake up."
+    ],
+
+    "breath_aware": [
+        "Find your breath. Relax your shoulders. Warmup begins.",
+        "Focus on calm breathing. Let's ease into the session.",
+        "Listen to your body, breathe steadily, and start gently.",
+        "Check your rhythm. Warmup is on, take it easy."
+    ]
+}
+
+# ============================================
 # COACH MESSAGES (English for live conversations)
 # ============================================
 COACH_MESSAGES = {
     "critical": ["STOP! Breathe slowly. You're safe."],
 
     "warmup": [
-        "Easy start. Warming up.",
-        "Good. Keep this pace.",
-        "Steady tempo. Continue."
+        "Welcome. Let's start slow. Find your rhythm.",
+        "Good. Breathe in, and out. Settle your shoulders.",
+        "Steady now. Don't rush. Warmup first, intensity later.",
+        "Easy does it. Focus on breathing, not speed."
     ],
 
     "cooldown": [
-        "Bring it down.",
-        "Breathe easy.",
-        "Good. Nice and easy."
+        "Well done. Let the breath settle. You earned it.",
+        "Relax. Slow it down. Shoulder and chest relaxed.",
+        "Good session. Keep calm and controlled.",
+        "Steady breathing. That's how we finish strong.",
+        "Nice work. You controlled your effort well."
     ],
 
     "intense": {
         "calm": [
+            "Maintain control. Pace yourself. Don't overdo it.",
+            "Good. Keep that rhythm. Slightly faster, not frantic.",
             "PUSH! Harder!",
-            "You got more!",
-            "Faster! NOW!"
+            "You got more!"
         ],
         "moderate": [
+            "Good. Keep that rhythm. Slightly faster, not frantic.",
+            "Steady arms, steady breath. That's it.",
             "Keep going! Don't stop!",
-            "You have more in you!",
             "Good! Hold the pace!"
         ],
         "intense": [
-            "YES! Hold on! Ten more!",
-            "Perfect! Keep it up!",
-            "There it is! Five seconds!"
+            "Breathing quickened. Slow down a touch.",
+            "Maintain control. Pace yourself. Don't overdo it.",
+            "One more interval like this and you're done. Focus.",
+            "YES! Hold on! Ten more!"
         ]
     }
 }

@@ -455,9 +455,55 @@ def health():
         "endpoints": {
             "analyze": "/analyze",
             "coach": "/coach",
-            "download": "/download/<filename>"
+            "download": "/download/<filename>",
+            "welcome": "/welcome"
         }
     })
+
+@app.route('/welcome', methods=['GET'])
+def welcome():
+    """
+    Get welcome message for workout start (Gym Companion style).
+
+    Query params:
+        experience: "beginner", "intermediate", "advanced" (default: "standard")
+
+    Returns:
+        JSON with welcome message text and audio URL
+    """
+    try:
+        experience = request.args.get('experience', 'standard')
+
+        # Select message category based on experience
+        if experience == 'beginner':
+            message_category = 'beginner_friendly'
+        elif experience in ['breath_aware', 'advanced']:
+            message_category = 'breath_aware'
+        else:
+            message_category = 'standard'
+
+        # Get random welcome message from config
+        messages = config.WELCOME_MESSAGES.get(message_category, config.WELCOME_MESSAGES['standard'])
+        welcome_text = random.choice(messages)
+
+        logger.info(f"Welcome message requested: experience={experience}, message='{welcome_text}'")
+
+        # Generate or use cached audio
+        voice_file = generate_voice(welcome_text)
+
+        # Return relative path for download
+        relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
+        audio_url = f"/download/{relative_path}"
+
+        return jsonify({
+            "text": welcome_text,
+            "audio_url": audio_url,
+            "category": message_category
+        })
+
+    except Exception as e:
+        logger.error(f"Welcome endpoint error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
