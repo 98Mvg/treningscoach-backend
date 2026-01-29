@@ -52,6 +52,25 @@ class WorkoutViewModel: ObservableObject {
     private var sessionId: String?
     private var autoTimeoutTimer: Timer?
 
+    // MARK: - Initialization
+
+    init() {
+        // Configure audio session for playback
+        setupAudioSession()
+    }
+
+    private func setupAudioSession() {
+        do {
+            // Set category to playback (allows audio even when silent switch is on)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+            // Activate the audio session
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("✅ Audio session configured for playback")
+        } catch {
+            print("❌ Failed to setup audio session: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Recording
 
     func startRecording() {
@@ -172,15 +191,28 @@ class WorkoutViewModel: ObservableObject {
 
     private func playAudio(from url: URL) async {
         do {
+            print("🔊 Attempting to play audio from: \(url.path)")
+
+            // Ensure audio session is active
+            try AVAudioSession.sharedInstance().setActive(true)
+
+            // Create audio player
             audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.prepareToPlay()
+
+            // Set volume to maximum to ensure it's audible
+            audioPlayer?.volume = 1.0
+
+            print("▶️ Playing audio (duration: \(audioPlayer?.duration ?? 0)s)")
             audioPlayer?.play()
 
             // Wait for audio to finish
             if let duration = audioPlayer?.duration {
                 try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+                print("✅ Audio playback completed")
             }
         } catch {
-            print("Failed to play audio: \(error.localizedDescription)")
+            print("❌ Failed to play audio: \(error.localizedDescription)")
         }
     }
 
