@@ -3,6 +3,10 @@
 from flask import Flask, request, send_file, jsonify, Response, stream_with_context
 from flask_cors import CORS
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 import json
 import wave
 import math
@@ -18,6 +22,8 @@ from coaching_intelligence import should_coach_speak, calculate_next_interval  #
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from tts_service import synthesize_speech, synthesize_speech_mock, initialize_tts, TTSError  # Import TTS service
+from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
+from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
 
 # Configure logging
 logging.basicConfig(
@@ -44,10 +50,26 @@ brain_router = BrainRouter()
 session_manager = SessionManager()
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
+strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
+if strategic_brain.is_available():
+    logger.info("✅ Strategic Brain (Claude) is available")
+else:
+    logger.info("⚠️ Strategic Brain disabled (no ANTHROPIC_API_KEY)")
 
-# Initialize TTS service (clone voice at startup)
-initialize_tts()
+# Initialize TTS service (ElevenLabs for production)
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+elevenlabs_voice_id = os.getenv("ELEVENLABS_VOICE_ID")
+
+if elevenlabs_api_key and elevenlabs_voice_id:
+    logger.info("🎙️ Initializing ElevenLabs TTS...")
+    elevenlabs_tts = ElevenLabsTTS(api_key=elevenlabs_api_key, voice_id=elevenlabs_voice_id)
+    USE_ELEVENLABS = True
+    logger.info("✅ ElevenLabs TTS ready")
+else:
+    logger.warning("⚠️ ElevenLabs credentials not found, falling back to Qwen/mock")
+    initialize_tts()  # Fallback to Qwen
+    USE_ELEVENLABS = False
 logger.info("TTS service initialized")
 
 # ============================================
@@ -181,18 +203,22 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 
 def generate_voice(text):
     """
-    Generates speech audio from text using Qwen3-TTS with cloned voice.
+    Generates speech audio from text using ElevenLabs or Qwen3-TTS.
 
     Args:
         text: The coaching message to synthesize
 
     Returns:
-        Path to generated WAV file
+        Path to generated audio file (MP3 or WAV)
     """
     try:
-        # Use real TTS with cloned voice
-        return synthesize_speech(text)
-    except TTSError as e:
+        if USE_ELEVENLABS:
+            # Use ElevenLabs (fast, cloud-based)
+            return elevenlabs_tts.generate_audio(text)
+        else:
+            # Fallback to Qwen3-TTS with cloned voice
+            return synthesize_speech(text)
+    except Exception as e:
         logger.error(f"TTS failed, using mock: {e}")
         # Fallback to mock for development/testing
         return synthesize_speech_mock(text)
@@ -706,13 +732,42 @@ def coach_continuous():
                 if workout_state:
                     workout_state["last_pattern_time"] = elapsed_seconds
 
-        # Get coaching message (pattern insight overrides if available)
+        # Strategic Brain: High-level coaching guidance (every 2-3 minutes)
+        strategic_guidance = None
+        last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
+
+        if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
+            strategic_guidance = strategic_brain.get_strategic_insight(
+                breath_history=coaching_context["breath_history"],
+                coaching_history=coaching_context["coaching_history"],
+                phase=phase,
+                elapsed_seconds=elapsed_seconds,
+                session_context=session_manager.sessions.get(session_id, {}).get("metadata", {})
+            )
+
+            if strategic_guidance:
+                logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
+                # Update last strategic time
+                if workout_state:
+                    workout_state["last_strategic_time"] = elapsed_seconds
+
+        # Get coaching message (priority: strategic > pattern > config)
         use_welcome = workout_state.get("use_welcome_phrase", False)
         if use_welcome:
             # Use a specific cached phrase for instant welcome
             coach_text = "Perfect."  # This phrase is cached (from pregenerate list)
             workout_state["use_welcome_phrase"] = False  # Clear flag
             logger.info(f"Using cached welcome phrase: {coach_text}")
+        elif strategic_guidance and speak_decision:
+            # Strategic Brain guidance (highest priority for strategic moments)
+            # System decides: use suggested phrase or pick from config based on guidance
+            if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
+                coach_text = strategic_guidance["suggested_phrase"]
+                logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
+            else:
+                # Use config phrase that matches strategic intent
+                coach_text = get_coach_response_continuous(breath_data, phase)
+                logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
         elif pattern_insight and speak_decision:
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
             logger.info(f"Using pattern insight instead of config message")
