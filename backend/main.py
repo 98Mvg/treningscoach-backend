@@ -1,0 +1,1170 @@
+# main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
+
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context
+from flask_cors import CORS
+import os
+import json
+import wave
+import math
+import random
+import logging
+import asyncio
+from datetime import datetime
+import config  # Import central configuration
+from brain_router import BrainRouter  # Import Brain Router
+from session_manager import SessionManager  # Import Session Manager
+from persona_manager import PersonaManager  # Import Persona Manager
+from coaching_intelligence import should_coach_speak, calculate_next_interval  # Import coaching intelligence
+from user_memory import UserMemory  # STEP 5: Import user memory
+from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
+from tts_service import synthesize_speech, synthesize_speech_mock, initialize_tts, TTSError  # Import TTS service
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for iOS app
+
+# Configuration from config.py
+MAX_FILE_SIZE = config.MAX_FILE_SIZE
+ALLOWED_EXTENSIONS = config.ALLOWED_EXTENSIONS
+
+# Folders for temporary file storage
+UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = 'outputs'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+# Initialize Brain Router and Managers
+brain_router = BrainRouter()
+session_manager = SessionManager()
+user_memory = UserMemory()  # STEP 5: Initialize user memory
+voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
+logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
+
+# Initialize TTS service (clone voice at startup)
+initialize_tts()
+logger.info("TTS service initialized")
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ============================================
+# BREATH ANALYSIS (SIMPLE VERSION)
+# ============================================
+
+def analyze_breath(audio_file_path):
+    """
+    Analyzes audio recording and returns breathing intensity
+
+    Returns:
+    - silence: How much silence there is (0-100%)
+    - volume: How loud the breathing is (0-100)
+    - tempo: How fast the breathing comes (breaths per minute)
+    - intensity: "calm", "moderate", "intense", or "critical"
+    """
+
+    try:
+        # Open audio file
+        with wave.open(audio_file_path, 'rb') as wav_file:
+            # Extract information
+            frames = wav_file.readframes(wav_file.getnframes())
+            sample_rate = wav_file.getframerate()
+            num_channels = wav_file.getnchannels()
+            sample_width = wav_file.getsampwidth()
+            duration = wav_file.getnframes() / float(sample_rate)
+
+            # Calculate average volume (simplified)
+            # Convert bytes to numbers and find average
+            samples = []
+            for i in range(0, len(frames), sample_width * num_channels):
+                if i + sample_width <= len(frames):
+                    # Read sample (simplified - only first channel)
+                    sample = int.from_bytes(
+                        frames[i:i+sample_width],
+                        byteorder='little',
+                        signed=True
+                    )
+                    samples.append(abs(sample))
+
+            if not samples:
+                return default_analysis()
+
+            # Calculate average volume (normalized 0-100)
+            avg_volume = sum(samples) / len(samples)
+            max_possible = (2 ** (sample_width * 8 - 1)) - 1
+            volume_percent = min(100, (avg_volume / max_possible) * 100 * 10)  # Amplified
+
+            # Estimate silence based on how many samples are under a threshold
+            silence_threshold = max_possible * 0.01  # 1% of max
+            silent_samples = sum(1 for s in samples if s < silence_threshold)
+            silence_percent = (silent_samples / len(samples)) * 100
+
+            # Estimate tempo (simplified - based on volume variation)
+            # More volume changes = faster breathing
+            changes = 0
+            threshold = max_possible * 0.05
+            for i in range(1, len(samples)):
+                if abs(samples[i] - samples[i-1]) > threshold:
+                    changes += 1
+
+            # Convert to "breaths per minute" (estimate)
+            tempo = min(60, (changes / duration) * 60 / 10)  # Adjusted
+
+            # Determine intensity
+            if volume_percent < 20 and silence_percent > 50:
+                intensity = "calm"
+            elif volume_percent < 40 and tempo < 20:
+                intensity = "moderate"
+            elif volume_percent < 70 and tempo < 35:
+                intensity = "intense"
+            else:
+                intensity = "critical"
+
+            return {
+                "silence": round(silence_percent, 1),
+                "volume": round(volume_percent, 1),
+                "tempo": round(tempo, 1),
+                "intensity": intensity,
+                "duration": round(duration, 2)
+            }
+
+    except Exception as e:
+        logger.error(f"Error during analysis: {e}", exc_info=True)
+        return default_analysis()
+
+def default_analysis():
+    """Return default analysis if something goes wrong"""
+    return {
+        "silence": 50.0,
+        "volume": 30.0,
+        "tempo": 15.0,
+        "intensity": "moderate",
+        "duration": 2.0
+    }
+
+# ============================================
+# COACH-LOGIKK
+# ============================================
+
+def get_coach_response(breath_data, phase="intense", mode="chat"):
+    """
+    Selects what the coach should say based on breathing data.
+
+    Now uses Brain Router to abstract AI provider selection.
+    The app doesn't know if this is Claude, OpenAI, or config - it just gets a response.
+
+    STEP 3: Supports switching between chat and realtime_coach modes.
+
+    Args:
+        breath_data: Dictionary with silence, volume, tempo, intensity
+        phase: "warmup", "intense", or "cooldown"
+        mode: "chat" (explanatory) or "realtime_coach" (fast, actionable)
+
+    Returns:
+        Text that the coach should say
+    """
+    return brain_router.get_coaching_response(breath_data, phase, mode=mode)
+
+# ============================================
+# VOICE GENERATION WITH QWEN3-TTS
+# ============================================
+
+def generate_voice(text):
+    """
+    Generates speech audio from text using Qwen3-TTS with cloned voice.
+
+    Args:
+        text: The coaching message to synthesize
+
+    Returns:
+        Path to generated WAV file
+    """
+    try:
+        # Use real TTS with cloned voice
+        return synthesize_speech(text)
+    except TTSError as e:
+        logger.error(f"TTS failed, using mock: {e}")
+        # Fallback to mock for development/testing
+        return synthesize_speech_mock(text)
+
+# ============================================
+# API ENDPOINTS
+# ============================================
+
+@app.route('/')
+def home():
+    """Hjemmeside - minimal ChatGPT-lik stemme-UI"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Treningscoach</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background: linear-gradient(to bottom, #ffffff, #f5f5f7);
+                overflow: hidden;
+            }
+
+            /* Header - diskré */
+            .header {
+                padding: 16px 20px;
+                text-align: center;
+            }
+
+            .title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #1d1d1f;
+                margin-bottom: 4px;
+            }
+
+            .status {
+                font-size: 13px;
+                color: #86868b;
+                font-weight: 400;
+            }
+
+            /* Midten - tom og pustende */
+            .center {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Voice Orb - hovedfokus */
+            .orb-container {
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding-bottom: 60px;
+            }
+
+            .voice-orb {
+                width: 120px;
+                height: 120px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3);
+                position: relative;
+            }
+
+            .voice-orb:hover {
+                transform: scale(1.05);
+                box-shadow: 0 12px 40px rgba(0, 122, 255, 0.4);
+            }
+
+            .voice-orb.listening {
+                animation: pulse 1.5s ease-in-out infinite;
+                background: linear-gradient(135deg, #34C759 0%, #248A3D 100%);
+                box-shadow: 0 8px 32px rgba(52, 199, 89, 0.4);
+            }
+
+            .voice-orb.speaking {
+                animation: wave 1s ease-in-out infinite;
+                background: linear-gradient(135deg, #FF3B30 0%, #C72C23 100%);
+                box-shadow: 0 8px 32px rgba(255, 59, 48, 0.4);
+            }
+
+            @keyframes pulse {
+                0%, 100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.1);
+                    opacity: 0.9;
+                }
+            }
+
+            @keyframes wave {
+                0%, 100% {
+                    transform: scale(1);
+                }
+                33% {
+                    transform: scale(1.05);
+                }
+                66% {
+                    transform: scale(0.95);
+                }
+            }
+
+            .mic-icon {
+                width: 48px;
+                height: 48px;
+                color: white;
+            }
+
+            /* Info text - subtil */
+            .info {
+                position: absolute;
+                bottom: -40px;
+                text-align: center;
+                width: 100%;
+                font-size: 14px;
+                color: #86868b;
+                opacity: 0.8;
+            }
+
+            /* Dokumentasjon - nederst */
+            .footer {
+                padding: 20px;
+                text-align: center;
+                font-size: 12px;
+                color: #86868b;
+            }
+
+            .footer a {
+                color: #007AFF;
+                text-decoration: none;
+            }
+
+            .footer a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Header -->
+        <div class="header">
+            <div class="title">Treningscoach</div>
+            <div class="status" id="statusText">Ready</div>
+        </div>
+
+        <!-- Center - Voice Orb -->
+        <div class="center">
+            <div class="orb-container">
+                <div class="voice-orb" id="voiceOrb" onclick="toggleVoice()">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </div>
+                <div class="info" id="infoText">Click to start</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <a href="/health">API Status</a> •
+            <a href="https://github.com/98Mvg/treningscoach-backend">Documentation</a>
+        </div>
+
+        <script>
+            let state = 'idle'; // idle, listening, speaking
+
+            function toggleVoice() {
+                const orb = document.getElementById('voiceOrb');
+                const status = document.getElementById('statusText');
+                const info = document.getElementById('infoText');
+
+                if (state === 'idle') {
+                    state = 'listening';
+                    orb.classList.add('listening');
+                    status.textContent = 'Listening';
+                    info.textContent = 'Analyzing your breath...';
+
+                    // Simulate analysis -> speaking
+                    setTimeout(() => {
+                        state = 'speaking';
+                        orb.classList.remove('listening');
+                        orb.classList.add('speaking');
+                        status.textContent = 'Speaking';
+                        info.textContent = 'Coach is responding...';
+
+                        // Return to idle
+                        setTimeout(() => {
+                            state = 'idle';
+                            orb.classList.remove('speaking');
+                            status.textContent = 'Ready';
+                            info.textContent = 'Click to start';
+                        }, 3000);
+                    }, 2000);
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
+
+@app.route('/health')
+def health():
+    """Enkel helse-sjekk for å se at serveren lever"""
+    return jsonify({
+        "status": "healthy",
+        "version": "1.1.0",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "analyze": "/analyze",
+            "coach": "/coach",
+            "download": "/download/<filename>"
+        }
+    })
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    """
+    Receives audio recording from app and analyzes breathing
+
+    App sends: MP3/WAV file
+    Backend returns: JSON with breathing data
+    """
+    try:
+        if 'audio' not in request.files:
+            logger.warning("Analyze request missing audio file")
+            return jsonify({"error": "No audio file received"}), 400
+
+        audio_file = request.files['audio']
+
+        if audio_file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Save file temporarily
+        filename = f"breath_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Analyzing audio file: {filename} ({file_size} bytes)")
+
+        # Analyze breathing
+        breath_data = analyze_breath(filepath)
+
+        # Delete temporary file
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        logger.info(f"Analysis complete: {breath_data['intensity']}")
+        return jsonify(breath_data)
+
+    except Exception as e:
+        logger.error(f"Error in analyze endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/coach', methods=['POST'])
+def coach():
+    """
+    Main endpoint: Receives audio, analyzes, returns coach voice
+
+    App sends:
+    - audio: Audio file
+    - phase: "warmup", "intense", or "cooldown"
+    - mode: "chat" or "realtime_coach" (optional, default: "chat")
+
+    Backend returns:
+    - Coach voice as MP3
+
+    STEP 3: Supports switching between chat brain and realtime_coach brain
+    """
+    try:
+        if 'audio' not in request.files:
+            logger.warning("Coach request missing audio file")
+            return jsonify({"error": "No audio file received"}), 400
+
+        audio_file = request.files['audio']
+        phase = request.form.get('phase', 'intense')
+        mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
+
+        if audio_file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+
+        # Validate phase
+        valid_phases = ['warmup', 'intense', 'cooldown']
+        if phase not in valid_phases:
+            return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Save file temporarily
+        filename = f"breath_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}, mode={mode}")
+
+        # Analyze breathing
+        breath_data = analyze_breath(filepath)
+
+        # Get coach response (text) - STEP 3: Pass mode to brain router
+        coach_text = get_coach_response(breath_data, phase, mode=mode)
+
+        # Generate voice with Qwen3-TTS
+        voice_file = generate_voice(coach_text)
+
+        # Delete temporary input file
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        # Send back voice file + metadata
+        response_data = {
+            "text": coach_text,
+            "breath_analysis": breath_data,
+            "audio_url": f"/download/{os.path.basename(voice_file)}",
+            "phase": phase
+        }
+
+        logger.info(f"Coach response: '{coach_text}' (intensity: {breath_data['intensity']})")
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error in coach endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/coach/continuous', methods=['POST'])
+def coach_continuous():
+    """
+    Continuous coaching endpoint - optimized for rapid coaching cycles.
+
+    Receives:
+    - audio: Audio chunk (6-10 seconds)
+    - session_id: Workout session identifier
+    - phase: Current workout phase ("warmup", "intense", "cooldown")
+    - last_coaching: Last coaching message (optional)
+    - elapsed_seconds: Total workout time (optional)
+
+    Returns:
+    - text: Coaching message
+    - should_speak: Boolean (whether coach should speak this cycle)
+    - breath_analysis: Breath metrics
+    - audio_url: Coach voice URL (if should_speak is true)
+    - wait_seconds: Optimal time before next tick
+    """
+    try:
+        if 'audio' not in request.files:
+            logger.warning("Continuous coach request missing audio file")
+            return jsonify({"error": "No audio file received"}), 400
+
+        audio_file = request.files['audio']
+        session_id = request.form.get('session_id')
+        phase = request.form.get('phase', 'intense')
+        last_coaching = request.form.get('last_coaching', '')
+        elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
+
+        if not session_id:
+            return jsonify({"error": "session_id is required"}), 400
+
+        if audio_file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+
+        # Validate phase
+        valid_phases = ['warmup', 'intense', 'cooldown']
+        if phase not in valid_phases:
+            return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
+
+        # Validate file size
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({"error": f"File too large. Max: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+        # Save file temporarily
+        filename = f"continuous_{datetime.now().timestamp()}.wav"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(filepath)
+
+        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, elapsed={elapsed_seconds}s")
+
+        # Create session if doesn't exist
+        if not session_manager.session_exists(session_id):
+            # Extract user_id from session_id or use a default
+            try:
+                parts = session_id.replace("session_", "").split("_")
+                user_id = parts[0] if parts else "unknown"
+            except:
+                user_id = "unknown"
+
+            # Create session manually with the provided session_id
+            session_manager.sessions[session_id] = {
+                "session_id": session_id,
+                "user_id": user_id,
+                "persona": "fitness_coach",
+                "messages": [],
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "metadata": {}
+            }
+            logger.info(f"✅ Created session: {session_id}")
+            session_manager.init_workout_state(session_id, phase=phase)
+
+            # STEP 5: Inject user memory at session start (once)
+            memory_summary = user_memory.get_memory_summary(user_id)
+            logger.info(f"Memory: {memory_summary}")
+            session_manager.sessions[session_id]["metadata"]["memory"] = memory_summary
+
+        # Analyze breath
+        breath_data = analyze_breath(filepath)
+
+        # Get coaching context
+        coaching_context = session_manager.get_coaching_context(session_id)
+        last_breath = session_manager.get_last_breath_analysis(session_id)
+
+        # STEP 6: Check if coach should stay silent (optimal breathing)
+        should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
+            breath_data=breath_data,
+            phase=phase,
+            last_coaching=last_coaching,
+            elapsed_seconds=elapsed_seconds
+        )
+
+        if should_be_silent:
+            # Silence = confidence
+            logger.info(f"Voice intelligence: staying silent ({silence_reason})")
+            speak_decision = False
+            reason = silence_reason
+        else:
+            # Decide if coach should speak (STEP 1/2 logic)
+            speak_decision, reason = should_coach_speak(
+                current_analysis=breath_data,
+                last_analysis=last_breath,
+                coaching_history=coaching_context["coaching_history"],
+                phase=phase
+            )
+
+        logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
+
+        # STEP 4: Check if we should use pattern-based insight (hybrid mode)
+        pattern_insight = None
+        last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
+
+        if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
+            pattern_insight = brain_router.detect_pattern(
+                breath_history=coaching_context["breath_history"],
+                coaching_history=coaching_context["coaching_history"],
+                phase=phase
+            )
+
+            if pattern_insight:
+                logger.info(f"Pattern detected: {pattern_insight}")
+                # Update last pattern time
+                if workout_state:
+                    workout_state["last_pattern_time"] = elapsed_seconds
+
+        # Get coaching message (pattern insight overrides if available)
+        if pattern_insight and speak_decision:
+            coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
+            logger.info(f"Using pattern insight instead of config message")
+        else:
+            coach_text = get_coach_response_continuous(breath_data, phase)
+
+        # STEP 6: Add human variation to avoid robotic repetition
+        if speak_decision:
+            coach_text = voice_intelligence.add_human_variation(coach_text)
+
+        # Generate voice only if should speak
+        audio_url = None
+        if speak_decision:
+            voice_file = generate_voice(coach_text)
+            audio_url = f"/download/{os.path.basename(voice_file)}"
+
+        # Update session state
+        session_manager.update_workout_state(
+            session_id=session_id,
+            breath_analysis=breath_data,
+            coaching_output=coach_text if speak_decision else None,
+            phase=phase,
+            elapsed_seconds=elapsed_seconds
+        )
+
+        # Calculate next interval
+        workout_state = session_manager.get_workout_state(session_id)
+        recent_coaching_count = len([c for c in coaching_context["coaching_history"] if c]) if coaching_context else 0
+        wait_seconds = calculate_next_interval(
+            phase=phase,
+            intensity=breath_data.get("intensity", "moderate"),
+            coaching_frequency=recent_coaching_count
+        )
+
+        # STEP 6: Increase wait time if coach is overtalking
+        if voice_intelligence.should_reduce_frequency(breath_data, coaching_context["coaching_history"]):
+            wait_seconds = min(15, wait_seconds + 3)  # Add 3 seconds, max 15s
+            logger.info(f"Voice intelligence: reducing frequency (new wait: {wait_seconds}s)")
+
+        # STEP 5: Update user memory if critical event occurred
+        if breath_data.get("intensity") == "critical":
+            user_memory.mark_safety_event(user_id)
+            logger.info(f"Memory: marked critical breathing event for user {user_id}")
+
+        # Clean up temp file
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+        # Response
+        response_data = {
+            "text": coach_text,
+            "should_speak": speak_decision,
+            "breath_analysis": breath_data,
+            "audio_url": audio_url,
+            "wait_seconds": wait_seconds,
+            "phase": phase,
+            "reason": reason  # For debugging
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error in continuous coaching endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def get_coach_response_continuous(breath_data, phase):
+    """
+    STEP 3: Get coaching message using REALTIME_COACH brain mode.
+
+    Uses BrainRouter with mode="realtime_coach" for fast, actionable cues.
+    Falls back to config messages if brain is disabled.
+    """
+    # STEP 3: Use realtime_coach brain mode (not chat mode)
+    return brain_router.get_coaching_response(
+        breath_data=breath_data,
+        phase=phase,
+        mode="realtime_coach"  # Product-defining: fast, actionable, no explanations
+    )
+
+
+@app.route('/download/<filename>')
+def download(filename):
+    """Download generated voice file"""
+    try:
+        # Security: Prevent directory traversal
+        if '..' in filename or '/' in filename:
+            logger.warning(f"Attempted directory traversal: {filename}")
+            return jsonify({"error": "Invalid filename"}), 400
+
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        if os.path.exists(filepath):
+            logger.info(f"Serving file: {filename}")
+            return send_file(filepath, mimetype='audio/mpeg')
+
+        logger.warning(f"File not found: {filename}")
+        return jsonify({"error": "File not found"}), 404
+
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/brain/health', methods=['GET'])
+def brain_health():
+    """
+    Check health of active brain.
+
+    Returns brain status and health information.
+    """
+    try:
+        health = brain_router.health_check()
+        logger.info(f"Brain health check: {health}")
+        return jsonify(health), 200 if health["healthy"] else 503
+
+    except Exception as e:
+        logger.error(f"Error checking brain health: {e}", exc_info=True)
+        return jsonify({
+            "active_brain": "unknown",
+            "healthy": False,
+            "message": str(e)
+        }), 500
+
+@app.route('/brain/switch', methods=['POST'])
+def switch_brain():
+    """
+    Switch to a different brain at runtime.
+
+    Request body:
+    {
+        "brain": "claude" | "openai" | "config"
+    }
+
+    Returns success status and new active brain.
+    """
+    try:
+        data = request.get_json()
+        if not data or 'brain' not in data:
+            return jsonify({"error": "Missing 'brain' parameter"}), 400
+
+        new_brain = data['brain']
+        valid_brains = ['claude', 'openai', 'config']
+
+        if new_brain not in valid_brains:
+            return jsonify({
+                "error": f"Invalid brain. Must be one of: {', '.join(valid_brains)}"
+            }), 400
+
+        success = brain_router.switch_brain(new_brain)
+
+        if success:
+            return jsonify({
+                "success": True,
+                "active_brain": brain_router.get_active_brain(),
+                "message": f"Switched to {new_brain}"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "active_brain": brain_router.get_active_brain(),
+                "message": f"Failed to switch to {new_brain}, stayed on current brain"
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error switching brain: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+# ============================================
+# STREAMING CHAT ENDPOINTS
+# ============================================
+
+@app.route('/chat/start', methods=['POST'])
+def chat_start():
+    """
+    Create new conversation session.
+
+    Request body:
+    {
+        "user_id": "user123",
+        "persona": "fitness_coach"  (optional)
+    }
+
+    Returns:
+    {
+        "session_id": "session_...",
+        "persona": "fitness_coach",
+        "available_personas": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 'anonymous')
+        persona = data.get('persona', 'fitness_coach')
+
+        # Validate persona
+        if not PersonaManager.validate_persona(persona):
+            return jsonify({
+                "error": f"Invalid persona. Available: {PersonaManager.list_personas()}"
+            }), 400
+
+        # Create session
+        session_id = session_manager.create_session(user_id, persona)
+
+        logger.info(f"Created chat session: {session_id}")
+
+        return jsonify({
+            "session_id": session_id,
+            "persona": persona,
+            "persona_description": PersonaManager.get_persona_description(persona),
+            "available_personas": PersonaManager.list_personas()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error creating session: {e}", exc_info=True)
+        return jsonify({"error": "Failed to create session"}), 500
+
+
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    """
+    Streaming chat endpoint (SSE).
+
+    Request body:
+    {
+        "session_id": "session_...",
+        "message": "How are you?"
+    }
+
+    Response: Server-Sent Events (SSE) stream
+    data: {"token": "Great! "}
+    data: {"token": "Ready "}
+    data: {"token": "to train?"}
+    data: {"done": true}
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_message = data.get('message')
+
+        if not session_id or not user_message:
+            return jsonify({"error": "Missing session_id or message"}), 400
+
+        if not session_manager.session_exists(session_id):
+            return jsonify({"error": "Session not found"}), 404
+
+        # Add user message to history
+        session_manager.add_message(session_id, "user", user_message)
+
+        # Get conversation history
+        messages = session_manager.get_messages(session_id)
+
+        # Get persona system prompt
+        persona = session_manager.get_persona(session_id)
+        system_prompt = PersonaManager.get_system_prompt(persona)
+
+        logger.info(f"Streaming chat: session={session_id}, persona={persona}")
+
+        def generate():
+            """SSE generator function."""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            full_response = ""
+
+            try:
+                async def stream_tokens():
+                    nonlocal full_response
+                    # Get streaming brain
+                    if brain_router.brain and brain_router.brain.supports_streaming():
+                        async for token in brain_router.brain.stream_chat(
+                            messages=messages,
+                            system_prompt=system_prompt
+                        ):
+                            full_response += token
+                            yield f"data: {json.dumps({'token': token})}\n\n"
+                    else:
+                        # Fallback for non-streaming brains
+                        response = brain_router.get_coaching_response(
+                            {"intensity": "moderate", "volume": 50, "tempo": 20},
+                            "intense"
+                        )
+                        full_response = response
+                        yield f"data: {json.dumps({'token': response})}\n\n"
+
+                # Run async generator
+                async_gen = stream_tokens()
+                while True:
+                    try:
+                        chunk = loop.run_until_complete(async_gen.__anext__())
+                        yield chunk
+                    except StopAsyncIteration:
+                        break
+
+                # Send done signal
+                yield f"data: {json.dumps({'done': True})}\n\n"
+
+                # Save assistant response
+                session_manager.add_message(session_id, "assistant", full_response)
+                logger.info(f"Stream complete: {len(full_response)} chars")
+
+            except Exception as e:
+                logger.error(f"Streaming error: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            finally:
+                loop.close()
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in chat stream: {e}", exc_info=True)
+        return jsonify({"error": "Streaming failed"}), 500
+
+
+@app.route('/chat/message', methods=['POST'])
+def chat_message():
+    """
+    Non-streaming chat endpoint (fallback).
+
+    Request body:
+    {
+        "session_id": "session_...",
+        "message": "How are you?"
+    }
+
+    Returns:
+    {
+        "message": "Great! Ready to train?",
+        "session_id": "session_...",
+        "persona": "fitness_coach"
+    }
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        user_message = data.get('message')
+
+        if not session_id or not user_message:
+            return jsonify({"error": "Missing session_id or message"}), 400
+
+        if not session_manager.session_exists(session_id):
+            return jsonify({"error": "Session not found"}), 404
+
+        # Add user message
+        session_manager.add_message(session_id, "user", user_message)
+
+        # Get history and persona
+        messages = session_manager.get_messages(session_id)
+        persona = session_manager.get_persona(session_id)
+        system_prompt = PersonaManager.get_system_prompt(persona)
+
+        # Get response
+        if brain_router.brain:
+            loop = asyncio.new_event_loop()
+            response = loop.run_until_complete(
+                brain_router.brain.chat(messages, system_prompt)
+            )
+            loop.close()
+        else:
+            # Fallback to config brain
+            response = brain_router.get_coaching_response(
+                {"intensity": "moderate", "volume": 50, "tempo": 20},
+                "intense"
+            )
+
+        # Save assistant response
+        session_manager.add_message(session_id, "assistant", response)
+
+        logger.info(f"Chat message: session={session_id}, response_len={len(response)}")
+
+        return jsonify({
+            "message": response,
+            "session_id": session_id,
+            "persona": persona
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error in chat message: {e}", exc_info=True)
+        return jsonify({"error": "Chat failed"}), 500
+
+
+@app.route('/chat/sessions', methods=['GET'])
+def list_sessions():
+    """
+    List all sessions.
+
+    Query params:
+    - user_id: Filter by user (optional)
+
+    Returns:
+    {
+        "sessions": [...]
+    }
+    """
+    try:
+        user_id = request.args.get('user_id')
+        sessions = session_manager.list_sessions(user_id)
+
+        return jsonify({"sessions": sessions}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing sessions: {e}", exc_info=True)
+        return jsonify({"error": "Failed to list sessions"}), 500
+
+
+@app.route('/chat/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """Delete a session."""
+    try:
+        session_manager.delete_session(session_id)
+        return jsonify({"success": True, "session_id": session_id}), 200
+
+    except Exception as e:
+        logger.error(f"Error deleting session: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete session"}), 500
+
+
+@app.route('/chat/personas', methods=['GET'])
+def list_personas():
+    """
+    List all available personas.
+
+    Returns:
+    {
+        "personas": [
+            {"id": "fitness_coach", "description": "..."},
+            ...
+        ]
+    }
+    """
+    try:
+        personas = []
+        for persona_id in PersonaManager.list_personas():
+            personas.append({
+                "id": persona_id,
+                "description": PersonaManager.get_persona_description(persona_id)
+            })
+
+        return jsonify({"personas": personas}), 200
+
+    except Exception as e:
+        logger.error(f"Error listing personas: {e}", exc_info=True)
+        return jsonify({"error": "Failed to list personas"}), 500
+
+# ============================================
+# ERROR HANDLERS
+# ============================================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({"error": "Endpoint not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {error}")
+    return jsonify({"error": "Internal server error"}), 500
+
+# ============================================
+# START SERVER
+# ============================================
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+    logger.info(f"Starting Treningscoach Backend v1.1.0")
+    logger.info(f"Port: {port}, Debug: {debug}")
+
+    app.run(host='0.0.0.0', port=port, debug=debug)

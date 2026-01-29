@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+
+# AI providers
+anthropic>=0.40.0
+
+# TTS dependencies
+torch>=2.0.0
+soundfile
+qwen-tts
+
+# Optional (for legacy Flask support)
+# Flask==3.0.0
+# Flask-CORS==4.0.0
+# gunicorn==21.2.0

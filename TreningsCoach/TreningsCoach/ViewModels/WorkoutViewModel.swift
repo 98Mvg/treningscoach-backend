@@ -1,0 +1,385 @@
+//
+//  WorkoutViewModel.swift
+//  TreningsCoach
+//
+//  Main view model for workout screen
+//
+
+import Foundation
+import SwiftUI
+import AVFoundation
+
+@MainActor
+class WorkoutViewModel: ObservableObject {
+    // MARK: - Published Properties
+
+    @Published var isRecording = false
+    @Published var isProcessing = false
+    @Published var breathAnalysis: BreathAnalysis?
+    @Published var coachMessage: String?
+    @Published var showError = false
+    @Published var errorMessage = ""
+    @Published var voiceState: VoiceState = .idle
+    @Published var currentPhase: WorkoutPhase = .intense
+
+    // MARK: - Computed Properties
+
+    var currentPhaseDisplay: String {
+        switch currentPhase {
+        case .warmup:
+            return "Warm-up"
+        case .intense:
+            return "Hard Coach"
+        case .cooldown:
+            return "Cool-down"
+        }
+    }
+
+    // MARK: - Continuous Coaching Properties
+
+    @Published var isContinuousMode = false
+    @Published var coachingInterval: TimeInterval = AppConfig.ContinuousCoaching.defaultInterval
+
+    // MARK: - Private Properties
+
+    private let audioManager = AudioRecordingManager()
+    private let continuousRecordingManager = ContinuousRecordingManager()
+    private let apiService = BackendAPIService.shared
+    private var audioPlayer: AVAudioPlayer?
+    private var sessionStartTime: Date?
+    private var workoutDuration: TimeInterval = 0
+    private var coachingTimer: Timer?
+    private var sessionId: String?
+    private var autoTimeoutTimer: Timer?
+
+    // MARK: - Recording
+
+    func startRecording() {
+        guard !isRecording && !isProcessing else { return }
+
+        // Auto-detect phase based on workout duration
+        autoDetectPhase()
+
+        do {
+            try audioManager.startRecording()
+            isRecording = true
+            voiceState = .listening
+            breathAnalysis = nil
+            coachMessage = nil
+
+            // Start session timer if first recording
+            if sessionStartTime == nil {
+                sessionStartTime = Date()
+            }
+        } catch {
+            showErrorAlert("Failed to start recording: \(error.localizedDescription)")
+        }
+    }
+
+    func stopRecording() {
+        guard isRecording else { return }
+
+        guard let audioURL = audioManager.stopRecording() else {
+            showErrorAlert("Failed to stop recording")
+            voiceState = .idle
+            return
+        }
+
+        isRecording = false
+        voiceState = .idle
+
+        // Update workout duration
+        if let startTime = sessionStartTime {
+            workoutDuration = Date().timeIntervalSince(startTime)
+        }
+
+        // Send to backend
+        Task {
+            await sendToBackend(audioURL: audioURL, phase: currentPhase)
+        }
+    }
+
+    // MARK: - Phase Auto-Detection
+
+    private func autoDetectPhase() {
+        // Auto-detect workout phase based on duration
+        // First 2 minutes: warmup
+        // 2-15 minutes: intense
+        // After 15 minutes: cooldown
+
+        guard let startTime = sessionStartTime else {
+            currentPhase = .warmup
+            return
+        }
+
+        let duration = Date().timeIntervalSince(startTime)
+
+        if duration < 120 { // First 2 minutes
+            currentPhase = .warmup
+        } else if duration < 900 { // 2-15 minutes
+            currentPhase = .intense
+        } else { // After 15 minutes
+            currentPhase = .cooldown
+        }
+    }
+
+    // MARK: - API Communication
+
+    func sendToBackend(audioURL: URL, phase: WorkoutPhase) async {
+        isProcessing = true
+        voiceState = .idle // Show processing state
+
+        do {
+            // Send to coach endpoint
+            let response = try await apiService.getCoachFeedback(audioURL, phase: phase)
+
+            // Update UI with response
+            breathAnalysis = response.breathAnalysis
+            coachMessage = response.text
+
+            // Play voice and show speaking state
+            voiceState = .speaking
+            await downloadAndPlayVoice(audioURL: response.audioURL)
+
+            // Return to idle after speaking
+            voiceState = .idle
+
+        } catch {
+            showErrorAlert("Failed to analyze: \(error.localizedDescription)")
+            voiceState = .idle
+        }
+
+        isProcessing = false
+    }
+
+    private func downloadAndPlayVoice(audioURL: String) async {
+        do {
+            let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
+
+            // Save to temporary file (WAV format from Qwen3-TTS)
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("coach_voice.wav")
+            try audioData.write(to: tempURL)
+
+            // Play audio and wait for completion
+            await playAudio(from: tempURL)
+
+        } catch {
+            print("Failed to download/play voice: \(error.localizedDescription)")
+            // Don't show error to user - just log it
+        }
+    }
+
+    private func playAudio(from url: URL) async {
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+
+            // Wait for audio to finish
+            if let duration = audioPlayer?.duration {
+                try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            }
+        } catch {
+            print("Failed to play audio: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Error Handling
+
+    private func showErrorAlert(_ message: String) {
+        errorMessage = message
+        showError = true
+        voiceState = .idle
+    }
+
+    // MARK: - Health Check
+
+    func checkBackendHealth() async {
+        do {
+            let health = try await apiService.checkHealth()
+            print("Backend health: \(health.status)")
+            if let version = health.version {
+                print("Backend version: \(version)")
+            }
+        } catch {
+            print("Health check failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Continuous Coaching Loop
+
+    func startContinuousWorkout() {
+        guard !isContinuousMode else { return }
+
+        print("🎯 Starting continuous workout")
+
+        do {
+            // Start ONE continuous recording session
+            try continuousRecordingManager.startContinuousRecording()
+
+            isContinuousMode = true
+            voiceState = .listening  // STAYS listening entire workout
+            sessionStartTime = Date()
+            workoutDuration = 0
+
+            // Generate unique session ID
+            sessionId = "session_\(UUID().uuidString)"
+
+            // Auto-detect initial phase
+            autoDetectPhase()
+
+            // Start coaching loop (independent of recording)
+            scheduleNextTick()
+
+            // Set auto-timeout (45 minutes)
+            autoTimeoutTimer = Timer.scheduledTimer(
+                withTimeInterval: AppConfig.ContinuousCoaching.maxWorkoutDuration,
+                repeats: false
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleAutoTimeout()
+                }
+            }
+
+            print("✅ Continuous workout started - session: \(sessionId ?? "unknown")")
+
+        } catch {
+            showErrorAlert("Failed to start continuous workout: \(error.localizedDescription)")
+            isContinuousMode = false
+        }
+    }
+
+    func stopContinuousWorkout() {
+        guard isContinuousMode else { return }
+
+        print("⏹️ Stopping continuous workout")
+
+        // Stop recording
+        continuousRecordingManager.stopContinuousRecording()
+
+        // Cancel timers
+        coachingTimer?.invalidate()
+        coachingTimer = nil
+        autoTimeoutTimer?.invalidate()
+        autoTimeoutTimer = nil
+
+        // Update state
+        isContinuousMode = false
+        voiceState = .idle
+        sessionId = nil
+
+        // Update final workout duration
+        if let startTime = sessionStartTime {
+            workoutDuration = Date().timeIntervalSince(startTime)
+            print("📊 Workout completed: \(Int(workoutDuration)) seconds")
+        }
+
+        print("✅ Continuous workout stopped")
+    }
+
+    private func coachingLoopTick() {
+        guard isContinuousMode else { return }
+
+        // Update workout duration
+        if let startTime = sessionStartTime {
+            workoutDuration = Date().timeIntervalSince(startTime)
+        }
+
+        // Auto-detect phase based on elapsed time
+        autoDetectPhase()
+
+        // 1. Get latest chunk WITHOUT stopping recording
+        guard let audioChunk = continuousRecordingManager.getLatestChunk(
+            duration: AppConfig.ContinuousCoaching.chunkDuration
+        ) else {
+            print("⚠️ No audio chunk available, retrying next tick")
+            scheduleNextTick()
+            return
+        }
+
+        print("🎤 Coaching tick: \(Int(workoutDuration))s, phase: \(currentPhase.rawValue)")
+
+        // 2. Send to backend (background task)
+        Task {
+            do {
+                let response = try await apiService.getContinuousCoachFeedback(
+                    audioChunk,
+                    sessionId: sessionId ?? "",
+                    phase: currentPhase,
+                    lastCoaching: coachMessage ?? "",
+                    elapsedSeconds: Int(workoutDuration)
+                )
+
+                // 3. Update metrics silently (NO UI state change)
+                breathAnalysis = response.breathAnalysis
+                coachMessage = response.text
+
+                print("📊 Analysis: \(response.breathAnalysis.intensity), should_speak: \(response.shouldSpeak), reason: \(response.reason ?? "none")")
+
+                // 4. Coach speaks ONLY if backend says so
+                // voiceState STAYS .listening (no visual state change during workout)
+                if response.shouldSpeak, let audioURL = response.audioURL {
+                    print("🗣️ Coach speaking: '\(response.text)'")
+                    await playCoachAudio(audioURL)
+                } else {
+                    print("🤐 Coach silent: \(response.reason ?? "no reason")")
+                }
+
+                // 5. Adjust next interval dynamically
+                coachingInterval = response.waitSeconds
+                print("⏱️ Next tick in: \(Int(coachingInterval))s")
+
+            } catch {
+                // Network error: skip this cycle, continue next
+                print("❌ Coaching cycle failed: \(error.localizedDescription)")
+            }
+
+            // Always schedule next tick (loop continues)
+            scheduleNextTick()
+        }
+    }
+
+    private func scheduleNextTick() {
+        guard isContinuousMode else { return }
+
+        coachingTimer?.invalidate()
+        coachingTimer = Timer.scheduledTimer(
+            withTimeInterval: coachingInterval,
+            repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.coachingLoopTick()
+            }
+        }
+    }
+
+    private func handleAutoTimeout() {
+        print("⏰ Auto-timeout triggered after 45 minutes")
+
+        // User forgot to stop - gracefully end workout
+        stopContinuousWorkout()
+
+        // Show gentle post-workout message (NOT during workout)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.coachMessage = AppConfig.ContinuousCoaching.autoTimeoutMessage
+        }
+    }
+
+    private func playCoachAudio(_ audioURL: String) async {
+        do {
+            let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
+
+            // Save to temporary file (WAV format from Qwen3-TTS)
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("continuous_coach_\(Date().timeIntervalSince1970).wav")
+            try audioData.write(to: tempURL)
+
+            // Play audio (NO state change - stays .listening)
+            await playAudio(from: tempURL)
+
+        } catch {
+            print("Failed to download/play coach audio: \(error.localizedDescription)")
+            // Don't show error to user - just log and continue
+        }
+    }
+}

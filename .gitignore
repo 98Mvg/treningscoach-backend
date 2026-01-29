@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Environment variables (contains API keys!)
+.env
+*.env
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Audio files (generated/uploaded)
+backend/uploads/*
+backend/output/*
+backend/outputs/*
+!backend/output/.gitkeep
+!backend/uploads/.gitkeep
+
+# Keep reference voice file
+!backend/voices/coach_voice.wav
+
+# Test files
+test_breath.wav
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Hugging Face cache (models are large)
+.cache/
+*.pth
+*.bin
+*.safetensors
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# iOS
+*.xcodeproj/
+*.xcworkspace/
+Pods/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+DerivedData/
+.build/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
