@@ -9,11 +9,17 @@ import os
 import logging
 import wave
 import struct
+import hashlib
+import shutil
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Cache directory for pre-generated phrases
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "output", "cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Configuration
 REFERENCE_AUDIO_PATH = os.path.join(os.path.dirname(__file__), "voices", "coach_voice.wav")
@@ -98,9 +104,32 @@ def initialize_tts():
         _TTS_MODEL = None
 
 
+def get_cached_audio(text: str) -> Optional[str]:
+    """Check if audio for this text is already cached."""
+    text_hash = hashlib.md5(text.lower().strip().encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"cached_{text_hash}.wav")
+
+    if os.path.exists(cache_path):
+        logger.info(f"✅ Using cached audio for: '{text}'")
+        return cache_path
+
+    return None
+
+
+def cache_audio(text: str, audio_path: str) -> str:
+    """Copy generated audio to cache for future instant use."""
+    text_hash = hashlib.md5(text.lower().strip().encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"cached_{text_hash}.wav")
+
+    shutil.copy(audio_path, cache_path)
+    logger.info(f"💾 Cached audio for future use: '{text}'")
+    return cache_path
+
+
 def synthesize_speech(text: str, language: str = "english") -> str:
     """
     Synthesizes speech from text using Qwen3-TTS with custom voice cloning.
+    Uses cached audio if available for instant playback!
 
     Args:
         text: The coaching message to synthesize
@@ -110,6 +139,11 @@ def synthesize_speech(text: str, language: str = "english") -> str:
         Path to generated WAV file (12kHz, 16-bit, mono)
     """
     global _TTS_MODEL, _REFERENCE_AUDIO_PATH
+
+    # Check cache first for instant response!
+    cached = get_cached_audio(text)
+    if cached:
+        return cached
 
     # Fallback to mock if model not loaded
     if _TTS_MODEL is None or _REFERENCE_AUDIO_PATH is None:
@@ -143,6 +177,10 @@ def synthesize_speech(text: str, language: str = "english") -> str:
         sf.write(output_path, audio_data, sample_rate)
 
         logger.info(f"✅ Speech synthesized: {output_path} ({sample_rate}Hz, {len(audio_data)/sample_rate:.2f}s)")
+
+        # Cache for future instant use
+        cache_audio(text, output_path)
+
         return output_path
 
     except Exception as e:

@@ -17,10 +17,10 @@ struct AppConfig {
 
     // MARK: - Backend
     static let productionURL = "https://treningscoach-backend.onrender.com"
-    static let localURL = "http://localhost:5001"
+    static let localURL = "http://localhost:10000"
 
-    // Use production by default, change to localURL for local testing
-    static let backendURL = productionURL
+    // Use LOCAL for voice cloning testing
+    static let backendURL = localURL
 
     // MARK: - Phase Timings (seconds)
     static let warmupDuration: TimeInterval = 120  // 2 minutes
