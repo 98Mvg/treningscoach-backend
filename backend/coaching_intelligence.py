@@ -48,7 +48,17 @@ def should_coach_speak(
     tempo_delta = abs(tempo - last_tempo)
     tempo_changed = tempo_delta > 5  # More than 5 breaths/min change
 
-    # Rule 4: Periodic encouragement — speak at least every 60 seconds even if no change
+    # Rule 4: Phase-aware periodic speaking
+    # Warmup: coach talks more (every 30s) — tips, encouragement, preparation
+    # Intense: coach stays quiet, breath-focused (every 90s) — minimal distraction
+    # Cooldown: moderate (every 45s) — recovery guidance
+    periodic_intervals = {
+        "warmup": 30,     # More talkative during warmup
+        "intense": 90,    # Minimal during workout — focus on breath
+        "cooldown": 45    # Moderate during cooldown
+    }
+    periodic_interval = periodic_intervals.get(phase, 60)
+
     if not intensity_changed and not tempo_changed:
         if coaching_history and len(coaching_history) > 0:
             last_coaching = coaching_history[-1]
@@ -61,11 +71,11 @@ def should_coach_speak(
                         last_coaching_time = None
                 if isinstance(last_coaching_time, datetime):
                     elapsed_since_last = (datetime.now() - last_coaching_time).total_seconds()
-                    if elapsed_since_last >= 60:
-                        logger.info(f"Coach speaking: periodic_encouragement ({elapsed_since_last:.0f}s since last)")
-                        return (True, "periodic_encouragement")
-            # If no valid timestamp, speak anyway to avoid permanent silence
-            logger.debug(f"Coach silent: no_change (intensity={intensity}, tempo={tempo})")
+                    if elapsed_since_last >= periodic_interval:
+                        reason = f"periodic_{phase}" if phase == "warmup" else "periodic_encouragement"
+                        logger.info(f"Coach speaking: {reason} ({elapsed_since_last:.0f}s since last, interval={periodic_interval}s)")
+                        return (True, reason)
+            logger.debug(f"Coach silent: no_change (intensity={intensity}, tempo={tempo}, phase={phase})")
             return (False, "no_change")
         else:
             # No coaching history at all — speak
@@ -144,8 +154,8 @@ def calculate_next_interval(
 
     # Phase adjustments (subtle modifiers)
     phase_modifiers = {
-        "warmup": 2,     # Slightly slower during warmup
-        "intense": 0,    # No change during intense (let intensity drive)
+        "warmup": -1,    # Faster during warmup — coach talks more, gives tips
+        "intense": 0,    # No change during intense (let intensity drive, breath focus)
         "cooldown": 3    # Slower during cooldown
     }
 

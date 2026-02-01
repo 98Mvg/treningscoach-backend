@@ -3,16 +3,19 @@
 //  TreningsCoach
 //
 //  Main workout screen — audio-first, glanceable design
-//  Voice orb at center with timer ring, phase indicator, coach message
+//  Voice orb at center with timer ring, phase indicator
 //  User should NOT need to stare at this screen — quick glance only
+//
+//  Coach behavior:
+//  - Warmup: coach talks more, answers simple questions, gives tips
+//  - Workout: coach focuses on breath, minimal talk, no distractions
+//  - Cooldown: coach gives summary, recovery tips
 //
 
 import SwiftUI
 
 struct WorkoutView: View {
     @ObservedObject var viewModel: WorkoutViewModel
-    @State private var showChatSheet = false
-    @State private var chatInput = ""
 
     var body: some View {
         ZStack {
@@ -21,27 +24,12 @@ struct WorkoutView: View {
 
             VStack(spacing: 0) {
 
-                // MARK: - Top Bar (Phase + Chat Button)
-                HStack {
-                    if viewModel.isContinuousMode {
-                        phaseIndicator
-                            .transition(.opacity)
-                    }
-                    Spacer()
-                    // Talk to Coach button
-                    Button {
-                        showChatSheet = true
-                    } label: {
-                        Image(systemName: "bubble.left.fill")
-                            .font(.title3)
-                            .foregroundStyle(AppTheme.secondaryAccent)
-                            .padding(10)
-                            .background(AppTheme.cardSurface)
-                            .clipShape(Circle())
-                    }
+                // MARK: - Phase Indicator (top)
+                if viewModel.isContinuousMode {
+                    phaseIndicator
+                        .padding(.top, 20)
+                        .transition(.opacity)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
 
                 Spacer()
 
@@ -145,108 +133,6 @@ struct WorkoutView: View {
         } message: {
             Text(viewModel.errorMessage)
         }
-        // Chat sheet
-        .sheet(isPresented: $showChatSheet) {
-            coachChatSheet
-        }
-    }
-
-    // MARK: - Coach Chat Sheet
-
-    private var coachChatSheet: some View {
-        NavigationView {
-            ZStack {
-                AppTheme.background.ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    // Conversation history
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(Array(viewModel.coachConversation.enumerated()), id: \.offset) { _, msg in
-                                HStack {
-                                    if msg.role == "user" { Spacer() }
-                                    Text(msg.text)
-                                        .font(.body)
-                                        .padding(12)
-                                        .background(msg.role == "user" ? AppTheme.primaryAccent.opacity(0.3) : AppTheme.cardSurface)
-                                        .foregroundStyle(AppTheme.textPrimary)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    if msg.role == "coach" { Spacer() }
-                                }
-                            }
-
-                            if viewModel.isTalkingToCoach {
-                                HStack {
-                                    Text("Coach is thinking...")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Spacer()
-                                }
-                            }
-                        }
-                        .padding(16)
-                    }
-
-                    // Quick prompts
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(["Motivate me", "How's my breathing?", "Push me harder", "Give me a quote"], id: \.self) { prompt in
-                                Button {
-                                    chatInput = prompt
-                                    sendChat()
-                                } label: {
-                                    Text(prompt)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.secondaryAccent)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(AppTheme.secondaryAccent.opacity(0.15))
-                                        .clipShape(Capsule())
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-
-                    // Input bar
-                    HStack(spacing: 12) {
-                        TextField("Ask your coach...", text: $chatInput)
-                            .textFieldStyle(.plain)
-                            .padding(12)
-                            .background(AppTheme.cardSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .foregroundStyle(AppTheme.textPrimary)
-
-                        Button {
-                            sendChat()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(chatInput.isEmpty ? AppTheme.textSecondary : AppTheme.primaryAccent)
-                        }
-                        .disabled(chatInput.isEmpty || viewModel.isTalkingToCoach)
-                    }
-                    .padding(16)
-                }
-            }
-            .navigationTitle("Talk to Coach")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { showChatSheet = false }
-                        .foregroundStyle(AppTheme.primaryAccent)
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private func sendChat() {
-        let message = chatInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !message.isEmpty else { return }
-        chatInput = ""
-        viewModel.talkToCoach(message: message)
     }
 
     // MARK: - Phase Indicator

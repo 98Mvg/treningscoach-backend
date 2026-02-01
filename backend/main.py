@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 from pathlib import Path
 env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 import json
 import wave
 import math
@@ -1306,18 +1306,19 @@ def coach_talk():
 
         logger.info(f"Coach talk request: '{user_message}'")
 
-        # Use strategic brain (Claude) with Sundby personality
+        # Use strategic brain (Claude Haiku-first for cost efficiency)
+        # Architecture: Haiku ($0.25/M) first, escalate to Sonnet only if needed = 10x savings
         coach_text = None
         if strategic_brain.is_available():
             try:
                 response = strategic_brain.client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=200,
-                    system=ENDURANCE_COACH_PERSONALITY + "\n\nKeep responses concise (2-3 sentences max). You are speaking out loud to an athlete.",
+                    model="claude-3-haiku-20240307",
+                    max_tokens=60,  # Hard limit: concise spoken responses
+                    system="You are Coach Sundby. Nordic endurance coach. Calm, direct, no hype. Max 2 sentences. You speak out loud to an athlete.",
                     messages=[{"role": "user", "content": user_message}]
                 )
                 coach_text = response.content[0].text
-                logger.info(f"Claude response: '{coach_text}'")
+                logger.info(f"Claude Haiku response: '{coach_text}'")
             except Exception as e:
                 logger.error(f"Claude API error: {e}")
 
