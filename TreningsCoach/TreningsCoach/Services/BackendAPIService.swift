@@ -130,6 +130,26 @@ class BackendAPIService {
         return try JSONDecoder().decode(ContinuousCoachResponse.self, from: data)
     }
 
+    /// Talk to the coach (conversational, Sundby personality)
+    func talkToCoach(message: String) async throws -> CoachTalkResponse {
+        let url = URL(string: "\(baseURL)/coach/talk")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["message": message]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.invalidResponse
+        }
+
+        return try JSONDecoder().decode(CoachTalkResponse.self, from: data)
+    }
+
     // MARK: - Helper Methods
 
     private func createMultipartRequest(url: URL, audioURL: URL, phase: WorkoutPhase?) throws -> URLRequest {

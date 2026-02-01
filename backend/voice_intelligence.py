@@ -42,11 +42,11 @@ class VoiceIntelligence:
         Returns:
             (should_be_silent: bool, reason: str)
         """
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensitet = breath_data.get("intensity", "moderate")
         tempo = breath_data.get("tempo", 0)
 
         # NEVER silent for critical breathing
-        if intensitet == "kritisk":
+        if intensitet == "critical":
             return (False, "safety_override")
 
         # Don't be silent at the very start (greet user)
@@ -54,19 +54,19 @@ class VoiceIntelligence:
             return (False, "greeting")
 
         # STEP 6: Silence when breathing is optimal for the phase
-        if phase == "warmup" and intensitet in ["rolig", "moderat"]:
+        if phase == "warmup" and intensitet in ["calm", "moderate"]:
             # Optimal warmup breathing - silence is golden
             if self.silence_count < 2:  # Allow some silence
                 self.silence_count += 1
                 return (True, "optimal_warmup")
 
-        elif phase == "intense" and intensitet == "hard":
+        elif phase == "intense" and intensitet == "intense":
             # Optimal intense breathing - let them focus
             if self.silence_count < 1:  # Brief silence during optimal performance
                 self.silence_count += 1
                 return (True, "optimal_intense")
 
-        elif phase == "cooldown" and intensitet == "rolig":
+        elif phase == "cooldown" and intensitet == "calm":
             # Optimal cooldown breathing - peaceful silence
             if self.silence_count < 3:  # Longer silence during recovery
                 self.silence_count += 1
@@ -131,7 +131,7 @@ class VoiceIntelligence:
         }
 
         # Short pause before critical safety messages
-        if "STOP" in message or "kritisk" in message.lower():
+        if "STOP" in message or "critical" in message.lower():
             pacing["pause_before"] = 100  # 100ms pause for attention
             pacing["emphasis"] = ["STOP", "slow", "breathe"]
 
@@ -188,16 +188,16 @@ class VoiceIntelligence:
         if self.detect_overtalking(coaching_history):
             return True
 
-        # If breathing is stable (moderat), less coaching needed
-        if breath_data.get("intensitet") == "moderat":
+        # If breathing is stable (moderate), less coaching needed
+        if breath_data.get("intensity") == "moderate":
             # Check if intensity has been stable
             if len(coaching_history) >= 3:
                 recent_intensities = [
-                    h.get("breath_analysis", {}).get("intensitet")
+                    h.get("breath_analysis", {}).get("intensity")
                     for h in coaching_history[-3:]
                     if h and "breath_analysis" in h
                 ]
-                if all(i == "moderat" for i in recent_intensities if i):
+                if all(i == "moderate" for i in recent_intensities if i):
                     return True
 
         return False

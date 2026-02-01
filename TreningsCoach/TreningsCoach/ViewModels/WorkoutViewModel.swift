@@ -149,6 +149,43 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Talk to Coach (Conversational)
+
+    @Published var isTalkingToCoach = false
+    @Published var coachConversation: [(role: String, text: String)] = []
+
+    func talkToCoach(message: String) {
+        guard !isTalkingToCoach else { return }
+
+        isTalkingToCoach = true
+        coachConversation.append((role: "user", text: message))
+
+        Task {
+            do {
+                print("💬 Talking to coach: '\(message)'")
+                let response = try await apiService.talkToCoach(message: message)
+                coachConversation.append((role: "coach", text: response.text))
+                coachMessage = response.text
+                print("🗣️ Coach replied: '\(response.text)'")
+
+                // Play the response audio
+                await playCoachAudio(response.audioURL)
+            } catch {
+                print("❌ Talk to coach failed: \(error.localizedDescription)")
+                showErrorAlert("Could not reach coach: \(error.localizedDescription)")
+            }
+            isTalkingToCoach = false
+        }
+    }
+
+    // MARK: - Skip Warmup
+
+    func skipToIntensePhase() {
+        guard isContinuousMode else { return }
+        print("⏩ Skipping warmup — jumping to intense phase")
+        currentPhase = .intense
+    }
+
     // MARK: - Phase Auto-Detection
 
     private func autoDetectPhase() {

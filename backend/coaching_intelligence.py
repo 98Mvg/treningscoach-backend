@@ -48,10 +48,29 @@ def should_coach_speak(
     tempo_delta = abs(tempo - last_tempo)
     tempo_changed = tempo_delta > 5  # More than 5 breaths/min change
 
-    # Rule 4: Skip if no significant change
+    # Rule 4: Periodic encouragement — speak at least every 60 seconds even if no change
     if not intensity_changed and not tempo_changed:
-        logger.debug(f"Coach silent: no_change (intensity={intensity}, tempo={tempo})")
-        return (False, "no_change")
+        if coaching_history and len(coaching_history) > 0:
+            last_coaching = coaching_history[-1]
+            last_coaching_time = last_coaching.get("timestamp")
+            if last_coaching_time:
+                if isinstance(last_coaching_time, str):
+                    try:
+                        last_coaching_time = datetime.fromisoformat(last_coaching_time)
+                    except:
+                        last_coaching_time = None
+                if isinstance(last_coaching_time, datetime):
+                    elapsed_since_last = (datetime.now() - last_coaching_time).total_seconds()
+                    if elapsed_since_last >= 60:
+                        logger.info(f"Coach speaking: periodic_encouragement ({elapsed_since_last:.0f}s since last)")
+                        return (True, "periodic_encouragement")
+            # If no valid timestamp, speak anyway to avoid permanent silence
+            logger.debug(f"Coach silent: no_change (intensity={intensity}, tempo={tempo})")
+            return (False, "no_change")
+        else:
+            # No coaching history at all — speak
+            logger.info("Coach speaking: no_history (first coaching after welcome)")
+            return (True, "no_history")
 
     # Rule 5: During intense phase, push if breathing is too calm
     if phase == "intense" and intensity == "calm":

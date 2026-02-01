@@ -26,6 +26,7 @@ from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelli
 from tts_service import synthesize_speech, synthesize_speech_mock, initialize_tts, TTSError  # Import TTS service
 from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
+from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # Import coach personality
 
 # Configure logging
 logging.basicConfig(
@@ -1272,6 +1273,77 @@ def list_personas():
     except Exception as e:
         logger.error(f"Error listing personas: {e}", exc_info=True)
         return jsonify({"error": "Failed to list personas"}), 500
+
+# ============================================
+# TALK TO COACH (Conversational + Voice)
+# ============================================
+
+@app.route('/coach/talk', methods=['POST'])
+def coach_talk():
+    """
+    Talk to the coach (conversational mode with Sundby personality).
+
+    Request body (JSON):
+    {
+        "message": "How should I pace my 10K?",
+        "session_id": "optional_session_id"
+    }
+
+    Returns:
+    {
+        "text": "Start easy. First three kilometers...",
+        "audio_url": "/download/...",
+        "personality": "endurance_coach"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"error": "Missing 'message' parameter"}), 400
+
+        user_message = data['message']
+        session_id = data.get('session_id')
+
+        logger.info(f"Coach talk request: '{user_message}'")
+
+        # Use strategic brain (Claude) with Sundby personality
+        coach_text = None
+        if strategic_brain.is_available():
+            try:
+                response = strategic_brain.client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=200,
+                    system=ENDURANCE_COACH_PERSONALITY + "\n\nKeep responses concise (2-3 sentences max). You are speaking out loud to an athlete.",
+                    messages=[{"role": "user", "content": user_message}]
+                )
+                coach_text = response.content[0].text
+                logger.info(f"Claude response: '{coach_text}'")
+            except Exception as e:
+                logger.error(f"Claude API error: {e}")
+
+        # Fallback to config-based response
+        if not coach_text:
+            coach_text = brain_router.get_coaching_response(
+                {"intensity": "moderate", "volume": 50, "tempo": 20},
+                "intense",
+                mode="chat"
+            )
+
+        # Generate voice audio
+        voice_file = generate_voice(coach_text)
+        relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
+        audio_url = f"/download/{relative_path}"
+
+        return jsonify({
+            "text": coach_text,
+            "audio_url": audio_url,
+            "personality": "endurance_coach"
+        })
+
+    except Exception as e:
+        logger.error(f"Coach talk error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
 
 # ============================================
 # ERROR HANDLERS

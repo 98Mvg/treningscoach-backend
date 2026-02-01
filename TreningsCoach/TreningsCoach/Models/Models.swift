@@ -162,6 +162,20 @@ struct UserStats {
     var weeklyGoal: Int = 4
 }
 
+// MARK: - Coach Talk Response
+
+struct CoachTalkResponse: Codable {
+    let text: String
+    let audioURL: String
+    let personality: String
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case audioURL = "audio_url"
+        case personality
+    }
+}
+
 // MARK: - Workout Session
 
 struct WorkoutSession: Identifiable, Codable {
