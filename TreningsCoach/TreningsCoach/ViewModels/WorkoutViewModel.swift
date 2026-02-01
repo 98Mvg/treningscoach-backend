@@ -40,6 +40,30 @@ class WorkoutViewModel: ObservableObject {
     @Published var isContinuousMode = false
     @Published var coachingInterval: TimeInterval = AppConfig.ContinuousCoaching.defaultInterval
 
+    // MARK: - UI Properties (for new dashboard/profile screens)
+
+    @Published var elapsedTime: TimeInterval = 0
+    @Published var workoutHistory: [WorkoutRecord] = []
+    @Published var userStats: UserStats = UserStats()
+
+    // Time-of-day greeting for the home screen
+    var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default: return "Good night"
+        }
+    }
+
+    // Formatted elapsed time string (MM:SS)
+    var elapsedTimeFormatted: String {
+        let mins = Int(elapsedTime) / 60
+        let secs = Int(elapsedTime) % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+
     // MARK: - Private Properties
 
     private let audioManager = AudioRecordingManager()
@@ -51,12 +75,19 @@ class WorkoutViewModel: ObservableObject {
     private var coachingTimer: Timer?
     private var sessionId: String?
     private var autoTimeoutTimer: Timer?
+    private var elapsedTimeTimer: Timer?
 
     // MARK: - Initialization
 
     init() {
         // Configure audio session for playback
         setupAudioSession()
+
+        // Check backend connectivity on launch
+        Task {
+            await checkBackendHealth()
+        }
+        print("🔗 Backend URL: \(AppConfig.backendURL)")
     }
 
     private func setupAudioSession() {
@@ -193,8 +224,12 @@ class WorkoutViewModel: ObservableObject {
         do {
             print("🔊 Attempting to play audio from: \(url.path)")
 
-            // Ensure audio session is active
-            try AVAudioSession.sharedInstance().setActive(true)
+            // Ensure audio session allows playback (may be in .playAndRecord during workout)
+            let session = AVAudioSession.sharedInstance()
+            if session.category != .playAndRecord && session.category != .playback {
+                try session.setCategory(.playback, mode: .default, options: [])
+            }
+            try session.setActive(true)
 
             // Create audio player
             audioPlayer = try AVAudioPlayer(contentsOf: url)
@@ -203,14 +238,17 @@ class WorkoutViewModel: ObservableObject {
             // Set volume to maximum to ensure it's audible
             audioPlayer?.volume = 1.0
 
-            print("▶️ Playing audio (duration: \(audioPlayer?.duration ?? 0)s)")
+            guard let duration = audioPlayer?.duration, duration > 0 else {
+                print("⚠️ Audio file has no duration, skipping playback")
+                return
+            }
+
+            print("▶️ Playing audio (duration: \(duration)s)")
             audioPlayer?.play()
 
-            // Wait for audio to finish
-            if let duration = audioPlayer?.duration {
-                try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-                print("✅ Audio playback completed")
-            }
+            // Wait for audio to finish (add small buffer for safety)
+            try? await Task.sleep(nanoseconds: UInt64((duration + 0.1) * 1_000_000_000))
+            print("✅ Audio playback completed")
         } catch {
             print("❌ Failed to play audio: \(error.localizedDescription)")
         }
@@ -229,12 +267,12 @@ class WorkoutViewModel: ObservableObject {
     func checkBackendHealth() async {
         do {
             let health = try await apiService.checkHealth()
-            print("Backend health: \(health.status)")
-            if let version = health.version {
-                print("Backend version: \(version)")
-            }
+            // Backend responded — connection is good
+            print("✅ Backend connected: \(health.status), version: \(health.version ?? "unknown")")
         } catch {
-            print("Health check failed: \(error.localizedDescription)")
+            // Backend not reachable — log clearly so you can spot it in Xcode console
+            print("❌ Backend NOT reachable at \(AppConfig.backendURL) — \(error.localizedDescription)")
+            print("💡 Make sure your backend is running. Audio will not work without it.")
         }
     }
 
@@ -259,6 +297,19 @@ class WorkoutViewModel: ObservableObject {
 
             // Auto-detect initial phase
             autoDetectPhase()
+
+            // Start 1-second timer to update elapsed time (drives the timer ring UI)
+            elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self = self, let start = self.sessionStartTime else { return }
+                    self.elapsedTime = Date().timeIntervalSince(start)
+                }
+            }
+
+            // Play welcome message immediately (don't wait for first 8s tick)
+            Task {
+                await playWelcomeMessage()
+            }
 
             // Start coaching loop (independent of recording)
             scheduleNextTick()
@@ -294,18 +345,34 @@ class WorkoutViewModel: ObservableObject {
         coachingTimer = nil
         autoTimeoutTimer?.invalidate()
         autoTimeoutTimer = nil
+        elapsedTimeTimer?.invalidate()
+        elapsedTimeTimer = nil
 
         // Update state
         isContinuousMode = false
         voiceState = .idle
         sessionId = nil
 
-        // Update final workout duration
+        // Update final workout duration and save to history
         if let startTime = sessionStartTime {
             workoutDuration = Date().timeIntervalSince(startTime)
             print("📊 Workout completed: \(Int(workoutDuration)) seconds")
+
+            // Save workout record for dashboard history
+            let record = WorkoutRecord(
+                durationSeconds: Int(workoutDuration),
+                phase: currentPhase,
+                intensity: breathAnalysis?.intensity ?? "moderate"
+            )
+            workoutHistory.insert(record, at: 0)
+
+            // Update user stats
+            userStats.totalWorkouts += 1
+            userStats.totalMinutes += Int(workoutDuration / 60)
+            userStats.workoutsThisWeek += 1
         }
 
+        elapsedTime = 0
         print("✅ Continuous workout stopped")
     }
 
@@ -394,6 +461,19 @@ class WorkoutViewModel: ObservableObject {
         // Show gentle post-workout message (NOT during workout)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.coachMessage = AppConfig.ContinuousCoaching.autoTimeoutMessage
+        }
+    }
+
+    private func playWelcomeMessage() async {
+        do {
+            print("👋 Fetching welcome message...")
+            let welcome = try await apiService.getWelcomeMessage()
+            coachMessage = welcome.text
+            print("👋 Welcome: '\(welcome.text)' - downloading audio...")
+            await playCoachAudio(welcome.audioURL)
+        } catch {
+            print("⚠️ Welcome message failed: \(error.localizedDescription)")
+            // Non-critical: workout continues even if welcome fails
         }
     }
 

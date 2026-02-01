@@ -36,9 +36,10 @@ class ContinuousRecordingManager: NSObject {
             return
         }
 
-        // Configure audio session
+        // Configure audio session for BOTH recording AND playback
+        // .playAndRecord allows coach voice to play while mic stays active
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement)
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true)
 
         // Get input node

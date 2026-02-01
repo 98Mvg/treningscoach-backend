@@ -68,6 +68,19 @@ class BackendAPIService {
         return try JSONDecoder().decode(CoachResponse.self, from: data)
     }
 
+    /// Get welcome message for workout start
+    func getWelcomeMessage() async throws -> WelcomeResponse {
+        let url = URL(string: "\(baseURL)/welcome")!
+        let (data, response) = try await session.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.invalidResponse
+        }
+
+        return try JSONDecoder().decode(WelcomeResponse.self, from: data)
+    }
+
     /// Download voice audio file
     func downloadVoiceAudio(from path: String) async throws -> Data {
         let urlString = path.hasPrefix("http") ? path : "\(baseURL)\(path)"

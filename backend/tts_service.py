@@ -7,6 +7,7 @@
 
 import os
 import logging
+import math
 import wave
 import struct
 import hashlib
@@ -196,25 +197,36 @@ def synthesize_speech(text: str, language: str = "english") -> str:
 def synthesize_speech_mock(text: str) -> str:
     """
     Creates a placeholder audio file for testing without real TTS.
-    Returns path to silent WAV file.
+    Generates a short audible beep so you can confirm audio playback works.
     """
     timestamp = datetime.now().timestamp()
     output_path = os.path.join(OUTPUT_FOLDER, f"coach_mock_{timestamp}.wav")
 
-    # Create 2 seconds of silence at 44.1kHz, 16-bit, mono
-    duration_seconds = 2.0
     sample_rate = 44100
-    num_samples = int(duration_seconds * sample_rate)
+    # Two short beeps: beep-pause-beep (confirms audio pipeline is working)
+    beep_duration = 0.15  # seconds per beep
+    pause_duration = 0.1
+    frequency = 880  # Hz (A5 note, clearly audible but not harsh)
+    amplitude = 8000  # ~25% volume (gentle, not startling)
 
-    # Create WAV file using wave module
     with wave.open(output_path, 'wb') as wav_file:
-        wav_file.setnchannels(1)  # Mono
-        wav_file.setsampwidth(2)  # 16-bit
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
         wav_file.setframerate(sample_rate)
 
-        # Write silent samples
-        for _ in range(num_samples):
+        # First beep
+        for i in range(int(beep_duration * sample_rate)):
+            sample = int(amplitude * math.sin(2 * math.pi * frequency * i / sample_rate))
+            wav_file.writeframes(struct.pack('<h', sample))
+
+        # Pause
+        for _ in range(int(pause_duration * sample_rate)):
             wav_file.writeframes(struct.pack('<h', 0))
 
-    logger.debug(f"Created mock audio: {output_path} (text: '{text}')")
+        # Second beep
+        for i in range(int(beep_duration * sample_rate)):
+            sample = int(amplitude * math.sin(2 * math.pi * frequency * i / sample_rate))
+            wav_file.writeframes(struct.pack('<h', sample))
+
+    logger.warning(f"⚠️ Using MOCK audio (beep) for: '{text}' - configure TTS for real voice")
     return output_path

@@ -144,12 +144,6 @@ struct VoiceOrbView_Previews: PreviewProvider {
             VoiceOrbView(state: .speaking, action: {})
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [.white, Color(.systemGray6)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(AppTheme.backgroundGradient)
     }
 }

@@ -27,28 +27,28 @@ struct AppConfig {
     static let intenseDuration: TimeInterval = 900  // 15 minutes
     // After intenseDuration = cooldown
 
-    // MARK: - UI Colors
+    // MARK: - UI Colors (Dark Purple/Blue Theme)
     struct Colors {
-        static let idle = Color.blue
-        static let listening = Color.green
-        static let speaking = Color.red
+        static let idle = AppTheme.primaryAccent
+        static let listening = AppTheme.success
+        static let speaking = AppTheme.danger
 
         static let idleGradient = [
-            Color(red: 0.0, green: 0.48, blue: 1.0),
-            Color(red: 0.0, green: 0.32, blue: 0.84)
+            Color(hex: "7C3AED"),
+            Color(hex: "6D28D9")
         ]
 
         static let listeningGradient = [
-            Color(red: 0.20, green: 0.78, blue: 0.35),
-            Color(red: 0.14, green: 0.54, blue: 0.24)
+            Color(hex: "10B981"),
+            Color(hex: "059669")
         ]
 
         static let speakingGradient = [
-            Color(red: 1.0, green: 0.23, blue: 0.19),
-            Color(red: 0.78, green: 0.17, blue: 0.14)
+            Color(hex: "EF4444"),
+            Color(hex: "DC2626")
         ]
 
-        static let backgroundGradient = [Color.white, Color(.systemGray6)]
+        static let backgroundGradient = [AppTheme.background, AppTheme.backgroundDeep]
     }
 
     // MARK: - UI Text

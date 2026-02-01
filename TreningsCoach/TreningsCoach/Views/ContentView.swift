@@ -2,65 +2,59 @@
 //  ContentView.swift
 //  TreningsCoach
 //
-//  Minimal voice-first UI inspired by ChatGPT voice mode
+//  Tab container — hosts Home, Workout, and Profile tabs
+//  WorkoutViewModel is created here and shared to all child views
 //
 
 import SwiftUI
-import AVFoundation
 
 struct ContentView: View {
     @StateObject private var viewModel = WorkoutViewModel()
+    @State private var selectedTab = 1  // Default to Workout tab (center)
 
     var body: some View {
-        ZStack {
-            // Subtle background gradient
-            LinearGradient(
-                colors: [.white, Color(.systemGray6)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Header - diskré
-                VStack(spacing: 4) {
-                    Text("Treningscoach")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-
-                    Text(viewModel.currentPhaseDisplay)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        TabView(selection: $selectedTab) {
+            HomeView(viewModel: viewModel, selectedTab: $selectedTab)
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
                 }
-                .padding(.top, 16)
+                .tag(0)
 
-                Spacer()
+            WorkoutView(viewModel: viewModel)
+                .tabItem {
+                    Label("Workout", systemImage: "waveform")
+                }
+                .tag(1)
 
-                // Midten - tom og pustende
-                // Voice Orb - hovedfokus
-                VoiceOrbView(
-                    state: viewModel.voiceState,
-                    action: {
-                        if viewModel.isContinuousMode {
-                            viewModel.stopContinuousWorkout()
-                        } else if viewModel.isRecording {
-                            viewModel.stopRecording()
-                        } else {
-                            // Use continuous mode by default
-                            viewModel.startContinuousWorkout()
-                        }
-                    }
-                )
-                .disabled(viewModel.isProcessing)
-
-                Spacer()
-            }
-            .alert("Error", isPresented: $viewModel.showError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage)
-            }
+            ProfileView(viewModel: viewModel)
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+                .tag(2)
         }
+        .tint(AppTheme.primaryAccent)
+        .onAppear {
+            // Style the tab bar for dark theme
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor(AppTheme.cardSurface)
+
+            // Unselected tab items
+            appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppTheme.textSecondary)
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+                .foregroundColor: UIColor(AppTheme.textSecondary)
+            ]
+
+            // Selected tab items
+            appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppTheme.primaryAccent)
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+                .foregroundColor: UIColor(AppTheme.primaryAccent)
+            ]
+
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

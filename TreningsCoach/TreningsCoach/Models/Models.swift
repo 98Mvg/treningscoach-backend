@@ -114,6 +114,54 @@ struct ContinuousCoachResponse: Codable {
     }
 }
 
+// MARK: - Welcome Response
+
+struct WelcomeResponse: Codable {
+    let text: String
+    let audioURL: String
+    let category: String
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case audioURL = "audio_url"
+        case category
+    }
+}
+
+// MARK: - Workout Record (for Dashboard History)
+
+struct WorkoutRecord: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let durationSeconds: Int
+    let phase: WorkoutPhase
+    let intensity: String
+
+    init(id: UUID = UUID(), date: Date = Date(), durationSeconds: Int, phase: WorkoutPhase, intensity: String) {
+        self.id = id
+        self.date = date
+        self.durationSeconds = durationSeconds
+        self.phase = phase
+        self.intensity = intensity
+    }
+
+    var formattedDuration: String {
+        let mins = durationSeconds / 60
+        let secs = durationSeconds % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+}
+
+// MARK: - User Stats (for Profile)
+
+struct UserStats {
+    var totalWorkouts: Int = 0
+    var totalMinutes: Int = 0
+    var currentStreak: Int = 0
+    var workoutsThisWeek: Int = 0
+    var weeklyGoal: Int = 4
+}
+
 // MARK: - Workout Session
 
 struct WorkoutSession: Identifiable, Codable {
