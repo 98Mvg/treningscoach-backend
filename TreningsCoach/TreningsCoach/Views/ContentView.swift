@@ -9,6 +9,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = WorkoutViewModel()
     @State private var selectedTab = 1  // Default to Workout tab (center)
 
@@ -16,19 +17,20 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             HomeView(viewModel: viewModel, selectedTab: $selectedTab)
                 .tabItem {
-                    Label("Home", systemImage: "house.fill")
+                    Label(L10n.current == .no ? "Hjem" : "Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
             WorkoutView(viewModel: viewModel)
                 .tabItem {
-                    Label("Workout", systemImage: "waveform")
+                    Label(L10n.current == .no ? "Trening" : "Workout", systemImage: "waveform")
                 }
                 .tag(1)
 
             ProfileView(viewModel: viewModel)
+                .environmentObject(authManager)
                 .tabItem {
-                    Label("Profile", systemImage: "person.fill")
+                    Label(L10n.current == .no ? "Profil" : "Profile", systemImage: "person.fill")
                 }
                 .tag(2)
         }
@@ -63,5 +65,6 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+            .environmentObject(AuthManager())
     }
 }

@@ -11,7 +11,8 @@ def should_coach_speak(
     current_analysis: Dict,
     last_analysis: Optional[Dict],
     coaching_history: List[Dict],
-    phase: str
+    phase: str,
+    training_level: str = "intermediate"
 ) -> Tuple[bool, str]:
     """
     Determines whether the coach should speak based on breath analysis and context.
@@ -30,10 +31,31 @@ def should_coach_speak(
     tempo = current_analysis.get("tempo", 0)
     volume = current_analysis.get("volume", 0)
 
+    # NEW: Advanced breath metrics (from BreathAnalyzer, optional)
+    breath_regularity = current_analysis.get("breath_regularity")
+    inhale_exhale_ratio = current_analysis.get("inhale_exhale_ratio")
+    signal_quality = current_analysis.get("signal_quality")
+    respiratory_rate = current_analysis.get("respiratory_rate")
+
+    # Rule 0: Skip coaching if audio quality is too poor to be reliable
+    if signal_quality is not None and signal_quality < 0.2:
+        logger.info("Coach silent: signal_quality too low (%.2f)", signal_quality)
+        return (False, "low_signal_quality")
+
     # Rule 1: Always speak for critical breathing (safety override)
     if intensity == "critical":
         logger.info("Coach speaking: critical_breathing detected")
         return (True, "critical_breathing")
+
+    # Rule 1b: Irregular breathing warrants coaching guidance
+    if breath_regularity is not None and breath_regularity < 0.4:
+        logger.info("Coach speaking: irregular_breathing (regularity=%.2f)", breath_regularity)
+        return (True, "irregular_breathing")
+
+    # Rule 1c: Inhale nearly as long as exhale — suggest longer exhales
+    if inhale_exhale_ratio is not None and inhale_exhale_ratio > 0.9:
+        logger.info("Coach speaking: short_exhale (I:E ratio=%.2f)", inhale_exhale_ratio)
+        return (True, "short_exhale")
 
     # Rule 2: First tick of workout - always welcome
     if last_analysis is None:
@@ -48,7 +70,7 @@ def should_coach_speak(
     tempo_delta = abs(tempo - last_tempo)
     tempo_changed = tempo_delta > 5  # More than 5 breaths/min change
 
-    # Rule 4: Phase-aware periodic speaking
+    # Rule 4: Phase-aware periodic speaking (adjusted by training level)
     # Warmup: coach talks more (every 30s) — tips, encouragement, preparation
     # Intense: coach stays quiet, breath-focused (every 90s) — minimal distraction
     # Cooldown: moderate (every 45s) — recovery guidance
@@ -58,6 +80,17 @@ def should_coach_speak(
         "cooldown": 45    # Moderate during cooldown
     }
     periodic_interval = periodic_intervals.get(phase, 60)
+
+    # Training level adjusts coaching frequency
+    # Beginners need more guidance (1.5x), advanced need less (0.7x)
+    try:
+        import config
+        level_config = config.TRAINING_LEVEL_CONFIG.get(training_level, {})
+        frequency_multiplier = level_config.get("coaching_frequency_multiplier", 1.0)
+        # Lower multiplier = less frequent = longer interval
+        periodic_interval = int(periodic_interval / frequency_multiplier)
+    except (ImportError, AttributeError):
+        pass  # Use default if config not available
 
     if not intensity_changed and not tempo_changed:
         if coaching_history and len(coaching_history) > 0:

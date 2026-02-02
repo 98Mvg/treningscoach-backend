@@ -26,7 +26,7 @@ struct HomeView: View {
                             .font(.title2)
                             .foregroundStyle(AppTheme.textSecondary)
 
-                        Text("Marius")
+                        Text(UserDefaults.standard.string(forKey: "user_display_name") ?? L10n.athlete)
                             .font(.largeTitle.bold())
                             .foregroundStyle(AppTheme.textPrimary)
                     }
@@ -34,17 +34,17 @@ struct HomeView: View {
 
                     // MARK: - Weekly Progress Card
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("This week")
+                        Text(L10n.thisWeek)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(AppTheme.textSecondary)
 
                         // Progress text
                         HStack {
-                            Text("\(viewModel.userStats.workoutsThisWeek) of \(viewModel.userStats.weeklyGoal)")
+                            Text("\(viewModel.userStats.workoutsThisWeek) \(L10n.of) \(viewModel.userStats.weeklyGoal)")
                                 .font(.title3.bold())
                                 .foregroundStyle(AppTheme.textPrimary)
 
-                            Text("workouts completed")
+                            Text(L10n.workoutsCompleted)
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary)
 
@@ -94,11 +94,11 @@ struct HomeView: View {
                                 .foregroundStyle(.white)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Start Workout")
+                                Text(L10n.startWorkout)
                                     .font(.title3.bold())
                                     .foregroundStyle(.white)
 
-                                Text("Audio coaching starts immediately")
+                                Text(L10n.audioCoachingStarts)
                                     .font(.caption)
                                     .foregroundStyle(.white.opacity(0.7))
                             }
@@ -117,7 +117,7 @@ struct HomeView: View {
                     // MARK: - Recent Workouts
                     if !viewModel.workoutHistory.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Recent Workouts")
+                            Text(L10n.recentWorkouts)
                                 .font(.headline)
                                 .foregroundStyle(AppTheme.textPrimary)
 
@@ -162,11 +162,11 @@ struct HomeView: View {
                                 .font(.system(size: 40))
                                 .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
 
-                            Text("No workouts yet")
+                            Text(L10n.noWorkoutsYet)
                                 .font(.headline)
                                 .foregroundStyle(AppTheme.textSecondary)
 
-                            Text("Tap Start Workout to begin your first session")
+                            Text(L10n.tapStartWorkout)
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
                                 .multilineTextAlignment(.center)

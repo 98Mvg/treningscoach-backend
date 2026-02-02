@@ -27,6 +27,9 @@ from tts_service import synthesize_speech, synthesize_speech_mock, initialize_tt
 from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
 from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # Import coach personality
+from database import init_db  # Import database initialization
+from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
+from auth_routes import auth_bp  # Import auth blueprint
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +40,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for iOS app
+
+# Initialize database
+init_db(app)
+logger.info("✅ Database initialized")
+
+# Register auth routes
+app.register_blueprint(auth_bp)
+logger.info("✅ Auth routes registered (/auth/*)")
 
 # Configuration from config.py
 MAX_FILE_SIZE = config.MAX_FILE_SIZE
@@ -53,6 +64,7 @@ brain_router = BrainRouter()
 session_manager = SessionManager()
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
+breath_analyzer = BreathAnalyzer()  # Advanced breath analysis with DSP + spectral features
 strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 if strategic_brain.is_available():
@@ -84,98 +96,12 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ============================================
-# BREATH ANALYSIS (SIMPLE VERSION)
+# BREATH ANALYSIS
 # ============================================
-
-def analyze_breath(audio_file_path):
-    """
-    Analyzes audio recording and returns breathing intensity
-
-    Returns:
-    - silence: How much silence there is (0-100%)
-    - volume: How loud the breathing is (0-100)
-    - tempo: How fast the breathing comes (breaths per minute)
-    - intensity: "calm", "moderate", "intense", or "critical"
-    """
-
-    try:
-        # Open audio file
-        with wave.open(audio_file_path, 'rb') as wav_file:
-            # Extract information
-            frames = wav_file.readframes(wav_file.getnframes())
-            sample_rate = wav_file.getframerate()
-            num_channels = wav_file.getnchannels()
-            sample_width = wav_file.getsampwidth()
-            duration = wav_file.getnframes() / float(sample_rate)
-
-            # Calculate average volume (simplified)
-            # Convert bytes to numbers and find average
-            samples = []
-            for i in range(0, len(frames), sample_width * num_channels):
-                if i + sample_width <= len(frames):
-                    # Read sample (simplified - only first channel)
-                    sample = int.from_bytes(
-                        frames[i:i+sample_width],
-                        byteorder='little',
-                        signed=True
-                    )
-                    samples.append(abs(sample))
-
-            if not samples:
-                return default_analysis()
-
-            # Calculate average volume (normalized 0-100)
-            avg_volume = sum(samples) / len(samples)
-            max_possible = (2 ** (sample_width * 8 - 1)) - 1
-            volume_percent = min(100, (avg_volume / max_possible) * 100 * 10)  # Amplified
-
-            # Estimate silence based on how many samples are under a threshold
-            silence_threshold = max_possible * 0.01  # 1% of max
-            silent_samples = sum(1 for s in samples if s < silence_threshold)
-            silence_percent = (silent_samples / len(samples)) * 100
-
-            # Estimate tempo (simplified - based on volume variation)
-            # More volume changes = faster breathing
-            changes = 0
-            threshold = max_possible * 0.05
-            for i in range(1, len(samples)):
-                if abs(samples[i] - samples[i-1]) > threshold:
-                    changes += 1
-
-            # Convert to "breaths per minute" (estimate)
-            tempo = min(60, (changes / duration) * 60 / 10)  # Adjusted
-
-            # Determine intensity
-            if volume_percent < 20 and silence_percent > 50:
-                intensity = "calm"
-            elif volume_percent < 40 and tempo < 20:
-                intensity = "moderate"
-            elif volume_percent < 70 and tempo < 35:
-                intensity = "intense"
-            else:
-                intensity = "critical"
-
-            return {
-                "silence": round(silence_percent, 1),
-                "volume": round(volume_percent, 1),
-                "tempo": round(tempo, 1),
-                "intensity": intensity,
-                "duration": round(duration, 2)
-            }
-
-    except Exception as e:
-        logger.error(f"Error during analysis: {e}", exc_info=True)
-        return default_analysis()
-
-def default_analysis():
-    """Return default analysis if something goes wrong"""
-    return {
-        "silence": 50.0,
-        "volume": 30.0,
-        "tempo": 15.0,
-        "intensity": "moderate",
-        "duration": 2.0
-    }
+# Advanced breath analysis is now handled by BreathAnalyzer class
+# (see breath_analyzer.py) — uses DSP + spectral features for
+# real inhale/exhale/pause detection, respiratory rate, etc.
+# Initialized above as: breath_analyzer = BreathAnalyzer()
 
 # ============================================
 # COACH-LOGIKK
@@ -204,20 +130,21 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 # VOICE GENERATION WITH QWEN3-TTS
 # ============================================
 
-def generate_voice(text):
+def generate_voice(text, language=None):
     """
     Generates speech audio from text using ElevenLabs or Qwen3-TTS.
 
     Args:
         text: The coaching message to synthesize
+        language: "en" or "no" for language-specific voice (optional)
 
     Returns:
         Path to generated audio file (MP3 or WAV)
     """
     try:
         if USE_ELEVENLABS:
-            # Use ElevenLabs (fast, cloud-based)
-            return elevenlabs_tts.generate_audio(text)
+            # Use ElevenLabs (fast, cloud-based, multilingual)
+            return elevenlabs_tts.generate_audio(text, language=language)
         else:
             # Fallback to Qwen3-TTS with cloned voice
             return synthesize_speech(text)
@@ -474,6 +401,7 @@ def welcome():
     """
     try:
         experience = request.args.get('experience', 'standard')
+        language = request.args.get('language', 'en')
 
         # Select message category based on experience
         if experience == 'beginner':
@@ -483,14 +411,18 @@ def welcome():
         else:
             message_category = 'standard'
 
-        # Get random welcome message from config
-        messages = config.WELCOME_MESSAGES.get(message_category, config.WELCOME_MESSAGES['standard'])
+        # Get random welcome message from config (language-aware)
+        if language == "no":
+            welcome_bank = getattr(config, 'WELCOME_MESSAGES_NO', config.WELCOME_MESSAGES)
+        else:
+            welcome_bank = config.WELCOME_MESSAGES
+        messages = welcome_bank.get(message_category, welcome_bank.get('standard', ["Welcome."]))
         welcome_text = random.choice(messages)
 
-        logger.info(f"Welcome message requested: experience={experience}, message='{welcome_text}'")
+        logger.info(f"Welcome message requested: experience={experience}, language={language}, message='{welcome_text}'")
 
-        # Generate or use cached audio
-        voice_file = generate_voice(welcome_text)
+        # Generate or use cached audio (language-aware voice)
+        voice_file = generate_voice(welcome_text, language=language)
 
         # Return relative path for download
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
@@ -540,7 +472,7 @@ def analyze():
         logger.info(f"Analyzing audio file: {filename} ({file_size} bytes)")
 
         # Analyze breathing
-        breath_data = analyze_breath(filepath)
+        breath_data = breath_analyzer.analyze(filepath)
 
         # Delete temporary file
         try:
@@ -603,7 +535,7 @@ def coach():
         logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}, mode={mode}")
 
         # Analyze breathing
-        breath_data = analyze_breath(filepath)
+        breath_data = breath_analyzer.analyze(filepath)
 
         # Get coach response (text) - STEP 3: Pass mode to brain router
         coach_text = get_coach_response(breath_data, phase, mode=mode)
@@ -663,6 +595,9 @@ def coach_continuous():
         phase = request.form.get('phase', 'intense')
         last_coaching = request.form.get('last_coaching', '')
         elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
+        language = request.form.get('language', 'en')
+        training_level = request.form.get('training_level', 'intermediate')
+        persona = request.form.get('persona', 'fitness_coach')
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -688,7 +623,7 @@ def coach_continuous():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
-        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, elapsed={elapsed_seconds}s")
+        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}")
 
         # Create session if doesn't exist
         if not session_manager.session_exists(session_id):
@@ -703,7 +638,7 @@ def coach_continuous():
             session_manager.sessions[session_id] = {
                 "session_id": session_id,
                 "user_id": user_id,
-                "persona": "fitness_coach",
+                "persona": persona,
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
@@ -722,7 +657,7 @@ def coach_continuous():
             workout_state["is_first_breath"] = True
 
         # Analyze breath
-        breath_data = analyze_breath(filepath)
+        breath_data = breath_analyzer.analyze(filepath)
 
         # Get coaching context and workout state
         coaching_context = session_manager.get_coaching_context(session_id)
@@ -759,7 +694,8 @@ def coach_continuous():
                     current_analysis=breath_data,
                     last_analysis=last_breath,
                     coaching_history=coaching_context["coaching_history"],
-                    phase=phase
+                    phase=phase,
+                    training_level=training_level
                 )
 
             logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
@@ -791,7 +727,8 @@ def coach_continuous():
                 coaching_history=coaching_context["coaching_history"],
                 phase=phase,
                 elapsed_seconds=elapsed_seconds,
-                session_context=session_manager.sessions.get(session_id, {}).get("metadata", {})
+                session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
+                language=language
             )
 
             if strategic_guidance:
@@ -815,7 +752,7 @@ def coach_continuous():
                 logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
             else:
                 # Use config phrase that matches strategic intent
-                coach_text = get_coach_response_continuous(breath_data, phase)
+                coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona)
                 logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
         elif pattern_insight and speak_decision:
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
@@ -827,10 +764,10 @@ def coach_continuous():
         if speak_decision and not use_welcome:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
-        # Generate voice only if should speak
+        # Generate voice only if should speak (language-aware)
         audio_url = None
         if speak_decision:
-            voice_file = generate_voice(coach_text)
+            voice_file = generate_voice(coach_text, language=language)
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
@@ -886,18 +823,21 @@ def coach_continuous():
         return jsonify({"error": "Internal server error"}), 500
 
 
-def get_coach_response_continuous(breath_data, phase):
+def get_coach_response_continuous(breath_data, phase, language="en", persona=None):
     """
     STEP 3: Get coaching message using REALTIME_COACH brain mode.
 
     Uses BrainRouter with mode="realtime_coach" for fast, actionable cues.
     Falls back to config messages if brain is disabled.
+    Supports language and persona selection.
     """
     # STEP 3: Use realtime_coach brain mode (not chat mode)
     return brain_router.get_coaching_response(
         breath_data=breath_data,
         phase=phase,
-        mode="realtime_coach"  # Product-defining: fast, actionable, no explanations
+        mode="realtime_coach",  # Product-defining: fast, actionable, no explanations
+        language=language,
+        persona=persona
     )
 
 
@@ -1275,25 +1215,178 @@ def list_personas():
         return jsonify({"error": "Failed to list personas"}), 500
 
 # ============================================
+# PERSONA SWITCHING (Mid-workout)
+# ============================================
+
+@app.route('/coach/persona', methods=['POST'])
+def switch_persona():
+    """
+    Switch coach personality mid-workout.
+
+    Request body:
+    {
+        "session_id": "session_...",
+        "persona": "toxic_mode"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Missing request body"}), 400
+
+        session_id = data.get("session_id")
+        persona = data.get("persona")
+
+        if not session_id or not persona:
+            return jsonify({"error": "Missing session_id or persona"}), 400
+
+        if not PersonaManager.validate_persona(persona):
+            return jsonify({
+                "error": f"Invalid persona. Available: {PersonaManager.list_personas()}"
+            }), 400
+
+        # Update session persona
+        if session_manager.session_exists(session_id):
+            session_manager.sessions[session_id]["persona"] = persona
+            logger.info(f"Persona switched to '{persona}' for session {session_id}")
+
+        return jsonify({
+            "success": True,
+            "persona": persona,
+            "description": PersonaManager.get_persona_description(persona)
+        })
+
+    except Exception as e:
+        logger.error(f"Persona switch error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# ============================================
+# WORKOUT HISTORY ENDPOINTS
+# ============================================
+
+@app.route('/workouts', methods=['POST'])
+def save_workout():
+    """
+    Save a completed workout record.
+
+    Request body:
+    {
+        "duration_seconds": 900,
+        "final_phase": "cooldown",
+        "avg_intensity": "moderate",
+        "persona_used": "fitness_coach",
+        "language": "en"
+    }
+    """
+    try:
+        from auth import optional_auth
+        from database import db, WorkoutHistory
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Missing request body"}), 400
+
+        # Try to get user from auth token (optional)
+        user_id = None
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from auth import decode_jwt
+                token = auth_header.split("Bearer ")[1]
+                payload = decode_jwt(token)
+                user_id = payload.get("user_id")
+            except:
+                pass
+
+        workout = WorkoutHistory(
+            user_id=user_id or "anonymous",
+            duration_seconds=data.get("duration_seconds", 0),
+            final_phase=data.get("final_phase"),
+            avg_intensity=data.get("avg_intensity"),
+            persona_used=data.get("persona_used"),
+            language=data.get("language", "en")
+        )
+        db.session.add(workout)
+        db.session.commit()
+
+        logger.info(f"Workout saved: {workout.duration_seconds}s, phase={workout.final_phase}")
+
+        return jsonify({"workout": workout.to_dict()}), 201
+
+    except Exception as e:
+        logger.error(f"Save workout error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route('/workouts', methods=['GET'])
+def get_workouts():
+    """
+    Get workout history for a user.
+
+    Query params:
+    - limit: Max number of records (default: 20)
+    """
+    try:
+        from database import WorkoutHistory
+
+        # Try to get user from auth token
+        user_id = None
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            try:
+                from auth import decode_jwt
+                token = auth_header.split("Bearer ")[1]
+                payload = decode_jwt(token)
+                user_id = payload.get("user_id")
+            except:
+                pass
+
+        limit = int(request.args.get("limit", 20))
+
+        if user_id:
+            workouts = WorkoutHistory.query.filter_by(user_id=user_id)\
+                .order_by(WorkoutHistory.date.desc())\
+                .limit(limit).all()
+        else:
+            workouts = WorkoutHistory.query\
+                .order_by(WorkoutHistory.date.desc())\
+                .limit(limit).all()
+
+        return jsonify({
+            "workouts": [w.to_dict() for w in workouts]
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Get workouts error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# ============================================
 # TALK TO COACH (Conversational + Voice)
 # ============================================
 
 @app.route('/coach/talk', methods=['POST'])
 def coach_talk():
     """
-    Talk to the coach (conversational mode with Sundby personality).
+    Talk to the coach — supports both casual chat and mid-workout wake word speech.
 
     Request body (JSON):
     {
-        "message": "How should I pace my 10K?",
-        "session_id": "optional_session_id"
+        "message": "How should I pace this?",
+        "session_id": "optional_session_id",
+        "context": "workout",          // "workout" = mid-workout wake word, else casual chat
+        "phase": "intense",             // Current workout phase (if context=workout)
+        "intensity": "moderate",        // Current breath intensity (if context=workout)
+        "persona": "fitness_coach",     // Active coach persona
+        "language": "en"                // Language for response
     }
 
     Returns:
     {
-        "text": "Start easy. First three kilometers...",
+        "text": "Hold this pace — you're doing great.",
         "audio_url": "/download/...",
-        "personality": "endurance_coach"
+        "personality": "fitness_coach"
     }
     """
     try:
@@ -1303,18 +1396,50 @@ def coach_talk():
 
         user_message = data['message']
         session_id = data.get('session_id')
+        context = data.get('context', 'chat')  # "workout" or "chat"
+        phase = data.get('phase', 'intense')
+        intensity = data.get('intensity', 'moderate')
+        persona = data.get('persona', 'fitness_coach')
+        language = data.get('language', 'en')
 
-        logger.info(f"Coach talk request: '{user_message}'")
+        logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona})")
 
-        # Use strategic brain (Claude Haiku-first for cost efficiency)
-        # Architecture: Haiku ($0.25/M) first, escalate to Sonnet only if needed = 10x savings
+        # Build system prompt based on context
+        if context == 'workout':
+            # Mid-workout: user spoke via wake word — keep response VERY SHORT
+            persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
+            system_prompt = (
+                f"{persona_prompt}\n\n"
+                f"IMPORTANT: The user is IN THE MIDDLE of a workout right now.\n"
+                f"- Current phase: {phase}\n"
+                f"- Breathing intensity: {intensity}\n"
+                f"- They used the wake word to speak to you.\n"
+                f"- Keep your response to 1 sentence MAX. Be direct and actionable.\n"
+                f"- Don't ask questions — they can't easily respond.\n"
+                f"- If unclear, give a short motivational response."
+            )
+            if language == "no":
+                system_prompt += "\n- RESPOND IN NORWEGIAN."
+            max_tokens = 40  # Very short for mid-workout
+        else:
+            # Casual chat: outside workout, slightly longer allowed
+            persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
+            system_prompt = (
+                f"{persona_prompt}\n"
+                f"Max 2 sentences. You speak out loud to an athlete. Be concise and direct."
+            )
+            if language == "no":
+                system_prompt += "\n- RESPOND IN NORWEGIAN."
+            max_tokens = 60
+
+        # Use strategic brain (Claude Haiku for cost efficiency)
         coach_text = None
         if strategic_brain.is_available():
             try:
                 response = strategic_brain.client.messages.create(
                     model="claude-3-haiku-20240307",
-                    max_tokens=60,  # Hard limit: concise spoken responses
-                    system="You are Coach Sundby. Nordic endurance coach. Calm, direct, no hype. Max 2 sentences. You speak out loud to an athlete.",
+                    max_tokens=max_tokens,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": user_message}]
                 )
                 coach_text = response.content[0].text
@@ -1325,20 +1450,22 @@ def coach_talk():
         # Fallback to config-based response
         if not coach_text:
             coach_text = brain_router.get_coaching_response(
-                {"intensity": "moderate", "volume": 50, "tempo": 20},
-                "intense",
-                mode="chat"
+                {"intensity": intensity, "volume": 50, "tempo": 20},
+                phase,
+                mode="chat",
+                language=language,
+                persona=persona
             )
 
-        # Generate voice audio
-        voice_file = generate_voice(coach_text)
+        # Generate voice audio in the correct language
+        voice_file = generate_voice(coach_text, language=language)
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         audio_url = f"/download/{relative_path}"
 
         return jsonify({
             "text": coach_text,
             "audio_url": audio_url,
-            "personality": "endurance_coach"
+            "personality": persona
         })
 
     except Exception as e:

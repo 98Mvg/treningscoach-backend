@@ -27,6 +27,12 @@ class ContinuousRecordingManager: NSObject {
     private let sampleRate: Double = 44100.0
     private let channels: AVAudioChannelCount = 1
 
+    // Wake word: callback to feed audio buffers to speech recognizer
+    var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
+
+    /// Expose audio engine for wake word manager
+    var engine: AVAudioEngine { audioEngine }
+
     // MARK: - Public Methods
 
     /// Start continuous recording session
@@ -50,8 +56,11 @@ class ContinuousRecordingManager: NSObject {
         print("📱 Audio format: \(format.sampleRate)Hz, \(format.channelCount) channels")
 
         // Install tap to capture audio continuously
+        // Buffers are used for both breath analysis (circular buffer) and wake word detection
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, time in
             self?.processAudioBuffer(buffer)
+            // Forward to wake word speech recognizer
+            self?.onAudioBuffer?(buffer)
         }
 
         // Start engine

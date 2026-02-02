@@ -21,17 +21,18 @@ class WorkoutViewModel: ObservableObject {
     @Published var errorMessage = ""
     @Published var voiceState: VoiceState = .idle
     @Published var currentPhase: WorkoutPhase = .intense
+    @Published var activePersonality: CoachPersonality = .fitnessCoach
 
     // MARK: - Computed Properties
 
     var currentPhaseDisplay: String {
         switch currentPhase {
         case .warmup:
-            return "Warm-up"
+            return L10n.warmup
         case .intense:
-            return "Hard Coach"
+            return L10n.intense
         case .cooldown:
-            return "Cool-down"
+            return L10n.cooldown
         }
     }
 
@@ -50,11 +51,20 @@ class WorkoutViewModel: ObservableObject {
     var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default: return "Good night"
+        case 5..<12: return L10n.goodMorning
+        case 12..<17: return L10n.goodAfternoon
+        case 17..<22: return L10n.goodEvening
+        default: return L10n.goodNight
         }
+    }
+
+    // Current language and training level from UserDefaults
+    private var currentLanguage: String {
+        UserDefaults.standard.string(forKey: "app_language") ?? "en"
+    }
+
+    private var currentTrainingLevel: String {
+        UserDefaults.standard.string(forKey: "training_level") ?? "intermediate"
     }
 
     // Formatted elapsed time string (MM:SS)
@@ -77,11 +87,23 @@ class WorkoutViewModel: ObservableObject {
     private var autoTimeoutTimer: Timer?
     private var elapsedTimeTimer: Timer?
 
+    // Wake word for user-initiated speech ("Coach" / "Trener")
+    let wakeWordManager = WakeWordManager()
+    @Published var isWakeWordActive = false  // Show UI indicator when wake word heard
+
     // MARK: - Initialization
 
     init() {
         // Configure audio session for playback
         setupAudioSession()
+
+        // Request speech recognition authorization for wake word
+        Task {
+            let authorized = await wakeWordManager.requestAuthorization()
+            if authorized {
+                print("✅ Speech recognition authorized for wake word")
+            }
+        }
 
         // Check backend connectivity on launch
         Task {
@@ -184,6 +206,59 @@ class WorkoutViewModel: ObservableObject {
         guard isContinuousMode else { return }
         print("⏩ Skipping warmup — jumping to intense phase")
         currentPhase = .intense
+    }
+
+    // MARK: - Personality Switching
+
+    func switchPersonality(_ personality: CoachPersonality) {
+        guard personality != activePersonality else { return }
+        print("🎭 Switching personality: \(activePersonality.rawValue) → \(personality.rawValue)")
+        activePersonality = personality
+
+        // Notify backend of persona switch mid-session
+        if isContinuousMode, let sid = sessionId {
+            Task {
+                try? await apiService.switchPersona(
+                    sessionId: sid,
+                    persona: personality.rawValue
+                )
+            }
+        }
+    }
+
+    // MARK: - Wake Word Speech-to-Coach
+
+    /// Handle user utterance after wake word detection
+    /// This is the 10% user-initiated channel — short, contextual questions
+    private func handleWakeWordUtterance(_ utterance: String) {
+        guard isContinuousMode else { return }
+
+        print("🗣️ User spoke to coach: '\(utterance)'")
+        isWakeWordActive = true
+
+        // Send to backend with workout context
+        Task {
+            do {
+                let response = try await apiService.talkToCoachDuringWorkout(
+                    message: utterance,
+                    sessionId: sessionId ?? "",
+                    phase: currentPhase.rawValue,
+                    intensity: breathAnalysis?.intensity ?? "moderate",
+                    persona: activePersonality.rawValue,
+                    language: currentLanguage
+                )
+
+                coachMessage = response.text
+                print("🗣️ Coach replied to user: '\(response.text)'")
+
+                // Play the response audio
+                await playCoachAudio(response.audioURL)
+            } catch {
+                print("❌ Wake word talk failed: \(error.localizedDescription)")
+            }
+
+            isWakeWordActive = false
+        }
     }
 
     // MARK: - Phase Auto-Detection
@@ -343,6 +418,19 @@ class WorkoutViewModel: ObservableObject {
                 }
             }
 
+            // Connect wake word manager to audio stream
+            continuousRecordingManager.onAudioBuffer = { [weak self] buffer in
+                self?.wakeWordManager.feedAudioBuffer(buffer)
+            }
+
+            // Start wake word listening
+            wakeWordManager.updateLanguage()
+            wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
+                Task { @MainActor in
+                    self?.handleWakeWordUtterance(utterance)
+                }
+            }
+
             // Play welcome message immediately (don't wait for first 8s tick)
             Task {
                 await playWelcomeMessage()
@@ -374,6 +462,10 @@ class WorkoutViewModel: ObservableObject {
 
         print("⏹️ Stopping continuous workout")
 
+        // Stop wake word listening
+        wakeWordManager.stopListening()
+        continuousRecordingManager.onAudioBuffer = nil
+
         // Stop recording
         continuousRecordingManager.stopContinuousRecording()
 
@@ -388,6 +480,7 @@ class WorkoutViewModel: ObservableObject {
         // Update state
         isContinuousMode = false
         voiceState = .idle
+        isWakeWordActive = false
         sessionId = nil
 
         // Update final workout duration and save to history
@@ -443,7 +536,10 @@ class WorkoutViewModel: ObservableObject {
                     sessionId: sessionId ?? "",
                     phase: currentPhase,
                     lastCoaching: coachMessage ?? "",
-                    elapsedSeconds: Int(workoutDuration)
+                    elapsedSeconds: Int(workoutDuration),
+                    language: currentLanguage,
+                    trainingLevel: currentTrainingLevel,
+                    persona: activePersonality.rawValue
                 )
 
                 // 3. Update metrics silently (NO UI state change)
@@ -504,7 +600,7 @@ class WorkoutViewModel: ObservableObject {
     private func playWelcomeMessage() async {
         do {
             print("👋 Fetching welcome message...")
-            let welcome = try await apiService.getWelcomeMessage()
+            let welcome = try await apiService.getWelcomeMessage(language: currentLanguage)
             coachMessage = welcome.text
             print("👋 Welcome: '\(welcome.text)' - downloading audio...")
             await playCoachAudio(welcome.audioURL)

@@ -42,12 +42,70 @@ struct BreathAnalysis: Codable {
     let intensity: String
     let duration: Double
 
+    // Advanced breath metrics (from BreathAnalyzer DSP pipeline)
+    let breathPhases: [BreathPhaseEvent]?
+    let respiratoryRate: Double?
+    let breathRegularity: Double?
+    let inhaleExhaleRatio: Double?
+    let signalQuality: Double?
+    let dominantFrequency: Double?
+
     enum CodingKeys: String, CodingKey {
         case silence, volume, tempo, intensity, duration
+        case breathPhases = "breath_phases"
+        case respiratoryRate = "respiratory_rate"
+        case breathRegularity = "breath_regularity"
+        case inhaleExhaleRatio = "inhale_exhale_ratio"
+        case signalQuality = "signal_quality"
+        case dominantFrequency = "dominant_frequency"
     }
 
     var intensityLevel: IntensityLevel {
         IntensityLevel(rawValue: intensity.lowercased()) ?? .moderate
+    }
+
+    /// Latest detected breath phase (inhale/exhale/pause)
+    var latestBreathPhase: BreathPhaseEvent? {
+        breathPhases?.last(where: { $0.type != "pause" })
+    }
+
+    /// Real respiratory rate in BPM (falls back to tempo)
+    var effectiveRespiratoryRate: Double {
+        respiratoryRate ?? tempo
+    }
+}
+
+// MARK: - Breath Phase Event
+
+struct BreathPhaseEvent: Codable, Identifiable {
+    var id: String { "\(type)-\(start)" }
+    let type: String       // "inhale", "exhale", "pause"
+    let start: Double
+    let end: Double
+    let confidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case type, start, end, confidence
+    }
+
+    var duration: Double { end - start }
+
+    var displayName: String {
+        switch type {
+        case "inhale": return "Inhale"
+        case "exhale": return "Exhale"
+        case "pause": return "Pause"
+        default: return type.capitalized
+        }
+    }
+
+    var icon: String {
+        switch type {
+        case "inhale": return "arrow.down.circle"
+        case "exhale": return "arrow.up.circle"
+        case "pause": return "pause.circle"
+        default: return "circle"
+        }
     }
 }
 

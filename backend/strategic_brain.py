@@ -97,7 +97,8 @@ class StrategicBrain:
         coaching_history: List[str],
         phase: str,
         elapsed_seconds: int,
-        session_context: Optional[Dict] = None
+        session_context: Optional[Dict] = None,
+        language: str = "en"
     ) -> Optional[Dict]:
         """
         Generate strategic coaching insight based on session context.
@@ -157,7 +158,7 @@ class StrategicBrain:
                 model="claude-3-haiku-20240307",
                 max_tokens=60,  # Hard limit for cost control
                 temperature=0.7,
-                system=self._get_system_prompt(),
+                system=self._get_system_prompt(language=language),
                 messages=[{
                     "role": "user",
                     "content": prompt
@@ -174,7 +175,7 @@ class StrategicBrain:
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=60,  # Hard limit
                     temperature=0.7,
-                    system=self._get_system_prompt(),
+                    system=self._get_system_prompt(language=language),
                     messages=[{
                         "role": "user",
                         "content": prompt
@@ -243,13 +244,12 @@ class StrategicBrain:
             "suggested_phrase": response
         }
     
-    def _get_system_prompt(self) -> str:
+    def _get_system_prompt(self, language: str = "en") -> str:
         """
         System prompt defining Strategic Brain's role and style.
-
-        Ultra-concise. No explanations. No filler.
+        Supports language selection for Norwegian coaching phrases.
         """
-        return """You are a coaching intelligence module.
+        base = """You are a coaching intelligence module.
 You must be concise.
 You must not explain your reasoning.
 Do not repeat the input.
@@ -275,6 +275,9 @@ Constraints:
 - Calm, authoritative tone
 - Return only the requested format
 """
+        if language == "no":
+            base += "\nIMPORTANT: The Phrase MUST be in Norwegian (Bokmal). Short, direct coaching."
+        return base
     
     def _build_cache_key(
         self,

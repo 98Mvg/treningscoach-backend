@@ -4,12 +4,7 @@
 //
 //  Main workout screen — audio-first, glanceable design
 //  Voice orb at center with timer ring, phase indicator
-//  User should NOT need to stare at this screen — quick glance only
-//
-//  Coach behavior:
-//  - Warmup: coach talks more, answers simple questions, gives tips
-//  - Workout: coach focuses on breath, minimal talk, no distractions
-//  - Cooldown: coach gives summary, recovery tips
+//  Coach personality selector during main workout phase
 //
 
 import SwiftUI
@@ -32,6 +27,17 @@ struct WorkoutView: View {
                 }
 
                 Spacer()
+
+                // MARK: - Personality Selector (during main workout)
+                if viewModel.isContinuousMode && viewModel.currentPhase == .intense {
+                    PersonalitySelectorView(
+                        selectedPersonality: $viewModel.activePersonality
+                    ) { personality in
+                        viewModel.switchPersonality(personality)
+                    }
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+                }
 
                 // MARK: - Voice Orb + Timer Ring (center)
                 ZStack {
@@ -67,16 +73,31 @@ struct WorkoutView: View {
                         .transition(.opacity)
                 }
 
-                // MARK: - Intensity Badge
+                // MARK: - Intensity Badge + Breath Phase
                 if viewModel.isContinuousMode, let analysis = viewModel.breathAnalysis {
-                    intensityBadge(level: analysis.intensityLevel)
-                        .padding(.top, 8)
-                        .transition(.opacity)
+                    VStack(spacing: 6) {
+                        intensityBadge(level: analysis.intensityLevel)
+
+                        // Breath phase indicator (only when DSP data available)
+                        if let phase = analysis.latestBreathPhase {
+                            breathPhaseIndicator(phase: phase)
+                                .transition(.opacity)
+                        }
+
+                        // Real respiratory rate
+                        if let rate = analysis.respiratoryRate {
+                            Text("\(Int(rate)) BPM")
+                                .font(.caption2.weight(.medium).monospacedDigit())
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                        }
+                    }
+                    .padding(.top, 8)
+                    .transition(.opacity)
                 }
 
                 // Hint text when idle
                 if !viewModel.isContinuousMode {
-                    Text("Tap to start workout")
+                    Text(L10n.tapToStart)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
                         .padding(.top, 16)
@@ -92,7 +113,7 @@ struct WorkoutView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "forward.fill")
                                 .font(.caption)
-                            Text("Skip to Workout")
+                            Text(L10n.skipToWorkout)
                                 .font(.subheadline.weight(.semibold))
                         }
                         .foregroundStyle(AppTheme.secondaryAccent)
@@ -104,12 +125,19 @@ struct WorkoutView: View {
                     .transition(.opacity)
                 }
 
+                // MARK: - Wake Word Indicator
+                if viewModel.isContinuousMode {
+                    wakeWordIndicator
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
+
                 // MARK: - Stop Button (only during workout)
                 if viewModel.isContinuousMode {
                     Button {
                         viewModel.stopContinuousWorkout()
                     } label: {
-                        Text("Stop Workout")
+                        Text(L10n.stopWorkout)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(AppTheme.danger)
                             .padding(.horizontal, 24)
@@ -128,8 +156,8 @@ struct WorkoutView: View {
             .animation(.easeInOut(duration: 0.3), value: viewModel.isContinuousMode)
         }
         // Error alert
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) { }
+        .alert(L10n.error, isPresented: $viewModel.showError) {
+            Button(L10n.ok, role: .cancel) { }
         } message: {
             Text(viewModel.errorMessage)
         }
@@ -195,9 +223,9 @@ struct WorkoutView: View {
 
     private func phaseLabel(for phase: WorkoutPhase) -> String {
         switch phase {
-        case .warmup: return "Warmup"
-        case .intense: return "Intense"
-        case .cooldown: return "Cool"
+        case .warmup: return L10n.warmup
+        case .intense: return L10n.intense
+        case .cooldown: return L10n.cooldown
         }
     }
 
@@ -207,6 +235,78 @@ struct WorkoutView: View {
         case .moderate: return AppTheme.primaryAccent
         case .intense: return AppTheme.warning
         case .critical: return AppTheme.danger
+        }
+    }
+
+    // MARK: - Wake Word Indicator
+
+    private var wakeWordIndicator: some View {
+        HStack(spacing: 6) {
+            if viewModel.isWakeWordActive || viewModel.wakeWordManager.isCapturingUtterance {
+                // Active: capturing user speech
+                Image(systemName: "mic.fill")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.success)
+                    .symbolEffect(.pulse)
+
+                Text(viewModel.wakeWordManager.isCapturingUtterance ? L10n.listeningForYou : L10n.coachHeard)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(AppTheme.success)
+            } else if viewModel.wakeWordManager.wakeWordDetected {
+                // Wake word just detected — brief flash
+                Image(systemName: "mic.fill")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.primaryAccent)
+
+                Text(L10n.coachHeard)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(AppTheme.primaryAccent)
+            } else {
+                // Idle: show hint
+                Image(systemName: "mic.badge.xmark")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.4))
+
+                Text(L10n.sayCoachToSpeak)
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.4))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            (viewModel.isWakeWordActive ? AppTheme.success : AppTheme.textSecondary)
+                .opacity(viewModel.isWakeWordActive ? 0.15 : 0.05)
+        )
+        .clipShape(Capsule())
+        .animation(.easeInOut(duration: 0.3), value: viewModel.isWakeWordActive)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.wakeWordManager.wakeWordDetected)
+    }
+
+    // MARK: - Breath Phase Indicator
+
+    private func breathPhaseIndicator(phase: BreathPhaseEvent) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: phase.icon)
+                .font(.caption2)
+                .foregroundStyle(breathPhaseColor(phase.type))
+
+            Text(phase.displayName)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(breathPhaseColor(phase.type).opacity(0.1))
+        .clipShape(Capsule())
+        .animation(.easeInOut(duration: 0.2), value: phase.type)
+    }
+
+    private func breathPhaseColor(_ type: String) -> Color {
+        switch type {
+        case "inhale": return AppTheme.secondaryAccent
+        case "exhale": return AppTheme.primaryAccent
+        default: return AppTheme.textSecondary
         }
     }
 }

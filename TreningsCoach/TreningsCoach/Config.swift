@@ -13,7 +13,7 @@ import SwiftUI
 struct AppConfig {
     // MARK: - App Info
     static let appName = "Treningscoach"
-    static let version = "1.0.0"
+    static let version = "2.0.0"
 
     // MARK: - Backend
     static let productionURL = "https://treningscoach-backend.onrender.com"

@@ -89,7 +89,9 @@ class BrainRouter:
         self,
         breath_data: Dict[str, Any],
         phase: str = "intense",
-        mode: str = "realtime_coach"
+        mode: str = "realtime_coach",
+        language: str = "en",
+        persona: str = None
     ) -> str:
         """
         Get coaching response from active brain.
@@ -100,6 +102,8 @@ class BrainRouter:
             breath_data: Dictionary containing breath analysis metrics
             phase: Current workout phase ("warmup", "intense", "cooldown")
             mode: Brain mode - "chat" or "realtime_coach" (default: realtime_coach)
+            language: "en" or "no" for language-specific message selection
+            persona: Optional persona override (e.g. "toxic_mode" for toxic message bank)
 
         Returns:
             String containing coaching message
@@ -112,10 +116,10 @@ class BrainRouter:
                     return self.brain.get_realtime_coaching(breath_data, phase)
                 except Exception as e:
                     print(f"⚠️ Brain Router: Real-time brain error: {e}, using fallback")
-                    return self._get_config_response(breath_data, phase)
+                    return self._get_config_response(breath_data, phase, language=language, persona=persona)
             else:
                 # Config mode uses same messages for both modes
-                return self._get_config_response(breath_data, phase)
+                return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
         elif mode == "chat":
             # Use conversational chat brain (explanatory, educational)
@@ -124,44 +128,87 @@ class BrainRouter:
                     return self.brain.get_coaching_response(breath_data, phase)
                 except Exception as e:
                     print(f"⚠️ Brain Router: Chat brain error: {e}, using fallback")
-                    return self._get_config_response(breath_data, phase)
+                    return self._get_config_response(breath_data, phase, language=language, persona=persona)
             else:
-                return self._get_config_response(breath_data, phase)
+                return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
         else:
             print(f"⚠️ Brain Router: Unknown mode '{mode}', using realtime_coach")
-            return self.get_coaching_response(breath_data, phase, mode="realtime_coach")
+            return self.get_coaching_response(breath_data, phase, mode="realtime_coach", language=language, persona=persona)
 
     def _get_config_response(
         self,
         breath_data: Dict[str, Any],
-        phase: str = "intense"
+        phase: str = "intense",
+        language: str = "en",
+        persona: str = None
     ) -> str:
         """
         Get response from config messages (no AI).
-
-        This is the original logic - simple and fast.
+        Supports language selection (EN/NO) and persona-specific message banks.
         """
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensity = breath_data.get("intensity", breath_data.get("intensitet", "moderate"))
+
+        # Route to toxic mode message bank if persona is toxic_mode
+        if persona == "toxic_mode":
+            return self._get_toxic_response(intensity, phase, language)
+
+        # Select message bank based on language
+        if language == "no":
+            messages = config.CONTINUOUS_COACH_MESSAGES_NO
+        else:
+            messages = config.CONTINUOUS_COACH_MESSAGES
 
         # Critical override
-        if intensitet == "kritisk":
-            return random.choice(config.COACH_MESSAGES["kritisk"])
+        if intensity in ("critical", "kritisk"):
+            return random.choice(messages.get("critical", ["Stop! Breathe."]))
 
         # Phase-based responses
         if phase == "warmup":
-            return random.choice(config.COACH_MESSAGES["warmup"])
+            return random.choice(messages.get("warmup", ["Easy pace."]))
 
         if phase == "cooldown":
-            return random.choice(config.COACH_MESSAGES["cooldown"])
+            return random.choice(messages.get("cooldown", ["Slow down."]))
 
         # Intense phase with intensity levels
         if phase == "intense":
-            intense_msgs = config.COACH_MESSAGES["intense"]
-            if intensitet in intense_msgs:
-                return random.choice(intense_msgs[intensitet])
+            intense_msgs = messages.get("intense", {})
+            # Normalize intensity key
+            intensity_key = intensity if intensity in intense_msgs else "moderate"
+            if intensity_key in intense_msgs:
+                return random.choice(intense_msgs[intensity_key])
 
-        return "Fortsett!"
+        return "Fortsett!" if language == "no" else "Keep going!"
+
+    def _get_toxic_response(
+        self,
+        intensity: str,
+        phase: str,
+        language: str = "en"
+    ) -> str:
+        """Get response from toxic mode message bank."""
+        lang_key = language if language in config.TOXIC_MODE_MESSAGES else "en"
+        messages = config.TOXIC_MODE_MESSAGES[lang_key]
+
+        # Critical override (safety first, even in toxic mode)
+        if intensity in ("critical", "kritisk"):
+            return random.choice(messages.get("critical", ["Stop. Breathe. Safety first."]))
+
+        # Phase-based responses
+        if phase == "warmup":
+            return random.choice(messages.get("warmup", ["MOVE!"]))
+
+        if phase == "cooldown":
+            return random.choice(messages.get("cooldown", ["Fine. Rest."]))
+
+        # Intense phase
+        if phase == "intense":
+            intense_msgs = messages.get("intense", {})
+            intensity_key = intensity if intensity in intense_msgs else "moderate"
+            if intensity_key in intense_msgs:
+                return random.choice(intense_msgs[intensity_key])
+
+        return "KEEP GOING!" if language == "en" else "FORTSETT!"
 
     def get_active_brain(self) -> str:
         """Get the name of the currently active brain."""

@@ -44,6 +44,8 @@ class VoiceIntelligence:
         """
         intensitet = breath_data.get("intensity", "moderate")
         tempo = breath_data.get("tempo", 0)
+        signal_quality = breath_data.get("signal_quality")
+        breath_regularity = breath_data.get("breath_regularity")
 
         # NEVER silent for critical breathing
         if intensitet == "critical":
@@ -52,6 +54,19 @@ class VoiceIntelligence:
         # Don't be silent at the very start (greet user)
         if elapsed_seconds < 10:
             return (False, "greeting")
+
+        # Stay silent if audio is too noisy to analyze reliably
+        if signal_quality is not None and signal_quality < 0.3:
+            self.silence_count += 1
+            return (True, "noisy_audio")
+
+        # Stay silent if breathing is highly regular AND matches phase target
+        if breath_regularity is not None and breath_regularity > 0.85:
+            if ((phase == "warmup" and intensitet in ["calm", "moderate"]) or
+                (phase == "intense" and intensitet == "intense") or
+                (phase == "cooldown" and intensitet == "calm")):
+                self.silence_count += 1
+                return (True, "highly_regular_optimal")
 
         # STEP 6: Silence when breathing is optimal for the phase
         if phase == "warmup" and intensitet in ["calm", "moderate"]:

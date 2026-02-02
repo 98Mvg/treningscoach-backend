@@ -3,13 +3,14 @@
 //  TreningsCoach
 //
 //  Profile and stats screen
-//  Shows workout statistics and settings
+//  Shows workout statistics, settings, and sign-out
 //
 
 import SwiftUI
 
 struct ProfileView: View {
     @ObservedObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
         ZStack {
@@ -25,11 +26,11 @@ struct ProfileView: View {
                             .font(.system(size: 72))
                             .foregroundStyle(AppTheme.primaryAccent)
 
-                        Text("Marius")
+                        Text(authManager.currentUser?.displayName ?? L10n.athlete)
                             .font(.title.bold())
                             .foregroundStyle(AppTheme.textPrimary)
 
-                        Text("Athlete")
+                        Text(authManager.currentUser?.trainingLevel.displayName ?? L10n.athlete)
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -37,27 +38,27 @@ struct ProfileView: View {
 
                     // MARK: - Stats Grid
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("My Statistics")
+                        Text(L10n.myStatistics)
                             .font(.headline)
                             .foregroundStyle(AppTheme.textPrimary)
 
                         HStack(spacing: 12) {
                             StatCardView(
-                                title: "Workouts",
+                                title: L10n.workouts,
                                 value: "\(viewModel.userStats.totalWorkouts)",
                                 icon: "figure.run",
                                 color: AppTheme.primaryAccent
                             )
 
                             StatCardView(
-                                title: "Minutes",
+                                title: L10n.minutes,
                                 value: "\(viewModel.userStats.totalMinutes)",
                                 icon: "clock.fill",
                                 color: AppTheme.secondaryAccent
                             )
 
                             StatCardView(
-                                title: "Streak",
+                                title: L10n.streak,
                                 value: "\(viewModel.userStats.currentStreak)",
                                 icon: "flame.fill",
                                 color: AppTheme.warning
@@ -68,9 +69,33 @@ struct ProfileView: View {
 
                     // MARK: - Settings Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Settings")
+                        Text(L10n.settings)
                             .font(.headline)
                             .foregroundStyle(AppTheme.textPrimary)
+
+                        // Language
+                        settingsRow(
+                            icon: "globe",
+                            title: L10n.language,
+                            subtitle: L10n.current.displayName,
+                            color: AppTheme.primaryAccent
+                        )
+
+                        // Experience level
+                        settingsRow(
+                            icon: "chart.bar.fill",
+                            title: L10n.experienceLevel,
+                            subtitle: authManager.currentUser?.trainingLevel.displayName ?? "Intermediate",
+                            color: AppTheme.primaryAccent
+                        )
+
+                        // Coach voice
+                        settingsRow(
+                            icon: "speaker.wave.3.fill",
+                            title: L10n.coachVoice,
+                            subtitle: "ElevenLabs",
+                            color: AppTheme.success
+                        )
 
                         // Backend connection status
                         settingsRow(
@@ -79,22 +104,23 @@ struct ProfileView: View {
                             subtitle: AppConfig.backendURL,
                             color: AppTheme.secondaryAccent
                         )
+                    }
+                    .padding(.horizontal, 20)
 
-                        // Experience level
-                        settingsRow(
-                            icon: "chart.bar.fill",
-                            title: "Experience Level",
-                            subtitle: "Advanced",
-                            color: AppTheme.primaryAccent
-                        )
-
-                        // Audio settings
-                        settingsRow(
-                            icon: "speaker.wave.3.fill",
-                            title: "Coach Voice",
-                            subtitle: "ElevenLabs",
-                            color: AppTheme.success
-                        )
+                    // MARK: - Sign Out Button
+                    Button {
+                        authManager.signOut()
+                    } label: {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text(L10n.signOut)
+                        }
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(AppTheme.danger)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(AppTheme.danger.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .padding(.horizontal, 20)
 
