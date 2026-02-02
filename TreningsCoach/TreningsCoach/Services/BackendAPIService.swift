@@ -26,7 +26,7 @@ class BackendAPIService {
 
     /// Adds JWT auth token to request if available
     private func addAuthHeader(to request: inout URLRequest) {
-        if let token = KeychainHelper.read() {
+        if let token = KeychainHelper.readString(key: KeychainHelper.tokenKey) {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
     }
@@ -87,7 +87,7 @@ class BackendAPIService {
     /// Get welcome message for workout start
     func getWelcomeMessage(language: String = "en") async throws -> WelcomeResponse {
         let url = URL(string: "\(baseURL)/welcome?language=\(language)")!
-        var request = authenticatedRequest(url: url)
+        let request = authenticatedRequest(url: url)
         let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,

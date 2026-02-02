@@ -35,14 +35,18 @@ struct OnboardingContainerView: View {
                 ))
 
             case .auth:
-                AuthView(authManager: authManager)
-                    .onChange(of: authManager.isAuthenticated) { _, isAuth in
-                        if isAuth {
-                            withAnimation {
-                                currentStep = .trainingLevel
-                            }
+                AuthView(authManager: authManager) {
+                    withAnimation {
+                        currentStep = .trainingLevel
+                    }
+                }
+                .onChange(of: authManager.isAuthenticated) { _, isAuth in
+                    if isAuth {
+                        withAnimation {
+                            currentStep = .trainingLevel
                         }
                     }
+                }
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .leading)

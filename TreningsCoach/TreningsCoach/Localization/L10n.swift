@@ -70,6 +70,8 @@ struct L10n {
     static var trainingLevelSubtitle: String { current == .no ? "Dette paavirker coachens tone og intensitet" : "This influences the coach's tone and intensity" }
     static var continueButton: String { current == .no ? "Fortsett" : "Continue" }
     static var getStarted: String { current == .no ? "Kom i gang" : "Get Started" }
+    static var skip: String { current == .no ? "Hopp over" : "Skip" }
+    static var continueWithoutAccount: String { current == .no ? "Fortsett uten konto" : "Continue without account" }
 
     // MARK: - Intensity
     static var calm: String { current == .no ? "Rolig" : "Calm" }

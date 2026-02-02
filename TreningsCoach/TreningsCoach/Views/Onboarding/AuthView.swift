@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AuthView: View {
     @ObservedObject var authManager: AuthManager
+    var onSkip: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -85,6 +86,17 @@ struct AuthView: View {
                 }
 
                 Spacer()
+
+                // Skip button
+                if let onSkip = onSkip {
+                    Button(action: onSkip) {
+                        Text(L10n.continueWithoutAccount)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding(.bottom, 8)
+                }
+
                 Spacer()
             }
         }
