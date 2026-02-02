@@ -62,8 +62,6 @@ struct OnboardingContainerView: View {
                 ))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentStep == .language)
-        .animation(.easeInOut(duration: 0.3), value: currentStep == .auth)
-        .animation(.easeInOut(duration: 0.3), value: currentStep == .trainingLevel)
+        .animation(.easeInOut(duration: 0.3), value: currentStep)
     }
 }

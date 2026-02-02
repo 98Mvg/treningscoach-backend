@@ -15,7 +15,7 @@ struct TreningsCoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding && authManager.isAuthenticated {
+            if hasCompletedOnboarding {
                 ContentView()
                     .environmentObject(authManager)
             } else {

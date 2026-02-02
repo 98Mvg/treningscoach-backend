@@ -48,11 +48,14 @@ struct TrainingLevelView: View {
                 // Continue button
                 if let selected = selectedLevel {
                     Button {
+                        // Save level locally regardless of auth state
+                        UserDefaults.standard.set(selected.rawValue, forKey: "training_level")
+                        UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
+                        // Update backend profile if authenticated
                         Task {
                             await authManager.updateProfile(trainingLevel: selected)
-                            UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
-                            onComplete()
                         }
+                        onComplete()
                     } label: {
                         Text(L10n.getStarted)
                             .font(.headline)
