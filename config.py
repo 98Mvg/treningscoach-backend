@@ -29,7 +29,9 @@ VOICE_CONFIG = {
 }
 
 # Persona-specific voices (drill sergeant uses different voice)
+# Maps to iOS CoachPersonality enum values
 PERSONA_VOICE_CONFIG = {
+    # Tough personas - use Drill Sergeant voice (Yxsf...)
     "drill_sergeant": {
         "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
         "name": "Drill Sergeant",
@@ -38,15 +40,28 @@ PERSONA_VOICE_CONFIG = {
     },
     "toxic_mode": {
         "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
-        "name": "Toxic Coach",
-        "stability": 0.3,
-        "style": 0.8
+        "name": "Toxic Mode",
+        "stability": 0.25,
+        "style": 0.9
     },
+    # Calm personas - use Coach voice (1DHh...)
     "fitness_coach": {
-        "voice_id": None,
+        "voice_id": None,  # Uses language default (Coach voice)
         "name": "Fitness Coach",
         "stability": 0.5,
         "style": 0.0
+    },
+    "calm_coach": {
+        "voice_id": None,
+        "name": "Calm Coach",
+        "stability": 0.7,
+        "style": 0.0
+    },
+    "personal_trainer": {
+        "voice_id": None,
+        "name": "Personal Trainer",
+        "stability": 0.5,
+        "style": 0.2
     },
     "endurance_coach": {
         "voice_id": None,
