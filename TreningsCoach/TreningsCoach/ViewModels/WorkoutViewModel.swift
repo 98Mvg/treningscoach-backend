@@ -113,15 +113,14 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func setupAudioSession() {
-        do {
-            // Set category to playback (allows audio even when silent switch is on)
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
-            // Activate the audio session
-            try AVAudioSession.sharedInstance().setActive(true)
-            print("✅ Audio session configured for playback")
-        } catch {
-            print("❌ Failed to setup audio session: \(error.localizedDescription)")
-        }
+        // NOTE: Don't set audio category here on init.
+        // ContinuousRecordingManager will configure .playAndRecord when workout starts.
+        // Setting .playback here and then .playAndRecord later causes error -10875.
+        //
+        // The audio session will be properly configured in:
+        // - ContinuousRecordingManager.startContinuousRecording() for workouts
+        // - playAudio() for standalone playback
+        print("✅ Audio session will be configured on workout start")
     }
 
     // MARK: - Recording

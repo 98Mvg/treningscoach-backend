@@ -45,8 +45,18 @@ class ContinuousRecordingManager: NSObject {
         // Configure audio session for BOTH recording AND playback
         // .playAndRecord allows coach voice to play while mic stays active
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
-        try audioSession.setActive(true)
+
+        // IMPORTANT: Deactivate first to allow category change
+        // This prevents error -10875 (kAudioSessionIncompatibleCategory)
+        do {
+            try audioSession.setActive(false)
+        } catch {
+            print("⚠️ Could not deactivate audio session (may already be inactive): \(error)")
+        }
+
+        // Now set the category and reactivate
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers])
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
         // Get input node
         let inputNode = audioEngine.inputNode
