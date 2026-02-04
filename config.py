@@ -1,10 +1,59 @@
 # config.py - Central configuration for easy customization
 
+import os
+
 # ============================================
 # APP SETTINGS
 # ============================================
 APP_NAME = "Treningscoach"
-APP_VERSION = "1.1.0"
+APP_VERSION = "2.0.0"
+
+# ============================================
+# LANGUAGE SETTINGS
+# ============================================
+SUPPORTED_LANGUAGES = ["en", "no"]
+DEFAULT_LANGUAGE = "en"
+
+# ============================================
+# VOICE CONFIGURATION (per language)
+# ============================================
+VOICE_CONFIG = {
+    "en": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_EN", os.getenv("ELEVENLABS_VOICE_ID", "")),
+        "name": "English Coach"
+    },
+    "no": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_NO", os.getenv("ELEVENLABS_VOICE_ID", "")),
+        "name": "Norwegian Coach"
+    }
+}
+
+# ============================================
+# TRAINING LEVEL CONFIGURATION
+# ============================================
+TRAINING_LEVEL_CONFIG = {
+    "beginner": {
+        "coaching_frequency_multiplier": 1.5,   # Talk more often
+        "intensity_threshold_offset": -10,       # Lower threshold to trigger "intense"
+        "tone": "supportive",
+        "max_push_intensity": "moderate",        # Never push beginners to extreme
+        "prompt_modifier": "Speak to a beginner. Be encouraging and patient. Explain what to do. Never assume fitness knowledge. Use simple language."
+    },
+    "intermediate": {
+        "coaching_frequency_multiplier": 1.0,
+        "intensity_threshold_offset": 0,
+        "tone": "balanced",
+        "max_push_intensity": "intense",
+        "prompt_modifier": "Speak to an experienced exerciser. Be direct and motivating. Challenge appropriately."
+    },
+    "advanced": {
+        "coaching_frequency_multiplier": 0.7,    # Talk less (they know what they're doing)
+        "intensity_threshold_offset": 10,
+        "tone": "direct",
+        "max_push_intensity": "critical",
+        "prompt_modifier": "Speak to an elite athlete. Be minimal. Only speak when it matters. Push hard."
+    }
+}
 
 # ============================================
 # UI CUSTOMIZATION
@@ -34,38 +83,75 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # After INTENSE_DURATION = cooldown
 
 # ============================================
+# WELCOME MESSAGES (Gym Companion - Martin Sundby Style)
+# ============================================
+# Spoken once at workout start (before first breath)
+# Purpose: Acknowledge start, set expectations, establish rhythm
+# Tone: Calm, authoritative, friendly
+WELCOME_MESSAGES = {
+    "standard": [
+        "Welcome. Let's start slow. Find your rhythm.",
+        "Good. Breathe in, and out. Settle your shoulders.",
+        "Steady now. Don't rush. Warmup first, intensity later.",
+        "Easy does it. Focus on breathing, not speed.",
+        "Alright, lungs and legs. Let's get them talking."
+    ],
+
+    "beginner_friendly": [
+        "Hi there. Let's start easy and find your rhythm.",
+        "Ready to move? Let's warm up gently.",
+        "Time to begin. Focus on your breathing and ease into it.",
+        "Hello. Start slow and steady. We'll build from here.",
+        "You made it. Let's start easy and feel your body wake up."
+    ],
+
+    "breath_aware": [
+        "Find your breath. Relax your shoulders. Warmup begins.",
+        "Focus on calm breathing. Let's ease into the session.",
+        "Listen to your body, breathe steadily, and start gently.",
+        "Check your rhythm. Warmup is on, take it easy."
+    ]
+}
+
+# ============================================
 # COACH MESSAGES (English for live conversations)
 # ============================================
 COACH_MESSAGES = {
     "critical": ["STOP! Breathe slowly. You're safe."],
 
     "warmup": [
-        "Easy start. Warming up.",
-        "Good. Keep this pace.",
-        "Steady tempo. Continue."
+        "Welcome. Let's start slow. Find your rhythm.",
+        "Good. Breathe in, and out. Settle your shoulders.",
+        "Steady now. Don't rush. Warmup first, intensity later.",
+        "Easy does it. Focus on breathing, not speed."
     ],
 
     "cooldown": [
-        "Bring it down.",
-        "Breathe easy.",
-        "Good. Nice and easy."
+        "Well done. Let the breath settle. You earned it.",
+        "Relax. Slow it down. Shoulder and chest relaxed.",
+        "Good session. Keep calm and controlled.",
+        "Steady breathing. That's how we finish strong.",
+        "Nice work. You controlled your effort well."
     ],
 
     "intense": {
         "calm": [
+            "Maintain control. Pace yourself. Don't overdo it.",
+            "Good. Keep that rhythm. Slightly faster, not frantic.",
             "PUSH! Harder!",
-            "You got more!",
-            "Faster! NOW!"
+            "You got more!"
         ],
         "moderate": [
+            "Good. Keep that rhythm. Slightly faster, not frantic.",
+            "Steady arms, steady breath. That's it.",
             "Keep going! Don't stop!",
-            "You have more in you!",
             "Good! Hold the pace!"
         ],
         "intense": [
-            "YES! Hold on! Ten more!",
-            "Perfect! Keep it up!",
-            "There it is! Five seconds!"
+            "Breathing quickened. Slow down a touch.",
+            "Maintain control. Pace yourself. Don't overdo it.",
+            "One more interval like this and you're done. Focus.",
+            "YES! Hold on! Ten more!"
         ]
     }
 }
@@ -176,6 +262,222 @@ CONTINUOUS_COACH_MESSAGES = {
             "Keep this!",
             "Excellent work!",
             "Ten more seconds!"
+        ]
+    }
+}
+
+# ============================================
+# NORWEGIAN WELCOME MESSAGES
+# ============================================
+WELCOME_MESSAGES_NO = {
+    "standard": [
+        "Velkommen. La oss starte rolig. Finn rytmen din.",
+        "Bra. Pust inn, og ut. Slapp av skuldrene.",
+        "Rolig naa. Ikke stress. Oppvarming foerst, intensitet senere.",
+        "Ta det med ro. Fokuser paa pusten, ikke fart.",
+        "Okei, lunger og bein. La oss faa dem i gang."
+    ],
+    "beginner_friendly": [
+        "Hei! La oss starte rolig og finne rytmen din.",
+        "Klar til aa bevege deg? La oss varme opp forsiktig.",
+        "Tid for aa begynne. Fokuser paa pusten og ta det rolig.",
+        "Hei. Start sakte og jevnt. Vi bygger herfra.",
+        "Du kom deg hit. La oss starte rolig og kjenne kroppen vaakne."
+    ],
+    "breath_aware": [
+        "Finn pusten din. Slapp av skuldrene. Oppvarmingen begynner.",
+        "Fokuser paa rolig pust. La oss gli inn i oekten.",
+        "Lytt til kroppen, pust jevnt, og start forsiktig.",
+        "Sjekk rytmen din. Oppvarming er paa, ta det rolig."
+    ]
+}
+
+# ============================================
+# NORWEGIAN COACH MESSAGES
+# ============================================
+COACH_MESSAGES_NO = {
+    "critical": ["STOPP! Pust sakte. Du er trygg."],
+
+    "warmup": [
+        "Velkommen. La oss starte rolig. Finn rytmen din.",
+        "Bra. Pust inn, og ut. Slapp av skuldrene.",
+        "Rolig naa. Ikke stress. Oppvarming foerst.",
+        "Ta det med ro. Fokuser paa pusten."
+    ],
+
+    "cooldown": [
+        "Bra jobbet. La pusten roe seg. Du fortjener det.",
+        "Slapp av. Senk tempoet. Skuldre og bryst avslappet.",
+        "God oekt. Hold deg rolig og kontrollert.",
+        "Jevn pust. Slik avslutter vi sterkt.",
+        "Bra jobbet. Du kontrollerte innsatsen godt."
+    ],
+
+    "intense": {
+        "calm": [
+            "Behold kontrollen. Hold tempoet. Ikke overdrive.",
+            "Bra. Hold rytmen. Litt raskere, ikke hektisk.",
+            "PUSH! Hardere!",
+            "Du har mer!"
+        ],
+        "moderate": [
+            "Bra. Hold rytmen. Litt raskere, ikke hektisk.",
+            "Stoe armer, stoe pust. Der ja.",
+            "Fortsett! Ikke stopp!",
+            "Bra! Hold tempoet!"
+        ],
+        "intense": [
+            "Pusten oeker. Senk litt.",
+            "Behold kontrollen. Hold tempoet.",
+            "En runde til slik, saa er du ferdig. Fokus.",
+            "JA! Hold ut! Ti til!"
+        ]
+    }
+}
+
+# ============================================
+# NORWEGIAN CONTINUOUS COACH MESSAGES
+# ============================================
+CONTINUOUS_COACH_MESSAGES_NO = {
+    "critical": [
+        "STOPP!",
+        "Pust rolig!",
+        "Ta det rolig!",
+        "Senk farten!",
+        "For hardt!"
+    ],
+
+    "warmup": [
+        "Rolig tempo, fin start.",
+        "Jevnt, god oppvarming.",
+        "Forsiktig, fortsett aa varme opp.",
+        "Fint og rolig.",
+        "Perfekt oppvarmingstempo."
+    ],
+
+    "cooldown": [
+        "Senk tempoet, ta det rolig naa.",
+        "Rolige pust, god nedkjoeling.",
+        "Slipp av, bra jobbet.",
+        "Nesten ferdig, senk farten.",
+        "Perfekt, fortsett aa roe ned."
+    ],
+
+    "intense": {
+        "calm": [
+            "Du kan pushe hardere!",
+            "Mer innsats, du klarer dette!",
+            "Oek tempoet litt!",
+            "Gi meg mer kraft!",
+            "La oss oeke farten!"
+        ],
+        "moderate": [
+            "Fortsett, godt tempo!",
+            "Hold deg i det!",
+            "Fin rytme, behold!",
+            "Du klarer dette!",
+            "Bra jobbet, hold jevnt!"
+        ],
+        "intense": [
+            "Perfekt! Hold det!",
+            "Ja! Sterkt!",
+            "Behold dette!",
+            "Utmerket jobbet!",
+            "Ti sekunder til!"
+        ]
+    }
+}
+
+# ============================================
+# TOXIC MODE MESSAGES (EN + NO)
+# ============================================
+TOXIC_MODE_MESSAGES = {
+    "en": {
+        "warmup": [
+            "Warming up?! We're WASTING TIME!",
+            "Move FASTER or go home!",
+            "My GRANDMOTHER warms up faster!",
+            "This is PATHETIC! Let's GO!",
+            "You call this a warmup? I call it a NAP!"
+        ],
+        "intense": {
+            "calm": [
+                "PATHETIC! My grandma pushes harder!",
+                "Are you even TRYING?! MOVE!",
+                "I've seen SNAILS with more intensity!",
+                "Is that ALL you got?! EMBARRASSING!",
+                "WAKE UP! This isn't a spa day!"
+            ],
+            "moderate": [
+                "Barely acceptable. Give me MORE!",
+                "You can do better than THAT!",
+                "I'm NOT impressed yet. HARDER!",
+                "Keep going or I'll double it!",
+                "That's it?! Push HARDER!"
+            ],
+            "intense": [
+                "FINALLY! Was that so hard?!",
+                "NOW we're talking! Don't you DARE slow down!",
+                "THERE it is! About TIME!",
+                "YES! That's what I want! MORE!",
+                "Not bad. But I want BETTER!"
+            ]
+        },
+        "cooldown": [
+            "Done already?! Fine. You EARNED this break.",
+            "Okay, okay. You survived. Barely.",
+            "Not the worst I've seen. Rest up.",
+            "Acceptable performance. BARELY acceptable.",
+            "Alright, breathe. You'll need it for next time."
+        ],
+        "critical": [
+            "Alright, real talk. Breathe. Safety first.",
+            "Okay, stop. I'm tough, not stupid. Rest.",
+            "Hey. Real break. Breathe slow. I mean it."
+        ]
+    },
+    "no": {
+        "warmup": [
+            "Oppvarming?! Vi KASTER BORT TID!",
+            "Beveg deg RASKERE eller gaa hjem!",
+            "BESTEMORA mi varmer opp raskere!",
+            "Dette er PATETISK! La oss KJORE!",
+            "Kaller du dette oppvarming? Jeg kaller det en LITEN BLUND!"
+        ],
+        "intense": {
+            "calm": [
+                "PATETISK! Bestemora mi pusher hardere!",
+                "PROVER du i det hele tatt?! BEVEG DEG!",
+                "Jeg har sett SNEGLER med mer intensitet!",
+                "Er det ALT du har?! PINLIG!",
+                "VAAKN OPP! Dette er ikke en spa-dag!"
+            ],
+            "moderate": [
+                "Saa vidt godkjent. Gi meg MER!",
+                "Du kan bedre enn DET!",
+                "Jeg er IKKE imponert ennaa. HARDERE!",
+                "Fortsett ellers dobler jeg det!",
+                "Er det alt?! Push HARDERE!"
+            ],
+            "intense": [
+                "ENDELIG! Var det saa vanskelig?!",
+                "NAA snakker vi! Ikke VAAG aa senke farten!",
+                "DER er det! Paa TIDE!",
+                "JA! Det er det jeg vil ha! MER!",
+                "Ikke verst. Men jeg vil ha BEDRE!"
+            ]
+        },
+        "cooldown": [
+            "Ferdig allerede?! Greit. Du FORTJENTE denne pausen.",
+            "Ok, ok. Du overlevde. Saa vidt.",
+            "Ikke det verste jeg har sett. Hvil deg.",
+            "Godkjent prestasjon. Saa vidt godkjent.",
+            "Greit, pust. Du trenger det til neste gang."
+        ],
+        "critical": [
+            "Ok, alvor naa. Pust. Sikkerhet foerst.",
+            "Ok, stopp. Jeg er toff, ikke dum. Hvil.",
+            "Hei. Ordentlig pause. Pust rolig. Jeg mener det."
         ]
     }
 }

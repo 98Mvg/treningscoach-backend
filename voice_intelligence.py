@@ -1,9 +1,58 @@
 # voice_intelligence.py
 # STEP 6: Make Voice Feel Human
-# Silence, variation, and natural pacing
+# Silence, variation, natural pacing, and emotional voice modulation
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 import random
+
+
+# =============================================================================
+# VOICE PACING PROFILES
+# =============================================================================
+# Different personas at different emotional intensities get different voice settings.
+# These affect TTS parameters like speed, stability, and pauses.
+
+VOICE_PACING_PROFILES = {
+    # Calm Coach: Gets SLOWER and more deliberate as emotional intensity rises
+    "calm_coach": {
+        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 0.9, "stability": 0.6, "pause_multiplier": 1.3},
+        "intense":    {"speed": 0.8, "stability": 0.7, "pause_multiplier": 1.6},
+        "peak":       {"speed": 0.7, "stability": 0.8, "pause_multiplier": 2.0},
+    },
+    # Drill Sergeant: Gets FASTER and sharper as emotional intensity rises
+    "drill_sergeant": {
+        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.9},
+        "intense":    {"speed": 1.1, "stability": 0.4, "pause_multiplier": 0.8},
+        "peak":       {"speed": 1.15, "stability": 0.35, "pause_multiplier": 0.6},
+    },
+    # Fitness Coach: Slightly faster at peak, more energetic
+    "fitness_coach": {
+        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 1.02, "stability": 0.5, "pause_multiplier": 0.95},
+        "intense":    {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.85},
+        "peak":       {"speed": 1.08, "stability": 0.4, "pause_multiplier": 0.75},
+    },
+    # Personal Trainer: Stays measured, slightly more urgent at peak
+    "personal_trainer": {
+        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 1.0, "stability": 0.5, "pause_multiplier": 0.95},
+        "intense":    {"speed": 1.02, "stability": 0.48, "pause_multiplier": 0.9},
+        "peak":       {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.85},
+    },
+    # Toxic Mode: Gets increasingly unhinged (faster, more variable)
+    "toxic_mode": {
+        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 1.05, "stability": 0.4, "pause_multiplier": 0.85},
+        "intense":    {"speed": 1.1, "stability": 0.35, "pause_multiplier": 0.7},
+        "peak":       {"speed": 1.15, "stability": 0.3, "pause_multiplier": 0.5},
+    },
+}
+
+# Default pacing for unknown personas
+DEFAULT_PACING = {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0}
+
 
 class VoiceIntelligence:
     """
@@ -42,31 +91,46 @@ class VoiceIntelligence:
         Returns:
             (should_be_silent: bool, reason: str)
         """
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensitet = breath_data.get("intensity", "moderate")
         tempo = breath_data.get("tempo", 0)
+        signal_quality = breath_data.get("signal_quality")
+        breath_regularity = breath_data.get("breath_regularity")
 
         # NEVER silent for critical breathing
-        if intensitet == "kritisk":
+        if intensitet == "critical":
             return (False, "safety_override")
 
         # Don't be silent at the very start (greet user)
         if elapsed_seconds < 10:
             return (False, "greeting")
 
+        # Stay silent if audio is too noisy to analyze reliably
+        if signal_quality is not None and signal_quality < 0.3:
+            self.silence_count += 1
+            return (True, "noisy_audio")
+
+        # Stay silent if breathing is highly regular AND matches phase target
+        if breath_regularity is not None and breath_regularity > 0.85:
+            if ((phase == "warmup" and intensitet in ["calm", "moderate"]) or
+                (phase == "intense" and intensitet == "intense") or
+                (phase == "cooldown" and intensitet == "calm")):
+                self.silence_count += 1
+                return (True, "highly_regular_optimal")
+
         # STEP 6: Silence when breathing is optimal for the phase
-        if phase == "warmup" and intensitet in ["rolig", "moderat"]:
+        if phase == "warmup" and intensitet in ["calm", "moderate"]:
             # Optimal warmup breathing - silence is golden
             if self.silence_count < 2:  # Allow some silence
                 self.silence_count += 1
                 return (True, "optimal_warmup")
 
-        elif phase == "intense" and intensitet == "hard":
+        elif phase == "intense" and intensitet == "intense":
             # Optimal intense breathing - let them focus
             if self.silence_count < 1:  # Brief silence during optimal performance
                 self.silence_count += 1
                 return (True, "optimal_intense")
 
-        elif phase == "cooldown" and intensitet == "rolig":
+        elif phase == "cooldown" and intensitet == "calm":
             # Optimal cooldown breathing - peaceful silence
             if self.silence_count < 3:  # Longer silence during recovery
                 self.silence_count += 1
@@ -131,7 +195,7 @@ class VoiceIntelligence:
         }
 
         # Short pause before critical safety messages
-        if "STOP" in message or "kritisk" in message.lower():
+        if "STOP" in message or "critical" in message.lower():
             pacing["pause_before"] = 100  # 100ms pause for attention
             pacing["emphasis"] = ["STOP", "slow", "breathe"]
 
@@ -188,16 +252,16 @@ class VoiceIntelligence:
         if self.detect_overtalking(coaching_history):
             return True
 
-        # If breathing is stable (moderat), less coaching needed
-        if breath_data.get("intensitet") == "moderat":
+        # If breathing is stable (moderate), less coaching needed
+        if breath_data.get("intensity") == "moderate":
             # Check if intensity has been stable
             if len(coaching_history) >= 3:
                 recent_intensities = [
-                    h.get("breath_analysis", {}).get("intensitet")
+                    h.get("breath_analysis", {}).get("intensity")
                     for h in coaching_history[-3:]
                     if h and "breath_analysis" in h
                 ]
-                if all(i == "moderat" for i in recent_intensities if i):
+                if all(i == "moderate" for i in recent_intensities if i):
                     return True
 
         return False
@@ -212,3 +276,77 @@ class VoiceIntelligence:
             Explanation of why coach is silent
         """
         return "[Silent - breathing is optimal]"
+
+    def get_voice_pacing(
+        self,
+        persona: str,
+        emotional_mode: str,
+        message: str = ""
+    ) -> Dict:
+        """
+        Get voice pacing settings based on persona and emotional mode.
+
+        This enables emotional progression in the VOICE itself:
+        - Calm Coach gets slower under stress
+        - Drill Sergeant gets faster and sharper
+        - Toxic Mode becomes increasingly unhinged
+
+        Args:
+            persona: The persona identifier
+            emotional_mode: "supportive", "pressing", "intense", or "peak"
+            message: The message being spoken (for additional adjustments)
+
+        Returns:
+            Dict with voice settings:
+            - speed: TTS speed multiplier (0.7-1.15)
+            - stability: ElevenLabs stability parameter (0.3-0.8)
+            - pause_multiplier: Multiplier for pause durations
+            - pause_before: ms pause before speaking
+            - pause_after: ms pause after speaking
+        """
+        # Get base pacing for persona + mode
+        persona_profiles = VOICE_PACING_PROFILES.get(persona, {})
+        base_pacing = persona_profiles.get(emotional_mode, DEFAULT_PACING).copy()
+
+        # Get message-based pacing adjustments
+        message_pacing = self.add_natural_pacing(message)
+
+        # Apply pause multiplier to message pacing
+        pause_multiplier = base_pacing.get("pause_multiplier", 1.0)
+        adjusted_pause_before = int(message_pacing["pause_before"] * pause_multiplier)
+        adjusted_pause_after = int(message_pacing["pause_after"] * pause_multiplier)
+
+        return {
+            "speed": base_pacing.get("speed", 1.0),
+            "stability": base_pacing.get("stability", 0.5),
+            "pause_multiplier": pause_multiplier,
+            "pause_before": adjusted_pause_before,
+            "pause_after": adjusted_pause_after,
+            "emphasis": message_pacing.get("emphasis", [])
+        }
+
+    def get_elevenlabs_voice_settings(
+        self,
+        persona: str,
+        emotional_mode: str
+    ) -> Dict:
+        """
+        Get ElevenLabs-specific voice settings for emotional progression.
+
+        These can be passed directly to the ElevenLabs API.
+
+        Args:
+            persona: The persona identifier
+            emotional_mode: "supportive", "pressing", "intense", or "peak"
+
+        Returns:
+            Dict with ElevenLabs VoiceSettings parameters
+        """
+        pacing = self.get_voice_pacing(persona, emotional_mode)
+
+        return {
+            "stability": pacing["stability"],
+            "similarity_boost": 0.75,  # Keep voice consistent
+            "style": 0.0,  # Neutral style
+            "use_speaker_boost": True
+        }
