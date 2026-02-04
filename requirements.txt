@@ -1,19 +1,14 @@
-fastapi
-uvicorn[standard]
+# Flask (primary server)
+Flask==3.0.0
+Flask-CORS==4.0.0
+gunicorn==21.2.0
 python-dotenv
 
 # AI providers
 anthropic>=0.40.0
 
-# TTS dependencies
-torch>=2.0.0
-soundfile
-qwen-tts
-
-# Flask (primary server)
-Flask==3.0.0
-Flask-CORS==4.0.0
-gunicorn==21.2.0
+# ElevenLabs TTS (cloud-based, no local GPU needed)
+elevenlabs>=1.0.0
 
 # Database
 Flask-SQLAlchemy>=3.1.0
@@ -24,10 +19,8 @@ PyJWT>=2.8.0
 google-auth>=2.0.0
 requests>=2.31.0
 
-# ElevenLabs TTS
-elevenlabs>=1.0.0
-
-# Audio/Signal Processing
+# Audio/Signal Processing (for breath analysis)
 numpy>=1.24.0
 scipy>=1.11.0
 librosa>=0.10.0
+soundfile>=0.12.0
