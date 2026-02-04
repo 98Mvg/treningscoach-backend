@@ -28,6 +28,34 @@ VOICE_CONFIG = {
     }
 }
 
+# Persona-specific voices (drill sergeant uses different voice)
+PERSONA_VOICE_CONFIG = {
+    "drill_sergeant": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
+        "name": "Drill Sergeant",
+        "stability": 0.3,
+        "style": 0.7
+    },
+    "toxic_mode": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
+        "name": "Toxic Coach",
+        "stability": 0.3,
+        "style": 0.8
+    },
+    "fitness_coach": {
+        "voice_id": None,
+        "name": "Fitness Coach",
+        "stability": 0.5,
+        "style": 0.0
+    },
+    "endurance_coach": {
+        "voice_id": None,
+        "name": "Endurance Coach",
+        "stability": 0.6,
+        "style": 0.0
+    }
+}
+
 # ============================================
 # TRAINING LEVEL CONFIGURATION
 # ============================================

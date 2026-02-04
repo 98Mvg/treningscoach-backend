@@ -130,21 +130,22 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 # VOICE GENERATION WITH QWEN3-TTS
 # ============================================
 
-def generate_voice(text, language=None):
+def generate_voice(text, language=None, persona=None):
     """
     Generates speech audio from text using ElevenLabs or Qwen3-TTS.
 
     Args:
         text: The coaching message to synthesize
         language: "en" or "no" for language-specific voice (optional)
+        persona: "drill_sergeant", "toxic_mode", etc. for persona-specific voice
 
     Returns:
         Path to generated audio file (MP3 or WAV)
     """
     try:
         if USE_ELEVENLABS:
-            # Use ElevenLabs (fast, cloud-based, multilingual)
-            return elevenlabs_tts.generate_audio(text, language=language)
+            # Use ElevenLabs - persona determines voice (drill_sergeant uses DRILL voice)
+            return elevenlabs_tts.generate_audio(text, language=language, persona=persona)
         else:
             # Fallback to Qwen3-TTS with cloned voice
             return synthesize_speech(text)
@@ -764,10 +765,10 @@ def coach_continuous():
         if speak_decision and not use_welcome:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
-        # Generate voice only if should speak (language-aware)
+        # Generate voice only if should speak (language + persona aware)
         audio_url = None
         if speak_decision:
-            voice_file = generate_voice(coach_text, language=language)
+            voice_file = generate_voice(coach_text, language=language, persona=persona)
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
