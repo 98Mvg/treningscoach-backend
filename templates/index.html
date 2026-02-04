@@ -319,7 +319,13 @@
         let pausedDuration = 0;
         let pauseStartTime = null;
         let timerInterval = null;
+        let coachingInterval = null;
+        let sessionId = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
         const MAX_DURATION = 2700; // 45 minutes
+        const COACHING_INTERVAL = 8000; // 8 seconds
 
         const orb = document.getElementById('voiceOrb');
         const player = document.getElementById('workoutPlayer');
@@ -335,23 +341,115 @@
         progressCircle.style.strokeDasharray = circumference;
         progressCircle.style.strokeDashoffset = circumference;
 
-        function startWorkout() {
+        async function startWorkout() {
             if (isWorkoutActive) return;
 
-            isWorkoutActive = true;
-            isPaused = false;
-            startTime = Date.now();
+            try {
+                // Request microphone access
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            // Hide orb, show player
-            orb.classList.add('hidden');
-            player.classList.add('active');
+                isWorkoutActive = true;
+                isPaused = false;
+                startTime = Date.now();
+                sessionId = 'session_' + Date.now();
 
-            statusText.textContent = 'Workout Active';
-            infoText.textContent = 'Listening to your breath...';
+                // Hide orb, show player
+                orb.classList.add('hidden');
+                player.classList.add('active');
 
-            // Start timer
-            timerInterval = setInterval(updateTimer, 1000);
-            updateTimer();
+                statusText.textContent = 'Workout Active';
+                infoText.textContent = 'Listening to your breath...';
+
+                // Start audio recording
+                startRecording();
+
+                // Start timer
+                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer();
+
+                // Play welcome message
+                await playWelcomeMessage();
+
+                // Start coaching loop (every 8 seconds)
+                coachingInterval = setInterval(sendAudioForCoaching, COACHING_INTERVAL);
+            } catch (error) {
+                console.error('Failed to start workout:', error);
+                alert('Failed to access microphone. Please allow microphone access.');
+            }
+        }
+
+        function startRecording() {
+            if (!stream) return;
+
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+
+            // Collect 8 seconds of audio chunks
+            mediaRecorder.start(100); // Collect in 100ms chunks
+        }
+
+        async function playWelcomeMessage() {
+            try {
+                const response = await fetch('/welcome?language=en');
+                const data = await response.json();
+
+                if (data.audio_url) {
+                    const audio = new Audio(data.audio_url);
+                    await audio.play();
+                }
+
+                console.log('Welcome:', data.text);
+            } catch (error) {
+                console.error('Failed to play welcome:', error);
+            }
+        }
+
+        async function sendAudioForCoaching() {
+            if (!isWorkoutActive || isPaused || audioChunks.length === 0) return;
+
+            try {
+                // Create audio blob from last 8 seconds
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = []; // Clear for next interval
+
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'workout.webm');
+                formData.append('session_id', sessionId);
+                formData.append('phase', getWorkoutPhase());
+                formData.append('language', 'en');
+                formData.append('training_level', 'intermediate');
+
+                const response = await fetch('/coach/continuous', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                console.log('Coach response:', data.text);
+                console.log('Should speak:', data.should_speak);
+
+                // Play coach audio if available
+                if (data.should_speak && data.audio_url) {
+                    const audio = new Audio(data.audio_url);
+                    await audio.play();
+                }
+            } catch (error) {
+                console.error('Coaching failed:', error);
+            }
+        }
+
+        function getWorkoutPhase() {
+            const elapsedMinutes = elapsedTime / 60;
+            if (elapsedMinutes < 2) return 'warmup';
+            if (elapsedMinutes < 15) return 'intense';
+            return 'cooldown';
         }
 
         function togglePause() {
@@ -364,6 +462,11 @@
                 timerStatus.textContent = 'Paused';
                 playPauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>'; // Play icon
                 playPauseBtn.classList.remove('pulsing');
+
+                // Pause recording
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.pause();
+                }
             } else {
                 if (pauseStartTime) {
                     pausedDuration += Date.now() - pauseStartTime;
@@ -372,6 +475,11 @@
                 timerStatus.textContent = 'Recording';
                 playPauseIcon.innerHTML = '<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>'; // Pause icon
                 playPauseBtn.classList.add('pulsing');
+
+                // Resume recording
+                if (mediaRecorder && mediaRecorder.state === 'paused') {
+                    mediaRecorder.resume();
+                }
             }
         }
 
@@ -381,9 +489,22 @@
             isWorkoutActive = false;
             isPaused = false;
             clearInterval(timerInterval);
+            clearInterval(coachingInterval);
             elapsedTime = 0;
             pausedDuration = 0;
             pauseStartTime = null;
+            sessionId = null;
+
+            // Stop recording
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+
+            // Stop microphone stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
 
             // Show orb, hide player
             player.classList.remove('active');
