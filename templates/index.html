@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Treningscoach</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            overflow: hidden;
+            color: #ffffff;
+        }
+
+        /* Header */
+        .header {
+            padding: 16px 20px;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .status {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 400;
+        }
+
+        /* Center */
+        .center {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Container for both orb and player */
+        .workout-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        /* Voice Orb (initial state) */
+        .voice-orb {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7B68EE 0%, #5B4CBE 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 32px rgba(123, 104, 238, 0.4);
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .voice-orb:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(123, 104, 238, 0.5);
+        }
+
+        .voice-orb.hidden {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+        }
+
+        .mic-icon {
+            width: 48px;
+            height: 48px;
+            color: white;
+        }
+
+        /* Workout Player */
+        .workout-player {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .workout-player.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: all;
+        }
+
+        /* Progress Ring */
+        .progress-ring-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 8;
+        }
+
+        .progress-ring-progress {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .timer-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 48px;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .timer-status {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        /* Control Buttons */
+        .controls {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .play-pause-btn {
+            background: linear-gradient(135deg, #7B68EE 0%, #5B4CBE 100%);
+            box-shadow: 0 8px 24px rgba(123, 104, 238, 0.4);
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(123, 104, 238, 0.5);
+        }
+
+        .play-pause-btn.pulsing {
+            animation: btnPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes btnPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .stop-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 59, 48, 0.2);
+        }
+
+        .stop-btn:hover {
+            background: rgba(255, 59, 48, 0.3);
+            transform: scale(1.05);
+        }
+
+        .control-icon {
+            width: 28px;
+            height: 28px;
+            color: white;
+        }
+
+        .stop-icon {
+            width: 24px;
+            height: 24px;
+            color: #FF3B30;
+        }
+
+        /* Info text */
+        .info {
+            text-align: center;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 16px;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .footer a {
+            color: #7B68EE;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="title">Treningscoach</div>
+        <div class="status" id="statusText">Ready</div>
+    </div>
+
+    <!-- Center -->
+    <div class="center">
+        <div class="workout-container">
+            <!-- Voice Orb (initial state) -->
+            <div class="voice-orb" id="voiceOrb" onclick="startWorkout()">
+                <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+            </div>
+
+            <!-- Workout Player -->
+            <div class="workout-player" id="workoutPlayer">
+                <!-- Progress Ring -->
+                <div class="progress-ring-container">
+                    <svg class="progress-ring" width="220" height="220">
+                        <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#7B68EE"/>
+                                <stop offset="100%" stop-color="#00D9FF"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="progress-ring-bg" cx="110" cy="110" r="106"/>
+                        <circle class="progress-ring-progress" id="progressCircle" cx="110" cy="110" r="106"/>
+                    </svg>
+                    <div class="timer-content">
+                        <div class="timer-display" id="timerDisplay">00:00</div>
+                        <div class="timer-status" id="timerStatus">Recording</div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="controls">
+                    <button class="control-btn play-pause-btn pulsing" id="playPauseBtn" onclick="togglePause()">
+                        <svg class="control-icon" id="playPauseIcon" viewBox="0 0 24 24" fill="white">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn stop-btn" onclick="stopWorkout()">
+                        <svg class="stop-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="6" width="12" height="12" rx="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="info" id="infoText">Tap to start workout</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <a href="/health">API Status</a> •
+        <a href="https://github.com/98Mvg/treningscoach-backend">Documentation</a>
+    </div>
+
+    <script>
+        let isWorkoutActive = false;
+        let isPaused = false;
+        let startTime = null;
+        let elapsedTime = 0;
+        let pausedDuration = 0;
+        let pauseStartTime = null;
+        let timerInterval = null;
+        const MAX_DURATION = 2700; // 45 minutes
+
+        const orb = document.getElementById('voiceOrb');
+        const player = document.getElementById('workoutPlayer');
+        const statusText = document.getElementById('statusText');
+        const infoText = document.getElementById('infoText');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerStatus = document.getElementById('timerStatus');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playPauseIcon = document.getElementById('playPauseIcon');
+        const progressCircle = document.getElementById('progressCircle');
+
+        const circumference = 2 * Math.PI * 106;
+        progressCircle.style.strokeDasharray = circumference;
+        progressCircle.style.strokeDashoffset = circumference;
+
+        function startWorkout() {
+            if (isWorkoutActive) return;
+
+            isWorkoutActive = true;
+            isPaused = false;
+            startTime = Date.now();
+
+            // Hide orb, show player
+            orb.classList.add('hidden');
+            player.classList.add('active');
+
+            statusText.textContent = 'Workout Active';
+            infoText.textContent = 'Listening to your breath...';
+
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+        }
+
+        function togglePause() {
+            if (!isWorkoutActive) return;
+
+            isPaused = !isPaused;
+
+            if (isPaused) {
+                pauseStartTime = Date.now();
+                timerStatus.textContent = 'Paused';
+                playPauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>'; // Play icon
+                playPauseBtn.classList.remove('pulsing');
+            } else {
+                if (pauseStartTime) {
+                    pausedDuration += Date.now() - pauseStartTime;
+                }
+                pauseStartTime = null;
+                timerStatus.textContent = 'Recording';
+                playPauseIcon.innerHTML = '<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>'; // Pause icon
+                playPauseBtn.classList.add('pulsing');
+            }
+        }
+
+        function stopWorkout() {
+            if (!isWorkoutActive) return;
+
+            isWorkoutActive = false;
+            isPaused = false;
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            pausedDuration = 0;
+            pauseStartTime = null;
+
+            // Show orb, hide player
+            player.classList.remove('active');
+            orb.classList.remove('hidden');
+
+            statusText.textContent = 'Ready';
+            infoText.textContent = 'Tap to start workout';
+            timerDisplay.textContent = '00:00';
+            progressCircle.style.strokeDashoffset = circumference;
+            playPauseIcon.innerHTML = '<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>';
+            playPauseBtn.classList.add('pulsing');
+        }
+
+        function updateTimer() {
+            if (!isWorkoutActive) return;
+
+            if (isPaused) return;
+
+            const now = Date.now();
+            const totalElapsed = now - startTime;
+            const activePausedTime = pauseStartTime ? (now - pauseStartTime) : 0;
+            elapsedTime = (totalElapsed - pausedDuration - activePausedTime) / 1000;
+
+            // Update timer display
+            const mins = Math.floor(elapsedTime / 60);
+            const secs = Math.floor(elapsedTime % 60);
+            timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            // Update progress ring
+            const progress = Math.min(elapsedTime / MAX_DURATION, 1);
+            const offset = circumference * (1 - progress);
+            progressCircle.style.strokeDashoffset = offset;
+        }
+    </script>
+</body>
+</html>

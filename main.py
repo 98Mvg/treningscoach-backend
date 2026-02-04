@@ -1,6 +1,6 @@
 # main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
 
-from flask import Flask, request, send_file, jsonify, Response, stream_with_context
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context, render_template
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -130,22 +130,21 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 # VOICE GENERATION WITH QWEN3-TTS
 # ============================================
 
-def generate_voice(text, language=None, persona=None):
+def generate_voice(text, language=None):
     """
     Generates speech audio from text using ElevenLabs or Qwen3-TTS.
 
     Args:
         text: The coaching message to synthesize
         language: "en" or "no" for language-specific voice (optional)
-        persona: "drill_sergeant", "toxic_mode", etc. for persona-specific voice
 
     Returns:
         Path to generated audio file (MP3 or WAV)
     """
     try:
         if USE_ELEVENLABS:
-            # Use ElevenLabs - persona determines voice (drill_sergeant uses DRILL voice)
-            return elevenlabs_tts.generate_audio(text, language=language, persona=persona)
+            # Use ElevenLabs (fast, cloud-based, multilingual)
+            return elevenlabs_tts.generate_audio(text, language=language)
         else:
             # Fallback to Qwen3-TTS with cloned voice
             return synthesize_speech(text)
@@ -160,219 +159,8 @@ def generate_voice(text, language=None, persona=None):
 
 @app.route('/')
 def home():
-    """Hjemmeside - minimal ChatGPT-lik stemme-UI"""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Treningscoach</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                height: 100vh;
-                display: flex;
-                flex-direction: column;
-                background: linear-gradient(to bottom, #ffffff, #f5f5f7);
-                overflow: hidden;
-            }
-
-            /* Header - diskré */
-            .header {
-                padding: 16px 20px;
-                text-align: center;
-            }
-
-            .title {
-                font-size: 18px;
-                font-weight: 600;
-                color: #1d1d1f;
-                margin-bottom: 4px;
-            }
-
-            .status {
-                font-size: 13px;
-                color: #86868b;
-                font-weight: 400;
-            }
-
-            /* Midten - tom og pustende */
-            .center {
-                flex: 1;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            /* Voice Orb - hovedfokus */
-            .orb-container {
-                position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding-bottom: 60px;
-            }
-
-            .voice-orb {
-                width: 120px;
-                height: 120px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3);
-                position: relative;
-            }
-
-            .voice-orb:hover {
-                transform: scale(1.05);
-                box-shadow: 0 12px 40px rgba(0, 122, 255, 0.4);
-            }
-
-            .voice-orb.listening {
-                animation: pulse 1.5s ease-in-out infinite;
-                background: linear-gradient(135deg, #34C759 0%, #248A3D 100%);
-                box-shadow: 0 8px 32px rgba(52, 199, 89, 0.4);
-            }
-
-            .voice-orb.speaking {
-                animation: wave 1s ease-in-out infinite;
-                background: linear-gradient(135deg, #FF3B30 0%, #C72C23 100%);
-                box-shadow: 0 8px 32px rgba(255, 59, 48, 0.4);
-            }
-
-            @keyframes pulse {
-                0%, 100% {
-                    transform: scale(1);
-                    opacity: 1;
-                }
-                50% {
-                    transform: scale(1.1);
-                    opacity: 0.9;
-                }
-            }
-
-            @keyframes wave {
-                0%, 100% {
-                    transform: scale(1);
-                }
-                33% {
-                    transform: scale(1.05);
-                }
-                66% {
-                    transform: scale(0.95);
-                }
-            }
-
-            .mic-icon {
-                width: 48px;
-                height: 48px;
-                color: white;
-            }
-
-            /* Info text - subtil */
-            .info {
-                position: absolute;
-                bottom: -40px;
-                text-align: center;
-                width: 100%;
-                font-size: 14px;
-                color: #86868b;
-                opacity: 0.8;
-            }
-
-            /* Dokumentasjon - nederst */
-            .footer {
-                padding: 20px;
-                text-align: center;
-                font-size: 12px;
-                color: #86868b;
-            }
-
-            .footer a {
-                color: #007AFF;
-                text-decoration: none;
-            }
-
-            .footer a:hover {
-                text-decoration: underline;
-            }
-        </style>
-    </head>
-    <body>
-        <!-- Header -->
-        <div class="header">
-            <div class="title">Treningscoach</div>
-            <div class="status" id="statusText">Ready</div>
-        </div>
-
-        <!-- Center - Voice Orb -->
-        <div class="center">
-            <div class="orb-container">
-                <div class="voice-orb" id="voiceOrb" onclick="toggleVoice()">
-                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                </div>
-                <div class="info" id="infoText">Click to start</div>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <a href="/health">API Status</a> •
-            <a href="https://github.com/98Mvg/treningscoach-backend">Documentation</a>
-        </div>
-
-        <script>
-            let state = 'idle'; // idle, listening, speaking
-
-            function toggleVoice() {
-                const orb = document.getElementById('voiceOrb');
-                const status = document.getElementById('statusText');
-                const info = document.getElementById('infoText');
-
-                if (state === 'idle') {
-                    state = 'listening';
-                    orb.classList.add('listening');
-                    status.textContent = 'Listening';
-                    info.textContent = 'Analyzing your breath...';
-
-                    // Simulate analysis -> speaking
-                    setTimeout(() => {
-                        state = 'speaking';
-                        orb.classList.remove('listening');
-                        orb.classList.add('speaking');
-                        status.textContent = 'Speaking';
-                        info.textContent = 'Coach is responding...';
-
-                        // Return to idle
-                        setTimeout(() => {
-                            state = 'idle';
-                            orb.classList.remove('speaking');
-                            status.textContent = 'Ready';
-                            info.textContent = 'Click to start';
-                        }, 3000);
-                    }, 2000);
-                }
-            }
-        </script>
-    </body>
-    </html>
-    """
+    """Homepage - Workout UI with player controls"""
+    return render_template('index.html')
 
 @app.route('/health')
 def health():
@@ -765,10 +553,10 @@ def coach_continuous():
         if speak_decision and not use_welcome:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
-        # Generate voice only if should speak (language + persona aware)
+        # Generate voice only if should speak (language-aware)
         audio_url = None
         if speak_decision:
-            voice_file = generate_voice(coach_text, language=language, persona=persona)
+            voice_file = generate_voice(coach_text, language=language)
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
