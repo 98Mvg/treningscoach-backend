@@ -84,6 +84,10 @@ struct L10n {
     static var listeningForYou: String { current == .no ? "Lytter..." : "Listening..." }
     static var coachHeard: String { current == .no ? "Hoert!" : "Heard!" }
 
+    // MARK: - Workout Player
+    static var paused: String { current == .no ? "Pauset" : "Paused" }
+    static var recording: String { current == .no ? "Opptaker" : "Recording" }
+
     // MARK: - Errors
     static var error: String { current == .no ? "Feil" : "Error" }
     static var ok: String { "OK" }

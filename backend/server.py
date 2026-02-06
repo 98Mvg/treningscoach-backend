@@ -1,36 +1,44 @@
 """
-server.py - FastAPI server with Qwen3-TTS integration
+server.py - FastAPI server with ElevenLabs TTS integration
 
 Full pipeline:
-iOS/Web → FastAPI → Claude → Qwen3-TTS → Audio WAV
+iOS/Web → FastAPI → Claude → ElevenLabs → Audio MP3
 """
 
 import io
 import os
-import wave
-import math
-import torch
+import numpy as np
 import soundfile as sf
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from anthropic import Anthropic
-from qwen_tts import Qwen3TTSModel
 
 from coach_personality import get_coach_prompt
-from session_manager import SessionManager
-from coaching_intelligence import should_coach_speak, calculate_next_interval
+from session_manager import SessionManager, EmotionalState
+from coaching_intelligence import (
+    should_coach_speak,
+    calculate_next_interval,
+    check_safety_override,
+    apply_safety_to_coaching
+)
+from persona_manager import PersonaManager
+from voice_intelligence import VoiceIntelligence
+from elevenlabs_tts import ElevenLabsTTS
 from response_cache import get_cache
 import config
+
+# Initialize voice intelligence for emotional pacing
+voice_intelligence = VoiceIntelligence()
 
 # Load environment
 load_dotenv()
 
 # Initialize FastAPI
-app = FastAPI(title="Treningscoach API", version="1.2.0")
+app = FastAPI(title="Treningscoach API", version="2.0.0")
 
 # CORS for iOS app
 app.add_middleware(
@@ -48,23 +56,20 @@ claude = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 session_manager = SessionManager()
 response_cache = get_cache()
 
-# Initialize Qwen3-TTS (loaded once at startup)
-print("🎤 Loading Qwen3-TTS model...")
-device = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
-model = Qwen3TTSModel.from_pretrained(
-    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
-    device_map="auto",
-    dtype=torch.float16 if device == "cuda" else torch.float32
-)
-print(f"✅ Qwen3-TTS loaded on {device}")
+# Initialize ElevenLabs TTS (cloud-based, no local GPU needed)
+print("🎤 Initializing ElevenLabs TTS...")
+elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+elevenlabs_voice_id = os.getenv("ELEVENLABS_VOICE_ID")
 
-# Load reference voice ONCE at startup
-reference_audio_path = "voices/coach_voice.wav"
-if not os.path.exists(reference_audio_path):
-    raise FileNotFoundError(f"Reference audio not found: {reference_audio_path}")
-
-reference_audio, sr = sf.read(reference_audio_path)
-print(f"✅ Reference audio loaded: {reference_audio_path}")
+if not elevenlabs_api_key:
+    print("⚠️ WARNING: ELEVENLABS_API_KEY not set - TTS will fail")
+    tts = None
+else:
+    tts = ElevenLabsTTS(
+        api_key=elevenlabs_api_key,
+        voice_id=elevenlabs_voice_id or "default"
+    )
+    print(f"✅ ElevenLabs TTS initialized")
 
 
 # ============================================
@@ -224,45 +229,47 @@ Give ONE short coaching message (max 7 words):"""
         return random.choice(config.COACH_MESSAGES.get(phase, ["Good work!"]))
 
 
-def synthesize_voice(text: str) -> bytes:
+def synthesize_voice(text: str, voice_pacing: Dict = None, language: str = "en") -> bytes:
     """
-    Synthesize speech using Qwen3-TTS with custom voice.
+    Synthesize speech using ElevenLabs with emotional voice pacing.
 
     Args:
         text: Coaching text to synthesize
+        voice_pacing: Optional dict with stability, speed settings for emotional progression
+        language: "en" or "no" for language-specific voice
 
     Returns:
-        WAV audio bytes
+        Audio bytes (MP3 format)
     """
+    if not tts:
+        print("❌ TTS not initialized - returning silent audio")
+        return create_silent_audio(2.0)
+
     try:
-        # Generate speech with cloned voice
-        wavs, sample_rate = model.generate_custom_voice(
+        # Generate speech with ElevenLabs
+        audio_bytes = tts.generate_audio_bytes(
             text=text,
-            speaker="custom",
-            reference_audio=reference_audio
+            language=language,
+            voice_pacing=voice_pacing
         )
 
-        # Convert to WAV bytes
-        buffer = io.BytesIO()
-        sf.write(buffer, wavs[0], sample_rate, format="WAV")
-        buffer.seek(0)
-
-        return buffer.read()
+        print(f"✅ Audio synthesized: {len(audio_bytes)} bytes")
+        return audio_bytes
 
     except Exception as e:
         print(f"❌ TTS synthesis error: {e}")
         # Return silent audio as fallback
-        return create_silent_wav(2.0)
+        return create_silent_audio(2.0)
 
 
-def create_silent_wav(duration_seconds: float) -> bytes:
-    """Create silent WAV audio as fallback."""
+def create_silent_audio(duration_seconds: float) -> bytes:
+    """Create silent audio as fallback (WAV format)."""
     sample_rate = 44100
     num_samples = int(duration_seconds * sample_rate)
-    silent_audio = torch.zeros(num_samples)
+    silent_audio = np.zeros(num_samples, dtype=np.float32)
 
     buffer = io.BytesIO()
-    sf.write(buffer, silent_audio.numpy(), sample_rate, format="WAV")
+    sf.write(buffer, silent_audio, sample_rate, format="WAV")
     buffer.seek(0)
 
     return buffer.read()
@@ -277,10 +284,11 @@ async def root():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "1.2.0",
+        "version": "2.0.0",
         "service": "Treningscoach API",
-        "tts": "Qwen3-TTS",
-        "brain": "Claude 3.5 Haiku (fast + cheap)"
+        "tts": "ElevenLabs",
+        "brain": "Claude 3.5 Haiku (fast + cheap)",
+        "features": ["emotional_progression", "persona_drift", "safety_overrides"]
     }
 
 
@@ -291,13 +299,21 @@ async def health():
 
     return {
         "status": "healthy",
-        "version": "1.2.0",
+        "version": "2.1.0",
         "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "welcome": "/welcome",
+            "download": "/download/<filename>",
+            "coach": "/api/coach",
+            "continuous_coach": "/api/continuous-coach",
+            "analyze": "/analyze"
+        },
         "services": {
             "claude": bool(os.getenv("ANTHROPIC_API_KEY")),
-            "qwen3_tts": True,
-            "reference_audio": os.path.exists(reference_audio_path)
+            "elevenlabs_tts": tts is not None,
+            "emotional_progression": True
         },
+        "personas": PersonaManager.list_personas(),
         "cache": cache_stats
     }
 
@@ -313,6 +329,91 @@ async def clear_cache():
     """Clear response cache."""
     response_cache.clear()
     return {"status": "cleared", "message": "Cache cleared successfully"}
+
+
+# ============================================
+# WELCOME & DOWNLOAD ENDPOINTS
+# ============================================
+
+# In-memory storage for generated audio files (for simplicity)
+# In production, consider using cloud storage (S3, GCS, etc.)
+import tempfile
+import uuid
+
+# Create a temp directory for audio files
+AUDIO_DIR = tempfile.mkdtemp(prefix="treningscoach_audio_")
+print(f"📁 Audio files directory: {AUDIO_DIR}")
+
+
+@app.get("/welcome")
+async def welcome(language: str = "en"):
+    """
+    Return welcome message with audio for workout start.
+
+    Called by iOS app when user taps "Start Workout".
+    Generates a motivational welcome message with TTS.
+    """
+    welcome_messages = {
+        "en": "Let's go! I'm your coach today. Focus on your breathing and give it everything you've got.",
+        "no": "La oss kjøre! Jeg er treneren din i dag. Fokuser på pusten og gi alt du har."
+    }
+
+    text = welcome_messages.get(language, welcome_messages["en"])
+    print(f"👋 Welcome message requested (language: {language})")
+
+    try:
+        # Generate audio with ElevenLabs
+        audio_bytes = synthesize_voice(text, language=language)
+
+        # Save to file
+        filename = f"welcome_{language}_{uuid.uuid4().hex[:8]}.mp3"
+        filepath = os.path.join(AUDIO_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(audio_bytes)
+
+        print(f"✅ Welcome audio generated: {filename} ({len(audio_bytes)} bytes)")
+
+        return {
+            "text": text,
+            "audio_url": f"/download/{filename}",
+            "language": language
+        }
+
+    except Exception as e:
+        print(f"❌ Welcome message error: {e}")
+        # Return text-only response if TTS fails
+        return {
+            "text": text,
+            "audio_url": None,
+            "language": language,
+            "error": str(e)
+        }
+
+
+@app.get("/download/{filename}")
+async def download_audio(filename: str):
+    """
+    Download a generated audio file.
+
+    Used by iOS app to fetch coach voice audio.
+    """
+    # Security: prevent directory traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    filepath = os.path.join(AUDIO_DIR, filename)
+
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    # Determine media type based on extension
+    media_type = "audio/mpeg" if filename.endswith(".mp3") else "audio/wav"
+
+    return FileResponse(
+        filepath,
+        media_type=media_type,
+        filename=filename
+    )
 
 
 @app.post("/api/coach")
@@ -350,7 +451,7 @@ async def coach(
         # Return audio as streaming response
         return StreamingResponse(
             io.BytesIO(audio_bytes),
-            media_type="audio/wav",
+            media_type="audio/mpeg",  # ElevenLabs returns MP3
             headers={
                 "X-Coach-Text": coach_text,
                 "X-Breath-Intensity": breath_analysis["intensity"],
@@ -370,16 +471,27 @@ async def continuous_coach(
     session_id: str = Form(...),
     phase: str = Form("intense"),
     elapsed_seconds: int = Form(0),
-    last_coaching: str = Form("")
+    last_coaching: str = Form(""),
+    persona: str = Form("fitness_coach"),
+    language: str = Form("en"),
+    training_level: str = Form("intermediate")
 ):
     """
-    Continuous coaching endpoint with intelligent frequency.
+    Continuous coaching endpoint with intelligent frequency and emotional progression.
 
     Flow:
     1. Analyze breath chunk
-    2. Decide if coach should speak (using coaching_intelligence)
-    3. If yes: Get Claude text + synthesize voice
-    4. Return audio + metadata + wait_seconds
+    2. Get emotional state from session
+    3. Check safety overrides
+    4. Decide if coach should speak (using coaching_intelligence)
+    5. If yes: Get Claude text with emotional mode + synthesize voice with pacing
+    6. Update emotional state
+    7. Return audio + metadata + wait_seconds
+
+    Emotional progression:
+    - Personas escalate/de-escalate based on accumulated struggle
+    - Safety overrides force supportive mode when needed
+    - Voice pacing changes with emotional intensity
     """
     try:
         # Read audio data
@@ -388,10 +500,15 @@ async def continuous_coach(
         # 1. Analyze breath
         breath_analysis = analyze_breath(audio_data)
 
-        # 2. Get session context
+        # 2. Get session context with emotional state
         workout_state = session_manager.get_workout_state(session_id)
         if not workout_state:
-            # Initialize new session
+            # Initialize new session with training level
+            session_manager.init_workout_state(
+                session_id=session_id,
+                phase=phase,
+                training_level=training_level
+            )
             session_manager.update_workout_state(
                 session_id=session_id,
                 breath_analysis=breath_analysis,
@@ -405,28 +522,70 @@ async def continuous_coach(
         breath_history = workout_state.get("breath_history", [])
         last_breath = breath_history[-1] if breath_history else None
 
-        # 3. Decide if coach should speak
+        # Get emotional state
+        emotional_state = session_manager.get_emotional_state(session_id)
+        emotional_mode = emotional_state.get_persona_mode()
+        emotional_intensity = emotional_state.intensity
+
+        # 3. Check safety overrides (NON-NEGOTIABLE)
+        safety_override, safety_reason = check_safety_override(
+            breath_analysis=breath_analysis,
+            emotional_intensity=emotional_intensity
+        )
+
+        if safety_override:
+            print(f"⚠️ SAFETY OVERRIDE: {safety_reason} (intensity: {emotional_intensity:.2f})")
+            emotional_mode = "supportive"  # Force supportive mode
+
+        # 4. Decide if coach should speak
         should_speak, reason = should_coach_speak(
             current_analysis=breath_analysis,
             last_analysis=last_breath,
             coaching_history=coaching_history,
-            phase=phase
+            phase=phase,
+            training_level=training_level
         )
 
-        print(f"📊 Analysis: {breath_analysis['intensity']}, should_speak: {should_speak}, reason: {reason}")
+        print(f"📊 Analysis: {breath_analysis['intensity']}, emotional: {emotional_mode} ({emotional_intensity:.2f}), speak: {should_speak}")
 
-        # 4. Generate coaching if needed
+        # 5. Generate coaching if needed
         audio_bytes = None
         coach_text = last_coaching or ""
 
         if should_speak:
-            coach_text = get_claude_coaching(breath_analysis, phase, mode="realtime_coach")
-            audio_bytes = synthesize_voice(coach_text)
-            print(f"🗣️ Coach speaking: '{coach_text}'")
+            if safety_override:
+                # Use safety message instead of Claude
+                coach_text = apply_safety_to_coaching(
+                    message="",
+                    persona=persona,
+                    safety_reason=safety_reason,
+                    language=language
+                )
+            else:
+                # Get Claude coaching with emotional mode
+                coach_text = get_claude_coaching_with_emotion(
+                    breath_data=breath_analysis,
+                    phase=phase,
+                    persona=persona,
+                    emotional_mode=emotional_mode,
+                    language=language,
+                    training_level=training_level
+                )
+
+            # Get voice pacing for this persona + emotional mode
+            voice_pacing = voice_intelligence.get_voice_pacing(
+                persona=persona,
+                emotional_mode=emotional_mode,
+                message=coach_text
+            )
+
+            # Synthesize with emotional pacing and language
+            audio_bytes = synthesize_voice(coach_text, voice_pacing, language)
+            print(f"🗣️ Coach ({persona}/{emotional_mode}) [{language}]: '{coach_text}'")
         else:
             print(f"🤐 Coach silent: {reason}")
 
-        # 5. Update session state
+        # 6. Update session state (this also updates emotional state)
         session_manager.update_workout_state(
             session_id=session_id,
             breath_analysis=breath_analysis,
@@ -435,24 +594,27 @@ async def continuous_coach(
             elapsed_seconds=elapsed_seconds
         )
 
-        # 6. Calculate next interval
+        # 7. Calculate next interval
         wait_seconds = calculate_next_interval(
             phase=phase,
             intensity=breath_analysis["intensity"],
             coaching_frequency=len(coaching_history)
         )
 
-        # 7. Return response
+        # 8. Return response
         if should_speak and audio_bytes:
             return StreamingResponse(
                 io.BytesIO(audio_bytes),
-                media_type="audio/wav",
+                media_type="audio/mpeg",  # ElevenLabs returns MP3
                 headers={
                     "X-Coach-Text": coach_text,
                     "X-Should-Speak": "true",
                     "X-Reason": reason,
                     "X-Wait-Seconds": str(wait_seconds),
-                    "X-Breath-Intensity": breath_analysis["intensity"]
+                    "X-Breath-Intensity": breath_analysis["intensity"],
+                    "X-Emotional-Mode": emotional_mode,
+                    "X-Emotional-Intensity": f"{emotional_intensity:.2f}",
+                    "X-Safety-Override": str(safety_override).lower()
                 }
             )
         else:
@@ -462,12 +624,95 @@ async def continuous_coach(
                 "reason": reason,
                 "wait_seconds": wait_seconds,
                 "breath_analysis": breath_analysis,
-                "text": coach_text
+                "text": coach_text,
+                "emotional_state": {
+                    "mode": emotional_mode,
+                    "intensity": round(emotional_intensity, 2),
+                    "trend": emotional_state.trend
+                }
             })
 
     except Exception as e:
         print(f"❌ Continuous coach error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_claude_coaching_with_emotion(
+    breath_data: dict,
+    phase: str,
+    persona: str,
+    emotional_mode: str,
+    language: str = "en",
+    training_level: str = "intermediate"
+) -> str:
+    """
+    Get coaching text from Claude with persona + emotional mode.
+
+    This is the emotional progression-aware version of get_claude_coaching.
+    The persona's expression changes based on emotional_mode.
+
+    Args:
+        breath_data: Breath analysis metrics
+        phase: "warmup", "intense", or "cooldown"
+        persona: The coach persona
+        emotional_mode: "supportive", "pressing", "intense", or "peak"
+        language: "en" or "no"
+        training_level: User's training level
+
+    Returns:
+        Coaching text adapted to emotional state
+    """
+    import random
+
+    # Critical override: use config message for speed
+    if breath_data["intensity"] == "critical":
+        messages = config.COACH_MESSAGES.get("critical", ["Stop. Breathe slow."])
+        if language == "no":
+            messages = config.COACH_MESSAGES_NO.get("critical", messages)
+        return random.choice(messages)
+
+    # Get system prompt with emotional mode
+    system_prompt = PersonaManager.get_system_prompt(
+        persona=persona,
+        language=language,
+        training_level=training_level,
+        emotional_mode=emotional_mode,
+        safety_override=False
+    )
+
+    # Add context
+    system_prompt += f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing: {breath_data['intensity']}"
+
+    # Build user message (concise for real-time)
+    user_message = f"{breath_data['intensity']} breathing, {phase} phase. One action:"
+
+    try:
+        response = claude.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=30,
+            temperature=0.9,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}]
+        )
+
+        text = response.content[0].text.strip()
+
+        # Truncate to first sentence if needed
+        if '.' in text:
+            text = text.split('.')[0] + '.'
+
+        # Add human variation
+        text = voice_intelligence.add_human_variation(text)
+
+        return text
+
+    except Exception as e:
+        print(f"❌ Claude API error: {e}")
+        # Fallback to config message
+        if phase == "intense":
+            intense_msgs = config.COACH_MESSAGES.get("intense", {})
+            return random.choice(intense_msgs.get(breath_data["intensity"], ["Keep going!"]))
+        return random.choice(config.COACH_MESSAGES.get(phase, ["Good work!"]))
 
 
 # ============================================
@@ -478,13 +723,13 @@ async def continuous_coach(
 async def startup_event():
     """Log startup information."""
     print("=" * 50)
-    print("🎯 Treningscoach Backend v1.2.0")
+    print("🎯 Treningscoach Backend v2.0.0")
     print("=" * 50)
     print(f"✅ FastAPI server ready")
     print(f"✅ Claude API configured")
-    print(f"✅ Qwen3-TTS loaded on {device}")
-    print(f"✅ Reference audio: {reference_audio_path}")
-    print(f"✅ Coach personality: Nordic Endurance Coach")
+    print(f"✅ ElevenLabs TTS: {'ready' if tts else 'NOT CONFIGURED'}")
+    print(f"✅ Emotional progression: enabled")
+    print(f"✅ Coach personas: {len(PersonaManager.list_personas())} available")
     print("=" * 50)
 
 

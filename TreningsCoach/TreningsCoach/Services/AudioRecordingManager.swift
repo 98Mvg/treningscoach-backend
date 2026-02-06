@@ -29,8 +29,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
     private func setupAudioSession() {
         do {
-            try recordingSession.setCategory(.playAndRecord, mode: .default)
-            try recordingSession.setActive(true)
+            // Deactivate first to allow category change (prevents error -10875)
+            try? recordingSession.setActive(false)
+            try recordingSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
+            // Don't activate here - let the actual recording/playback activate it
+            // try recordingSession.setActive(true)
 
             recordingSession.requestRecordPermission { [weak self] allowed in
                 DispatchQueue.main.async {
@@ -48,6 +51,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
         guard hasPermission else {
             throw RecordingError.noPermission
         }
+
+        // Configure audio session just before recording
+        try? recordingSession.setActive(false)
+        try recordingSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
+        try recordingSession.setActive(true)
 
         // Delete previous recording if exists
         if FileManager.default.fileExists(atPath: recordingURL.path) {

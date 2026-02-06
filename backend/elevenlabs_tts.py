@@ -46,7 +46,13 @@ class ElevenLabsTTS:
                 return voice_id
         return self.default_voice_id
 
-    def generate_audio(self, text: str, output_path: str = None, language: str = None) -> str:
+    def generate_audio(
+        self,
+        text: str,
+        output_path: str = None,
+        language: str = None,
+        voice_pacing: dict = None
+    ) -> str:
         """
         Generate speech from text using the appropriate language voice.
 
@@ -54,6 +60,10 @@ class ElevenLabsTTS:
             text: The text to synthesize
             output_path: Where to save the audio file
             language: "en" or "no" for language-specific voice (optional)
+            voice_pacing: Optional pacing settings for emotional progression:
+                - stability: 0.0-1.0 (higher = more consistent)
+                - speed: Not directly supported, but affects style
+                - pause_before/pause_after: Handled by caller
 
         Returns:
             Path to the generated audio file
@@ -68,6 +78,18 @@ class ElevenLabsTTS:
         # Select voice ID based on language
         voice_id = self.get_voice_id(language)
 
+        # Apply emotional voice settings if provided
+        stability = 0.5
+        similarity_boost = 0.75
+        style = 0.0
+
+        if voice_pacing:
+            stability = voice_pacing.get("stability", 0.5)
+            # Note: ElevenLabs doesn't have a direct "speed" parameter
+            # but lower stability + higher style can create more energetic delivery
+            # For Calm Coach (high stability) vs Drill Sergeant (low stability)
+            logger.info(f"Emotional pacing: stability={stability}")
+
         lang_label = f" [{language}]" if language else ""
         logger.info(f"Generating with ElevenLabs{lang_label}: '{text}' (voice: {voice_id[:8]}...)")
 
@@ -77,9 +99,9 @@ class ElevenLabsTTS:
             text=text,
             model_id="eleven_multilingual_v2",  # Supports Norwegian + English
             voice_settings=VoiceSettings(
-                stability=0.5,
-                similarity_boost=0.75,
-                style=0.0,
+                stability=stability,
+                similarity_boost=similarity_boost,
+                style=style,
                 use_speaker_boost=True
             )
         )
@@ -91,6 +113,49 @@ class ElevenLabsTTS:
 
         logger.info(f"Audio saved: {output_path}")
         return output_path
+
+    def generate_audio_bytes(
+        self,
+        text: str,
+        language: str = None,
+        voice_pacing: dict = None
+    ) -> bytes:
+        """
+        Generate speech and return as bytes (no file save).
+
+        This is more efficient for streaming responses.
+
+        Args:
+            text: The text to synthesize
+            language: "en" or "no" for language-specific voice
+            voice_pacing: Optional pacing settings for emotional progression
+
+        Returns:
+            Audio bytes (MP3 format)
+        """
+        voice_id = self.get_voice_id(language)
+
+        # Apply emotional voice settings
+        stability = voice_pacing.get("stability", 0.5) if voice_pacing else 0.5
+
+        audio = self.client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=text,
+            model_id="eleven_multilingual_v2",
+            voice_settings=VoiceSettings(
+                stability=stability,
+                similarity_boost=0.75,
+                style=0.0,
+                use_speaker_boost=True
+            )
+        )
+
+        # Collect all chunks into bytes
+        audio_bytes = b""
+        for chunk in audio:
+            audio_bytes += chunk
+
+        return audio_bytes
 
 
 # Example usage

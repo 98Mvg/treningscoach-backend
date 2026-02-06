@@ -39,6 +39,7 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Continuous Coaching Properties
 
     @Published var isContinuousMode = false
+    @Published var isPaused = false
     @Published var coachingInterval: TimeInterval = AppConfig.ContinuousCoaching.defaultInterval
 
     // MARK: - UI Properties (for new dashboard/profile screens)
@@ -335,10 +336,14 @@ class WorkoutViewModel: ObservableObject {
         do {
             print("🔊 Attempting to play audio from: \(url.path)")
 
-            // Ensure audio session allows playback (may be in .playAndRecord during workout)
+            // Configure audio session for playback
+            // If already in .playAndRecord (during workout), keep it - that mode supports playback
+            // Otherwise, set .playback mode for standalone audio playback
             let session = AVAudioSession.sharedInstance()
-            if session.category != .playAndRecord && session.category != .playback {
-                try session.setCategory(.playback, mode: .default, options: [])
+            if session.category != .playAndRecord {
+                // Deactivate first to allow category change (prevents error -10875)
+                try? session.setActive(false)
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             }
             try session.setActive(true)
 
@@ -456,6 +461,76 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    func pauseContinuousWorkout() {
+        guard isContinuousMode && !isPaused else { return }
+
+        print("⏸️ Pausing continuous workout")
+
+        isPaused = true
+
+        // Pause recording
+        continuousRecordingManager.pauseRecording()
+
+        // Pause wake word listening
+        wakeWordManager.stopListening()
+
+        // Pause timers (but don't invalidate - we'll resume them)
+        coachingTimer?.invalidate()
+        coachingTimer = nil
+        elapsedTimeTimer?.invalidate()
+        elapsedTimeTimer = nil
+
+        voiceState = .idle
+
+        print("✅ Workout paused")
+    }
+
+    func resumeContinuousWorkout() {
+        guard isContinuousMode && isPaused else { return }
+
+        print("▶️ Resuming continuous workout")
+
+        isPaused = false
+
+        // Resume recording
+        do {
+            try continuousRecordingManager.resumeRecording()
+        } catch {
+            showErrorAlert("Failed to resume recording: \(error.localizedDescription)")
+            return
+        }
+
+        voiceState = .listening
+
+        // Resume wake word listening
+        wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
+            Task { @MainActor in
+                self?.handleWakeWordUtterance(utterance)
+            }
+        }
+
+        // Restart elapsed time timer
+        elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self, let start = self.sessionStartTime else { return }
+                self.elapsedTime = Date().timeIntervalSince(start)
+            }
+        }
+
+        // Resume coaching loop
+        scheduleNextTick()
+
+        print("✅ Workout resumed")
+    }
+
+    func togglePause() {
+        if isPaused {
+            resumeContinuousWorkout()
+        } else {
+            pauseContinuousWorkout()
+        }
+    }
+
     func stopContinuousWorkout() {
         guard isContinuousMode else { return }
 
@@ -478,6 +553,7 @@ class WorkoutViewModel: ObservableObject {
 
         // Update state
         isContinuousMode = false
+        isPaused = false
         voiceState = .idle
         isWakeWordActive = false
         sessionId = nil

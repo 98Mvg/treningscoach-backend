@@ -39,39 +39,35 @@ struct WorkoutView: View {
                     .transition(.opacity)
                 }
 
-                // MARK: - Voice Orb + Timer Ring (center)
+                // MARK: - Voice Orb / Workout Player (center)
                 ZStack {
-                    // Timer ring wraps around the orb
                     if viewModel.isContinuousMode {
-                        TimerRingView(
+                        // Show workout player with controls
+                        WorkoutPlayerView(
                             elapsedTime: viewModel.elapsedTime,
                             totalTime: AppConfig.ContinuousCoaching.maxWorkoutDuration,
-                            ringSize: 170,
-                            lineWidth: 5
+                            isPaused: viewModel.isPaused,
+                            onPlayPause: {
+                                viewModel.togglePause()
+                            },
+                            onStop: {
+                                viewModel.stopContinuousWorkout()
+                            }
                         )
-                        .transition(.opacity)
-                    }
-
-                    // The voice orb — THE interaction element
-                    VoiceOrbView(state: viewModel.voiceState) {
-                        if viewModel.isContinuousMode {
-                            viewModel.stopContinuousWorkout()
-                        } else if viewModel.isRecording {
-                            viewModel.stopRecording()
-                        } else {
-                            viewModel.startContinuousWorkout()
+                        .transition(.scale.combined(with: .opacity))
+                    } else {
+                        // Show voice orb for starting workout
+                        VoiceOrbView(state: viewModel.voiceState) {
+                            if viewModel.isRecording {
+                                viewModel.stopRecording()
+                            } else {
+                                viewModel.startContinuousWorkout()
+                            }
                         }
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
 
-                // MARK: - Elapsed Time
-                if viewModel.isContinuousMode {
-                    Text(viewModel.elapsedTimeFormatted)
-                        .font(.system(size: 32, weight: .light, design: .monospaced))
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .padding(.top, 16)
-                        .transition(.opacity)
-                }
 
                 // MARK: - Intensity Badge + Breath Phase
                 if viewModel.isContinuousMode, let analysis = viewModel.breathAnalysis {
@@ -132,28 +128,13 @@ struct WorkoutView: View {
                         .transition(.opacity)
                 }
 
-                // MARK: - Stop Button (only during workout)
-                if viewModel.isContinuousMode {
-                    Button {
-                        viewModel.stopContinuousWorkout()
-                    } label: {
-                        Text(L10n.stopWorkout)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.danger)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.danger.opacity(0.15))
-                            .clipShape(Capsule())
-                    }
-                    .padding(.top, 12)
-                    .transition(.opacity)
-                }
 
                 Spacer()
                     .frame(height: 20)
             }
             .padding(.bottom, 80) // Space for tab bar
-            .animation(.easeInOut(duration: 0.3), value: viewModel.isContinuousMode)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.isContinuousMode)
+            .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.isPaused)
         }
         // Error alert
         .alert(L10n.error, isPresented: $viewModel.showError) {

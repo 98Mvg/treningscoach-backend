@@ -30,59 +30,40 @@ class ElevenLabsTTS:
 
         logger.info(f"ElevenLabs initialized with default voice ID: {voice_id[:8]}...")
 
-    def get_voice_id(self, language: str = None, persona: str = None) -> str:
+    def get_voice_id(self, language: str = None) -> str:
         """
-        Get the appropriate voice ID for the given language and persona.
+        Get the appropriate voice ID for the given language.
 
         Args:
             language: "en" or "no" (None uses default)
-            persona: "drill_sergeant", "toxic_mode", etc.
 
         Returns:
             Voice ID string
         """
-        # Check persona-specific voice first
-        if persona and hasattr(config, 'PERSONA_VOICE_CONFIG'):
-            persona_config = config.PERSONA_VOICE_CONFIG.get(persona, {})
-            persona_voice = persona_config.get("voice_id")
-            if persona_voice:
-                logger.info(f"Using persona voice for '{persona}': {persona_voice[:8]}...")
-                return persona_voice
-
-        # Fall back to language-specific voice
         if language and language in config.VOICE_CONFIG:
             voice_id = config.VOICE_CONFIG[language].get("voice_id", "")
             if voice_id:
                 return voice_id
         return self.default_voice_id
 
-    def get_voice_settings(self, persona: str = None) -> dict:
-        """Get voice settings for a persona."""
-        if persona and hasattr(config, 'PERSONA_VOICE_CONFIG'):
-            persona_config = config.PERSONA_VOICE_CONFIG.get(persona, {})
-            return {
-                "stability": persona_config.get("stability", 0.5),
-                "style": persona_config.get("style", 0.0)
-            }
-        return {"stability": 0.5, "style": 0.0}
-
     def generate_audio(
         self,
         text: str,
         output_path: str = None,
         language: str = None,
-        persona: str = None,
         voice_pacing: dict = None
     ) -> str:
         """
-        Generate speech from text using the appropriate language/persona voice.
+        Generate speech from text using the appropriate language voice.
 
         Args:
             text: The text to synthesize
             output_path: Where to save the audio file
             language: "en" or "no" for language-specific voice (optional)
-            persona: "drill_sergeant", "toxic_mode", etc. for persona-specific voice
-            voice_pacing: Optional pacing settings
+            voice_pacing: Optional pacing settings for emotional progression:
+                - stability: 0.0-1.0 (higher = more consistent)
+                - speed: Not directly supported, but affects style
+                - pause_before/pause_after: Handled by caller
 
         Returns:
             Path to the generated audio file
@@ -94,22 +75,23 @@ class ElevenLabsTTS:
                 f"coach_{int(time.time() * 1000)}.mp3"
             )
 
-        # Select voice ID based on persona first, then language
-        voice_id = self.get_voice_id(language, persona)
+        # Select voice ID based on language
+        voice_id = self.get_voice_id(language)
 
-        # Get persona-specific voice settings
-        persona_settings = self.get_voice_settings(persona)
-        stability = persona_settings.get("stability", 0.5)
+        # Apply emotional voice settings if provided
+        stability = 0.5
         similarity_boost = 0.75
-        style = persona_settings.get("style", 0.0)
+        style = 0.0
 
         if voice_pacing:
-            stability = voice_pacing.get("stability", stability)
-            style = voice_pacing.get("style", style)
+            stability = voice_pacing.get("stability", 0.5)
+            # Note: ElevenLabs doesn't have a direct "speed" parameter
+            # but lower stability + higher style can create more energetic delivery
+            # For Calm Coach (high stability) vs Drill Sergeant (low stability)
+            logger.info(f"Emotional pacing: stability={stability}")
 
         lang_label = f" [{language}]" if language else ""
-        persona_label = f" ({persona})" if persona else ""
-        logger.info(f"Generating with ElevenLabs{lang_label}{persona_label}: '{text}' (voice: {voice_id[:8]}..., stability={stability})")
+        logger.info(f"Generating with ElevenLabs{lang_label}: '{text}' (voice: {voice_id[:8]}...)")
 
         # Generate audio using text_to_speech method
         audio = self.client.text_to_speech.convert(

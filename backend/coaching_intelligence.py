@@ -1,10 +1,152 @@
 # coaching_intelligence.py - Intelligence layer for continuous coaching decisions
+# Now with emotional progression safety guardrails
 
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# SAFETY OVERRIDE RULES
+# =============================================================================
+# These are NON-NEGOTIABLE. No matter the persona or emotional state,
+# safety always comes first.
+
+def check_safety_override(
+    breath_analysis: Dict,
+    emotional_intensity: float = 0.0
+) -> Tuple[bool, str]:
+    """
+    Check if safety override should be triggered.
+
+    Safety overrides emotional progression. When triggered:
+    - All personas drop to "supportive" mode
+    - Messages become supportive, not challenging
+    - Coaching frequency increases
+
+    Args:
+        breath_analysis: Current breath analysis
+        emotional_intensity: Current emotional intensity (0.0-1.0)
+
+    Returns:
+        Tuple of (should_override: bool, reason: str)
+    """
+    intensity = breath_analysis.get("intensity", "moderate")
+    signal_quality = breath_analysis.get("signal_quality")
+    breath_regularity = breath_analysis.get("breath_regularity")
+    respiratory_rate = breath_analysis.get("respiratory_rate")
+
+    # Rule 1: Critical breathing - ALWAYS override
+    if intensity == "critical":
+        logger.warning("SAFETY OVERRIDE: critical breathing detected")
+        return (True, "critical_breathing")
+
+    # Rule 2: Hyperventilation pattern (respiratory rate > 30)
+    if respiratory_rate is not None and respiratory_rate > 30:
+        logger.warning(f"SAFETY OVERRIDE: hyperventilation (rate={respiratory_rate})")
+        return (True, "hyperventilation")
+
+    # Rule 3: Signal quality collapse (can't reliably assess)
+    if signal_quality is not None and signal_quality < 0.15:
+        logger.warning(f"SAFETY OVERRIDE: signal quality collapse ({signal_quality})")
+        return (True, "signal_collapse")
+
+    # Rule 4: Highly irregular breathing with high emotional intensity
+    # (User may be panicking)
+    if breath_regularity is not None and breath_regularity < 0.25:
+        if emotional_intensity > 0.7:
+            logger.warning(f"SAFETY OVERRIDE: panic pattern (regularity={breath_regularity}, intensity={emotional_intensity})")
+            return (True, "panic_pattern")
+
+    # Rule 5: Emotional intensity at absolute max (0.95+) for too long
+    # Even if breathing seems OK, back off the pressure
+    if emotional_intensity >= 0.95:
+        logger.warning(f"SAFETY OVERRIDE: emotional ceiling reached ({emotional_intensity})")
+        return (True, "emotional_ceiling")
+
+    return (False, "none")
+
+
+def apply_safety_to_coaching(
+    message: str,
+    persona: str,
+    safety_reason: str,
+    language: str = "en"
+) -> str:
+    """
+    Transform a coaching message when safety override is active.
+
+    Args:
+        message: Original coaching message
+        persona: The persona that generated it
+        safety_reason: Why safety was triggered
+        language: "en" or "no"
+
+    Returns:
+        Safety-appropriate message
+    """
+    # Safety messages by reason
+    safety_messages = {
+        "en": {
+            "critical_breathing": "Let's slow down. Take a deep breath with me. In... and out.",
+            "hyperventilation": "I need you to slow your breathing. In for 4... out for 6.",
+            "signal_collapse": "Take a moment. Let's reset together.",
+            "panic_pattern": "You're doing great. Let's just breathe together for a moment.",
+            "emotional_ceiling": "Amazing effort. Let's take a recovery breath."
+        },
+        "no": {
+            "critical_breathing": "La oss roe ned. Ta et dypt pust med meg. Inn... og ut.",
+            "hyperventilation": "Jeg trenger at du senker pusten. Inn i 4... ut i 6.",
+            "signal_collapse": "Ta et øyeblikk. La oss nullstille sammen.",
+            "panic_pattern": "Du gjør det bra. La oss bare puste sammen et øyeblikk.",
+            "emotional_ceiling": "Utrolig innsats. La oss ta et pust."
+        }
+    }
+
+    # For toxic mode, explicitly drop the act
+    if persona == "toxic_mode":
+        prefix_en = "Alright, dropping the act for a second. "
+        prefix_no = "Ok, jeg legger bort akten et øyeblikk. "
+        prefix = prefix_no if language == "no" else prefix_en
+        base_message = safety_messages.get(language, safety_messages["en"]).get(safety_reason, "")
+        return prefix + base_message
+
+    return safety_messages.get(language, safety_messages["en"]).get(
+        safety_reason,
+        "Take a breath. You're doing well." if language == "en" else "Ta et pust. Du gjør det bra."
+    )
+
+
+def emotional_decay_on_silence(
+    emotional_intensity: float,
+    seconds_silent: float
+) -> float:
+    """
+    Apply emotional decay when coach stays silent.
+
+    Silence = calm. The longer the coach is silent, the more
+    emotional intensity should decay.
+
+    Args:
+        emotional_intensity: Current intensity (0.0-1.0)
+        seconds_silent: How long coach has been silent
+
+    Returns:
+        New emotional intensity after decay
+    """
+    if seconds_silent <= 0:
+        return emotional_intensity
+
+    # Decay rate: 5% per 8-second tick of silence
+    ticks_silent = seconds_silent / 8.0
+    decay_factor = 0.95 ** ticks_silent
+
+    new_intensity = emotional_intensity * decay_factor
+
+    # Floor at 0.1 (never fully reset)
+    return max(0.1, new_intensity)
 
 
 def should_coach_speak(

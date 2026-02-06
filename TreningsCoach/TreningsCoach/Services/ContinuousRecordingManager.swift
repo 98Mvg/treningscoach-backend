@@ -16,7 +16,10 @@ class ContinuousRecordingManager: NSObject {
     private let audioEngine = AVAudioEngine()
     private var audioFile: AVAudioFile?
     private var isRecording = false
+    private var isPaused = false
     private var recordingStartTime: Date?
+    private var pausedDuration: TimeInterval = 0
+    private var pauseStartTime: Date?
 
     // Circular buffer for storing recent audio (15 seconds)
     private var audioBuffer: [[Float]] = []
@@ -82,6 +85,36 @@ class ContinuousRecordingManager: NSObject {
         print("✅ Continuous recording started")
     }
 
+    /// Pause continuous recording
+    func pauseRecording() {
+        guard isRecording && !isPaused else { return }
+
+        isPaused = true
+        pauseStartTime = Date()
+
+        // Stop the engine but keep the buffer
+        audioEngine.stop()
+
+        print("⏸️ Recording paused")
+    }
+
+    /// Resume continuous recording
+    func resumeRecording() throws {
+        guard isRecording && isPaused else { return }
+
+        // Update total paused duration
+        if let pauseStart = pauseStartTime {
+            pausedDuration += Date().timeIntervalSince(pauseStart)
+        }
+        pauseStartTime = nil
+        isPaused = false
+
+        // Restart the engine
+        try audioEngine.start()
+
+        print("▶️ Recording resumed")
+    }
+
     /// Stop continuous recording session
     func stopContinuousRecording() {
         guard isRecording else { return }
@@ -96,7 +129,10 @@ class ContinuousRecordingManager: NSObject {
         audioBuffer.removeAll()
 
         isRecording = false
+        isPaused = false
         recordingStartTime = nil
+        pausedDuration = 0
+        pauseStartTime = nil
 
         // Deactivate audio session
         do {
@@ -141,10 +177,18 @@ class ContinuousRecordingManager: NSObject {
         return exportChunkAsWAV(chunk, format: format)
     }
 
-    /// Get current recording duration
+    /// Get current recording duration (excluding paused time)
     func getRecordingDuration() -> TimeInterval {
         guard let startTime = recordingStartTime else { return 0 }
-        return Date().timeIntervalSince(startTime)
+        let totalElapsed = Date().timeIntervalSince(startTime)
+        var pausedTime = pausedDuration
+
+        // Add current pause duration if currently paused
+        if isPaused, let pauseStart = pauseStartTime {
+            pausedTime += Date().timeIntervalSince(pauseStart)
+        }
+
+        return totalElapsed - pausedTime
     }
 
     /// Check if currently recording
