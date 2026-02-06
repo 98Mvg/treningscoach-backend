@@ -28,6 +28,49 @@ VOICE_CONFIG = {
     }
 }
 
+# Persona-specific voices (drill sergeant uses different voice)
+# Maps to iOS CoachPersonality enum values
+PERSONA_VOICE_CONFIG = {
+    # Tough personas - use Drill Sergeant voice (Yxsf...)
+    "drill_sergeant": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
+        "name": "Drill Sergeant",
+        "stability": 0.3,
+        "style": 0.7
+    },
+    "toxic_mode": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
+        "name": "Toxic Mode",
+        "stability": 0.25,
+        "style": 0.9
+    },
+    # Calm personas - use Coach voice (1DHh...)
+    "fitness_coach": {
+        "voice_id": None,  # Uses language default (Coach voice)
+        "name": "Fitness Coach",
+        "stability": 0.5,
+        "style": 0.0
+    },
+    "calm_coach": {
+        "voice_id": None,
+        "name": "Calm Coach",
+        "stability": 0.7,
+        "style": 0.0
+    },
+    "personal_trainer": {
+        "voice_id": None,
+        "name": "Personal Trainer",
+        "stability": 0.5,
+        "style": 0.2
+    },
+    "endurance_coach": {
+        "voice_id": None,
+        "name": "Endurance Coach",
+        "stability": 0.6,
+        "style": 0.0
+    }
+}
+
 # ============================================
 # TRAINING LEVEL CONFIGURATION
 # ============================================
@@ -90,26 +133,28 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # Tone: Calm, authoritative, friendly
 WELCOME_MESSAGES = {
     "standard": [
-        "Welcome. Let's start slow. Find your rhythm.",
-        "Good. Breathe in, and out. Settle your shoulders.",
-        "Steady now. Don't rush. Warmup first, intensity later.",
-        "Easy does it. Focus on breathing, not speed.",
-        "Alright, lungs and legs. Let's get them talking."
+        "Good to see you. Let's start with some easy movement and build from there.",
+        "Ready when you are. Take a breath, settle in, and we'll ease into it.",
+        "Nice timing. Let's warm up properly and set the tone for a good session.",
+        "Let's get moving. Controlled pace to start, then we'll find your rhythm.",
+        "Welcome back. Focus on how your body feels and we'll build from there.",
+        "Alright, let's begin. Smooth and steady, no rush.",
+        "Good call showing up. Start easy, the intensity will come naturally."
     ],
 
     "beginner_friendly": [
-        "Hi there. Let's start easy and find your rhythm.",
-        "Ready to move? Let's warm up gently.",
-        "Time to begin. Focus on your breathing and ease into it.",
-        "Hello. Start slow and steady. We'll build from here.",
-        "You made it. Let's start easy and feel your body wake up."
+        "Great that you're here. We'll start slow and keep it simple.",
+        "Welcome. Just focus on breathing and moving at your own pace.",
+        "Let's begin easy. No pressure, just getting your body warmed up.",
+        "Nice to have you. Take it one step at a time, I'll guide you through.",
+        "You're here, that's the hardest part. Now let's ease into it together."
     ],
 
     "breath_aware": [
-        "Find your breath. Relax your shoulders. Warmup begins.",
-        "Focus on calm breathing. Let's ease into the session.",
-        "Listen to your body, breathe steadily, and start gently.",
-        "Check your rhythm. Warmup is on, take it easy."
+        "Take a moment. Deep breath in, slow breath out. Now let's begin.",
+        "Start by finding your breath. Shoulders down, chest open, easy pace.",
+        "Let's connect with your breathing first. Everything else follows from there.",
+        "Settle your breath, relax your body. We'll build the intensity gradually."
     ]
 }
 
@@ -271,24 +316,26 @@ CONTINUOUS_COACH_MESSAGES = {
 # ============================================
 WELCOME_MESSAGES_NO = {
     "standard": [
-        "Velkommen. La oss starte rolig. Finn rytmen din.",
-        "Bra. Pust inn, og ut. Slapp av skuldrene.",
-        "Rolig naa. Ikke stress. Oppvarming foerst, intensitet senere.",
-        "Ta det med ro. Fokuser paa pusten, ikke fart.",
-        "Okei, lunger og bein. La oss faa dem i gang."
+        "Fint at du er her. Vi starter rolig og bygger derfra.",
+        "Klar naar du er. Ta et pust, finn roen, saa setter vi i gang.",
+        "Bra timing. La oss varme opp ordentlig og legge grunnlaget.",
+        "La oss komme i gang. Kontrollert tempo til aa begynne med.",
+        "Velkommen tilbake. Kjenn paa kroppen saa bygger vi derfra.",
+        "Okei, la oss begynne. Rolig og jevnt, ingen hastverk.",
+        "Bra at du dukket opp. Start rolig, intensiteten kommer naturlig."
     ],
     "beginner_friendly": [
-        "Hei! La oss starte rolig og finne rytmen din.",
-        "Klar til aa bevege deg? La oss varme opp forsiktig.",
-        "Tid for aa begynne. Fokuser paa pusten og ta det rolig.",
-        "Hei. Start sakte og jevnt. Vi bygger herfra.",
-        "Du kom deg hit. La oss starte rolig og kjenne kroppen vaakne."
+        "Fint at du er her. Vi starter sakte og holder det enkelt.",
+        "Velkommen. Bare fokuser paa pusten og beveg deg i ditt tempo.",
+        "La oss starte rolig. Ingen press, bare faa kroppen varm.",
+        "Godt aa ha deg her. Ett steg om gangen, jeg guider deg.",
+        "Du er her, det er det vanskeligste. Naa tar vi det rolig sammen."
     ],
     "breath_aware": [
-        "Finn pusten din. Slapp av skuldrene. Oppvarmingen begynner.",
-        "Fokuser paa rolig pust. La oss gli inn i oekten.",
-        "Lytt til kroppen, pust jevnt, og start forsiktig.",
-        "Sjekk rytmen din. Oppvarming er paa, ta det rolig."
+        "Ta et oyeblikk. Dyp innpust, rolig utpust. Naa begynner vi.",
+        "Start med aa finne pusten. Skuldrene ned, brystet aapent, rolig tempo.",
+        "La oss koble paa pusten foerst. Alt annet foelger derfra.",
+        "Finn roen i pusten, slapp av kroppen. Vi bygger intensiteten gradvis."
     ]
 }
 

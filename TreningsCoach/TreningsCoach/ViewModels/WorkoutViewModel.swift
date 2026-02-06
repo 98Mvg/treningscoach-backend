@@ -9,6 +9,14 @@ import Foundation
 import SwiftUI
 import AVFoundation
 
+/// State machine for coach interaction during workout
+enum CoachInteractionState: String {
+    case passiveListening   // Mic on, waiting for wake word or button
+    case wakeWordDetected   // Wake word heard, capturing command
+    case commandMode        // User is speaking a command
+    case responding         // Coach is generating/speaking response
+}
+
 @MainActor
 class WorkoutViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -22,6 +30,10 @@ class WorkoutViewModel: ObservableObject {
     @Published var voiceState: VoiceState = .idle
     @Published var currentPhase: WorkoutPhase = .intense
     @Published var activePersonality: CoachPersonality = .fitnessCoach
+
+    // MARK: - Coach Interaction State Machine
+
+    @Published var coachInteractionState: CoachInteractionState = .passiveListening
 
     // MARK: - Computed Properties
 
@@ -229,18 +241,43 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Wake Word Speech-to-Coach
 
     /// Handle user utterance after wake word detection
-    /// This is the 10% user-initiated channel — short, contextual questions
+    /// This is the user-initiated channel — short, contextual questions
     private func handleWakeWordUtterance(_ utterance: String) {
         guard isContinuousMode else { return }
 
         print("🗣️ User spoke to coach: '\(utterance)'")
         isWakeWordActive = true
+        coachInteractionState = .commandMode
 
-        // Send to backend with workout context
+        sendUserMessageToCoach(utterance)
+    }
+
+    /// "Talk to Coach" button — manually triggered (same as wake word path)
+    func talkToCoachButtonPressed() {
+        guard isContinuousMode else { return }
+        guard coachInteractionState == .passiveListening else { return }
+
+        print("🎤 Talk-to-coach button pressed")
+        coachInteractionState = .commandMode
+        isWakeWordActive = true
+
+        // Start a short speech capture using the wake word manager
+        // or send a generic prompt if no speech recognition is available
+        let prompt = currentLanguage == "no"
+            ? "Hvordan gjor jeg det?"
+            : "How am I doing?"
+
+        sendUserMessageToCoach(prompt)
+    }
+
+    /// Common path: send a user message to the coach backend
+    private func sendUserMessageToCoach(_ message: String) {
+        coachInteractionState = .responding
+
         Task {
             do {
                 let response = try await apiService.talkToCoachDuringWorkout(
-                    message: utterance,
+                    message: message,
                     sessionId: sessionId ?? "",
                     phase: currentPhase.rawValue,
                     intensity: breathAnalysis?.intensity ?? "moderate",
@@ -254,10 +291,12 @@ class WorkoutViewModel: ObservableObject {
                 // Play the response audio
                 await playCoachAudio(response.audioURL)
             } catch {
-                print("❌ Wake word talk failed: \(error.localizedDescription)")
+                print("❌ Coach talk failed: \(error.localizedDescription)")
             }
 
+            // Return to passive listening
             isWakeWordActive = false
+            coachInteractionState = .passiveListening
         }
     }
 

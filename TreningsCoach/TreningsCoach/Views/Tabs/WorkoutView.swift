@@ -11,6 +11,7 @@ import SwiftUI
 
 struct WorkoutView: View {
     @ObservedObject var viewModel: WorkoutViewModel
+    @StateObject private var diagnostics = AudioPipelineDiagnostics.shared
 
     var body: some View {
         ZStack {
@@ -121,11 +122,14 @@ struct WorkoutView: View {
                     .transition(.opacity)
                 }
 
-                // MARK: - Wake Word Indicator
+                // MARK: - Talk to Coach Button + Wake Word Indicator
                 if viewModel.isContinuousMode {
-                    wakeWordIndicator
-                        .padding(.top, 8)
-                        .transition(.opacity)
+                    VStack(spacing: 8) {
+                        talkToCoachButton
+                        wakeWordIndicator
+                    }
+                    .padding(.top, 8)
+                    .transition(.opacity)
                 }
 
 
@@ -135,6 +139,25 @@ struct WorkoutView: View {
             .padding(.bottom, 80) // Space for tab bar
             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.isContinuousMode)
             .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.isPaused)
+
+            // MARK: - Diagnostic Overlay (compact, bottom-aligned)
+            if diagnostics.isOverlayVisible {
+                VStack {
+                    Spacer()
+                    AudioDiagnosticOverlayView(diagnostics: diagnostics)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 90)
+                }
+            }
+        }
+        // Triple-tap to toggle diagnostics panel
+        .onTapGesture(count: 3) {
+            withAnimation(.spring(response: 0.3)) {
+                diagnostics.isOverlayVisible.toggle()
+                if diagnostics.isOverlayVisible {
+                    diagnostics.log(.micInit, detail: "Diagnostics panel opened")
+                }
+            }
         }
         // Error alert
         .alert(L10n.error, isPresented: $viewModel.showError) {
@@ -219,31 +242,89 @@ struct WorkoutView: View {
         }
     }
 
+    // MARK: - Talk to Coach Button
+
+    private var talkToCoachButton: some View {
+        Button {
+            viewModel.talkToCoachButtonPressed()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: buttonIcon)
+                    .font(.caption)
+                    .symbolEffect(.pulse, isActive: viewModel.coachInteractionState == .responding)
+
+                Text(buttonLabel)
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(buttonForeground)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(buttonForeground.opacity(0.12))
+            .clipShape(Capsule())
+        }
+        .disabled(viewModel.coachInteractionState != .passiveListening)
+        .opacity(viewModel.coachInteractionState == .passiveListening ? 1.0 : 0.6)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.coachInteractionState)
+    }
+
+    private var buttonIcon: String {
+        switch viewModel.coachInteractionState {
+        case .passiveListening: return "mic.fill"
+        case .wakeWordDetected: return "ear.fill"
+        case .commandMode: return "waveform"
+        case .responding: return "speaker.wave.2.fill"
+        }
+    }
+
+    private var buttonLabel: String {
+        switch viewModel.coachInteractionState {
+        case .passiveListening: return L10n.talkToCoachButton
+        case .wakeWordDetected: return L10n.coachHeard
+        case .commandMode: return L10n.listeningForYou
+        case .responding: return L10n.coachSpeaking
+        }
+    }
+
+    private var buttonForeground: Color {
+        switch viewModel.coachInteractionState {
+        case .passiveListening: return AppTheme.primaryAccent
+        case .wakeWordDetected: return AppTheme.warning
+        case .commandMode: return AppTheme.success
+        case .responding: return AppTheme.secondaryAccent
+        }
+    }
+
     // MARK: - Wake Word Indicator
 
     private var wakeWordIndicator: some View {
         HStack(spacing: 6) {
-            if viewModel.isWakeWordActive || viewModel.wakeWordManager.isCapturingUtterance {
-                // Active: capturing user speech
+            if viewModel.coachInteractionState == .responding {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.secondaryAccent)
+                    .symbolEffect(.pulse)
+
+                Text(L10n.coachSpeaking)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(AppTheme.secondaryAccent)
+            } else if viewModel.coachInteractionState == .commandMode || viewModel.wakeWordManager.isCapturingUtterance {
                 Image(systemName: "mic.fill")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(AppTheme.success)
                     .symbolEffect(.pulse)
 
-                Text(viewModel.wakeWordManager.isCapturingUtterance ? L10n.listeningForYou : L10n.coachHeard)
+                Text(L10n.listeningForYou)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(AppTheme.success)
             } else if viewModel.wakeWordManager.wakeWordDetected {
-                // Wake word just detected — brief flash
-                Image(systemName: "mic.fill")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.primaryAccent)
+                Image(systemName: "ear.fill")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.warning)
 
                 Text(L10n.coachHeard)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(AppTheme.primaryAccent)
+                    .foregroundStyle(AppTheme.warning)
             } else {
-                // Idle: show hint
                 Image(systemName: "mic.badge.xmark")
                     .font(.caption2)
                     .foregroundStyle(AppTheme.textSecondary.opacity(0.4))
@@ -254,13 +335,9 @@ struct WorkoutView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            (viewModel.isWakeWordActive ? AppTheme.success : AppTheme.textSecondary)
-                .opacity(viewModel.isWakeWordActive ? 0.15 : 0.05)
-        )
+        .padding(.vertical, 4)
         .clipShape(Capsule())
-        .animation(.easeInOut(duration: 0.3), value: viewModel.isWakeWordActive)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.coachInteractionState)
         .animation(.easeInOut(duration: 0.3), value: viewModel.wakeWordManager.wakeWordDetected)
     }
 

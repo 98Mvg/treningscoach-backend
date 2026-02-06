@@ -31,10 +31,12 @@ class WakeWordManager: ObservableObject {
 
     // MARK: - Configuration
 
-    /// Wake words per language (must be unnatural in gym context)
+    /// Wake words per language
+    /// English: "Coach" / "hey coach"
+    /// Norwegian: "Coachi" / "PT"
     static let wakeWords: [String: [String]] = [
         "en": ["coach", "hey coach"],
-        "no": ["trener", "hei trener"]
+        "no": ["coachi", "pt"]
     ]
 
     /// How long to capture after wake word (seconds)
@@ -95,15 +97,21 @@ class WakeWordManager: ObservableObject {
     /// Start listening for wake word on the given audio engine
     /// Shares the audio engine with ContinuousRecordingManager
     func startListening(audioEngine: AVAudioEngine, onUtterance: @escaping (String) -> Void) {
+        let diag = AudioPipelineDiagnostics.shared
+
         guard isAuthorized else {
             print("⚠️ Speech recognition not authorized, cannot listen for wake word")
+            diag.log(.speechRecogError, detail: "Not authorized")
             return
         }
 
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
             print("⚠️ Speech recognizer not available")
+            diag.log(.speechRecogError, detail: "Recognizer unavailable")
+            diag.speechRecognizerAvailable = false
             return
         }
+        diag.speechRecognizerAvailable = true
 
         // Cancel any existing task
         stopListening()
@@ -144,6 +152,8 @@ class WakeWordManager: ObservableObject {
         // and let ContinuousRecordingManager handle it — we just need the buffers.
 
         isListening = true
+        diag.isWakeWordListening = true
+        diag.log(.wakeWordListening, detail: "Words: \(currentWakeWords.joined(separator: ", "))")
         print("👂 Wake word listening started (words: \(currentWakeWords))")
     }
 
@@ -165,6 +175,9 @@ class WakeWordManager: ObservableObject {
         isListening = false
         isCapturingUtterance = false
         wakeWordDetected = false
+
+        AudioPipelineDiagnostics.shared.isWakeWordListening = false
+        AudioPipelineDiagnostics.shared.wakeWordDetected = false
         print("🔇 Wake word listening stopped")
     }
 
@@ -181,6 +194,9 @@ class WakeWordManager: ObservableObject {
             if let error = error {
                 // Recognition errors are common (timeouts, etc.) — not critical
                 print("⚠️ Speech recognition error: \(error.localizedDescription)")
+                Task { @MainActor in
+                    AudioPipelineDiagnostics.shared.log(.speechRecogError, detail: error.localizedDescription)
+                }
                 // Restart listening if it was an interruption
                 if self.isListening {
                     Task { @MainActor in
@@ -205,6 +221,9 @@ class WakeWordManager: ObservableObject {
                             self.isCapturingUtterance = true
 
                             print("🎯 Wake word detected: '\(wakeWord)' in '\(transcription)'")
+                            AudioPipelineDiagnostics.shared.wakeWordDetected = true
+                            AudioPipelineDiagnostics.shared.lastWakeWordTime = Date()
+                            AudioPipelineDiagnostics.shared.log(.wakeWordDetected, detail: "'\(wakeWord)' in '\(transcription)'")
 
                             // Remove wake word from transcription to get the utterance
                             capturedText = transcription
@@ -240,8 +259,12 @@ class WakeWordManager: ObservableObject {
 
     private func finalizeUtterance(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let diag = AudioPipelineDiagnostics.shared
+
         guard !trimmed.isEmpty else {
             print("👂 Wake word heard but no utterance captured — resuming listening")
+            diag.log(.utteranceFinalized, detail: "Empty — no speech after wake word")
+            diag.wakeWordDetected = false
             wakeWordDetected = false
             isCapturingUtterance = false
             restartRecognition()
@@ -252,6 +275,10 @@ class WakeWordManager: ObservableObject {
         lastTranscription = trimmed
         wakeWordDetected = false
         isCapturingUtterance = false
+
+        diag.lastUtterance = trimmed
+        diag.wakeWordDetected = false
+        diag.log(.utteranceFinalized, detail: "'\(trimmed)'")
 
         // Notify callback
         onUtteranceCaptured?(trimmed)

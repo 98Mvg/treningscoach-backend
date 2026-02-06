@@ -68,6 +68,12 @@ class ContinuousRecordingManager: NSObject {
 
         print("📱 Audio format: \(format.sampleRate)Hz, \(format.channelCount) channels")
 
+        // Feed sample rate to diagnostics
+        Task { @MainActor in
+            AudioPipelineDiagnostics.shared.sampleRate = format.sampleRate
+            AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(format.sampleRate)Hz, \(format.channelCount)ch")
+        }
+
         // Install tap to capture audio continuously
         // Buffers are used for both breath analysis (circular buffer) and wake word detection
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, time in
@@ -203,6 +209,9 @@ class ContinuousRecordingManager: NSObject {
 
         let channelCount = Int(buffer.format.channelCount)
         let frameLength = Int(buffer.frameLength)
+
+        // Feed raw audio samples to pipeline diagnostics (real-time level + VAD)
+        AudioPipelineDiagnostics.shared.processAudioBuffer(channelData[0], frameCount: frameLength)
 
         // Convert to Float array (mono - take first channel)
         var samples: [Float] = []

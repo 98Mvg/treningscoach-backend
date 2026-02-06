@@ -79,10 +79,12 @@ struct L10n {
     static var intenseLvl: String { current == .no ? "Intens" : "Intense" }
     static var critical: String { current == .no ? "Kritisk" : "Critical" }
 
-    // MARK: - Wake Word
-    static var sayCoachToSpeak: String { current == .no ? "Si \"Trener\" for aa snakke" : "Say \"Coach\" to speak" }
+    // MARK: - Wake Word & Coach Interaction
+    static var sayCoachToSpeak: String { current == .no ? "Si \"Coachi\" eller \"PT\"" : "Say \"Coach\" to speak" }
     static var listeningForYou: String { current == .no ? "Lytter..." : "Listening..." }
     static var coachHeard: String { current == .no ? "Hoert!" : "Heard!" }
+    static var talkToCoachButton: String { current == .no ? "Snakk med coach" : "Talk to Coach" }
+    static var coachSpeaking: String { current == .no ? "Coach svarer..." : "Coach speaking..." }
 
     // MARK: - Workout Player
     static var paused: String { current == .no ? "Pauset" : "Paused" }
