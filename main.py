@@ -65,6 +65,18 @@ session_manager = SessionManager()
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
 breath_analyzer = BreathAnalyzer()  # Advanced breath analysis with DSP + spectral features
+
+# Pre-warm librosa to avoid cold-start delay on first request
+# librosa lazy-loads heavy modules (numba, etc.) which can cause 30s+ timeout
+try:
+    import librosa
+    import numpy as np
+    _warmup = np.zeros(4410, dtype=np.float32)  # 100ms of silence
+    librosa.feature.rms(y=_warmup, frame_length=1024, hop_length=512)
+    del _warmup
+    logger.info("✅ Librosa pre-warmed successfully")
+except Exception as e:
+    logger.warning(f"⚠️ Librosa pre-warm failed: {e}")
 strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 if strategic_brain.is_available():
