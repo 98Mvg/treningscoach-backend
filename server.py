@@ -472,7 +472,7 @@ async def continuous_coach(
     phase: str = Form("intense"),
     elapsed_seconds: int = Form(0),
     last_coaching: str = Form(""),
-    persona: str = Form("fitness_coach"),
+    persona: str = Form("personal_trainer"),
     language: str = Form("en"),
     training_level: str = Form("intermediate")
 ):

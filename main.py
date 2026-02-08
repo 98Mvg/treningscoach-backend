@@ -130,21 +130,25 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 # VOICE GENERATION WITH QWEN3-TTS
 # ============================================
 
-def generate_voice(text, language=None):
+def generate_voice(text, language=None, persona=None):
     """
     Generates speech audio from text using ElevenLabs or Qwen3-TTS.
+
+    Voice is selected based on persona (if set) then language.
+    Each persona can have its own ElevenLabs voice ID and voice settings.
 
     Args:
         text: The coaching message to synthesize
         language: "en" or "no" for language-specific voice (optional)
+        persona: Persona identifier for persona-specific voice (optional)
 
     Returns:
         Path to generated audio file (MP3 or WAV)
     """
     try:
         if USE_ELEVENLABS:
-            # Use ElevenLabs (fast, cloud-based, multilingual)
-            return elevenlabs_tts.generate_audio(text, language=language)
+            # Use ElevenLabs with persona-specific voice settings
+            return elevenlabs_tts.generate_audio(text, language=language, persona=persona)
         else:
             # Fallback to Qwen3-TTS with cloned voice
             return synthesize_speech(text)
@@ -191,6 +195,7 @@ def welcome():
     try:
         experience = request.args.get('experience', 'standard')
         language = request.args.get('language', 'en')
+        persona = request.args.get('persona', 'personal_trainer')
 
         # Select message category based on experience
         if experience == 'beginner':
@@ -210,8 +215,8 @@ def welcome():
 
         logger.info(f"Welcome message requested: experience={experience}, language={language}, message='{welcome_text}'")
 
-        # Generate or use cached audio (language-aware voice)
-        voice_file = generate_voice(welcome_text, language=language)
+        # Generate or use cached audio (language + persona-aware voice)
+        voice_file = generate_voice(welcome_text, language=language, persona=persona)
 
         # Return relative path for download
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
@@ -299,6 +304,7 @@ def coach():
         audio_file = request.files['audio']
         phase = request.form.get('phase', 'intense')
         mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
+        persona = request.form.get('persona', 'personal_trainer')
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
@@ -329,8 +335,8 @@ def coach():
         # Get coach response (text) - STEP 3: Pass mode to brain router
         coach_text = get_coach_response(breath_data, phase, mode=mode)
 
-        # Generate voice with Qwen3-TTS
-        voice_file = generate_voice(coach_text)
+        # Generate voice with persona-specific settings
+        voice_file = generate_voice(coach_text, persona=persona)
 
         # Delete temporary input file
         try:
@@ -386,7 +392,7 @@ def coach_continuous():
         elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
         language = request.form.get('language', 'en')
         training_level = request.form.get('training_level', 'intermediate')
-        persona = request.form.get('persona', 'fitness_coach')
+        persona = request.form.get('persona', 'personal_trainer')
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -556,7 +562,7 @@ def coach_continuous():
         # Generate voice only if should speak (language-aware)
         audio_url = None
         if speak_decision:
-            voice_file = generate_voice(coach_text, language=language)
+            voice_file = generate_voice(coach_text, language=language, persona=persona)
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
@@ -744,7 +750,7 @@ def chat_start():
     try:
         data = request.get_json()
         user_id = data.get('user_id', 'anonymous')
-        persona = data.get('persona', 'fitness_coach')
+        persona = data.get('persona', 'personal_trainer')
 
         # Validate persona
         if not PersonaManager.validate_persona(persona):
@@ -1188,7 +1194,7 @@ def coach_talk():
         context = data.get('context', 'chat')  # "workout" or "chat"
         phase = data.get('phase', 'intense')
         intensity = data.get('intensity', 'moderate')
-        persona = data.get('persona', 'fitness_coach')
+        persona = data.get('persona', 'personal_trainer')
         language = data.get('language', 'en')
 
         logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona})")
@@ -1246,8 +1252,8 @@ def coach_talk():
                 persona=persona
             )
 
-        # Generate voice audio in the correct language
-        voice_file = generate_voice(coach_text, language=language)
+        # Generate voice audio with persona-specific voice
+        voice_file = generate_voice(coach_text, language=language, persona=persona)
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         audio_url = f"/download/{relative_path}"
 

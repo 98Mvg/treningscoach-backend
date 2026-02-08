@@ -58,6 +58,11 @@ class WakeWordManager: ObservableObject {
 
     private var isAuthorized = false
 
+    // Button-capture state
+    private var capturedText = ""
+    private var captureOnResult: ((String) -> Void)?
+    private var captureWasListening = false
+
     // MARK: - Initialization
 
     init() {
@@ -162,6 +167,118 @@ class WakeWordManager: ObservableObject {
     func feedAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard isListening || isCapturingUtterance else { return }
         recognitionRequest?.append(buffer)
+    }
+
+    /// Start a short speech capture session (button-triggered, no wake word needed).
+    /// Captures whatever the user says for up to `duration` seconds, then calls `onResult`.
+    func captureUtterance(duration: TimeInterval = 5.0, onResult: @escaping (String) -> Void) {
+        let diag = AudioPipelineDiagnostics.shared
+
+        guard isAuthorized else {
+            print("⚠️ Speech recognition not authorized for capture")
+            diag.log(.speechRecogError, detail: "Not authorized (capture)")
+            onResult("")
+            return
+        }
+
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            print("⚠️ Speech recognizer not available for capture")
+            diag.log(.speechRecogError, detail: "Recognizer unavailable (capture)")
+            onResult("")
+            return
+        }
+
+        // Store state for the capture session
+        captureWasListening = isListening
+        captureOnResult = onResult
+        capturedText = ""
+
+        // Stop any existing wake-word listening (we'll restart after capture)
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest?.endAudio()
+
+        // Create a new recognition request for capture
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        if #available(iOS 13, *) {
+            request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+        }
+        recognitionRequest = request
+
+        isCapturingUtterance = true
+
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("⚠️ Capture speech recognition error: \(error.localizedDescription)")
+                return
+            }
+
+            guard let result = result else { return }
+
+            Task { @MainActor in
+                self.capturedText = result.bestTranscription.formattedString
+
+                // If final result arrives early, deliver immediately
+                if result.isFinal && !self.capturedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.utteranceCaptureTimer?.invalidate()
+                    self.utteranceCaptureTimer = nil
+                    self.finishCapture()
+                }
+            }
+        }
+
+        // Timeout: deliver whatever we have after `duration` seconds
+        utteranceCaptureTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.finishCapture()
+            }
+        }
+
+        print("🎤 Capture session started (\(duration)s timeout)")
+        diag.log(.wakeWordListening, detail: "Button capture started")
+    }
+
+    /// Finish a button-triggered capture session
+    private func finishCapture() {
+        guard isCapturingUtterance else { return }  // Already finished
+        isCapturingUtterance = false
+        utteranceCaptureTimer?.invalidate()
+        utteranceCaptureTimer = nil
+
+        // Cancel the capture task
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest?.endAudio()
+        recognitionRequest = nil
+
+        let trimmed = capturedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("💬 Capture result: '\(trimmed)'")
+        AudioPipelineDiagnostics.shared.log(.utteranceFinalized, detail: "Button capture: '\(trimmed)'")
+
+        // Deliver result
+        captureOnResult?(trimmed)
+        captureOnResult = nil
+
+        // Restart wake-word listening if it was active before
+        let wasListening = captureWasListening
+        if wasListening, let recognizer = self.speechRecognizer {
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                let request = SFSpeechAudioBufferRecognitionRequest()
+                request.shouldReportPartialResults = true
+                if #available(iOS 13, *) {
+                    request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+                }
+                await MainActor.run {
+                    self.recognitionRequest = request
+                    self.startRecognitionTask(recognizer: recognizer, request: request)
+                    self.isListening = true
+                }
+            }
+        }
     }
 
     /// Stop listening for wake word

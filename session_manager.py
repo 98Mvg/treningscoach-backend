@@ -163,7 +163,7 @@ class SessionManager:
     def create_session(
         self,
         user_id: str,
-        persona: str = "fitness_coach",
+        persona: str = "personal_trainer",
         metadata: Optional[Dict] = None
     ) -> str:
         """
@@ -171,7 +171,7 @@ class SessionManager:
 
         Args:
             user_id: User identifier
-            persona: Persona to use (fitness_coach, calm_coach, etc.)
+            persona: Persona to use (personal_trainer, toxic_mode)
             metadata: Optional session metadata
 
         Returns:
@@ -254,8 +254,8 @@ class SessionManager:
     def get_persona(self, session_id: str) -> str:
         """Get session persona."""
         if session_id not in self.sessions:
-            return "fitness_coach"  # Default
-        return self.sessions[session_id].get("persona", "fitness_coach")
+            return "personal_trainer"  # Default
+        return self.sessions[session_id].get("persona", "personal_trainer")
 
     def set_persona(self, session_id: str, persona: str):
         """Change session persona."""

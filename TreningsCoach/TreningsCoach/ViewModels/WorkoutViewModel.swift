@@ -29,7 +29,7 @@ class WorkoutViewModel: ObservableObject {
     @Published var errorMessage = ""
     @Published var voiceState: VoiceState = .idle
     @Published var currentPhase: WorkoutPhase = .intense
-    @Published var activePersonality: CoachPersonality = .fitnessCoach
+    @Published var activePersonality: CoachPersonality = .personalTrainer
 
     // MARK: - Coach Interaction State Machine
 
@@ -252,22 +252,36 @@ class WorkoutViewModel: ObservableObject {
         sendUserMessageToCoach(utterance)
     }
 
-    /// "Talk to Coach" button — manually triggered (same as wake word path)
+    /// "Talk to Coach" button — manually triggered
+    /// Starts a short speech capture session so the user can speak freely
     func talkToCoachButtonPressed() {
         guard isContinuousMode else { return }
         guard coachInteractionState == .passiveListening else { return }
 
-        print("🎤 Talk-to-coach button pressed")
+        print("🎤 Talk-to-coach button pressed — starting speech capture")
         coachInteractionState = .commandMode
         isWakeWordActive = true
 
-        // Start a short speech capture using the wake word manager
-        // or send a generic prompt if no speech recognition is available
-        let prompt = currentLanguage == "no"
-            ? "Hvordan gjor jeg det?"
-            : "How am I doing?"
+        // Use speech recognition to capture what the user actually says
+        wakeWordManager.captureUtterance(duration: 6.0) { [weak self] transcription in
+            Task { @MainActor in
+                guard let self = self else { return }
 
-        sendUserMessageToCoach(prompt)
+                let text = transcription.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if text.isEmpty {
+                    // No speech detected — fall back to a generic prompt
+                    print("⚠️ No speech captured, using fallback prompt")
+                    let fallback = self.currentLanguage == "no"
+                        ? "Hvordan gjør jeg det?"
+                        : "How am I doing?"
+                    self.sendUserMessageToCoach(fallback)
+                } else {
+                    print("💬 Captured user speech: '\(text)'")
+                    self.sendUserMessageToCoach(text)
+                }
+            }
+        }
     }
 
     /// Common path: send a user message to the coach backend
@@ -357,9 +371,10 @@ class WorkoutViewModel: ObservableObject {
         do {
             let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
 
-            // Save to temporary file (WAV format from Qwen3-TTS)
+            // Detect file extension from URL (backend returns .mp3 from ElevenLabs)
+            let ext = URL(string: audioURL)?.pathExtension ?? "mp3"
             let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("coach_voice.wav")
+                .appendingPathComponent("coach_voice.\(ext.isEmpty ? "mp3" : ext)")
             try audioData.write(to: tempURL)
 
             // Play audio and wait for completion
@@ -728,9 +743,10 @@ class WorkoutViewModel: ObservableObject {
         do {
             let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
 
-            // Save to temporary file (WAV format from Qwen3-TTS)
+            // Detect file extension from URL (backend returns .mp3 from ElevenLabs)
+            let ext = URL(string: audioURL)?.pathExtension ?? "mp3"
             let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("continuous_coach_\(Date().timeIntervalSince1970).wav")
+                .appendingPathComponent("continuous_coach_\(Date().timeIntervalSince1970).\(ext.isEmpty ? "mp3" : ext)")
             try audioData.write(to: tempURL)
 
             // Play audio (NO state change - stays .listening)

@@ -28,46 +28,29 @@ VOICE_CONFIG = {
     }
 }
 
-# Persona-specific voices (drill sergeant uses different voice)
+# Persona-specific voices
 # Maps to iOS CoachPersonality enum values
+# voice_ids: Dict of language -> voice_id (use language default if not set)
+# stability: 0.0-1.0 (higher = more consistent delivery)
+# style: 0.0-1.0 (higher = more expressive/dramatic)
 PERSONA_VOICE_CONFIG = {
-    # Tough personas - use Drill Sergeant voice (Yxsf...)
-    "drill_sergeant": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
-        "name": "Drill Sergeant",
-        "stability": 0.3,
-        "style": 0.7
+    "personal_trainer": {
+        "voice_ids": {
+            "en": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "1DHhvmhXw9p08Sc79vuJ"),
+            "no": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "nhvaqgRyAq6BmFs3WcdX"),
+        },
+        "name": "Personal Trainer",
+        "stability": 0.6,
+        "style": 0.0
     },
     "toxic_mode": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DRILL", ""),
+        "voice_ids": {
+            "en": os.getenv("ELEVENLABS_VOICE_ID_TOXIC_EN", "YxsfIjmqZRHBp5erMzLg"),
+            "no": os.getenv("ELEVENLABS_VOICE_ID_TOXIC_NO", "nhvaqgRyAq6BmFs3WcdX"),
+        },
         "name": "Toxic Mode",
         "stability": 0.25,
         "style": 0.9
-    },
-    # Calm personas - use Coach voice (1DHh...)
-    "fitness_coach": {
-        "voice_id": None,  # Uses language default (Coach voice)
-        "name": "Fitness Coach",
-        "stability": 0.5,
-        "style": 0.0
-    },
-    "calm_coach": {
-        "voice_id": None,
-        "name": "Calm Coach",
-        "stability": 0.7,
-        "style": 0.0
-    },
-    "personal_trainer": {
-        "voice_id": None,
-        "name": "Personal Trainer",
-        "stability": 0.5,
-        "style": 0.2
-    },
-    "endurance_coach": {
-        "voice_id": None,
-        "name": "Endurance Coach",
-        "stability": 0.6,
-        "style": 0.0
     }
 }
 

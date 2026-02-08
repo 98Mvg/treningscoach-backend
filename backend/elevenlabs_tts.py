@@ -51,19 +51,23 @@ class ElevenLabsTTS:
         text: str,
         output_path: str = None,
         language: str = None,
+        persona: str = None,
         voice_pacing: dict = None
     ) -> str:
         """
-        Generate speech from text using the appropriate language voice.
+        Generate speech from text using the appropriate voice.
+
+        Voice selection priority:
+        1. Persona-specific voice (from PERSONA_VOICE_CONFIG)
+        2. Language-specific voice (from VOICE_CONFIG)
+        3. Default voice ID
 
         Args:
             text: The text to synthesize
             output_path: Where to save the audio file
             language: "en" or "no" for language-specific voice (optional)
-            voice_pacing: Optional pacing settings for emotional progression:
-                - stability: 0.0-1.0 (higher = more consistent)
-                - speed: Not directly supported, but affects style
-                - pause_before/pause_after: Handled by caller
+            persona: Persona identifier for persona-specific voice/settings (optional)
+            voice_pacing: Optional pacing settings override (overrides persona defaults)
 
         Returns:
             Path to the generated audio file
@@ -75,23 +79,33 @@ class ElevenLabsTTS:
                 f"coach_{int(time.time() * 1000)}.mp3"
             )
 
-        # Select voice ID based on language
+        # Start with defaults
         voice_id = self.get_voice_id(language)
-
-        # Apply emotional voice settings if provided
         stability = 0.5
         similarity_boost = 0.75
         style = 0.0
 
+        # Apply persona-specific voice settings
+        if persona and persona in config.PERSONA_VOICE_CONFIG:
+            persona_config = config.PERSONA_VOICE_CONFIG[persona]
+            # Use persona voice ID for the requested language, fallback to "en"
+            voice_ids = persona_config.get("voice_ids", {})
+            persona_voice = voice_ids.get(language) or voice_ids.get("en")
+            if persona_voice:
+                voice_id = persona_voice
+            stability = persona_config.get("stability", stability)
+            style = persona_config.get("style", style)
+            logger.info(f"Persona '{persona}': stability={stability}, style={style}")
+
+        # Manual pacing overrides persona defaults
         if voice_pacing:
-            stability = voice_pacing.get("stability", 0.5)
-            # Note: ElevenLabs doesn't have a direct "speed" parameter
-            # but lower stability + higher style can create more energetic delivery
-            # For Calm Coach (high stability) vs Drill Sergeant (low stability)
-            logger.info(f"Emotional pacing: stability={stability}")
+            stability = voice_pacing.get("stability", stability)
+            style = voice_pacing.get("style", style)
+            logger.info(f"Voice pacing override: stability={stability}, style={style}")
 
         lang_label = f" [{language}]" if language else ""
-        logger.info(f"Generating with ElevenLabs{lang_label}: '{text}' (voice: {voice_id[:8]}...)")
+        persona_label = f" ({persona})" if persona else ""
+        logger.info(f"Generating with ElevenLabs{lang_label}{persona_label}: '{text}' (voice: {voice_id[:8]}...)")
 
         # Generate audio using text_to_speech method
         audio = self.client.text_to_speech.convert(
@@ -118,6 +132,7 @@ class ElevenLabsTTS:
         self,
         text: str,
         language: str = None,
+        persona: str = None,
         voice_pacing: dict = None
     ) -> bytes:
         """
@@ -128,15 +143,30 @@ class ElevenLabsTTS:
         Args:
             text: The text to synthesize
             language: "en" or "no" for language-specific voice
-            voice_pacing: Optional pacing settings for emotional progression
+            persona: Persona identifier for persona-specific voice/settings
+            voice_pacing: Optional pacing settings override
 
         Returns:
             Audio bytes (MP3 format)
         """
         voice_id = self.get_voice_id(language)
+        stability = 0.5
+        style = 0.0
 
-        # Apply emotional voice settings
-        stability = voice_pacing.get("stability", 0.5) if voice_pacing else 0.5
+        # Apply persona-specific settings
+        if persona and persona in config.PERSONA_VOICE_CONFIG:
+            persona_config = config.PERSONA_VOICE_CONFIG[persona]
+            voice_ids = persona_config.get("voice_ids", {})
+            persona_voice = voice_ids.get(language) or voice_ids.get("en")
+            if persona_voice:
+                voice_id = persona_voice
+            stability = persona_config.get("stability", stability)
+            style = persona_config.get("style", style)
+
+        # Manual pacing overrides
+        if voice_pacing:
+            stability = voice_pacing.get("stability", stability)
+            style = voice_pacing.get("style", style)
 
         audio = self.client.text_to_speech.convert(
             voice_id=voice_id,
@@ -145,7 +175,7 @@ class ElevenLabsTTS:
             voice_settings=VoiceSettings(
                 stability=stability,
                 similarity_boost=0.75,
-                style=0.0,
+                style=style,
                 use_speaker_boost=True
             )
         )

@@ -13,33 +13,12 @@ import random
 # These affect TTS parameters like speed, stability, and pauses.
 
 VOICE_PACING_PROFILES = {
-    # Calm Coach: Gets SLOWER and more deliberate as emotional intensity rises
-    "calm_coach": {
-        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
-        "pressing":   {"speed": 0.9, "stability": 0.6, "pause_multiplier": 1.3},
-        "intense":    {"speed": 0.8, "stability": 0.7, "pause_multiplier": 1.6},
-        "peak":       {"speed": 0.7, "stability": 0.8, "pause_multiplier": 2.0},
-    },
-    # Drill Sergeant: Gets FASTER and sharper as emotional intensity rises
-    "drill_sergeant": {
-        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
-        "pressing":   {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.9},
-        "intense":    {"speed": 1.1, "stability": 0.4, "pause_multiplier": 0.8},
-        "peak":       {"speed": 1.15, "stability": 0.35, "pause_multiplier": 0.6},
-    },
-    # Fitness Coach: Slightly faster at peak, more energetic
-    "fitness_coach": {
-        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
-        "pressing":   {"speed": 1.02, "stability": 0.5, "pause_multiplier": 0.95},
-        "intense":    {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.85},
-        "peak":       {"speed": 1.08, "stability": 0.4, "pause_multiplier": 0.75},
-    },
-    # Personal Trainer: Stays measured, slightly more urgent at peak
+    # Personal Trainer: Calm and measured, slightly more direct at peak
     "personal_trainer": {
-        "supportive": {"speed": 1.0, "stability": 0.5, "pause_multiplier": 1.0},
-        "pressing":   {"speed": 1.0, "stability": 0.5, "pause_multiplier": 0.95},
-        "intense":    {"speed": 1.02, "stability": 0.48, "pause_multiplier": 0.9},
-        "peak":       {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.85},
+        "supportive": {"speed": 1.0, "stability": 0.6, "pause_multiplier": 1.0},
+        "pressing":   {"speed": 1.0, "stability": 0.55, "pause_multiplier": 0.95},
+        "intense":    {"speed": 1.02, "stability": 0.5, "pause_multiplier": 0.9},
+        "peak":       {"speed": 1.05, "stability": 0.45, "pause_multiplier": 0.8},
     },
     # Toxic Mode: Gets increasingly unhinged (faster, more variable)
     "toxic_mode": {

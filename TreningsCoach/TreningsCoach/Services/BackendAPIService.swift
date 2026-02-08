@@ -124,7 +124,7 @@ class BackendAPIService {
         elapsedSeconds: Int,
         language: String = "en",
         trainingLevel: String = "intermediate",
-        persona: String = "fitness_coach"
+        persona: String = "personal_trainer"
     ) async throws -> ContinuousCoachResponse {
         let url = URL(string: "\(baseURL)/coach/continuous")!
         let request = try createContinuousMultipartRequest(
@@ -314,7 +314,7 @@ class BackendAPIService {
         elapsedSeconds: Int,
         language: String = "en",
         trainingLevel: String = "intermediate",
-        persona: String = "fitness_coach"
+        persona: String = "personal_trainer"
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

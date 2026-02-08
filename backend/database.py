@@ -44,7 +44,7 @@ class User(db.Model):
     # Preferences
     language = db.Column(db.String(5), nullable=False, default="en")  # "en" or "no"
     training_level = db.Column(db.String(20), nullable=False, default="intermediate")  # beginner/intermediate/advanced
-    preferred_persona = db.Column(db.String(50), nullable=True, default="fitness_coach")
+    preferred_persona = db.Column(db.String(50), nullable=True, default="personal_trainer")
 
     # Timestamps
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
