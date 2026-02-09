@@ -249,7 +249,15 @@ struct AudioDiagnosticOverlayView: View {
     // MARK: - Breath: Metrics Grid
 
     private func breathMetricsGrid(analysis: BreathAnalysis) -> some View {
-        VStack(spacing: 4) {
+        let intervalLabel: String = {
+            guard let state = analysis.intervalState else { return "—" }
+            if let zone = analysis.intervalZone {
+                return "\(state.prefix(1).uppercased()) \(zone)"
+            }
+            return state
+        }()
+
+        return VStack(spacing: 4) {
             HStack(spacing: 0) {
                 breathMetric("BPM", value: String(format: "%.0f", analysis.effectiveRespiratoryRate))
                 breathMetric("Vol", value: String(format: "%.0f", analysis.volume))
@@ -259,6 +267,11 @@ struct AudioDiagnosticOverlayView: View {
                 breathMetric("Reg", value: analysis.breathRegularity != nil ? String(format: "%.2f", analysis.breathRegularity!) : "—")
                 breathMetric("I:E", value: analysis.inhaleExhaleRatio != nil ? String(format: "%.2f", analysis.inhaleExhaleRatio!) : "—")
                 breathMetric("Freq", value: analysis.dominantFrequency != nil ? String(format: "%.0fHz", analysis.dominantFrequency!) : "—")
+            }
+            HStack(spacing: 0) {
+                breathMetric("Score", value: analysis.intensityScore != nil ? String(format: "%.2f", analysis.intensityScore!) : "—")
+                breathMetric("Conf", value: analysis.intensityConfidence != nil ? String(format: "%.2f", analysis.intensityConfidence!) : "—")
+                breathMetric("Interval", value: intervalLabel)
             }
         }
     }
@@ -338,12 +351,27 @@ struct AudioDiagnosticOverlayView: View {
                     .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
             }
 
+            if let analysis = diagnostics.lastBreathAnalysis,
+               let quality = analysis.signalQuality {
+                Text(String(format: "SQ: %.2f", quality))
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+            }
+
             Spacer()
 
             if diagnostics.breathAnalysisErrors > 0 {
                 Text("Errors: \(diagnostics.breathAnalysisErrors)")
                     .font(.system(size: 7, weight: .bold, design: .monospaced))
                     .foregroundStyle(AppTheme.danger.opacity(0.7))
+            }
+
+            if let reason = diagnostics.lastBreathReason {
+                Text("Reason: \(reason)")
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }

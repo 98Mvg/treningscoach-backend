@@ -83,6 +83,7 @@ struct AppConfig {
         static let minInterval: TimeInterval = 5.0  // STEP 2: kritisk = 5s (urgent)
         static let maxInterval: TimeInterval = 15.0
         static let chunkDuration: TimeInterval = 8.0  // Audio sample window (6-10s)
+        static let minChunkBytes: Int = 8000  // Skip tiny/invalid chunks
         static let maxWorkoutDuration: TimeInterval = 45 * 60  // 45 min auto-timeout
         static let autoTimeoutMessage = "Great workout! Remember to tap Stop when done."
     }

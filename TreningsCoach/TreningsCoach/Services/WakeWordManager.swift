@@ -134,12 +134,6 @@ class WakeWordManager: ObservableObject {
             request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
         }
 
-        // Install a SECOND tap on the audio engine's input node
-        // This works because AVAudioEngine supports multiple taps
-        // ContinuousRecordingManager has tap on bus 0, we use the mixer node
-        let mixerNode = audioEngine.mainMixerNode
-        let recordingFormat = audioEngine.inputNode.outputFormat(forBus: 0)
-
         // Use the input node directly — we'll feed buffers manually
         // Instead of a second tap (which conflicts), we'll use a different approach:
         // Install tap on the input node with a custom format via a mixer
@@ -147,9 +141,6 @@ class WakeWordManager: ObservableObject {
 
         // Feed audio buffers from the input node
         // We tap into the input node's output — sharing with ContinuousRecordingManager
-        let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-
         // Note: ContinuousRecordingManager already has a tap on bus 0.
         // We can't install a second tap on the same bus.
         // Instead, we'll periodically feed audio from the circular buffer.
@@ -302,7 +293,6 @@ class WakeWordManager: ObservableObject {
 
     private func startRecognitionTask(recognizer: SFSpeechRecognizer, request: SFSpeechAudioBufferRecognitionRequest) {
         var wakeWordFound = false
-        var wakeWordTimestamp: Date?
         var capturedText = ""
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
@@ -333,7 +323,6 @@ class WakeWordManager: ObservableObject {
                     for wakeWord in self.currentWakeWords {
                         if transcription.contains(wakeWord) {
                             wakeWordFound = true
-                            wakeWordTimestamp = Date()
                             self.wakeWordDetected = true
                             self.isCapturingUtterance = true
 
@@ -409,7 +398,7 @@ class WakeWordManager: ObservableObject {
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
 
-            guard let engine = self.audioEngine, let recognizer = self.speechRecognizer else { return }
+            guard self.audioEngine != nil, let recognizer = self.speechRecognizer else { return }
 
             // Cancel old task
             recognitionTask?.cancel()

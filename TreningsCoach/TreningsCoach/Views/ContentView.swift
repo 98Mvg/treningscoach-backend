@@ -12,25 +12,26 @@ struct ContentView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = WorkoutViewModel()
     @State private var selectedTab = 1  // Default to Workout tab (center)
+    @AppStorage("app_language") private var appLanguageCode: String = "en"
 
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(viewModel: viewModel, selectedTab: $selectedTab)
                 .tabItem {
-                    Label(L10n.current == .no ? "Hjem" : "Home", systemImage: "house.fill")
+                    Label(appLanguageCode == "no" ? "Hjem" : "Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
             WorkoutView(viewModel: viewModel)
                 .tabItem {
-                    Label(L10n.current == .no ? "Trening" : "Workout", systemImage: "waveform")
+                    Label(appLanguageCode == "no" ? "Trening" : "Workout", systemImage: "waveform")
                 }
                 .tag(1)
 
             ProfileView(viewModel: viewModel)
                 .environmentObject(authManager)
                 .tabItem {
-                    Label(L10n.current == .no ? "Profil" : "Profile", systemImage: "person.fill")
+                    Label(appLanguageCode == "no" ? "Profil" : "Profile", systemImage: "person.fill")
                 }
                 .tag(2)
         }

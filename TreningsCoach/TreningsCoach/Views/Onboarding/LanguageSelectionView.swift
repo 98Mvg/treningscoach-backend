@@ -24,11 +24,11 @@ struct LanguageSelectionView: View {
                         .font(.system(size: 56))
                         .foregroundStyle(AppTheme.primaryAccent)
 
-                    Text("Choose Language")
+                    Text(L10n.chooseLanguage)
                         .font(.largeTitle.bold())
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    Text("This controls both the app and the coach")
+                    Text(L10n.languageSubtitle)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
                 }

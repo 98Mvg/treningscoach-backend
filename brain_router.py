@@ -5,6 +5,8 @@
 
 import os
 import random
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Dict, Any, Optional
 import config
 
@@ -24,21 +26,38 @@ class BrainRouter:
         Initialize router with specified brain type.
 
         Args:
-            brain_type: "claude", "openai", "grok", or "config" (if None, uses config.ACTIVE_BRAIN)
+            brain_type: "claude", "openai", "grok", "gemini", or "config" (if None, uses config.ACTIVE_BRAIN)
             use_hybrid: Enable hybrid mode (if None, uses config.USE_HYBRID_BRAIN)
         """
-        self.brain_type = brain_type or config.ACTIVE_BRAIN
+        self.use_priority_routing = getattr(config, "USE_PRIORITY_ROUTING", False)
+        self.priority_brains = list(getattr(config, "BRAIN_PRIORITY", [])) if self.use_priority_routing else []
+
+        # If brain_type is explicitly provided, prefer it over priority routing
+        if brain_type is not None:
+            self.use_priority_routing = False
+            self.priority_brains = []
+            self.brain_type = brain_type
+        else:
+            self.brain_type = "priority" if self.use_priority_routing else config.ACTIVE_BRAIN
         self.use_hybrid = use_hybrid if use_hybrid is not None else getattr(config, 'USE_HYBRID_BRAIN', False)
         self.brain = None
         self.claude_brain = None  # STEP 4: Keep Claude brain for patterns
+        self.brain_pool = {}
+        self.brain_stats = {}
+        self.brain_cooldowns = {}
+        self._executor = ThreadPoolExecutor(max_workers=4)
         self._initialize_brain()
 
         # STEP 4: Initialize Claude brain for hybrid mode if enabled
-        if self.use_hybrid and self.brain_type == "config":
+        if self.use_hybrid and self.brain_type in ("config", "priority"):
             self._initialize_hybrid_claude()
 
     def _initialize_brain(self):
         """Initialize the active brain based on configuration."""
+        if self.brain_type == "priority":
+            print("✅ Brain Router: Priority routing enabled")
+            self.brain = None
+            return
         if self.brain_type == "claude":
             try:
                 from brains.claude_brain import ClaudeBrain
@@ -69,6 +88,16 @@ class BrainRouter:
                 print("⚠️ Brain Router: Falling back to config-based messages")
                 self.brain_type = "config"
 
+        elif self.brain_type == "gemini":
+            try:
+                from brains.gemini_brain import GeminiBrain
+                self.brain = GeminiBrain()
+                print(f"✅ Brain Router: Using Gemini (model: {self.brain.model})")
+            except Exception as e:
+                print(f"⚠️ Brain Router: Failed to initialize Gemini: {e}")
+                print("⚠️ Brain Router: Falling back to config-based messages")
+                self.brain_type = "config"
+
         elif self.brain_type == "config":
             hybrid_status = " (hybrid mode enabled)" if self.use_hybrid else ""
             print(f"✅ Brain Router: Using config-based messages (no AI){hybrid_status}")
@@ -78,6 +107,125 @@ class BrainRouter:
             print(f"⚠️ Brain Router: Unknown brain type '{self.brain_type}', using config")
             self.brain_type = "config"
             self.brain = None
+
+    def _create_brain(self, brain_name: str):
+        """Create a brain instance by name."""
+        if brain_name == "claude":
+            from brains.claude_brain import ClaudeBrain
+            return ClaudeBrain()
+        if brain_name == "openai":
+            from brains.openai_brain import OpenAIBrain
+            return OpenAIBrain()
+        if brain_name == "grok":
+            from brains.grok_brain import GrokBrain
+            return GrokBrain()
+        if brain_name == "gemini":
+            from brains.gemini_brain import GeminiBrain
+            return GeminiBrain()
+        if brain_name == "config":
+            return None
+        raise ValueError(f"Unknown brain type: {brain_name}")
+
+    def _get_brain_instance(self, brain_name: str):
+        """Get or lazily initialize a brain instance."""
+        if brain_name in self.brain_pool:
+            return self.brain_pool[brain_name]
+        try:
+            brain = self._create_brain(brain_name)
+            self.brain_pool[brain_name] = brain
+            if brain is not None:
+                print(f"✅ Brain Router: Loaded {brain_name} (model: {brain.model})")
+            return brain
+        except Exception as e:
+            print(f"⚠️ Brain Router: Failed to initialize {brain_name}: {e}")
+            self._set_cooldown(brain_name)
+            self.brain_pool[brain_name] = None
+            return None
+
+    def _set_cooldown(self, brain_name: str, seconds: Optional[float] = None):
+        cooldown = seconds if seconds is not None else getattr(config, "BRAIN_COOLDOWN_SECONDS", 60)
+        self.brain_cooldowns[brain_name] = time.time() + cooldown
+
+    def _is_brain_available(self, brain_name: str) -> bool:
+        cooldown_until = self.brain_cooldowns.get(brain_name)
+        if cooldown_until and time.time() < cooldown_until:
+            return False
+
+        usage = getattr(config, "BRAIN_USAGE", {}).get(brain_name, 0.0)
+        usage_limit = getattr(config, "USAGE_LIMIT", 0.9)
+        if usage >= usage_limit:
+            return False
+
+        stats = self.brain_stats.get(brain_name, {})
+        avg_latency = stats.get("avg_latency")
+        slow_threshold = getattr(config, "BRAIN_SLOW_THRESHOLD", None)
+        if slow_threshold and avg_latency and avg_latency > slow_threshold:
+            return False
+
+        return True
+
+    def _record_latency(self, brain_name: str, latency: float):
+        stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
+        stats["calls"] += 1
+        stats["avg_latency"] = (
+            (stats["avg_latency"] * (stats["calls"] - 1)) + latency
+        ) / stats["calls"]
+
+    def _record_failure(self, brain_name: str):
+        stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
+        stats["failures"] += 1
+        self._set_cooldown(brain_name)
+
+    def _record_timeout(self, brain_name: str):
+        stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
+        stats["timeouts"] += 1
+        self._set_cooldown(brain_name, seconds=getattr(config, "BRAIN_TIMEOUT_COOLDOWN_SECONDS", 30))
+
+    def _call_brain_with_timeout(self, brain_name: str, fn, timeout: float):
+        start = time.time()
+        future = self._executor.submit(fn)
+        try:
+            result = future.result(timeout=timeout)
+            self._record_latency(brain_name, time.time() - start)
+            return result
+        except TimeoutError:
+            self._record_timeout(brain_name)
+            return None
+        except Exception:
+            self._record_failure(brain_name)
+            return None
+
+    def _get_priority_response(
+        self,
+        breath_data: Dict[str, Any],
+        phase: str,
+        mode: str,
+        language: str,
+        persona: Optional[str]
+    ) -> str:
+        timeout = getattr(config, "BRAIN_TIMEOUT", 1.2)
+
+        for brain_name in self.priority_brains:
+            if not self._is_brain_available(brain_name):
+                continue
+
+            if brain_name == "config":
+                return self._get_config_response(breath_data, phase, language=language, persona=persona)
+
+            brain = self._get_brain_instance(brain_name)
+            if brain is None:
+                continue
+
+            if mode == "realtime_coach":
+                fn = lambda: brain.get_realtime_coaching(breath_data, phase)
+            else:
+                fn = lambda: brain.get_coaching_response(breath_data, phase)
+
+            result = self._call_brain_with_timeout(brain_name, fn, timeout)
+            if result:
+                return result
+
+        return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
     def _initialize_hybrid_claude(self):
         """
@@ -118,12 +266,17 @@ class BrainRouter:
         Returns:
             String containing coaching message
         """
+        # Inject language into breath_data for AI brains (Nordic tone only when language="no")
+        local_breath_data = dict(breath_data or {})
+        local_breath_data["language"] = language
+        if self.use_priority_routing and self.priority_brains:
+            return self._get_priority_response(local_breath_data, phase, mode, language, persona)
         # STEP 3: Route to appropriate brain mode
         if mode == "realtime_coach":
             # Use optimized real-time coach brain (fast, actionable, no explanations)
             if self.brain is not None:
                 try:
-                    return self.brain.get_realtime_coaching(breath_data, phase)
+                    return self.brain.get_realtime_coaching(local_breath_data, phase)
                 except Exception as e:
                     print(f"⚠️ Brain Router: Real-time brain error: {e}, using fallback")
                     return self._get_config_response(breath_data, phase, language=language, persona=persona)
@@ -135,7 +288,7 @@ class BrainRouter:
             # Use conversational chat brain (explanatory, educational)
             if self.brain is not None:
                 try:
-                    return self.brain.get_coaching_response(breath_data, phase)
+                    return self.brain.get_coaching_response(local_breath_data, phase)
                 except Exception as e:
                     print(f"⚠️ Brain Router: Chat brain error: {e}, using fallback")
                     return self._get_config_response(breath_data, phase, language=language, persona=persona)
@@ -222,6 +375,8 @@ class BrainRouter:
 
     def get_active_brain(self) -> str:
         """Get the name of the currently active brain."""
+        if self.brain_type == "priority":
+            return "priority"
         if self.brain is not None:
             return self.brain.get_provider_name()
         return "config"
@@ -256,14 +411,22 @@ class BrainRouter:
         STEP 4: Hot-switch to a different brain at runtime.
 
         Args:
-            new_brain_type: "claude", "openai", "grok", or "config"
+            new_brain_type: "priority", "claude", "openai", "grok", "gemini", or "config"
             preserve_hybrid: Keep hybrid Claude brain if switching away from it
 
         Returns:
             True if switch successful, False otherwise
         """
         old_brain = self.brain_type
-        self.brain_type = new_brain_type
+        if new_brain_type == "priority":
+            self.use_priority_routing = True
+            self.priority_brains = list(getattr(config, "BRAIN_PRIORITY", []))
+            self.brain_type = "priority"
+            self.brain = None
+        else:
+            self.use_priority_routing = False
+            self.priority_brains = []
+            self.brain_type = new_brain_type
 
         # STEP 4: Preserve hybrid Claude if requested
         if preserve_hybrid and self.claude_brain is not None:

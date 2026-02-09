@@ -64,7 +64,9 @@ brain_router = BrainRouter()
 session_manager = SessionManager()
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
-breath_analyzer = BreathAnalyzer()  # Advanced breath analysis with DSP + spectral features
+breath_analyzer = BreathAnalyzer(
+    sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100)
+)  # Advanced breath analysis with DSP + spectral features
 
 # Pre-warm librosa to avoid cold-start delay on first request
 # librosa lazy-loads heavy modules (numba, etc.) which can cause 30s+ timeout
@@ -105,6 +107,105 @@ logger.info("TTS service initialized")
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def _ema(values, alpha: float):
+    """Exponential moving average for smoothing numeric sequences."""
+    ema = None
+    for value in values:
+        if value is None:
+            continue
+        value = float(value)
+        ema = value if ema is None else (alpha * value) + ((1 - alpha) * ema)
+    return ema
+
+def _classify_intensity(resp_rate: float, volume: float, regularity: float) -> str:
+    """Match breath_analyzer intensity rules for smoothed classification."""
+    if resp_rate is None:
+        resp_rate = 15.0
+    if volume is None:
+        volume = 30.0
+    if regularity is None:
+        regularity = 0.5
+
+    if resp_rate > 40 or (volume > 70 and regularity < 0.3):
+        return "critical"
+    if resp_rate > 25 or volume > 50:
+        return "intense"
+    if resp_rate > 15 or volume > 25:
+        return "moderate"
+    return "calm"
+
+def _score_intensity(resp_rate: float, volume: float, regularity: float, quality: float):
+    """Compute normalized intensity score + confidence (0-1)."""
+    rate_score = 0.0
+    if resp_rate is not None:
+        rate_score = max(0.0, min(1.0, (resp_rate - 10.0) / 35.0))
+
+    vol_score = 0.0
+    if volume is not None:
+        vol_score = max(0.0, min(1.0, (volume - 10.0) / 70.0))
+
+    irregularity = 0.0
+    if regularity is not None:
+        irregularity = max(0.0, min(1.0, 1.0 - regularity))
+
+    score = (0.6 * rate_score) + (0.3 * vol_score) + (0.1 * irregularity)
+
+    q = quality if quality is not None else 0.5
+    r = regularity if regularity is not None else 0.5
+    confidence = max(0.0, min(1.0, q * (0.5 + 0.5 * r)))
+
+    return round(score, 3), round(confidence, 3)
+
+def _smooth_breath_metrics(breath_data: dict, breath_history: list) -> dict:
+    """Smooth key breath metrics across recent history using EMA."""
+    alpha = getattr(config, "BREATH_SMOOTHING_ALPHA", 0.5)
+    window = getattr(config, "BREATH_SMOOTHING_WINDOW", 4)
+    recent = breath_history[-window:] if breath_history else []
+
+    def series(key):
+        values = [h.get(key) for h in recent if h.get(key) is not None]
+        values.append(breath_data.get(key))
+        return values
+
+    smoothed = {}
+    for key in ("respiratory_rate", "volume", "breath_regularity", "inhale_exhale_ratio",
+                "signal_quality", "dominant_frequency"):
+        smoothed_value = _ema(series(key), alpha)
+        if smoothed_value is not None:
+            smoothed[key] = round(float(smoothed_value), 3)
+
+    # Keep tempo aligned with respiratory_rate
+    if "respiratory_rate" in smoothed:
+        smoothed["tempo"] = smoothed["respiratory_rate"]
+
+    return smoothed
+
+def _infer_interval_state(breath_history: list, current_intensity: str, workout_mode: str):
+    """Infer interval state (work/rest/transition) from intensity trend."""
+    if workout_mode != "interval":
+        return {"state": "steady", "confidence": 0.0, "zone": None}
+
+    recent = [h.get("intensity") for h in breath_history[-3:] if h.get("intensity")] + [current_intensity]
+    if not recent:
+        return {"state": "transition", "confidence": 0.0, "zone": None}
+
+    work_count = sum(1 for i in recent if i in ("intense", "critical"))
+    rest_count = sum(1 for i in recent if i in ("calm", "moderate"))
+    total = len(recent)
+
+    if work_count >= max(2, total - 1):
+        state = "work"
+        confidence = work_count / total
+    elif rest_count >= max(2, total - 1):
+        state = "rest"
+        confidence = rest_count / total
+    else:
+        state = "transition"
+        confidence = max(work_count, rest_count) / total
+
+    zone_map = {"calm": "Z1", "moderate": "Z2", "intense": "Z3", "critical": "Z4"}
+    return {"state": state, "confidence": round(confidence, 2), "zone": zone_map.get(current_intensity)}
 
 # ============================================
 # BREATH ANALYSIS
@@ -429,6 +530,8 @@ def coach_continuous():
         if file_size > MAX_FILE_SIZE:
             return jsonify({"error": f"File too large. Max: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
 
+        logger.info(f"Audio chunk size: {file_size} bytes")
+
         # Save file temporarily
         filename = f"continuous_{datetime.now().timestamp()}.wav"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -467,6 +570,54 @@ def coach_continuous():
             workout_state = session_manager.get_workout_state(session_id)
             workout_state["is_first_breath"] = True
 
+        # Early guard: too-small audio chunks are often invalid/corrupted
+        min_bytes = getattr(config, "BREATH_MIN_AUDIO_BYTES", 8000)
+        if file_size < min_bytes:
+            header_hex = ""
+            try:
+                with open(filepath, "rb") as f:
+                    header_hex = f.read(12).hex()
+            except Exception:
+                header_hex = "unreadable"
+
+            logger.warning(f"Audio chunk too small ({file_size} bytes). Header: {header_hex}")
+
+            breath_data = breath_analyzer._default_analysis()
+            breath_data["analysis_error"] = "audio_too_small"
+            breath_data["audio_bytes"] = file_size
+
+            # Update session state with safe defaults
+            session_manager.update_workout_state(
+                session_id=session_id,
+                breath_analysis=breath_data,
+                coaching_output=None,
+                phase=phase,
+                elapsed_seconds=elapsed_seconds
+            )
+
+            # Clean up temp file
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                logger.warning(f"Could not remove temp file {filepath}: {e}")
+
+            wait_seconds = calculate_next_interval(
+                phase=phase,
+                intensity=breath_data.get("intensity", "moderate"),
+                coaching_frequency=0
+            )
+
+            return jsonify({
+                "text": "",
+                "should_speak": False,
+                "breath_analysis": breath_data,
+                "audio_url": None,
+                "wait_seconds": wait_seconds,
+                "phase": phase,
+                "workout_mode": workout_mode,
+                "reason": "audio_too_small"
+            })
+
         # Analyze breath
         breath_data = breath_analyzer.analyze(filepath)
 
@@ -477,8 +628,89 @@ def coach_continuous():
         if workout_state is not None:
             workout_state["workout_mode"] = workout_mode
 
+        # Enrich breath data with smoothing + structured schema
+        breath_data["analysis_version"] = breath_data.get("analysis_version", 2)
+
+        raw_snapshot = {
+            "volume": breath_data.get("volume"),
+            "tempo": breath_data.get("tempo"),
+            "respiratory_rate": breath_data.get("respiratory_rate"),
+            "breath_regularity": breath_data.get("breath_regularity"),
+            "inhale_exhale_ratio": breath_data.get("inhale_exhale_ratio"),
+            "signal_quality": breath_data.get("signal_quality"),
+            "dominant_frequency": breath_data.get("dominant_frequency"),
+            "intensity": breath_data.get("intensity"),
+            "intensity_score": breath_data.get("intensity_score"),
+            "intensity_confidence": breath_data.get("intensity_confidence")
+        }
+
+        smoothed = _smooth_breath_metrics(breath_data, coaching_context.get("breath_history", []))
+        smoothing_applied = bool(smoothed) and (breath_data.get("signal_quality", 0) or 0) >= 0.2
+
+        if smoothing_applied:
+            breath_data.update(smoothed)
+            smoothed_intensity = _classify_intensity(
+                breath_data.get("respiratory_rate"),
+                breath_data.get("volume"),
+                breath_data.get("breath_regularity")
+            )
+            smoothed_score, smoothed_conf = _score_intensity(
+                breath_data.get("respiratory_rate"),
+                breath_data.get("volume"),
+                breath_data.get("breath_regularity"),
+                breath_data.get("signal_quality")
+            )
+            breath_data["intensity"] = smoothed_intensity
+            breath_data["intensity_score"] = smoothed_score
+            breath_data["intensity_confidence"] = smoothed_conf
+
+        interval_info = _infer_interval_state(
+            coaching_context.get("breath_history", []),
+            breath_data.get("intensity", "moderate"),
+            workout_mode
+        )
+        breath_data["interval_state"] = interval_info["state"]
+        breath_data["interval_state_confidence"] = interval_info["confidence"]
+        breath_data["interval_zone"] = interval_info["zone"]
+
+        breath_data["raw_features"] = raw_snapshot
+        breath_data["derived_metrics"] = {
+            "respiratory_rate": breath_data.get("respiratory_rate"),
+            "breath_regularity": breath_data.get("breath_regularity"),
+            "inhale_exhale_ratio": breath_data.get("inhale_exhale_ratio"),
+            "signal_quality": breath_data.get("signal_quality"),
+            "dominant_frequency": breath_data.get("dominant_frequency")
+        }
+        breath_data["classification"] = {
+            "raw_intensity": raw_snapshot.get("intensity"),
+            "intensity": breath_data.get("intensity"),
+            "intensity_score": breath_data.get("intensity_score"),
+            "confidence": breath_data.get("intensity_confidence")
+        }
+        breath_data["smoothing"] = {
+            "applied": smoothing_applied,
+            "alpha": getattr(config, "BREATH_SMOOTHING_ALPHA", 0.5),
+            "window": getattr(config, "BREATH_SMOOTHING_WINDOW", 4)
+        }
+
         # Check if this is the very first breath (welcome message)
         is_first_breath = workout_state.get("is_first_breath", False)
+
+        # Compute time since last coaching (server-side) to cap silence
+        elapsed_since_last = None
+        try:
+            last_time = None
+            if workout_state:
+                last_time = workout_state.get("last_coaching_time")
+            if not last_time and coaching_context.get("coaching_history"):
+                last_time = coaching_context["coaching_history"][-1].get("timestamp")
+            if last_time:
+                last_time_dt = datetime.fromisoformat(last_time)
+                elapsed_since_last = (datetime.now() - last_time_dt).total_seconds()
+            elif not coaching_context.get("coaching_history"):
+                elapsed_since_last = float("inf")
+        except Exception:
+            elapsed_since_last = None
 
         if is_first_breath:
             # Always speak on first breath to welcome the user
@@ -497,10 +729,20 @@ def coach_continuous():
             )
 
             if should_be_silent:
-                # Silence = confidence
-                logger.info(f"Voice intelligence: staying silent ({silence_reason})")
-                speak_decision = False
-                reason = silence_reason
+                # Cap silence so coach doesn't disappear
+                max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
+                min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.2)
+                signal_quality = breath_data.get("signal_quality") or 0.0
+
+                if elapsed_since_last is not None and elapsed_since_last >= max_silence and signal_quality >= min_quality:
+                    speak_decision = True
+                    reason = "max_silence_override"
+                    logger.info(f"Voice intelligence override: speaking after {elapsed_since_last:.0f}s silence")
+                else:
+                    # Silence = confidence
+                    logger.info(f"Voice intelligence: staying silent ({silence_reason})")
+                    speak_decision = False
+                    reason = silence_reason
             else:
                 # Decide if coach should speak (STEP 1/2 logic)
                 speak_decision, reason = should_coach_speak(

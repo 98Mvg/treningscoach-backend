@@ -214,11 +214,11 @@ def should_coach_speak(
 
     # Rule 4: Phase-aware periodic speaking (adjusted by training level)
     # Warmup: coach talks more (every 30s) — tips, encouragement, preparation
-    # Intense: coach stays quiet, breath-focused (every 90s) — minimal distraction
+    # Intense: coach stays quieter, breath-focused (every 60s) — minimal distraction
     # Cooldown: moderate (every 45s) — recovery guidance
     periodic_intervals = {
         "warmup": 30,     # More talkative during warmup
-        "intense": 90,    # Minimal during workout — focus on breath
+        "intense": 60,    # Reduced silence to avoid under-coaching
         "cooldown": 45    # Moderate during cooldown
     }
     periodic_interval = periodic_intervals.get(phase, 60)

@@ -5,7 +5,7 @@
 #  Defines the coaching personality for Claude
 #
 
-# Core personality prompt for the endurance coach
+# Core personality prompt for the endurance coach (default, non-Nordic)
 ENDURANCE_COACH_PERSONALITY = """Adopt the personality and communication style of a retired elite endurance athlete turned coach.
 
 Core traits:
@@ -15,7 +15,6 @@ Core traits:
 - Encouraging without hype
 - Comfortable with discomfort
 - Long-term thinker
-- Nordic / Scandinavian tone: no exaggeration, no drama
 
 Background mindset:
 You have lived at the highest level of endurance performance.
@@ -54,6 +53,11 @@ You are a coach who has been there.
 
 You help the user build skill, endurance, and confidence over time."""
 
+# Nordic variant (used only when language = "no")
+NORDIC_ENDURANCE_COACH_PERSONALITY = (
+    ENDURANCE_COACH_PERSONALITY
+    + "\n\nNordic / Scandinavian tone: no exaggeration, no drama."
+)
 
 # Real-time coaching prompt (for continuous workout mode)
 REALTIME_COACH_PROMPT = """You are a real-time endurance coach giving LIVE feedback during a workout.
@@ -115,17 +119,18 @@ Remember:
 - No filler, no politeness, no explanations"""
 
 
-def get_coach_prompt(mode: str = "chat") -> str:
+def get_coach_prompt(mode: str = "chat", language: str = "en") -> str:
     """
     Returns appropriate system prompt based on mode.
 
     Args:
         mode: "chat" for conversational coaching, "realtime_coach" for live workout feedback
+        language: "en" or "no" (Nordic tone only for Norwegian)
 
     Returns:
         System prompt string
     """
+    base_prompt = NORDIC_ENDURANCE_COACH_PERSONALITY if language == "no" else ENDURANCE_COACH_PERSONALITY
     if mode == "realtime_coach":
-        return f"{ENDURANCE_COACH_PERSONALITY}\n\n{REALTIME_COACH_PROMPT}"
-    else:
-        return ENDURANCE_COACH_PERSONALITY
+        return f"{base_prompt}\n\n{REALTIME_COACH_PROMPT}"
+    return base_prompt

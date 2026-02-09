@@ -36,6 +36,7 @@ enum WorkoutPhase: String, CaseIterable, Identifiable, Codable {
 // MARK: - Breath Analysis
 
 struct BreathAnalysis: Codable {
+    let analysisVersion: Int?
     let silence: Double
     let volume: Double
     let tempo: Double
@@ -49,8 +50,14 @@ struct BreathAnalysis: Codable {
     let inhaleExhaleRatio: Double?
     let signalQuality: Double?
     let dominantFrequency: Double?
+    let intensityScore: Double?
+    let intensityConfidence: Double?
+    let intervalState: String?
+    let intervalStateConfidence: Double?
+    let intervalZone: String?
 
     enum CodingKeys: String, CodingKey {
+        case analysisVersion = "analysis_version"
         case silence, volume, tempo, intensity, duration
         case breathPhases = "breath_phases"
         case respiratoryRate = "respiratory_rate"
@@ -58,6 +65,11 @@ struct BreathAnalysis: Codable {
         case inhaleExhaleRatio = "inhale_exhale_ratio"
         case signalQuality = "signal_quality"
         case dominantFrequency = "dominant_frequency"
+        case intensityScore = "intensity_score"
+        case intensityConfidence = "intensity_confidence"
+        case intervalState = "interval_state"
+        case intervalStateConfidence = "interval_state_confidence"
+        case intervalZone = "interval_zone"
     }
 
     var intensityLevel: IntensityLevel {

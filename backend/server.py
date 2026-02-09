@@ -173,7 +173,8 @@ def get_claude_coaching(breath_data: dict, phase: str, mode: str = "realtime_coa
         return cached.text
 
     # Build system prompt with personality
-    system_prompt = get_coach_prompt(mode=mode)
+    language = breath_data.get("language", "en")
+    system_prompt = get_coach_prompt(mode=mode, language=language)
     system_prompt += f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {breath_data['intensity']}"
 
     # Build user message

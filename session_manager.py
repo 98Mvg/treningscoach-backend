@@ -368,9 +368,18 @@ class SessionManager:
             workout_state["breath_history"].append({
                 "timestamp": datetime.now().isoformat(),
                 "intensity": breath_analysis.get("intensity", "unknown"),
+                "intensity_score": breath_analysis.get("intensity_score"),
+                "intensity_confidence": breath_analysis.get("intensity_confidence"),
                 "tempo": breath_analysis.get("tempo", 0),
+                "respiratory_rate": breath_analysis.get("respiratory_rate"),
                 "volume": breath_analysis.get("volume", 0),
-                "silence": breath_analysis.get("silence", 0)
+                "silence": breath_analysis.get("silence", 0),
+                "breath_regularity": breath_analysis.get("breath_regularity"),
+                "inhale_exhale_ratio": breath_analysis.get("inhale_exhale_ratio"),
+                "signal_quality": breath_analysis.get("signal_quality"),
+                "dominant_frequency": breath_analysis.get("dominant_frequency"),
+                "interval_state": breath_analysis.get("interval_state"),
+                "interval_zone": breath_analysis.get("interval_zone")
             })
 
             # Keep only last 10 breath analyses

@@ -361,7 +361,8 @@ class WorkoutViewModel: ObservableObject {
                 response.breathAnalysis,
                 responseTime: responseTime,
                 chunkBytes: nil,
-                chunkDur: nil
+                chunkDur: nil,
+                reason: nil
             )
 
             // Play voice and show speaking state
@@ -675,6 +676,15 @@ class WorkoutViewModel: ObservableObject {
         // Measure chunk size for diagnostics
         let chunkBytes = (try? FileManager.default.attributesOfItem(atPath: audioChunk.path)[.size] as? Int) ?? 0
 
+        // Skip invalid/too-small chunks
+        if chunkBytes < AppConfig.ContinuousCoaching.minChunkBytes {
+            let msg = "Chunk too small (\(chunkBytes) bytes) — skipping"
+            print("⚠️ \(msg)")
+            AudioPipelineDiagnostics.shared.recordBreathAnalysisError(msg)
+            scheduleNextTick()
+            return
+        }
+
         // 2. Send to backend (background task)
         Task {
             let tickStart = Date()
@@ -701,7 +711,8 @@ class WorkoutViewModel: ObservableObject {
                     response.breathAnalysis,
                     responseTime: responseTime,
                     chunkBytes: chunkBytes,
-                    chunkDur: AppConfig.ContinuousCoaching.chunkDuration
+                    chunkDur: AppConfig.ContinuousCoaching.chunkDuration,
+                    reason: response.reason
                 )
 
                 print("📊 Analysis: \(response.breathAnalysis.intensity), should_speak: \(response.shouldSpeak), reason: \(response.reason ?? "none")")

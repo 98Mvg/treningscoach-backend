@@ -116,6 +116,9 @@ class AudioPipelineDiagnostics: ObservableObject {
     /// Last error message for breath analysis
     @Published var lastBreathError: String?
 
+    /// Last backend reason (should_speak / silence reason)
+    @Published var lastBreathReason: String?
+
     /// Timestamp of last breath analysis
     @Published var lastBreathAnalysisTime: Date?
 
@@ -159,41 +162,22 @@ class AudioPipelineDiagnostics: ObservableObject {
 
     // MARK: - Audio Level Feed
 
-    /// Called from ContinuousRecordingManager on every audio buffer
-    /// Computes RMS level, dB, and simple VAD
-    nonisolated func processAudioBuffer(_ samples: UnsafePointer<Float>, frameCount: Int) {
-        guard frameCount > 0 else { return }
+    /// Update diagnostics from pre-computed audio stats.
+    /// Call this on the main actor.
+    func updateFromAudio(rms: Float, db: Float, voiceDetected: Bool, frameCount: Int) {
+        self.audioLevel = min(rms * 5.0, 1.0) // Scale for visual (0-1)
+        self.decibelLevel = max(db, -160.0)
+        self.isVoiceDetected = voiceDetected
+        self.framesReceived += 1
+        self.frameCountThisSecond += 1
 
-        // Compute RMS
-        var sumSquares: Float = 0.0
-        for i in 0..<frameCount {
-            let sample = samples[i]
-            sumSquares += sample * sample
+        if rms > self.peakLevel {
+            self.peakLevel = min(rms * 5.0, 1.0)
         }
-        let rms = sqrtf(sumSquares / Float(frameCount))
 
-        // Convert to dB
-        let db = 20.0 * log10f(max(rms, 1e-10))
-
-        // VAD: voice detected if RMS exceeds threshold
-        // ~0.025 RMS ≈ -32dB, catches breathing/soft speech
-        let voiceDetected = rms > 0.025 // Use literal to avoid actor isolation issue
-
-        Task { @MainActor in
-            self.audioLevel = min(rms * 5.0, 1.0) // Scale for visual (0-1)
-            self.decibelLevel = max(db, -160.0)
-            self.isVoiceDetected = voiceDetected
-            self.framesReceived += 1
-            self.frameCountThisSecond += 1
-
-            if rms > self.peakLevel {
-                self.peakLevel = min(rms * 5.0, 1.0)
-            }
-
-            if !self.isMicActive {
-                self.isMicActive = true
-                self.log(.micActive, detail: "First audio frame received")
-            }
+        if !self.isMicActive {
+            self.isMicActive = true
+            self.log(.micActive, detail: "First audio frame received")
         }
     }
 
@@ -287,7 +271,21 @@ class AudioPipelineDiagnostics: ObservableObject {
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, time in
             guard let channelData = buffer.floatChannelData else { return }
             let frameLength = Int(buffer.frameLength)
-            self?.processAudioBuffer(channelData[0], frameCount: frameLength)
+            guard frameLength > 0 else { return }
+
+            // Compute RMS + dB on the audio thread
+            var sumSquares: Float = 0.0
+            for i in 0..<frameLength {
+                let sample = channelData[0][i]
+                sumSquares += sample * sample
+            }
+            let rms = sqrtf(sumSquares / Float(frameLength))
+            let db = 20.0 * log10f(max(rms, 1e-10))
+            let voiceDetected = rms > 0.025
+
+            Task { @MainActor in
+                self?.updateFromAudio(rms: rms, db: db, voiceDetected: voiceDetected, frameCount: frameLength)
+            }
 
             // Feed audio to wake word speech recognizer
             self?.testRecognitionRequest?.append(buffer)
@@ -429,19 +427,27 @@ class AudioPipelineDiagnostics: ObservableObject {
     // MARK: - Breath Analysis Update
 
     /// Called from WorkoutViewModel after each coaching tick
-    func updateBreathAnalysis(_ analysis: BreathAnalysis, responseTime: TimeInterval, chunkBytes: Int?, chunkDur: TimeInterval?) {
+    func updateBreathAnalysis(
+        _ analysis: BreathAnalysis,
+        responseTime: TimeInterval,
+        chunkBytes: Int?,
+        chunkDur: TimeInterval?,
+        reason: String?
+    ) {
         lastBreathAnalysis = analysis
         breathAnalysisCount += 1
         lastBreathAnalysisTime = Date()
         backendResponseTime = responseTime
         chunkSizeBytes = chunkBytes
         chunkDuration = chunkDur
+        lastBreathReason = reason
         log(.backendResponse, detail: "Breath: \(analysis.intensity), RTT: \(Int(responseTime * 1000))ms")
     }
 
     func recordBreathAnalysisError(_ message: String = "Unknown error") {
         breathAnalysisErrors += 1
         lastBreathError = message
+        lastBreathReason = nil
         log(.backendResponse, detail: "ERROR: \(message)")
     }
 
@@ -473,6 +479,7 @@ class AudioPipelineDiagnostics: ObservableObject {
         breathAnalysisCount = 0
         breathAnalysisErrors = 0
         lastBreathError = nil
+        lastBreathReason = nil
         lastBreathAnalysisTime = nil
         backendResponseTime = nil
         chunkSizeBytes = nil

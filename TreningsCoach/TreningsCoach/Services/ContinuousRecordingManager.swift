@@ -26,10 +26,6 @@ class ContinuousRecordingManager: NSObject {
     private let bufferCapacity: TimeInterval = 15.0
     private var currentFormat: AVAudioFormat?
 
-    // Audio settings
-    private let sampleRate: Double = 44100.0
-    private let channels: AVAudioChannelCount = 1
-
     // Wake word: callback to feed audio buffers to speech recognizer
     var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
 
@@ -49,6 +45,19 @@ class ContinuousRecordingManager: NSObject {
         // .playAndRecord allows coach voice to play while mic stays active
         let audioSession = AVAudioSession.sharedInstance()
 
+        // Ensure microphone permission is granted
+        switch audioSession.recordPermission {
+        case .granted:
+            break
+        case .denied:
+            throw RecordingError.noPermission
+        case .undetermined:
+            audioSession.requestRecordPermission { _ in }
+            throw RecordingError.noPermission
+        @unknown default:
+            throw RecordingError.noPermission
+        }
+
         // IMPORTANT: Deactivate first to allow category change
         // This prevents error -10875 (kAudioSessionIncompatibleCategory)
         do {
@@ -64,14 +73,17 @@ class ContinuousRecordingManager: NSObject {
         // Get input node
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+        if format.channelCount == 0 || format.sampleRate == 0 {
+            throw RecordingError.recordingFailed
+        }
         currentFormat = format
 
-        print("📱 Audio format: \(format.sampleRate)Hz, \(format.channelCount) channels")
+        print("📱 Audio format: \(format.sampleRate)Hz, \(format.channelCount) channels, interleaved=\(format.isInterleaved)")
 
         // Feed sample rate to diagnostics
         Task { @MainActor in
             AudioPipelineDiagnostics.shared.sampleRate = format.sampleRate
-            AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(format.sampleRate)Hz, \(format.channelCount)ch")
+            AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(format.sampleRate)Hz, \(format.channelCount)ch, interleaved=\(format.isInterleaved)")
         }
 
         // Install tap to capture audio continuously
@@ -162,12 +174,18 @@ class ContinuousRecordingManager: NSObject {
             return nil
         }
 
-        // Calculate how many samples we need
-        let samplesToExtract = Int(duration * format.sampleRate)
         let totalSamplesInBuffer = audioBuffer.reduce(0) { $0 + $1.count }
+        let denom = format.sampleRate > 1.0 ? format.sampleRate : 1.0
+        let bufferedSeconds = Double(totalSamplesInBuffer) / denom
 
         guard totalSamplesInBuffer > 0 else {
             print("⚠️ Cannot get chunk: buffer empty")
+            return nil
+        }
+
+        // Avoid exporting tiny files if we don't have enough audio yet
+        if bufferedSeconds < 1.0 {
+            print("⚠️ Cannot get chunk: only \(String(format: "%.2f", bufferedSeconds))s buffered")
             return nil
         }
 
@@ -205,20 +223,68 @@ class ContinuousRecordingManager: NSObject {
     // MARK: - Private Methods
 
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData else { return }
-
-        let channelCount = Int(buffer.format.channelCount)
         let frameLength = Int(buffer.frameLength)
+        guard frameLength > 0 else { return }
 
-        // Feed raw audio samples to pipeline diagnostics (real-time level + VAD)
-        AudioPipelineDiagnostics.shared.processAudioBuffer(channelData[0], frameCount: frameLength)
-
-        // Convert to Float array (mono - take first channel)
         var samples: [Float] = []
         samples.reserveCapacity(frameLength)
+        var sumSquares: Float = 0.0
 
-        for frame in 0..<frameLength {
-            samples.append(channelData[0][frame])
+        let format = buffer.format
+        let channelCount = Int(format.channelCount)
+
+        if format.isInterleaved {
+            let abl = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: buffer.audioBufferList))
+            guard let mData = abl.first?.mData else { return }
+
+            switch format.commonFormat {
+            case .pcmFormatFloat32:
+                let ptr = mData.assumingMemoryBound(to: Float.self)
+                for i in 0..<frameLength {
+                    let sample = ptr[i * max(channelCount, 1)]
+                    samples.append(sample)
+                    sumSquares += sample * sample
+                }
+            case .pcmFormatInt16:
+                let ptr = mData.assumingMemoryBound(to: Int16.self)
+                let scale = 1.0 / Float(Int16.max)
+                for i in 0..<frameLength {
+                    let sample = Float(ptr[i * max(channelCount, 1)]) * scale
+                    samples.append(sample)
+                    sumSquares += sample * sample
+                }
+            default:
+                return
+            }
+        } else if let channelData = buffer.floatChannelData {
+            for i in 0..<frameLength {
+                let sample = channelData[0][i]
+                samples.append(sample)
+                sumSquares += sample * sample
+            }
+        } else if let int16Data = buffer.int16ChannelData {
+            let scale = 1.0 / Float(Int16.max)
+            for i in 0..<frameLength {
+                let sample = Float(int16Data[0][i]) * scale
+                samples.append(sample)
+                sumSquares += sample * sample
+            }
+        } else {
+            return
+        }
+
+        // Feed raw audio samples to pipeline diagnostics (real-time level + VAD)
+        let rms = sqrtf(sumSquares / Float(frameLength))
+        let db = 20.0 * log10f(Swift.max(rms, Float(1e-10)))
+        let voiceDetected = rms > 0.025
+
+        Task { @MainActor in
+            AudioPipelineDiagnostics.shared.updateFromAudio(
+                rms: rms,
+                db: db,
+                voiceDetected: voiceDetected,
+                frameCount: frameLength
+            )
         }
 
         // Add to circular buffer
@@ -261,6 +327,9 @@ class ContinuousRecordingManager: NSObject {
         let filename = "chunk_\(Date().timeIntervalSince1970).wav"
         let fileURL = tempDir.appendingPathComponent(filename)
 
+        let sampleRate = format.sampleRate
+        let channels: AVAudioChannelCount = 1
+
         // Create audio file
         guard let audioFile = try? AVAudioFile(
             forWriting: fileURL,
@@ -294,8 +363,8 @@ class ContinuousRecordingManager: NSObject {
 
         for i in 0..<samples.count {
             // Convert Float (-1.0 to 1.0) to Int16 (-32768 to 32767)
-            let sample = max(-1.0, min(1.0, samples[i]))
-            channelData[0][i] = Int16(sample * 32767.0)
+            let sample = Swift.max(Float(-1.0), Swift.min(Float(1.0), samples[i]))
+            channelData[0][i] = Int16(sample * Float(32767.0))
         }
 
         // Write to file

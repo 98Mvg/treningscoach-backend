@@ -10,8 +10,10 @@
 #
 
 import logging
+import os
 import numpy as np
 import scipy.signal
+from scipy.io import wavfile
 import librosa
 
 logger = logging.getLogger(__name__)
@@ -105,6 +107,7 @@ class BreathAnalyzer:
 
             # 8. Build backward-compatible response
             result = {
+                "analysis_version": 2,
                 # EXISTING fields (backward-compatible)
                 "silence": metrics['silence_percent'],
                 "volume": metrics['volume'],
@@ -142,10 +145,45 @@ class BreathAnalyzer:
     def _load_audio(self, filepath: str) -> np.ndarray:
         """Load audio file as float32 array normalized to [-1, 1]."""
         try:
+            if not os.path.exists(filepath):
+                logger.error("Audio file missing: %s", filepath)
+                return None
+            file_size = os.path.getsize(filepath)
+            if file_size <= 44:
+                logger.error("Audio file too small to be valid WAV: %s (%d bytes)", filepath, file_size)
+                return None
+            # Prefer scipy wavfile for PCM WAV (more reliable on some hosts)
+            try:
+                sr, data = wavfile.read(filepath)
+                if data is None or len(data) == 0:
+                    raise ValueError("Empty WAV data")
+
+                # Convert to mono if needed
+                if data.ndim > 1:
+                    data = data[:, 0]
+
+                # Normalize to float32 [-1, 1]
+                signal = data.astype(np.float32)
+                if np.issubdtype(data.dtype, np.integer):
+                    max_val = float(np.iinfo(data.dtype).max)
+                    if max_val > 0:
+                        signal = signal / max_val
+                else:
+                    signal = np.clip(signal, -1.0, 1.0)
+
+                # Resample if needed
+                if sr != self.sample_rate:
+                    signal = librosa.resample(signal, orig_sr=sr, target_sr=self.sample_rate)
+
+                return signal
+            except Exception as e:
+                logger.warning("scipy wavfile read failed %s: %s", filepath, repr(e))
+
+            # Fallback to librosa (may use audioread)
             signal, sr = librosa.load(filepath, sr=self.sample_rate, mono=True)
             return signal
         except Exception as e:
-            logger.error("Failed to load audio %s: %s", filepath, e)
+            logger.error("Failed to load audio %s: %s", filepath, repr(e))
             return None
 
     # ============================================
@@ -479,6 +517,9 @@ class BreathAnalyzer:
 
         # --- Intensity classification (refined with real metrics) ---
         intensity = self._classify_intensity(respiratory_rate, volume, breath_regularity)
+        intensity_score, intensity_confidence = self._score_intensity(
+            respiratory_rate, volume, breath_regularity, signal_quality
+        )
 
         return {
             'volume': round(volume, 1),
@@ -489,6 +530,8 @@ class BreathAnalyzer:
             'signal_quality': signal_quality,
             'dominant_frequency': dominant_frequency,
             'intensity': intensity,
+            'intensity_score': intensity_score,
+            'intensity_confidence': intensity_confidence,
         }
 
     def _classify_intensity(self, respiratory_rate: float, volume: float,
@@ -507,6 +550,40 @@ class BreathAnalyzer:
         else:
             return "calm"
 
+    def _score_intensity(
+        self,
+        respiratory_rate: float,
+        volume: float,
+        breath_regularity: float,
+        signal_quality: float
+    ) -> tuple:
+        """
+        Compute a normalized intensity score (0.0-1.0) and confidence (0.0-1.0).
+        """
+        # Normalize rate (10-45 bpm -> 0-1)
+        rate_score = 0.0
+        if respiratory_rate is not None:
+            rate_score = max(0.0, min(1.0, (respiratory_rate - 10.0) / 35.0))
+
+        # Normalize volume (10-80 -> 0-1)
+        vol_score = 0.0
+        if volume is not None:
+            vol_score = max(0.0, min(1.0, (volume - 10.0) / 70.0))
+
+        # Irregularity boosts perceived intensity slightly
+        irregularity = 0.0
+        if breath_regularity is not None:
+            irregularity = max(0.0, min(1.0, 1.0 - breath_regularity))
+
+        score = (0.6 * rate_score) + (0.3 * vol_score) + (0.1 * irregularity)
+
+        # Confidence based on signal quality and regularity
+        quality = signal_quality if signal_quality is not None else 0.5
+        regularity = breath_regularity if breath_regularity is not None else 0.5
+        confidence = max(0.0, min(1.0, quality * (0.5 + 0.5 * regularity)))
+
+        return round(score, 3), round(confidence, 3)
+
     # ============================================
     # FALLBACK
     # ============================================
@@ -514,10 +591,13 @@ class BreathAnalyzer:
     def _default_analysis(self) -> dict:
         """Return safe default analysis when processing fails."""
         return {
+            "analysis_version": 2,
             "silence": 50.0,
             "volume": 30.0,
             "tempo": 15.0,
             "intensity": "moderate",
+            "intensity_score": 0.3,
+            "intensity_confidence": 0.0,
             "duration": 2.0,
             "breath_phases": [],
             "respiratory_rate": 15.0,

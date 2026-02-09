@@ -7,6 +7,8 @@ This directory contains AI brain implementations that the Brain Router can use.
 - **config** - Simple config-based messages (no AI, no API key needed)
 - **claude** - Claude AI by Anthropic
 - **openai** - GPT models by OpenAI
+- **grok** - xAI Grok (OpenAI-compatible API)
+- **gemini** - Google Gemini
 - **nvidia** - Coming soon (PersonaPlex)
 
 ## How to Switch Brains
@@ -16,7 +18,7 @@ This directory contains AI brain implementations that the Brain Router can use.
 Edit `backend/config.py`:
 
 ```python
-ACTIVE_BRAIN = "claude"  # or "openai" or "config"
+ACTIVE_BRAIN = "claude"  # or "openai" or "grok" or "gemini" or "config"
 ```
 
 ### Via API (at runtime)
@@ -54,6 +56,26 @@ curl http://localhost:5001/brain/health
    ```
 3. Install dependency: `pip install openai`
 4. Set `ACTIVE_BRAIN = "openai"` in config.py
+
+### Grok Brain
+
+1. Get API key from https://console.x.ai
+2. Set environment variable:
+   ```bash
+   export XAI_API_KEY="your-key-here"
+   ```
+3. Install dependency: `pip install openai`
+4. Set `ACTIVE_BRAIN = "grok"` in config.py
+
+### Gemini Brain
+
+1. Get API key from https://ai.google.dev
+2. Set environment variable:
+   ```bash
+   export GEMINI_API_KEY="your-key-here"
+   ```
+3. Install dependency: `pip install google-generativeai`
+4. Set `ACTIVE_BRAIN = "gemini"` in config.py
 
 ### Config Brain (Default)
 
@@ -108,7 +130,7 @@ iOS App / Website
         ↓
     ┌───┴────┬──────────┬──────────┐
     ↓        ↓          ↓          ↓
-  Config   Claude    OpenAI    Nvidia
+  Config   Claude    OpenAI    Grok     Gemini    Nvidia
   Brain    Brain     Brain     Brain
 ```
 

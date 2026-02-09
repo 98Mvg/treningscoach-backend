@@ -84,7 +84,8 @@ class VoiceIntelligence:
             return (False, "greeting")
 
         # Stay silent if audio is too noisy to analyze reliably
-        if signal_quality is not None and signal_quality < 0.3:
+        # Align with coaching_intelligence threshold to avoid over-silencing
+        if signal_quality is not None and signal_quality < 0.2:
             self.silence_count += 1
             return (True, "noisy_audio")
 
@@ -93,8 +94,9 @@ class VoiceIntelligence:
             if ((phase == "warmup" and intensitet in ["calm", "moderate"]) or
                 (phase == "intense" and intensitet == "intense") or
                 (phase == "cooldown" and intensitet == "calm")):
-                self.silence_count += 1
-                return (True, "highly_regular_optimal")
+                if self.silence_count < 2:
+                    self.silence_count += 1
+                    return (True, "highly_regular_optimal")
 
         # STEP 6: Silence when breathing is optimal for the phase
         if phase == "warmup" and intensitet in ["calm", "moderate"]:

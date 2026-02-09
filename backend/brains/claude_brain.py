@@ -61,7 +61,8 @@ class ClaudeBrain(BaseBrain):
             return random.choice(config.CONTINUOUS_COACH_MESSAGES["kritisk"])
 
         # Build ultra-minimal context for Claude
-        system_prompt = self._build_realtime_system_prompt(phase, intensitet)
+        language = breath_data.get("language", "en")
+        system_prompt = self._build_realtime_system_prompt(phase, intensitet, language)
         user_message = f"{intensitet} breathing, {phase} phase. One action:"
 
         try:
@@ -89,11 +90,11 @@ class ClaudeBrain(BaseBrain):
             # Fallback to config messages (still fast)
             return self._get_fallback_message(intensitet, phase)
 
-    def _build_realtime_system_prompt(self, phase: str, intensitet: str) -> str:
+    def _build_realtime_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the endurance coach personality with realtime constraints
-        base_prompt = get_coach_prompt(mode="realtime_coach")
+        base_prompt = get_coach_prompt(mode="realtime_coach", language=language)
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
@@ -118,7 +119,8 @@ class ClaudeBrain(BaseBrain):
             return random.choice(config.COACH_MESSAGES["kritisk"])
 
         # Build context for Claude
-        system_prompt = self._build_coaching_system_prompt(phase, intensitet)
+        language = breath_data.get("language", "en")
+        system_prompt = self._build_coaching_system_prompt(phase, intensitet, language)
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -141,11 +143,11 @@ class ClaudeBrain(BaseBrain):
             # Fallback to config messages
             return self._get_fallback_message(intensitet, phase)
 
-    def _build_coaching_system_prompt(self, phase: str, intensitet: str) -> str:
+    def _build_coaching_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the endurance coach personality for conversational coaching
-        base_prompt = get_coach_prompt(mode="chat")
+        base_prompt = get_coach_prompt(mode="chat", language=language)
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."

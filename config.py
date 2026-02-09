@@ -34,6 +34,21 @@ VOICE_CONFIG = {
 # Local Qwen3-TTS is disabled (too slow on CPU). Use ElevenLabs instead.
 ENABLE_QWEN_TTS = False
 
+# ============================================
+# BREATH ANALYSIS SETTINGS
+# ============================================
+# Downsample to reduce CPU and improve stability
+BREATH_ANALYSIS_SAMPLE_RATE = 16000
+# Minimum upload size (bytes) to treat as valid audio
+BREATH_MIN_AUDIO_BYTES = 8000
+# Smoothing for breath metrics (EMA over recent history)
+BREATH_SMOOTHING_ALPHA = 0.5
+BREATH_SMOOTHING_WINDOW = 4
+# Maximum silence before forcing a coach cue (seconds)
+MAX_SILENCE_SECONDS = 60
+# Minimum signal quality required to force a cue
+MIN_SIGNAL_QUALITY_TO_FORCE = 0.2
+
 # Persona-specific voices
 # Maps to iOS CoachPersonality enum values
 # voice_ids: Dict of language -> voice_id (use language default if not set)
