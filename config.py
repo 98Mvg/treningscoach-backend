@@ -208,9 +208,10 @@ INTENSITY_THRESHOLDS = {
 # ============================================
 # BRAIN ROUTER CONFIGURATION
 # ============================================
-# Choose which AI brain to use: "claude", "openai", "config"
+# Choose which AI brain to use: "claude", "openai", "grok", "config"
 # - "claude": Uses Claude AI (requires ANTHROPIC_API_KEY)
 # - "openai": Uses OpenAI GPT (requires OPENAI_API_KEY)
+# - "grok":   Uses xAI Grok (requires XAI_API_KEY, OpenAI-compatible API)
 # - "config": Uses simple config-based messages (no AI, no API key needed)
 ACTIVE_BRAIN = "config"  # Default to config (no API needed)
 

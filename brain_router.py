@@ -24,7 +24,7 @@ class BrainRouter:
         Initialize router with specified brain type.
 
         Args:
-            brain_type: "claude", "openai", or "config" (if None, uses config.ACTIVE_BRAIN)
+            brain_type: "claude", "openai", "grok", or "config" (if None, uses config.ACTIVE_BRAIN)
             use_hybrid: Enable hybrid mode (if None, uses config.USE_HYBRID_BRAIN)
         """
         self.brain_type = brain_type or config.ACTIVE_BRAIN
@@ -56,6 +56,16 @@ class BrainRouter:
                 print(f"✅ Brain Router: Using OpenAI (model: {self.brain.model})")
             except Exception as e:
                 print(f"⚠️ Brain Router: Failed to initialize OpenAI: {e}")
+                print("⚠️ Brain Router: Falling back to config-based messages")
+                self.brain_type = "config"
+
+        elif self.brain_type == "grok":
+            try:
+                from brains.grok_brain import GrokBrain
+                self.brain = GrokBrain()
+                print(f"✅ Brain Router: Using Grok (model: {self.brain.model})")
+            except Exception as e:
+                print(f"⚠️ Brain Router: Failed to initialize Grok: {e}")
                 print("⚠️ Brain Router: Falling back to config-based messages")
                 self.brain_type = "config"
 
@@ -246,7 +256,7 @@ class BrainRouter:
         STEP 4: Hot-switch to a different brain at runtime.
 
         Args:
-            new_brain_type: "claude", "openai", or "config"
+            new_brain_type: "claude", "openai", "grok", or "config"
             preserve_hybrid: Keep hybrid Claude brain if switching away from it
 
         Returns:
