@@ -4,11 +4,10 @@ python-dotenv
 
 # AI providers
 anthropic>=0.40.0
+google-generativeai>=0.8.0
 
 # TTS dependencies
-torch>=2.0.0
 soundfile
-qwen-tts
 
 # Flask (primary server)
 Flask==3.0.0

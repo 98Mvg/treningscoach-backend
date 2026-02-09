@@ -23,7 +23,7 @@ from persona_manager import PersonaManager  # Import Persona Manager
 from coaching_intelligence import should_coach_speak, calculate_next_interval  # Import coaching intelligence
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
-from tts_service import synthesize_speech, synthesize_speech_mock, initialize_tts, TTSError  # Import TTS service
+from tts_service import synthesize_speech_mock  # Import mock TTS (Qwen disabled)
 from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
 from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # Import coach personality
@@ -94,8 +94,7 @@ if elevenlabs_api_key and elevenlabs_voice_id:
     USE_ELEVENLABS = True
     logger.info("✅ ElevenLabs TTS ready")
 else:
-    logger.warning("⚠️ ElevenLabs credentials not found, falling back to Qwen/mock")
-    initialize_tts()  # Fallback to Qwen
+    logger.warning("⚠️ ElevenLabs credentials not found, using mock TTS")
     USE_ELEVENLABS = False
 logger.info("TTS service initialized")
 
@@ -139,12 +138,12 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
     return brain_router.get_coaching_response(breath_data, phase, mode=mode)
 
 # ============================================
-# VOICE GENERATION WITH QWEN3-TTS
+# VOICE GENERATION (ELEVENLABS; QWEN DISABLED)
 # ============================================
 
 def generate_voice(text, language=None, persona=None):
     """
-    Generates speech audio from text using ElevenLabs or Qwen3-TTS.
+    Generates speech audio from text using ElevenLabs (local Qwen disabled).
 
     Voice is selected based on persona (if set) then language.
     Each persona can have its own ElevenLabs voice ID and voice settings.
@@ -162,8 +161,8 @@ def generate_voice(text, language=None, persona=None):
             # Use ElevenLabs with persona-specific voice settings
             return elevenlabs_tts.generate_audio(text, language=language, persona=persona)
         else:
-            # Fallback to Qwen3-TTS with cloned voice
-            return synthesize_speech(text)
+            # Fallback to mock (Qwen disabled)
+            return synthesize_speech_mock(text)
     except Exception as e:
         logger.error(f"TTS failed, using mock: {e}")
         # Fallback to mock for development/testing
@@ -405,6 +404,7 @@ def coach_continuous():
         language = request.form.get('language', 'en')
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
+        workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -416,6 +416,10 @@ def coach_continuous():
         valid_phases = ['warmup', 'intense', 'cooldown']
         if phase not in valid_phases:
             return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
+
+        # Validate workout mode (backend-only for now)
+        if workout_mode not in config.SUPPORTED_WORKOUT_MODES:
+            return jsonify({"error": f"Invalid workout_mode. Must be one of: {', '.join(config.SUPPORTED_WORKOUT_MODES)}"}), 400
 
         # Validate file size
         audio_file.seek(0, os.SEEK_END)
@@ -430,7 +434,7 @@ def coach_continuous():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
-        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}")
+        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, mode={workout_mode}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}")
 
         # Create session if doesn't exist
         if not session_manager.session_exists(session_id):
@@ -449,7 +453,7 @@ def coach_continuous():
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
-                "metadata": {}
+                "metadata": {"workout_mode": workout_mode}
             }
             logger.info(f"✅ Created session: {session_id}")
             session_manager.init_workout_state(session_id, phase=phase)
@@ -470,6 +474,8 @@ def coach_continuous():
         coaching_context = session_manager.get_coaching_context(session_id)
         last_breath = session_manager.get_last_breath_analysis(session_id)
         workout_state = session_manager.get_workout_state(session_id)
+        if workout_state is not None:
+            workout_state["workout_mode"] = workout_mode
 
         # Check if this is the very first breath (welcome message)
         is_first_breath = workout_state.get("is_first_breath", False)
@@ -565,7 +571,7 @@ def coach_continuous():
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
             logger.info(f"Using pattern insight instead of config message")
         else:
-            coach_text = get_coach_response_continuous(breath_data, phase)
+            coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona)
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
         if speak_decision and not use_welcome:
@@ -620,6 +626,7 @@ def coach_continuous():
             "audio_url": audio_url,
             "wait_seconds": wait_seconds,
             "phase": phase,
+            "workout_mode": workout_mode,
             "reason": reason  # For debugging
         }
 
@@ -711,7 +718,7 @@ def switch_brain():
             return jsonify({"error": "Missing 'brain' parameter"}), 400
 
         new_brain = data['brain']
-        valid_brains = ['claude', 'openai', 'config']
+        valid_brains = ['priority', 'claude', 'openai', 'grok', 'gemini', 'config']
 
         if new_brain not in valid_brains:
             return jsonify({

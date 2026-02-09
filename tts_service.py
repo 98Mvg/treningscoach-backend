@@ -1,8 +1,9 @@
 #
 #  tts_service.py
-#  Local Qwen3-TTS Integration for Voice Cloning
+#  TTS Utilities (Qwen3 disabled; ElevenLabs preferred)
 #
-#  Runs Qwen3-TTS locally on backend server using qwen_tts library
+#  Local Qwen3-TTS is disabled by default due to CPU slowness.
+#  This module now defaults to mock audio unless re-enabled.
 #
 
 import os
@@ -15,8 +16,10 @@ import shutil
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
+import config
 
 logger = logging.getLogger(__name__)
+ENABLE_QWEN_TTS = getattr(config, "ENABLE_QWEN_TTS", False)
 
 # Cache directory for pre-generated phrases
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "output", "cache")
@@ -41,12 +44,18 @@ class TTSError(Exception):
 
 def initialize_tts():
     """
-    Initializes Qwen3-TTS model and loads reference audio.
+    Initializes Qwen3-TTS model and loads reference audio (if enabled).
     Call this when Flask app starts.
     """
     global _TTS_MODEL, _REFERENCE_AUDIO_PATH
 
     try:
+        if not ENABLE_QWEN_TTS:
+            logger.info("Qwen3-TTS disabled; skipping local model initialization")
+            _TTS_MODEL = None
+            _REFERENCE_AUDIO_PATH = None
+            return
+
         logger.info("Initializing Qwen3-TTS...")
 
         # Check if reference audio exists
@@ -133,7 +142,7 @@ def cache_audio(text: str, audio_path: str) -> str:
 
 def synthesize_speech(text: str, language: str = "english") -> str:
     """
-    Synthesizes speech from text using Qwen3-TTS with custom voice cloning.
+    Synthesizes speech from text using Qwen3-TTS with custom voice cloning (if enabled).
     Uses cached audio if available for instant playback!
 
     Args:
@@ -144,6 +153,10 @@ def synthesize_speech(text: str, language: str = "english") -> str:
         Path to generated WAV file (12kHz, 16-bit, mono)
     """
     global _TTS_MODEL, _REFERENCE_AUDIO_PATH
+
+    if not ENABLE_QWEN_TTS:
+        logger.debug("Qwen3-TTS disabled, using mock audio")
+        return synthesize_speech_mock(text)
 
     # Check cache first for instant response!
     cached = get_cached_audio(text)

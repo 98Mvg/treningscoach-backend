@@ -28,6 +28,12 @@ VOICE_CONFIG = {
     }
 }
 
+# ============================================
+# TTS SETTINGS
+# ============================================
+# Local Qwen3-TTS is disabled (too slow on CPU). Use ElevenLabs instead.
+ENABLE_QWEN_TTS = False
+
 # Persona-specific voices
 # Maps to iOS CoachPersonality enum values
 # voice_ids: Dict of language -> voice_id (use language default if not set)
@@ -208,12 +214,24 @@ INTENSITY_THRESHOLDS = {
 # ============================================
 # BRAIN ROUTER CONFIGURATION
 # ============================================
-# Choose which AI brain to use: "claude", "openai", "grok", "config"
+# Choose which AI brain to use: "claude", "openai", "grok", "gemini", "config"
 # - "claude": Uses Claude AI (requires ANTHROPIC_API_KEY)
 # - "openai": Uses OpenAI GPT (requires OPENAI_API_KEY)
 # - "grok":   Uses xAI Grok (requires XAI_API_KEY, OpenAI-compatible API)
+# - "gemini": Uses Google Gemini (requires GEMINI_API_KEY)
 # - "config": Uses simple config-based messages (no AI, no API key needed)
 ACTIVE_BRAIN = "grok"  # Using xAI Grok for AI coaching
+
+# Priority routing (try brains in order with timeout + fallback)
+USE_PRIORITY_ROUTING = True
+BRAIN_PRIORITY = ["grok", "gemini", "openai", "claude"]
+BRAIN_TIMEOUT = 1.2  # seconds per brain
+USAGE_LIMIT = 0.9  # skip brain if usage >= this (optional BRAIN_USAGE map)
+BRAIN_COOLDOWN_SECONDS = 60
+BRAIN_TIMEOUT_COOLDOWN_SECONDS = 30
+BRAIN_SLOW_THRESHOLD = 1.2  # seconds avg latency before skipping (optional)
+# Optional live usage map (0.0-1.0). Example: {"grok": 0.92}
+BRAIN_USAGE = {}
 
 # STEP 4: Hybrid Brain Strategy
 # Use Claude for pattern detection, config for speed
@@ -229,6 +247,12 @@ DEFAULT_COACHING_INTERVAL = 8  # seconds between coaching ticks
 MIN_COACHING_INTERVAL = 6      # fastest interval
 MAX_COACHING_INTERVAL = 15     # slowest interval
 MIN_TIME_BETWEEN_COACHING = 20  # minimum seconds between spoken messages (prevent over-coaching)
+
+# ============================================
+# WORKOUT MODES (BACKEND-ONLY FOR NOW)
+# ============================================
+SUPPORTED_WORKOUT_MODES = ["standard", "interval"]
+DEFAULT_WORKOUT_MODE = "standard"
 
 # STEP 2: Intensity-driven message bank with personality
 # Message characteristics:
