@@ -213,7 +213,7 @@ INTENSITY_THRESHOLDS = {
 # - "openai": Uses OpenAI GPT (requires OPENAI_API_KEY)
 # - "grok":   Uses xAI Grok (requires XAI_API_KEY, OpenAI-compatible API)
 # - "config": Uses simple config-based messages (no AI, no API key needed)
-ACTIVE_BRAIN = "config"  # Default to config (no API needed)
+ACTIVE_BRAIN = "grok"  # Using xAI Grok for AI coaching
 
 # STEP 4: Hybrid Brain Strategy
 # Use Claude for pattern detection, config for speed
