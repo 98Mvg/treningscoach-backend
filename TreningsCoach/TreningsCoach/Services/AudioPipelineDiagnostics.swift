@@ -16,6 +16,12 @@ import Combine
 import AVFoundation
 import Speech
 
+/// Diagnostic panel tab selection
+enum DiagnosticTab: String {
+    case voice
+    case breath
+}
+
 /// Pipeline stage for tracking signal flow
 enum PipelineStage: String {
     case micInit = "MIC_INIT"
@@ -92,6 +98,35 @@ class AudioPipelineDiagnostics: ObservableObject {
 
     /// Whether the diagnostic overlay is visible
     @Published var isOverlayVisible: Bool = false
+
+    /// Active diagnostic tab (voice pipeline vs breath analysis)
+    @Published var diagnosticTab: DiagnosticTab = .voice
+
+    // MARK: - Breath Analysis Diagnostics
+
+    /// Latest breath analysis from backend
+    @Published var lastBreathAnalysis: BreathAnalysis?
+
+    /// Total number of breath analyses received
+    @Published var breathAnalysisCount: Int = 0
+
+    /// Total number of breath analysis errors
+    @Published var breathAnalysisErrors: Int = 0
+
+    /// Last error message for breath analysis
+    @Published var lastBreathError: String?
+
+    /// Timestamp of last breath analysis
+    @Published var lastBreathAnalysisTime: Date?
+
+    /// Backend round-trip time in seconds
+    @Published var backendResponseTime: TimeInterval?
+
+    /// Size of last audio chunk sent to backend
+    @Published var chunkSizeBytes: Int?
+
+    /// Duration of last audio chunk
+    @Published var chunkDuration: TimeInterval?
 
     // MARK: - VAD Configuration
 
@@ -391,6 +426,33 @@ class AudioPipelineDiagnostics: ObservableObject {
         }
     }
 
+    // MARK: - Breath Analysis Update
+
+    /// Called from WorkoutViewModel after each coaching tick
+    func updateBreathAnalysis(_ analysis: BreathAnalysis, responseTime: TimeInterval, chunkBytes: Int?, chunkDur: TimeInterval?) {
+        lastBreathAnalysis = analysis
+        breathAnalysisCount += 1
+        lastBreathAnalysisTime = Date()
+        backendResponseTime = responseTime
+        chunkSizeBytes = chunkBytes
+        chunkDuration = chunkDur
+        log(.backendResponse, detail: "Breath: \(analysis.intensity), RTT: \(Int(responseTime * 1000))ms")
+    }
+
+    func recordBreathAnalysisError(_ message: String = "Unknown error") {
+        breathAnalysisErrors += 1
+        lastBreathError = message
+        log(.backendResponse, detail: "ERROR: \(message)")
+    }
+
+    /// Time since last breath analysis (for display)
+    var timeSinceLastBreathAnalysis: String {
+        guard let lastTime = lastBreathAnalysisTime else { return "—" }
+        let seconds = Int(Date().timeIntervalSince(lastTime))
+        if seconds < 60 { return "\(seconds)s ago" }
+        return "\(seconds / 60)m ago"
+    }
+
     // MARK: - Reset
 
     func reset() {
@@ -406,5 +468,15 @@ class AudioPipelineDiagnostics: ObservableObject {
         wakeWordDetected = false
         lastUtterance = nil
         events.removeAll()
+        // Reset breath diagnostics
+        lastBreathAnalysis = nil
+        breathAnalysisCount = 0
+        breathAnalysisErrors = 0
+        lastBreathError = nil
+        lastBreathAnalysisTime = nil
+        backendResponseTime = nil
+        chunkSizeBytes = nil
+        chunkDuration = nil
+        diagnosticTab = .voice
     }
 }

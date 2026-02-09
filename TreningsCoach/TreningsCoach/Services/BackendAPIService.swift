@@ -17,8 +17,8 @@ class BackendAPIService {
 
     private init() {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 60
+        configuration.timeoutIntervalForRequest = 90
+        configuration.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: configuration)
     }
 

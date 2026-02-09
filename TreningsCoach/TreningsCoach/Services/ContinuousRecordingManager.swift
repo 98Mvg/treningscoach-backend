@@ -227,11 +227,12 @@ class ContinuousRecordingManager: NSObject {
         // Maintain buffer capacity (keep only last 15 seconds)
         if let format = currentFormat {
             let maxSamples = Int(bufferCapacity * format.sampleRate)
-            let currentSamples = audioBuffer.reduce(0) { $0 + $1.count }
+            var currentSamples = audioBuffer.reduce(0) { $0 + $1.count }
 
             // Remove old chunks if exceeding capacity
             while currentSamples > maxSamples && !audioBuffer.isEmpty {
-                audioBuffer.removeFirst()
+                let removed = audioBuffer.removeFirst()
+                currentSamples -= removed.count
             }
         }
     }

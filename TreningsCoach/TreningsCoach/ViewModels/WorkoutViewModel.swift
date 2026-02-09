@@ -95,6 +95,7 @@ class WorkoutViewModel: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var sessionStartTime: Date?
     private var workoutDuration: TimeInterval = 0
+    private var hasSkippedWarmup = false
     private var coachingTimer: Timer?
     private var sessionId: String?
     private var autoTimeoutTimer: Timer?
@@ -217,6 +218,7 @@ class WorkoutViewModel: ObservableObject {
     func skipToIntensePhase() {
         guard isContinuousMode else { return }
         print("⏩ Skipping warmup — jumping to intense phase")
+        hasSkippedWarmup = true
         currentPhase = .intense
     }
 
@@ -318,7 +320,7 @@ class WorkoutViewModel: ObservableObject {
 
     private func autoDetectPhase() {
         // Auto-detect workout phase based on duration
-        // First 2 minutes: warmup
+        // First 2 minutes: warmup (unless manually skipped)
         // 2-15 minutes: intense
         // After 15 minutes: cooldown
 
@@ -329,9 +331,9 @@ class WorkoutViewModel: ObservableObject {
 
         let duration = Date().timeIntervalSince(startTime)
 
-        if duration < 120 { // First 2 minutes
+        if duration < 120 && !hasSkippedWarmup { // First 2 minutes (respect skip)
             currentPhase = .warmup
-        } else if duration < 900 { // 2-15 minutes
+        } else if duration < 900 { // 2-15 minutes (or skipped warmup)
             currentPhase = .intense
         } else { // After 15 minutes
             currentPhase = .cooldown
@@ -344,13 +346,23 @@ class WorkoutViewModel: ObservableObject {
         isProcessing = true
         voiceState = .idle // Show processing state
 
+        let tickStart = Date()
         do {
             // Send to coach endpoint
             let response = try await apiService.getCoachFeedback(audioURL, phase: phase)
+            let responseTime = Date().timeIntervalSince(tickStart)
 
             // Update UI with response
             breathAnalysis = response.breathAnalysis
             coachMessage = response.text
+
+            // Feed breath analysis to diagnostics
+            AudioPipelineDiagnostics.shared.updateBreathAnalysis(
+                response.breathAnalysis,
+                responseTime: responseTime,
+                chunkBytes: nil,
+                chunkDur: nil
+            )
 
             // Play voice and show speaking state
             voiceState = .speaking
@@ -361,6 +373,7 @@ class WorkoutViewModel: ObservableObject {
 
         } catch {
             showErrorAlert("Failed to analyze: \(error.localizedDescription)")
+            AudioPipelineDiagnostics.shared.recordBreathAnalysisError(error.localizedDescription)
             voiceState = .idle
         }
 
@@ -611,6 +624,7 @@ class WorkoutViewModel: ObservableObject {
         voiceState = .idle
         isWakeWordActive = false
         sessionId = nil
+        hasSkippedWarmup = false
 
         // Update final workout duration and save to history
         if let startTime = sessionStartTime {
@@ -651,14 +665,19 @@ class WorkoutViewModel: ObservableObject {
             duration: AppConfig.ContinuousCoaching.chunkDuration
         ) else {
             print("⚠️ No audio chunk available, retrying next tick")
+            AudioPipelineDiagnostics.shared.recordBreathAnalysisError("No audio chunk available (buffer empty?)")
             scheduleNextTick()
             return
         }
 
         print("🎤 Coaching tick: \(Int(workoutDuration))s, phase: \(currentPhase.rawValue)")
 
+        // Measure chunk size for diagnostics
+        let chunkBytes = (try? FileManager.default.attributesOfItem(atPath: audioChunk.path)[.size] as? Int) ?? 0
+
         // 2. Send to backend (background task)
         Task {
+            let tickStart = Date()
             do {
                 let response = try await apiService.getContinuousCoachFeedback(
                     audioChunk,
@@ -671,9 +690,19 @@ class WorkoutViewModel: ObservableObject {
                     persona: activePersonality.rawValue
                 )
 
+                let responseTime = Date().timeIntervalSince(tickStart)
+
                 // 3. Update metrics silently (NO UI state change)
                 breathAnalysis = response.breathAnalysis
                 coachMessage = response.text
+
+                // Feed breath analysis to diagnostics panel
+                AudioPipelineDiagnostics.shared.updateBreathAnalysis(
+                    response.breathAnalysis,
+                    responseTime: responseTime,
+                    chunkBytes: chunkBytes,
+                    chunkDur: AppConfig.ContinuousCoaching.chunkDuration
+                )
 
                 print("📊 Analysis: \(response.breathAnalysis.intensity), should_speak: \(response.shouldSpeak), reason: \(response.reason ?? "none")")
 
@@ -691,8 +720,27 @@ class WorkoutViewModel: ObservableObject {
                 print("⏱️ Next tick in: \(Int(coachingInterval))s")
 
             } catch {
-                // Network error: skip this cycle, continue next
-                print("❌ Coaching cycle failed: \(error.localizedDescription)")
+                // Network/decode error: skip this cycle, continue next
+                print("❌ Coaching cycle failed: \(error)")
+                // Show full error (not just localizedDescription) to catch JSON decode details
+                let errorDetail: String
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, _):
+                        errorDetail = "JSON missing key: \(key.stringValue)"
+                    case .typeMismatch(let type, let context):
+                        errorDetail = "JSON type mismatch: expected \(type) at \(context.codingPath.map { $0.stringValue }.joined(separator: "."))"
+                    case .valueNotFound(let type, let context):
+                        errorDetail = "JSON null value: \(type) at \(context.codingPath.map { $0.stringValue }.joined(separator: "."))"
+                    case .dataCorrupted(let context):
+                        errorDetail = "JSON corrupted: \(context.debugDescription)"
+                    @unknown default:
+                        errorDetail = "JSON decode: \(error.localizedDescription)"
+                    }
+                } else {
+                    errorDetail = error.localizedDescription
+                }
+                AudioPipelineDiagnostics.shared.recordBreathAnalysisError(errorDetail)
             }
 
             // Always schedule next tick (loop continues)

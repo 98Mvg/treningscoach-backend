@@ -2,10 +2,8 @@
 //  AudioDiagnosticOverlayView.swift
 //  TreningsCoach
 //
-//  Compact diagnostic overlay for voice pipeline troubleshooting.
-//  Shows: audio level, VAD state, wake-word status, signal path, event log.
-//  Designed to float over workout UI without blocking it.
-//
+//  Compact diagnostic overlay for troubleshooting voice pipeline + breath analysis.
+//  Two tabs: Voice (mic/VAD/wake word) and Breath (backend DSP analysis).
 //  Toggle via triple-tap on the workout screen.
 //
 
@@ -17,26 +15,15 @@ struct AudioDiagnosticOverlayView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header bar with drag handle
+            // Header bar with tab selector
             headerBar
 
-            // Compact diagnostic content
+            // Tab content
             VStack(spacing: 8) {
-                // 0. Mic Test Button
-                micTestButton
-
-                // 1. Audio Level + dB readout (compact)
-                audioLevelRow
-
-                // 2. Signal Path (MIC → AUDIO → VAD → WAKE → CMD)
-                signalPathRow
-
-                // 3. Wake Word Status (inline)
-                wakeWordRow
-
-                // 4. Event Log (collapsed by default)
-                if showFullLog {
-                    eventLogSection
+                if diagnostics.diagnosticTab == .voice {
+                    voiceDiagnosticsContent
+                } else {
+                    breathDiagnosticsContent
                 }
             }
             .padding(.horizontal, 10)
@@ -52,7 +39,7 @@ struct AudioDiagnosticOverlayView: View {
         .padding(.horizontal, 12)
     }
 
-    // MARK: - Header
+    // MARK: - Header with Tabs
 
     private var headerBar: some View {
         HStack(spacing: 6) {
@@ -61,22 +48,34 @@ struct AudioDiagnosticOverlayView: View {
                 .fill(diagnostics.isMicActive ? AppTheme.success : AppTheme.danger)
                 .frame(width: 6, height: 6)
 
-            Text("VOICE DIAGNOSTICS")
+            Text("DIAGNOSTICS")
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(AppTheme.textPrimary.opacity(0.7))
                 .tracking(0.8)
 
             Spacer()
 
-            // Log toggle
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showFullLog.toggle()
+            // Tab selector
+            HStack(spacing: 0) {
+                tabButton("Voice", tab: .voice)
+                tabButton("Breath", tab: .breath)
+            }
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+
+            Spacer()
+
+            // Log toggle (voice tab only)
+            if diagnostics.diagnosticTab == .voice {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showFullLog.toggle()
+                    }
+                } label: {
+                    Image(systemName: showFullLog ? "chevron.down" : "list.bullet")
+                        .font(.system(size: 9))
+                        .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
                 }
-            } label: {
-                Image(systemName: showFullLog ? "chevron.down" : "list.bullet")
-                    .font(.system(size: 9))
-                    .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
             }
 
             Button {
@@ -91,7 +90,316 @@ struct AudioDiagnosticOverlayView: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: - Mic Test Button
+    private func tabButton(_ label: String, tab: DiagnosticTab) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                diagnostics.diagnosticTab = tab
+            }
+        } label: {
+            Text(label)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(diagnostics.diagnosticTab == tab ? AppTheme.textPrimary : AppTheme.textSecondary.opacity(0.5))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(diagnostics.diagnosticTab == tab ? AppTheme.primaryAccent.opacity(0.3) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+    }
+
+    // MARK: - Voice Diagnostics Content (existing)
+
+    private var voiceDiagnosticsContent: some View {
+        VStack(spacing: 8) {
+            micTestButton
+            audioLevelRow
+            signalPathRow
+            wakeWordRow
+            if showFullLog {
+                eventLogSection
+            }
+        }
+    }
+
+    // MARK: - Breath Diagnostics Content (NEW)
+
+    private var breathDiagnosticsContent: some View {
+        VStack(spacing: 8) {
+            if let analysis = diagnostics.lastBreathAnalysis {
+                // Status row
+                breathStatusRow
+
+                // Signal quality bar
+                breathSignalQualityRow(quality: analysis.signalQuality ?? 0)
+
+                // Intensity badge
+                breathIntensityRow(intensity: analysis.intensityLevel)
+
+                // Metrics grid
+                breathMetricsGrid(analysis: analysis)
+
+                // Breath phases
+                if let phases = analysis.breathPhases, !phases.isEmpty {
+                    breathPhasesRow(phases: phases)
+                }
+
+                // Chunk + error info
+                breathChunkInfoRow
+            } else {
+                // No data state
+                breathNoDataView
+            }
+        }
+    }
+
+    // MARK: - Breath: Status Row
+
+    private var breathStatusRow: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 3) {
+                Circle()
+                    .fill(AppTheme.success)
+                    .frame(width: 5, height: 5)
+                Text(diagnostics.timeSinceLastBreathAnalysis)
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+            }
+
+            if let rtt = diagnostics.backendResponseTime {
+                Text("RTT: \(Int(rtt * 1000))ms")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(rtt < 1.0 ? AppTheme.success.opacity(0.7) : AppTheme.warning.opacity(0.7))
+            }
+
+            Spacer()
+
+            Text("#\(diagnostics.breathAnalysisCount)")
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+        }
+    }
+
+    // MARK: - Breath: Signal Quality
+
+    private func breathSignalQualityRow(quality: Double) -> some View {
+        HStack(spacing: 8) {
+            Text("Signal")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
+                .frame(width: 35, alignment: .leading)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.08))
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(signalQualityColor(quality))
+                        .frame(width: geo.size.width * CGFloat(min(quality, 1.0)))
+                }
+            }
+            .frame(height: 10)
+
+            Text(String(format: "%.2f", quality))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(signalQualityColor(quality))
+                .frame(width: 30, alignment: .trailing)
+        }
+    }
+
+    private func signalQualityColor(_ quality: Double) -> Color {
+        if quality < 0.3 { return AppTheme.danger }
+        if quality < 0.6 { return AppTheme.warning }
+        return AppTheme.success
+    }
+
+    // MARK: - Breath: Intensity
+
+    private func breathIntensityRow(intensity: IntensityLevel) -> some View {
+        HStack(spacing: 6) {
+            Text("Intensity")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
+
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(breathIntensityColor(intensity))
+                    .frame(width: 6, height: 6)
+                Text(intensity.displayName.uppercased())
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(breathIntensityColor(intensity))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(breathIntensityColor(intensity).opacity(0.15))
+            .clipShape(Capsule())
+
+            Spacer()
+        }
+    }
+
+    private func breathIntensityColor(_ level: IntensityLevel) -> Color {
+        switch level {
+        case .calm: return AppTheme.secondaryAccent
+        case .moderate: return AppTheme.primaryAccent
+        case .intense: return AppTheme.warning
+        case .critical: return AppTheme.danger
+        }
+    }
+
+    // MARK: - Breath: Metrics Grid
+
+    private func breathMetricsGrid(analysis: BreathAnalysis) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 0) {
+                breathMetric("BPM", value: String(format: "%.0f", analysis.effectiveRespiratoryRate))
+                breathMetric("Vol", value: String(format: "%.0f", analysis.volume))
+                breathMetric("Silence", value: String(format: "%.0f%%", analysis.silence))
+            }
+            HStack(spacing: 0) {
+                breathMetric("Reg", value: analysis.breathRegularity != nil ? String(format: "%.2f", analysis.breathRegularity!) : "—")
+                breathMetric("I:E", value: analysis.inhaleExhaleRatio != nil ? String(format: "%.2f", analysis.inhaleExhaleRatio!) : "—")
+                breathMetric("Freq", value: analysis.dominantFrequency != nil ? String(format: "%.0fHz", analysis.dominantFrequency!) : "—")
+            }
+        }
+    }
+
+    private func breathMetric(_ label: String, value: String) -> some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(AppTheme.textPrimary.opacity(0.9))
+            Text(label)
+                .font(.system(size: 7, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Breath: Phases
+
+    private func breathPhasesRow(phases: [BreathPhaseEvent]) -> some View {
+        HStack(spacing: 3) {
+            Text("Phases")
+                .font(.system(size: 7, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                .frame(width: 32, alignment: .leading)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(phases.suffix(8)) { phase in
+                        HStack(spacing: 1) {
+                            Text(phaseSymbol(phase.type))
+                                .font(.system(size: 8))
+                            Text(String(format: "%.0f%%", phase.confidence * 100))
+                                .font(.system(size: 7, weight: .medium, design: .monospaced))
+                        }
+                        .foregroundStyle(phaseColor(phase.type))
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 2)
+                        .background(phaseColor(phase.type).opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                }
+            }
+        }
+    }
+
+    private func phaseSymbol(_ type: String) -> String {
+        switch type {
+        case "inhale": return "\u{2193}" // ↓
+        case "exhale": return "\u{2191}" // ↑
+        case "pause": return "\u{2016}"  // ‖
+        default: return "?"
+        }
+    }
+
+    private func phaseColor(_ type: String) -> Color {
+        switch type {
+        case "inhale": return AppTheme.secondaryAccent
+        case "exhale": return AppTheme.primaryAccent
+        case "pause": return AppTheme.textSecondary.opacity(0.5)
+        default: return AppTheme.textSecondary
+        }
+    }
+
+    // MARK: - Breath: Chunk Info
+
+    private var breathChunkInfoRow: some View {
+        HStack(spacing: 8) {
+            if let bytes = diagnostics.chunkSizeBytes {
+                Text("Chunk: \(bytes / 1024)KB")
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+            }
+
+            if let dur = diagnostics.chunkDuration {
+                Text(String(format: "%.1fs", dur))
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+            }
+
+            Spacer()
+
+            if diagnostics.breathAnalysisErrors > 0 {
+                Text("Errors: \(diagnostics.breathAnalysisErrors)")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(AppTheme.danger.opacity(0.7))
+            }
+        }
+    }
+
+    // MARK: - Breath: No Data
+
+    private var breathNoDataView: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "lungs")
+                .font(.system(size: 20))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.3))
+
+            Text("No breath data")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+
+            Text("Start a workout to see breath analysis")
+                .font(.system(size: 8))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.3))
+
+            // Show last error message for debugging
+            if let error = diagnostics.lastBreathError {
+                VStack(spacing: 2) {
+                    Text("Last error:")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(AppTheme.danger.opacity(0.7))
+                    Text(error)
+                        .font(.system(size: 7, design: .monospaced))
+                        .foregroundStyle(AppTheme.danger.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(4)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(AppTheme.danger.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            if diagnostics.breathAnalysisErrors > 0 {
+                Text("Total errors: \(diagnostics.breathAnalysisErrors)")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(AppTheme.danger.opacity(0.6))
+            }
+
+            // Show tick count even when no data (to see if loop is running)
+            if diagnostics.breathAnalysisCount > 0 {
+                Text("Ticks received: \(diagnostics.breathAnalysisCount)")
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.success.opacity(0.6))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Voice Tab: Existing Views
 
     private var micTestButton: some View {
         Button {
@@ -118,11 +426,8 @@ struct AudioDiagnosticOverlayView: View {
         }
     }
 
-    // MARK: - Audio Level Row (compact meter + dB)
-
     private var audioLevelRow: some View {
         HStack(spacing: 8) {
-            // Level bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
@@ -133,7 +438,6 @@ struct AudioDiagnosticOverlayView: View {
                         .frame(width: geo.size.width * CGFloat(diagnostics.audioLevel))
                         .animation(.linear(duration: 0.05), value: diagnostics.audioLevel)
 
-                    // VAD threshold marker
                     Rectangle()
                         .fill(AppTheme.warning.opacity(0.5))
                         .frame(width: 1)
@@ -142,21 +446,17 @@ struct AudioDiagnosticOverlayView: View {
             }
             .frame(height: 14)
 
-            // dB readout
             Text(String(format: "%.0fdB", diagnostics.decibelLevel))
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .foregroundStyle(diagnostics.isVoiceDetected ? AppTheme.success : AppTheme.textSecondary.opacity(0.5))
                 .frame(width: 38, alignment: .trailing)
 
-            // VAD badge
-            Text(diagnostics.isVoiceDetected ? "VOICE" : "—")
+            Text(diagnostics.isVoiceDetected ? "VOICE" : "\u{2014}")
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(diagnostics.isVoiceDetected ? AppTheme.success : AppTheme.textSecondary.opacity(0.3))
                 .frame(width: 32)
         }
     }
-
-    // MARK: - Signal Path Row
 
     private var signalPathRow: some View {
         HStack(spacing: 3) {
@@ -172,11 +472,8 @@ struct AudioDiagnosticOverlayView: View {
         }
     }
 
-    // MARK: - Wake Word Row (inline)
-
     private var wakeWordRow: some View {
         HStack(spacing: 6) {
-            // Status pill
             HStack(spacing: 3) {
                 Circle()
                     .fill(wakeWordStatusColor)
@@ -190,14 +487,12 @@ struct AudioDiagnosticOverlayView: View {
             .background(wakeWordStatusColor.opacity(0.12))
             .clipShape(Capsule())
 
-            // Recognizer badge
             Image(systemName: diagnostics.speechRecognizerAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .font(.system(size: 8))
                 .foregroundStyle(diagnostics.speechRecognizerAvailable ? AppTheme.success.opacity(0.6) : AppTheme.danger.opacity(0.6))
 
             Spacer()
 
-            // Last utterance (if any)
             if let utterance = diagnostics.lastUtterance {
                 Text("\"\(utterance)\"")
                     .font(.system(size: 8, design: .monospaced))
@@ -207,8 +502,6 @@ struct AudioDiagnosticOverlayView: View {
             }
         }
     }
-
-    // MARK: - Event Log (expandable)
 
     private var eventLogSection: some View {
         VStack(alignment: .leading, spacing: 2) {
