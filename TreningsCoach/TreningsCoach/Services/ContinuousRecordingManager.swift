@@ -8,6 +8,7 @@
 
 import Foundation
 import AVFoundation
+import AVFAudio
 
 class ContinuousRecordingManager: NSObject {
 
@@ -46,16 +47,30 @@ class ContinuousRecordingManager: NSObject {
         let audioSession = AVAudioSession.sharedInstance()
 
         // Ensure microphone permission is granted
-        switch audioSession.recordPermission {
-        case .granted:
-            break
-        case .denied:
-            throw RecordingError.noPermission
-        case .undetermined:
-            audioSession.requestRecordPermission { _ in }
-            throw RecordingError.noPermission
-        @unknown default:
-            throw RecordingError.noPermission
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted:
+                break
+            case .denied:
+                throw RecordingError.noPermission
+            case .undetermined:
+                AVAudioApplication.requestRecordPermission { _ in }
+                throw RecordingError.noPermission
+            @unknown default:
+                throw RecordingError.noPermission
+            }
+        } else {
+            switch audioSession.recordPermission {
+            case .granted:
+                break
+            case .denied:
+                throw RecordingError.noPermission
+            case .undetermined:
+                audioSession.requestRecordPermission { _ in }
+                throw RecordingError.noPermission
+            @unknown default:
+                throw RecordingError.noPermission
+            }
         }
 
         // IMPORTANT: Deactivate first to allow category change

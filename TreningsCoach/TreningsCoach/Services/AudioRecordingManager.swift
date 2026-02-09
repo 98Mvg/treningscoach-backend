@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import AVFAudio
 
 class AudioRecordingManager: NSObject, ObservableObject {
     private var audioRecorder: AVAudioRecorder?
@@ -35,9 +36,26 @@ class AudioRecordingManager: NSObject, ObservableObject {
             // Don't activate here - let the actual recording/playback activate it
             // try recordingSession.setActive(true)
 
-            recordingSession.requestRecordPermission { [weak self] allowed in
-                DispatchQueue.main.async {
-                    self?.hasPermission = allowed
+            if #available(iOS 17.0, *) {
+                switch AVAudioApplication.shared.recordPermission {
+                case .granted:
+                    hasPermission = true
+                case .denied:
+                    hasPermission = false
+                case .undetermined:
+                    AVAudioApplication.requestRecordPermission { [weak self] allowed in
+                        DispatchQueue.main.async {
+                            self?.hasPermission = allowed
+                        }
+                    }
+                @unknown default:
+                    hasPermission = false
+                }
+            } else {
+                recordingSession.requestRecordPermission { [weak self] allowed in
+                    DispatchQueue.main.async {
+                        self?.hasPermission = allowed
+                    }
                 }
             }
         } catch {
