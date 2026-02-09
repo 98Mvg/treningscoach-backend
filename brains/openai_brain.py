@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, AsyncIterator, List
 from openai import OpenAI, AsyncOpenAI
 from .base_brain import BaseBrain
 import config
+from coach_personality import get_coach_prompt
 
 
 class OpenAIBrain(BaseBrain):
@@ -88,48 +89,15 @@ class OpenAIBrain(BaseBrain):
             return self._get_fallback_message(intensitet, phase)
 
     def _build_realtime_system_prompt(self, phase: str, intensitet: str) -> str:
-        """Build system prompt for REALTIME COACH mode (STEP 3)."""
+        """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
-        # Core identity: Real-time coach, not chat
-        prompt = """You are a REAL-TIME FITNESS COACH speaking during a live workout.
+        # Use the shared endurance coach personality with realtime constraints
+        base_prompt = get_coach_prompt(mode="realtime_coach")
 
-CRITICAL RULES (this is not chat):
-- Output EXACTLY 1 sentence (max 10 words)
-- Zero explanations, zero theory, zero filler
-- Actionable commands ONLY
-- Spoken language (natural, direct)
-- No bullet points, no structure, no preamble
+        # Add current context
+        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
 
-WRONG (chat mode):
-"Great work! You're breathing hard, which shows you're pushing yourself. Keep maintaining this intensity for the next 30 seconds and remember to stay focused on your form."
-
-RIGHT (realtime_coach mode):
-"Perfect! Hold this pace!"
-
-Your response will be spoken aloud to someone mid-workout. Make it count."""
-
-        # Context-specific guidance
-        if phase == "warmup":
-            prompt += "\n\nPhase: WARMUP - Calm, encouraging, help them start gently."
-        elif phase == "cooldown":
-            prompt += "\n\nPhase: COOLDOWN - Soothing, help them wind down."
-        else:  # intense
-            if intensitet == "rolig":
-                prompt += "\n\nPhase: INTENSE - They're too calm. Push them to increase effort!"
-            elif intensitet == "moderat":
-                prompt += "\n\nPhase: INTENSE - Good pace. Keep them motivated!"
-            elif intensitet == "hard":
-                prompt += "\n\nPhase: INTENSE - They're going hard! Affirm and celebrate!"
-
-        # Add 2-3 style examples from config (STEP 2 messages)
-        if phase == "intense" and intensitet in config.CONTINUOUS_COACH_MESSAGES["intense"]:
-            examples = config.CONTINUOUS_COACH_MESSAGES["intense"][intensitet][:2]
-            prompt += f"\n\nStyle examples:\n" + "\n".join(f'- "{msg}"' for msg in examples)
-        elif phase in ["warmup", "cooldown"]:
-            examples = config.CONTINUOUS_COACH_MESSAGES.get(phase, [])[:2]
-            prompt += f"\n\nStyle examples:\n" + "\n".join(f'- "{msg}"' for msg in examples)
-
-        return prompt
+        return base_prompt + context
 
     def get_coaching_response(
         self,
@@ -173,34 +141,15 @@ Your response will be spoken aloud to someone mid-workout. Make it count."""
             return self._get_fallback_message(intensitet, phase)
 
     def _build_coaching_system_prompt(self, phase: str, intensitet: str) -> str:
-        """Build system prompt for OpenAI based on phase and intensity."""
-        base_prompt = """You are a motivating fitness coach giving short, powerful commands based on breath analysis.
+        """Build system prompt for CHAT MODE using endurance coach personality."""
 
-Rules:
-- Max 5-7 words per message
-- Use CAPS for intensity
-- Be direct and motivating
-- Adapt tone to workout phase and breathing intensity
-"""
+        # Use the shared endurance coach personality for conversational coaching
+        base_prompt = get_coach_prompt(mode="chat")
 
-        if phase == "warmup":
-            base_prompt += "\nPhase: WARMUP - Be calm and encouraging. Help the user start carefully."
-        elif phase == "cooldown":
-            base_prompt += "\nPhase: COOLDOWN - Be calm and soothing. Help the user wind down."
-        else:  # intense
-            if intensitet == "rolig":
-                base_prompt += "\nPhase: INTENSE TRAINING - User is breathing TOO CALM. Push them to increase intensity!"
-            elif intensitet == "moderat":
-                base_prompt += "\nPhase: INTENSE TRAINING - User is at moderate intensity. Maintain motivation!"
-            elif intensitet == "hard":
-                base_prompt += "\nPhase: INTENSE TRAINING - User is going ALL OUT! Affirm and encourage!"
+        # Add current context
+        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."
 
-        # Add example messages from config as style guide
-        example_messages = self._get_example_messages(phase, intensitet)
-        if example_messages:
-            base_prompt += f"\n\nStyle examples:\n" + "\n".join(f"- {msg}" for msg in example_messages[:3])
-
-        return base_prompt
+        return base_prompt + context
 
     def _build_coaching_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:
         """Build user message with breath analysis data."""
