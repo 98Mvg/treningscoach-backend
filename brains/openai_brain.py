@@ -29,7 +29,8 @@ class OpenAIBrain(BaseBrain):
         # Async client for streaming chat
         self.async_client = AsyncOpenAI(api_key=self.api_key)
 
-        self.model = "gpt-4o"
+        # gpt-4o-mini is cheapest ($0.15/$0.60 per 1M tokens) with great quality
+        self.model = "gpt-4o-mini"
 
     # ============================================
     # BREATH COACHING MODES

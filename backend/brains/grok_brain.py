@@ -35,7 +35,7 @@ class GrokBrain(BaseBrain):
 
         Args:
             api_key: xAI API key (starts with "xai-"). Falls back to XAI_API_KEY env var.
-            model: Model to use. Defaults to XAI_MODEL env var or "grok-3-fast".
+            model: Model to use. Defaults to XAI_MODEL env var or "grok-3-mini".
         """
         super().__init__(api_key)
         self.api_key = api_key or os.getenv("XAI_API_KEY")
@@ -43,7 +43,8 @@ class GrokBrain(BaseBrain):
             raise ValueError("XAI_API_KEY not found in environment")
 
         # Model selection: env var > parameter > default
-        self.model = model or os.getenv("XAI_MODEL", "grok-3-fast")
+        # grok-3-mini is cheapest ($0.30/$0.50 per 1M tokens) and outperforms grok-3
+        self.model = model or os.getenv("XAI_MODEL", "grok-3-mini")
 
         # Sync client for legacy coaching (OpenAI SDK with xAI base URL)
         self.client = OpenAI(

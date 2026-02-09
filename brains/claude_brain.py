@@ -30,7 +30,9 @@ class ClaudeBrain(BaseBrain):
         # Async client for streaming chat
         self.async_client = AsyncAnthropic(api_key=self.api_key)
 
-        self.model = "claude-3-5-sonnet-20241022"
+        # claude-3-haiku is cheapest ($0.25/$1.25 per 1M tokens)
+        # For short coaching cues, Haiku is fast + cheap enough
+        self.model = "claude-3-haiku-20240307"
 
     # ============================================
     # BREATH COACHING MODES
