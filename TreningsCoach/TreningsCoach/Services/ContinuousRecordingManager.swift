@@ -87,23 +87,29 @@ class ContinuousRecordingManager: NSObject {
 
         // Get input node
         let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-        if format.channelCount == 0 || format.sampleRate == 0 {
+
+        // Read the hardware format for validation only
+        let hwFormat = inputNode.outputFormat(forBus: 0)
+        if hwFormat.channelCount == 0 || hwFormat.sampleRate == 0 {
             throw RecordingError.recordingFailed
         }
-        currentFormat = format
 
-        print("📱 Audio format: \(format.sampleRate)Hz, \(format.channelCount) channels, interleaved=\(format.isInterleaved)")
+        print("📱 Hardware format: \(hwFormat.sampleRate)Hz, \(hwFormat.channelCount) channels, interleaved=\(hwFormat.isInterleaved)")
 
-        // Feed sample rate to diagnostics
-        Task { @MainActor in
-            AudioPipelineDiagnostics.shared.sampleRate = format.sampleRate
-            AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(format.sampleRate)Hz, \(format.channelCount)ch, interleaved=\(format.isInterleaved)")
-        }
-
-        // Install tap to capture audio continuously
-        // Buffers are used for both breath analysis (circular buffer) and wake word detection
-        inputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, time in
+        // Install tap with nil format — lets the system use the native hardware format.
+        // Passing an explicit format can crash with "format mismatch" when the audio
+        // session's hardware sample rate differs from the inputNode's cached format.
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, time in
+            // Capture the actual format from the first buffer callback
+            if self?.currentFormat == nil {
+                let fmt = buffer.format
+                self?.currentFormat = fmt
+                print("📱 Tap format (actual): \(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved)")
+                Task { @MainActor in
+                    AudioPipelineDiagnostics.shared.sampleRate = fmt.sampleRate
+                    AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved)")
+                }
+            }
             self?.processAudioBuffer(buffer)
             // Forward to wake word speech recognizer
             self?.onAudioBuffer?(buffer)
@@ -166,6 +172,7 @@ class ContinuousRecordingManager: NSObject {
         recordingStartTime = nil
         pausedDuration = 0
         pauseStartTime = nil
+        currentFormat = nil
 
         // Deactivate audio session
         do {
