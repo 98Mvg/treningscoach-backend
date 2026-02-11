@@ -85,8 +85,8 @@ class BackendAPIService {
     }
 
     /// Get welcome message for workout start
-    func getWelcomeMessage(language: String = "en") async throws -> WelcomeResponse {
-        let url = URL(string: "\(baseURL)/welcome?language=\(language)")!
+    func getWelcomeMessage(language: String = "en", persona: String = "personal_trainer") async throws -> WelcomeResponse {
+        let url = URL(string: "\(baseURL)/welcome?language=\(language)&persona=\(persona)")!
         let request = authenticatedRequest(url: url)
         let (data, response) = try await session.data(for: request)
 

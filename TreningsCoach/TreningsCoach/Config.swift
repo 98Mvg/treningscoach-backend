@@ -17,7 +17,7 @@ struct AppConfig {
 
     // MARK: - Backend
     static let productionURL = "https://treningscoach-backend.onrender.com"
-    static let localURL = "http://localhost:10000"
+    static let localURL = "http://localhost:5001"
 
     // Switch to productionURL for deployed backend, localURL for dev
     static let backendURL = productionURL
