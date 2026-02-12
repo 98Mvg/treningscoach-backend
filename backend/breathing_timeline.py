@@ -201,9 +201,9 @@ class BreathingTimeline:
         if not timeline:
             return None
 
-        # Check interval
+        # Check interval (always allow the very first cue immediately)
         time_since_last = elapsed_seconds - self.last_cue_time
-        if time_since_last < timeline["cue_interval"]:
+        if self.cues_given > 0 and time_since_last < timeline["cue_interval"]:
             return None
 
         self.last_cue_time = elapsed_seconds
