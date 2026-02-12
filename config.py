@@ -52,8 +52,10 @@ BREATH_SMOOTHING_WINDOW = 4
 # Maximum silence before forcing a coach cue (seconds)
 # 30s ensures coach doesn't disappear — users expect active coaching
 MAX_SILENCE_SECONDS = 30
-# Minimum signal quality required to force a cue (low threshold — phone mics are noisy during workouts)
-MIN_SIGNAL_QUALITY_TO_FORCE = 0.1
+# Minimum signal quality required to force a cue after max silence
+# Set to 0.0 so the override ALWAYS fires — phone mics are noisy during workouts
+# and we never want the coach to go permanently silent
+MIN_SIGNAL_QUALITY_TO_FORCE = 0.0
 
 # Persona-specific voices
 # Maps to iOS CoachPersonality enum values

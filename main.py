@@ -744,7 +744,7 @@ def coach_continuous():
             if should_be_silent:
                 # Cap silence so coach doesn't disappear
                 max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.2)
+                min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
                 signal_quality = breath_data.get("signal_quality") or 0.0
 
                 if elapsed_since_last is not None and elapsed_since_last >= max_silence and signal_quality >= min_quality:
@@ -1476,7 +1476,7 @@ def coach_talk():
         logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
 
         # Build system prompt based on context
-        name_context = f"\n- The athlete's name is {user_name}. Use it occasionally for a personal touch." if user_name else ""
+        name_context = f"\n- The athlete's name is {user_name}. Use it at most once in this response, and only if it feels natural." if user_name else ""
 
         if context == 'workout':
             # Mid-workout: user spoke via wake word — keep response VERY SHORT

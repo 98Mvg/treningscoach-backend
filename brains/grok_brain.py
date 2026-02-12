@@ -123,9 +123,9 @@ class GrokBrain(BaseBrain):
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
 
-        # Personalize with user name — coach occasionally uses their name
+        # Personalize with user name — RARE usage (max 1-2 times per workout)
         if user_name:
-            context += f"\n- Athlete's name: {user_name}. Use their name occasionally (not every message) for a personal touch."
+            context += f"\n- Athlete's name: {user_name}. Use their name at MOST once or twice during the entire workout — never on back-to-back messages. Most messages should NOT include the name."
 
         return base_prompt + context
 
@@ -177,9 +177,9 @@ class GrokBrain(BaseBrain):
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."
 
-        # Personalize with user name
+        # Personalize with user name — RARE usage
         if user_name:
-            context += f"\nAthlete's name: {user_name}. Use their name occasionally for a personal touch."
+            context += f"\nAthlete's name: {user_name}. Use their name at MOST once or twice total — never on consecutive messages. Most messages should NOT include the name."
 
         return base_prompt + context
 

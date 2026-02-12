@@ -10,7 +10,6 @@ import SwiftUI
 struct ActiveWorkoutView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var showDiagnostics = false
-    @State private var tapCount = 0
 
     var body: some View {
         ZStack {
@@ -37,8 +36,10 @@ struct ActiveWorkoutView: View {
                     TimerRingView(progress: viewModel.phaseProgress, size: AppConfig.Layout.timerRingSize, lineWidth: 6)
                     CoachOrbView(state: viewModel.orbState, size: AppConfig.Layout.orbSize)
                 }
-                .onTapGesture(count: 3) {
-                    showDiagnostics.toggle()
+                .onLongPressGesture(minimumDuration: 1.5) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showDiagnostics.toggle()
+                    }
                 }
 
                 // Elapsed time
@@ -84,13 +85,13 @@ struct ActiveWorkoutView: View {
                 .padding(.bottom, 40)
             }
 
-            // Diagnostics overlay (triple-tap to toggle)
+            // Diagnostics overlay (long-press orb to toggle)
             if showDiagnostics {
                 VStack {
+                    AudioDiagnosticOverlayView(isPresented: $showDiagnostics)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 60)
                     Spacer()
-                    AudioDiagnosticOverlayView()
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .padding(.bottom, 20)
                 }
             }
         }

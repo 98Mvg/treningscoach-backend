@@ -91,14 +91,19 @@ class VoiceIntelligence:
             self.silence_count = 0
             return (False, "early_workout")
 
+        # Hard cap: never stay silent more than 3 consecutive ticks regardless of reason
+        # This prevents cascading silence from multiple conditions
+        if self.silence_count >= 3:
+            self.silence_count = 0
+            return (False, "max_consecutive_silence")
+
         # Noisy audio: still coach! Coach should motivate regardless of signal.
-        # Breath data may be unreliable but coach messages (pace, encouragement) still help.
-        # Only note it for logging, don't suppress coaching.
-        if signal_quality is not None and signal_quality < 0.1:
-            # Very poor signal — skip ONE tick, then coach anyway
+        # Only skip if signal is essentially zero (mic disconnected / muted)
+        if signal_quality is not None and signal_quality < 0.03:
+            # Near-zero signal — skip ONE tick, then coach anyway
             if self.silence_count < 1:
                 self.silence_count += 1
-                return (True, "very_noisy_audio")
+                return (True, "near_zero_signal")
 
         # Stay silent ONLY if breathing is highly regular AND matches phase target
         # Even then, max 1 consecutive silent tick

@@ -430,7 +430,7 @@ async def coach(
     1. Receive breath audio from iOS
     2. Analyze breathing intensity
     3. Get coaching text from Claude
-    4. Synthesize speech with ElevenLabs
+    4. Synthesize speech with Qwen3-TTS
     5. Return audio + metadata
     """
     try:
