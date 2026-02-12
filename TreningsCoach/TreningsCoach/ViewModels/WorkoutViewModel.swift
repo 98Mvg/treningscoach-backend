@@ -412,9 +412,9 @@ class WorkoutViewModel: ObservableObject {
 
     private func autoDetectPhase() {
         // Auto-detect workout phase based on duration
-        // Uses user-selected warmup time (0, 1, 2, 3, or 5 minutes)
-        // After warmup: intense until 15 minutes total
-        // After 15 minutes: cooldown
+        // Uses user-selected warmup time (0–40 minutes)
+        // After warmup: intense for 15 minutes
+        // After intense: cooldown
 
         guard let startTime = sessionStartTime else {
             currentPhase = selectedWarmupMinutes > 0 ? .warmup : .intense
@@ -423,12 +423,13 @@ class WorkoutViewModel: ObservableObject {
 
         let duration = Date().timeIntervalSince(startTime)
         let warmupSeconds = TimeInterval(selectedWarmupMinutes * 60)
+        let intenseEndSeconds = warmupSeconds + AppConfig.intenseDuration // warmup + 15 min
 
         if selectedWarmupMinutes > 0 && duration < warmupSeconds && !hasSkippedWarmup {
             currentPhase = .warmup
-        } else if duration < 900 { // Until 15 minutes total
+        } else if duration < intenseEndSeconds {
             currentPhase = .intense
-        } else { // After 15 minutes
+        } else {
             currentPhase = .cooldown
         }
     }
