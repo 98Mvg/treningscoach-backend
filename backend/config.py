@@ -24,8 +24,12 @@ VOICE_CONFIG = {
         "name": "English Coach"
     },
     "no": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_NO", os.getenv("ELEVENLABS_VOICE_ID", "")),
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_NO", "nhvaqgRyAq6BmFs3WcdX"),
         "name": "Norwegian Coach"
+    },
+    "da": {
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DA", ""),
+        "name": "Danish Coach"
     }
 }
 

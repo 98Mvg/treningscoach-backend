@@ -260,12 +260,16 @@ def generate_voice(text, language=None, persona=None):
     try:
         if USE_ELEVENLABS:
             # Use ElevenLabs with persona-specific voice settings
-            return elevenlabs_tts.generate_audio(text, language=language, persona=persona)
+            result = elevenlabs_tts.generate_audio(text, language=language, persona=persona)
+            print(f"[TTS] OK lang={language} persona={persona} file={os.path.basename(result)}")
+            return result
         else:
             # Fallback to mock (Qwen disabled)
+            print(f"[TTS] MOCK (ElevenLabs disabled) lang={language}")
             return synthesize_speech_mock(text)
     except Exception as e:
         logger.error(f"TTS failed, using mock: {e}")
+        print(f"[TTS] FAILED lang={language} persona={persona} error={type(e).__name__}: {e}")
         # Fallback to mock for development/testing
         return synthesize_speech_mock(text)
 
@@ -283,7 +287,7 @@ def health():
     """Enkel helse-sjekk for å se at serveren lever"""
     return jsonify({
         "status": "healthy",
-        "version": "1.1.0",
+        "version": config.APP_VERSION,
         "timestamp": datetime.now().isoformat(),
         "endpoints": {
             "analyze": "/analyze",
