@@ -2,7 +2,7 @@
 
 You are working inside an existing, production codebase. Your job is to improve and extend it WITHOUT breaking working behavior, WITHOUT moving files across directories, and WITHOUT inventing endpoints.
 
-This is a low-latency AI Coach app that uses physiological signals (breath analysis) to guide users through workouts with real-time voice feedback. The backend Brain Router abstracts multiple AI providers. The iOS app never knows which provider is active.
+This is a low-latency AI Coach app ("Coachi", v3.0) with "Midnight Ember" design system. Uses physiological signals (breath analysis) to guide users through workouts with real-time voice feedback. The backend Brain Router abstracts multiple AI providers. The iOS app never knows which provider is active.
 
 ---
 
@@ -105,6 +105,13 @@ diff backend/requirements.txt requirements.txt
 3. Do NOT delete anything without explicit instruction
 
 Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coaching.py, test_first_breath.py). This is expected.
+
+### CRITICAL: Xcode project.pbxproj is NOT in git
+
+`TreningsCoach/TreningsCoach.xcodeproj/project.pbxproj` is NOT tracked by git (it's in `.gitignore`).
+- Adding/deleting Swift files requires manual pbxproj edits (PBXBuildFile, PBXFileReference, PBXGroup, PBXSourcesBuildPhase)
+- The `.xcodeproj` lives in the main repo only, NOT in git worktrees
+- Xcode builds from the main repo checkout — worktree branch changes must be merged to the branch checked out in main repo before they appear in Xcode builds
 
 ---
 
@@ -268,13 +275,17 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 
 | File | What it does | When to edit |
 |------|-------------|--------------|
+| `AppTheme.swift` | CoachiTheme design system — colors, gradients, view modifiers | Changing colors, fonts, card styles |
+| `AppViewModel.swift` | App-level state: onboarding, language, user profile | Onboarding flow, app-wide state |
+| `RootView.swift` | Root navigation: onboarding vs MainTabView | App entry flow changes |
 | `Config.swift` | Backend URL, phase timings, version | Changing backend URL or timing |
 | `WorkoutViewModel.swift` | Main workout logic + state machine | Workout flow changes |
 | `ContinuousRecordingManager.swift` | Real-time audio capture | Audio recording issues |
 | `BackendAPIService.swift` | All HTTP calls to backend | API changes |
-| `TreningsCoachApp.swift` | Entry point, onboarding flow | App startup changes |
-| `VoiceOrbView.swift` | Animated orb (idle/listening/speaking) | UI animation changes |
+| `TreningsCoachApp.swift` | Entry point, injects AppViewModel + AuthManager | App startup changes |
+| `CoachOrbView.swift` | Animated coaching orb (idle/listening/speaking) | UI animation changes |
 | `AudioPipelineDiagnostics.swift` | Debug overlay for audio pipeline | Debugging audio |
+| `L10n.swift` | All bilingual strings (en/no) | Adding user-facing text |
 
 ### iOS Design Rules
 - Workout screen must be immersive. No settings UI during workout.
