@@ -85,8 +85,12 @@ class BackendAPIService {
     }
 
     /// Get welcome message for workout start
-    func getWelcomeMessage(language: String = "en", persona: String = "personal_trainer") async throws -> WelcomeResponse {
-        let url = URL(string: "\(baseURL)/welcome?language=\(language)&persona=\(persona)")!
+    func getWelcomeMessage(language: String = "en", persona: String = "personal_trainer", userName: String = "") async throws -> WelcomeResponse {
+        var urlString = "\(baseURL)/welcome?language=\(language)&persona=\(persona)"
+        if !userName.isEmpty, let encoded = userName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            urlString += "&user_name=\(encoded)"
+        }
+        let url = URL(string: urlString)!
         let request = authenticatedRequest(url: url)
         let (data, response) = try await session.data(for: request)
 
@@ -124,7 +128,8 @@ class BackendAPIService {
         elapsedSeconds: Int,
         language: String = "en",
         trainingLevel: String = "intermediate",
-        persona: String = "personal_trainer"
+        persona: String = "personal_trainer",
+        userName: String = ""
     ) async throws -> ContinuousCoachResponse {
         let url = URL(string: "\(baseURL)/coach/continuous")!
         let request = try createContinuousMultipartRequest(
@@ -136,7 +141,8 @@ class BackendAPIService {
             elapsedSeconds: elapsedSeconds,
             language: language,
             trainingLevel: trainingLevel,
-            persona: persona
+            persona: persona,
+            userName: userName
         )
 
         let (data, response) = try await session.data(for: request)
@@ -181,7 +187,8 @@ class BackendAPIService {
         phase: String,
         intensity: String,
         persona: String,
-        language: String
+        language: String,
+        userName: String = ""
     ) async throws -> CoachTalkResponse {
         let url = URL(string: "\(baseURL)/coach/talk")!
         var request = URLRequest(url: url)
@@ -189,7 +196,7 @@ class BackendAPIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
 
-        let body: [String: String] = [
+        var body: [String: String] = [
             "message": message,
             "session_id": sessionId,
             "phase": phase,
@@ -198,6 +205,9 @@ class BackendAPIService {
             "language": language,
             "context": "workout"  // Tells backend this is mid-workout, not casual chat
         ]
+        if !userName.isEmpty {
+            body["user_name"] = userName
+        }
         request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await session.data(for: request)
@@ -338,7 +348,8 @@ class BackendAPIService {
         elapsedSeconds: Int,
         language: String = "en",
         trainingLevel: String = "intermediate",
-        persona: String = "personal_trainer"
+        persona: String = "personal_trainer",
+        userName: String = ""
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -373,6 +384,9 @@ class BackendAPIService {
         appendField(name: "language", value: language)
         appendField(name: "training_level", value: trainingLevel)
         appendField(name: "persona", value: persona)
+        if !userName.isEmpty {
+            appendField(name: "user_name", value: userName)
+        }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 

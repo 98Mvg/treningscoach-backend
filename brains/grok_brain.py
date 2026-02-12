@@ -86,7 +86,8 @@ class GrokBrain(BaseBrain):
 
         # Build ultra-minimal context for Grok
         language = breath_data.get("language", "en")
-        system_prompt = self._build_realtime_system_prompt(phase, intensitet, language)
+        user_name = breath_data.get("user_name", "")
+        system_prompt = self._build_realtime_system_prompt(phase, intensitet, language, user_name=user_name)
         user_message = f"{intensitet} breathing, {phase} phase. One action:"
 
         try:
@@ -113,7 +114,7 @@ class GrokBrain(BaseBrain):
             # Fallback to config messages (still fast)
             return self._get_fallback_message(intensitet, phase)
 
-    def _build_realtime_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
+    def _build_realtime_system_prompt(self, phase: str, intensitet: str, language: str, user_name: str = "") -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the shared endurance coach personality with realtime constraints
@@ -121,6 +122,10 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
+
+        # Personalize with user name — coach occasionally uses their name
+        if user_name:
+            context += f"\n- Athlete's name: {user_name}. Use their name occasionally (not every message) for a personal touch."
 
         return base_prompt + context
 
@@ -141,7 +146,8 @@ class GrokBrain(BaseBrain):
             return random.choice(config.COACH_MESSAGES["kritisk"])
 
         language = breath_data.get("language", "en")
-        system_prompt = self._build_coaching_system_prompt(phase, intensitet, language)
+        user_name = breath_data.get("user_name", "")
+        system_prompt = self._build_coaching_system_prompt(phase, intensitet, language, user_name=user_name)
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -162,7 +168,7 @@ class GrokBrain(BaseBrain):
             print(f"Grok API error: {e}")
             return self._get_fallback_message(intensitet, phase)
 
-    def _build_coaching_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
+    def _build_coaching_system_prompt(self, phase: str, intensitet: str, language: str, user_name: str = "") -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the shared endurance coach personality for conversational coaching
@@ -170,6 +176,10 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."
+
+        # Personalize with user name
+        if user_name:
+            context += f"\nAthlete's name: {user_name}. Use their name occasionally for a personal touch."
 
         return base_prompt + context
 

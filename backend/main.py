@@ -312,6 +312,7 @@ def welcome():
         experience = request.args.get('experience', 'standard')
         language = request.args.get('language', 'en')
         persona = request.args.get('persona', 'personal_trainer')
+        user_name = request.args.get('user_name', '').strip()
 
         # Select message category based on experience
         if experience == 'beginner':
@@ -329,7 +330,14 @@ def welcome():
         messages = welcome_bank.get(message_category, welcome_bank.get('standard', ["Welcome."]))
         welcome_text = random.choice(messages)
 
-        logger.info(f"Welcome message requested: experience={experience}, language={language}, message='{welcome_text}'")
+        # Personalize welcome with user name (first message of session uses name)
+        if user_name:
+            if language == "no":
+                welcome_text = f"Hei {user_name}! {welcome_text}"
+            else:
+                welcome_text = f"Hey {user_name}! {welcome_text}"
+
+        logger.info(f"Welcome message requested: experience={experience}, language={language}, user={user_name or 'anon'}, message='{welcome_text}'")
 
         # Generate or use cached audio (language + persona-aware voice)
         voice_file = generate_voice(welcome_text, language=language, persona=persona)
@@ -510,6 +518,7 @@ def coach_continuous():
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
         workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
+        user_name = request.form.get('user_name', '').strip()
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -541,7 +550,7 @@ def coach_continuous():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
-        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, mode={workout_mode}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}")
+        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, mode={workout_mode}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}, user={user_name or 'anon'}")
 
         # Create session if doesn't exist
         if not session_manager.session_exists(session_id):
@@ -560,7 +569,7 @@ def coach_continuous():
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
-                "metadata": {"workout_mode": workout_mode}
+                "metadata": {"workout_mode": workout_mode, "user_name": user_name}
             }
             logger.info(f"✅ Created session: {session_id}")
             session_manager.init_workout_state(session_id, phase=phase)
@@ -811,13 +820,13 @@ def coach_continuous():
                 logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
             else:
                 # Use config phrase that matches strategic intent
-                coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona)
+                coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
                 logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
         elif pattern_insight and speak_decision:
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
             logger.info(f"Using pattern insight instead of config message")
         else:
-            coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona)
+            coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
         if speak_decision and not use_welcome:
@@ -883,7 +892,7 @@ def coach_continuous():
         return jsonify({"error": "Internal server error"}), 500
 
 
-def get_coach_response_continuous(breath_data, phase, language="en", persona=None):
+def get_coach_response_continuous(breath_data, phase, language="en", persona=None, user_name=None):
     """
     STEP 3: Get coaching message using REALTIME_COACH brain mode.
 
@@ -897,7 +906,8 @@ def get_coach_response_continuous(breath_data, phase, language="en", persona=Non
         phase=phase,
         mode="realtime_coach",  # Product-defining: fast, actionable, no explanations
         language=language,
-        persona=persona
+        persona=persona,
+        user_name=user_name
     )
 
 
@@ -1461,10 +1471,13 @@ def coach_talk():
         intensity = data.get('intensity', 'moderate')
         persona = data.get('persona', 'personal_trainer')
         language = data.get('language', 'en')
+        user_name = data.get('user_name', '').strip()
 
-        logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona})")
+        logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
 
         # Build system prompt based on context
+        name_context = f"\n- The athlete's name is {user_name}. Use it occasionally for a personal touch." if user_name else ""
+
         if context == 'workout':
             # Mid-workout: user spoke via wake word — keep response VERY SHORT
             persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
@@ -1477,6 +1490,7 @@ def coach_talk():
                 f"- Keep your response to 1 sentence MAX. Be direct and actionable.\n"
                 f"- Don't ask questions — they can't easily respond.\n"
                 f"- If unclear, give a short motivational response."
+                f"{name_context}"
             )
             if language == "no":
                 system_prompt += "\n- RESPOND IN NORWEGIAN."
@@ -1487,6 +1501,7 @@ def coach_talk():
             system_prompt = (
                 f"{persona_prompt}\n"
                 f"Max 2 sentences. You speak out loud to an athlete. Be concise and direct."
+                f"{name_context}"
             )
             if language == "no":
                 system_prompt += "\n- RESPOND IN NORWEGIAN."

@@ -163,13 +163,18 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    // Current language and training level from UserDefaults
+    // Current language, training level, and user name from UserDefaults
     private var currentLanguage: String {
         UserDefaults.standard.string(forKey: "app_language") ?? "en"
     }
 
     private var currentTrainingLevel: String {
         UserDefaults.standard.string(forKey: "training_level") ?? "intermediate"
+    }
+
+    /// User's display name for personalized coaching (e.g., "Great work, Marius!")
+    private var currentUserName: String {
+        UserDefaults.standard.string(forKey: "user_display_name") ?? ""
     }
 
     // Formatted elapsed time string (MM:SS)
@@ -390,7 +395,8 @@ class WorkoutViewModel: ObservableObject {
                     phase: currentPhase.rawValue,
                     intensity: breathAnalysis?.intensity ?? "moderate",
                     persona: activePersonality.rawValue,
-                    language: currentLanguage
+                    language: currentLanguage,
+                    userName: currentUserName
                 )
 
                 coachMessage = response.text
@@ -791,7 +797,8 @@ class WorkoutViewModel: ObservableObject {
                     elapsedSeconds: Int(workoutDuration),
                     language: currentLanguage,
                     trainingLevel: currentTrainingLevel,
-                    persona: activePersonality.rawValue
+                    persona: activePersonality.rawValue,
+                    userName: currentUserName
                 )
 
                 let responseTime = Date().timeIntervalSince(tickStart)
@@ -884,7 +891,7 @@ class WorkoutViewModel: ObservableObject {
     private func playWelcomeMessage() async {
         do {
             print("👋 Fetching welcome message...")
-            let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue)
+            let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue, userName: currentUserName)
             coachMessage = welcome.text
             print("👋 Welcome: '\(welcome.text)' - downloading audio...")
             await playCoachAudio(welcome.audioURL)

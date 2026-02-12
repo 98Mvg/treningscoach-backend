@@ -257,7 +257,8 @@ class BrainRouter:
         phase: str = "intense",
         mode: str = "realtime_coach",
         language: str = "en",
-        persona: str = None
+        persona: str = None,
+        user_name: str = None
     ) -> str:
         """
         Get coaching response from active brain.
@@ -270,13 +271,16 @@ class BrainRouter:
             mode: Brain mode - "chat" or "realtime_coach" (default: realtime_coach)
             language: "en" or "no" for language-specific message selection
             persona: Optional persona override (e.g. "toxic_mode" for toxic message bank)
+            user_name: Optional user name for personalized coaching (e.g. "Marius")
 
         Returns:
             String containing coaching message
         """
-        # Inject language into breath_data for AI brains (Nordic tone only when language="no")
+        # Inject language + user_name into breath_data for AI brains
         local_breath_data = dict(breath_data or {})
         local_breath_data["language"] = language
+        if user_name:
+            local_breath_data["user_name"] = user_name
         if self.use_priority_routing and self.priority_brains:
             return self._get_priority_response(local_breath_data, phase, mode, language, persona)
         # STEP 3: Route to appropriate brain mode
