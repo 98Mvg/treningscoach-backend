@@ -1,17 +1,18 @@
-# config.py - Central configuration for easy customization
+# config.py - Central configuration for Coachi AI Coach
+# Voice/locale config lives in locale_config.py (single source of truth)
 
 import os
 
 # ============================================
 # APP SETTINGS
 # ============================================
-APP_NAME = "Treningscoach"
-APP_VERSION = "2.0.0"
+APP_NAME = "Coachi"
+APP_VERSION = "3.0.0"
 
 # ============================================
 # LANGUAGE SETTINGS
 # ============================================
-SUPPORTED_LANGUAGES = ["en", "no"]
+SUPPORTED_LANGUAGES = ["en", "no", "da"]
 DEFAULT_LANGUAGE = "en"
 
 # ============================================
@@ -244,7 +245,8 @@ BRAIN_TIMEOUT = 1.2  # seconds per brain
 USAGE_LIMIT = 0.9  # skip brain if usage >= this (optional BRAIN_USAGE map)
 BRAIN_COOLDOWN_SECONDS = 60
 BRAIN_TIMEOUT_COOLDOWN_SECONDS = 30
-BRAIN_SLOW_THRESHOLD = 1.2  # seconds avg latency before skipping (optional)
+BRAIN_SLOW_THRESHOLD = 3.0  # seconds avg latency before skipping (must be > BRAIN_TIMEOUT!)
+BRAIN_LATENCY_DECAY_FACTOR = 0.9  # Decay old avg_latency toward recent readings
 # Optional live usage map (0.0-1.0). Example: {"grok": 0.92}
 BRAIN_USAGE = {}
 

@@ -165,11 +165,12 @@ class BrainRouter:
         return True
 
     def _record_latency(self, brain_name: str, latency: float):
-        stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
+        stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0, "last_used": None})
         stats["calls"] += 1
-        stats["avg_latency"] = (
-            (stats["avg_latency"] * (stats["calls"] - 1)) + latency
-        ) / stats["calls"]
+        stats["last_used"] = time.time()
+        # Exponential moving average — decays old values so a single timeout doesn't permanently disable a brain
+        decay = getattr(config, "BRAIN_LATENCY_DECAY_FACTOR", 0.9)
+        stats["avg_latency"] = (stats["avg_latency"] * decay) + (latency * (1 - decay))
 
     def _record_failure(self, brain_name: str):
         stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
@@ -186,13 +187,20 @@ class BrainRouter:
         future = self._executor.submit(fn)
         try:
             result = future.result(timeout=timeout)
-            self._record_latency(brain_name, time.time() - start)
+            latency = time.time() - start
+            self._record_latency(brain_name, latency)
+            success = bool(result)
+            print(f"[BRAIN] {brain_name} | latency={latency:.3f}s | success={success}")
             return result
         except TimeoutError:
+            latency = time.time() - start
             self._record_timeout(brain_name)
+            print(f"[BRAIN] {brain_name} | TIMEOUT after {latency:.3f}s")
             return None
-        except Exception:
+        except Exception as e:
+            latency = time.time() - start
             self._record_failure(brain_name)
+            print(f"[BRAIN] {brain_name} | FAILURE after {latency:.3f}s | {type(e).__name__}: {e}")
             return None
 
     def _get_priority_response(
@@ -381,6 +389,24 @@ class BrainRouter:
             return self.brain.get_provider_name()
         return "config"
 
+    def get_brain_stats(self) -> Dict[str, Any]:
+        """Get per-brain call statistics for observability."""
+        stats = {}
+        for brain_name in (self.priority_brains or [self.brain_type]):
+            s = self.brain_stats.get(brain_name, {})
+            cooldown_until = self.brain_cooldowns.get(brain_name)
+            on_cooldown = bool(cooldown_until and time.time() < cooldown_until)
+            stats[brain_name] = {
+                "calls": s.get("calls", 0),
+                "timeouts": s.get("timeouts", 0),
+                "failures": s.get("failures", 0),
+                "avg_latency": round(s.get("avg_latency", 0), 3),
+                "last_used": s.get("last_used"),
+                "on_cooldown": on_cooldown,
+                "available": self._is_brain_available(brain_name),
+            }
+        return stats
+
     def health_check(self) -> Dict[str, Any]:
         """
         Check health of active brain.
@@ -391,7 +417,8 @@ class BrainRouter:
         status = {
             "active_brain": self.get_active_brain(),
             "healthy": True,
-            "message": "OK"
+            "message": "OK",
+            "brain_stats": self.get_brain_stats()
         }
 
         if self.brain is not None:
