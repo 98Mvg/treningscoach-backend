@@ -22,10 +22,14 @@ class ContinuousRecordingManager: NSObject {
     private var pausedDuration: TimeInterval = 0
     private var pauseStartTime: Date?
 
-    // Circular buffer for storing recent audio (15 seconds)
+    // Thread-safe access to the circular buffer
+    private let bufferQueue = DispatchQueue(label: "com.treningscoach.audiobuffer", qos: .userInteractive)
     private var audioBuffer: [[Float]] = []
     private let bufferCapacity: TimeInterval = 15.0
     private var currentFormat: AVAudioFormat?
+
+    // Diagnostics: count tap callbacks to verify the tap is firing
+    private var tapCallbackCount: Int = 0
 
     // Wake word: callback to feed audio buffers to speech recognizer
     var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
@@ -94,25 +98,38 @@ class ContinuousRecordingManager: NSObject {
             throw RecordingError.recordingFailed
         }
 
-        print("📱 Hardware format: \(hwFormat.sampleRate)Hz, \(hwFormat.channelCount) channels, interleaved=\(hwFormat.isInterleaved)")
+        print("📱 Hardware format: \(hwFormat.sampleRate)Hz, \(hwFormat.channelCount) channels, interleaved=\(hwFormat.isInterleaved), commonFormat=\(hwFormat.commonFormat.rawValue)")
+
+        // Reset tap callback counter
+        tapCallbackCount = 0
 
         // Install tap with nil format — lets the system use the native hardware format.
         // Passing an explicit format can crash with "format mismatch" when the audio
         // session's hardware sample rate differs from the inputNode's cached format.
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self] buffer, time in
+            guard let self = self else { return }
+
             // Capture the actual format from the first buffer callback
-            if self?.currentFormat == nil {
-                let fmt = buffer.format
-                self?.currentFormat = fmt
-                print("📱 Tap format (actual): \(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved)")
-                Task { @MainActor in
-                    AudioPipelineDiagnostics.shared.sampleRate = fmt.sampleRate
-                    AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved)")
+            self.bufferQueue.sync {
+                if self.currentFormat == nil {
+                    let fmt = buffer.format
+                    self.currentFormat = fmt
+                    print("📱 Tap format (actual): \(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved), commonFormat=\(fmt.commonFormat.rawValue)")
+                    Task { @MainActor in
+                        AudioPipelineDiagnostics.shared.sampleRate = fmt.sampleRate
+                        AudioPipelineDiagnostics.shared.log(.micInit, detail: "\(fmt.sampleRate)Hz, \(fmt.channelCount)ch, interleaved=\(fmt.isInterleaved)")
+                    }
                 }
             }
-            self?.processAudioBuffer(buffer)
+
+            self.tapCallbackCount += 1
+            if self.tapCallbackCount <= 3 || self.tapCallbackCount % 500 == 0 {
+                print("🎙️ Tap callback #\(self.tapCallbackCount): frames=\(buffer.frameLength), format=\(buffer.format.commonFormat.rawValue)")
+            }
+
+            self.processAudioBuffer(buffer)
             // Forward to wake word speech recognizer
-            self?.onAudioBuffer?(buffer)
+            self.onAudioBuffer?(buffer)
         }
 
         // Start engine
@@ -165,7 +182,9 @@ class ContinuousRecordingManager: NSObject {
         audioEngine.stop()
 
         // Clear buffer
-        audioBuffer.removeAll()
+        bufferQueue.sync {
+            audioBuffer.removeAll()
+        }
 
         isRecording = false
         isPaused = false
@@ -173,6 +192,7 @@ class ContinuousRecordingManager: NSObject {
         pausedDuration = 0
         pauseStartTime = nil
         currentFormat = nil
+        tapCallbackCount = 0
 
         // Deactivate audio session
         do {
@@ -192,16 +212,22 @@ class ContinuousRecordingManager: NSObject {
         }
 
         guard let format = currentFormat else {
-            print("⚠️ Cannot get chunk: no audio format")
+            print("⚠️ Cannot get chunk: no audio format (tap callbacks: \(tapCallbackCount))")
             return nil
         }
 
-        let totalSamplesInBuffer = audioBuffer.reduce(0) { $0 + $1.count }
+        // Thread-safe read of the buffer
+        var snapshot: [[Float]] = []
+        bufferQueue.sync {
+            snapshot = audioBuffer
+        }
+
+        let totalSamplesInBuffer = snapshot.reduce(0) { $0 + $1.count }
         let denom = format.sampleRate > 1.0 ? format.sampleRate : 1.0
         let bufferedSeconds = Double(totalSamplesInBuffer) / denom
 
         guard totalSamplesInBuffer > 0 else {
-            print("⚠️ Cannot get chunk: buffer empty")
+            print("⚠️ Cannot get chunk: buffer empty (tap callbacks: \(tapCallbackCount), chunks: \(snapshot.count))")
             return nil
         }
 
@@ -211,8 +237,8 @@ class ContinuousRecordingManager: NSObject {
             return nil
         }
 
-        // Extract last N seconds from buffer
-        let chunk = extractLastSeconds(duration: duration, format: format)
+        // Extract last N seconds from snapshot
+        let chunk = extractLastSeconds(duration: duration, from: snapshot, format: format)
 
         guard !chunk.isEmpty else {
             print("⚠️ Cannot get chunk: extraction failed")
@@ -252,48 +278,57 @@ class ContinuousRecordingManager: NSObject {
         samples.reserveCapacity(frameLength)
         var sumSquares: Float = 0.0
 
-        let format = buffer.format
-        let channelCount = Int(format.channelCount)
-
-        if format.isInterleaved {
+        // Prefer floatChannelData first — this is the standard iOS mic format
+        // (non-interleaved Float32). Only fall back to interleaved/int16 if needed.
+        if let channelData = buffer.floatChannelData {
+            let channelPtr = channelData[0]
+            for i in 0..<frameLength {
+                let sample = channelPtr[i]
+                samples.append(sample)
+                sumSquares += sample * sample
+            }
+        } else if let int16Data = buffer.int16ChannelData {
+            let scale = 1.0 / Float(Int16.max)
+            let channelPtr = int16Data[0]
+            for i in 0..<frameLength {
+                let sample = Float(channelPtr[i]) * scale
+                samples.append(sample)
+                sumSquares += sample * sample
+            }
+        } else {
+            // Fallback: try reading from audioBufferList directly
+            let format = buffer.format
             let abl = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: buffer.audioBufferList))
-            guard let mData = abl.first?.mData else { return }
+            guard let mData = abl.first?.mData else {
+                print("⚠️ processAudioBuffer: no accessible data (format: \(format.commonFormat.rawValue), interleaved: \(format.isInterleaved))")
+                return
+            }
 
             switch format.commonFormat {
             case .pcmFormatFloat32:
                 let ptr = mData.assumingMemoryBound(to: Float.self)
+                let channelCount = max(Int(format.channelCount), 1)
                 for i in 0..<frameLength {
-                    let sample = ptr[i * max(channelCount, 1)]
+                    let sample = ptr[i * channelCount]
                     samples.append(sample)
                     sumSquares += sample * sample
                 }
             case .pcmFormatInt16:
                 let ptr = mData.assumingMemoryBound(to: Int16.self)
                 let scale = 1.0 / Float(Int16.max)
+                let channelCount = max(Int(format.channelCount), 1)
                 for i in 0..<frameLength {
-                    let sample = Float(ptr[i * max(channelCount, 1)]) * scale
+                    let sample = Float(ptr[i * channelCount]) * scale
                     samples.append(sample)
                     sumSquares += sample * sample
                 }
             default:
+                print("⚠️ processAudioBuffer: unsupported format \(format.commonFormat.rawValue)")
                 return
             }
-        } else if let channelData = buffer.floatChannelData {
-            for i in 0..<frameLength {
-                let sample = channelData[0][i]
-                samples.append(sample)
-                sumSquares += sample * sample
-            }
-        } else if let int16Data = buffer.int16ChannelData {
-            let scale = 1.0 / Float(Int16.max)
-            for i in 0..<frameLength {
-                let sample = Float(int16Data[0][i]) * scale
-                samples.append(sample)
-                sumSquares += sample * sample
-            }
-        } else {
-            return
         }
+
+        guard !samples.isEmpty else { return }
 
         // Feed raw audio samples to pipeline diagnostics (real-time level + VAD)
         let rms = sqrtf(sumSquares / Float(frameLength))
@@ -309,31 +344,33 @@ class ContinuousRecordingManager: NSObject {
             )
         }
 
-        // Add to circular buffer
-        audioBuffer.append(samples)
+        // Add to circular buffer (thread-safe)
+        bufferQueue.sync {
+            audioBuffer.append(samples)
 
-        // Maintain buffer capacity (keep only last 15 seconds)
-        if let format = currentFormat {
-            let maxSamples = Int(bufferCapacity * format.sampleRate)
-            var currentSamples = audioBuffer.reduce(0) { $0 + $1.count }
+            // Maintain buffer capacity (keep only last 15 seconds)
+            if let format = currentFormat {
+                let maxSamples = Int(bufferCapacity * format.sampleRate)
+                var currentSamples = audioBuffer.reduce(0) { $0 + $1.count }
 
-            // Remove old chunks if exceeding capacity
-            while currentSamples > maxSamples && !audioBuffer.isEmpty {
-                let removed = audioBuffer.removeFirst()
-                currentSamples -= removed.count
+                // Remove old chunks if exceeding capacity
+                while currentSamples > maxSamples && !audioBuffer.isEmpty {
+                    let removed = audioBuffer.removeFirst()
+                    currentSamples -= removed.count
+                }
             }
         }
     }
 
-    private func extractLastSeconds(duration: TimeInterval, format: AVAudioFormat) -> [Float] {
+    private func extractLastSeconds(duration: TimeInterval, from buffer: [[Float]], format: AVAudioFormat) -> [Float] {
         let samplesToExtract = Int(duration * format.sampleRate)
-        let totalSamples = audioBuffer.reduce(0) { $0 + $1.count }
+        let totalSamples = buffer.reduce(0) { $0 + $1.count }
 
         // If we have less than requested, return everything
         let actualSamples = min(samplesToExtract, totalSamples)
 
         // Flatten buffer and take last N samples
-        let flatBuffer = audioBuffer.flatMap { $0 }
+        let flatBuffer = buffer.flatMap { $0 }
 
         guard actualSamples <= flatBuffer.count else {
             return flatBuffer
