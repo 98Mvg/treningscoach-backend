@@ -131,6 +131,20 @@ class AudioPipelineDiagnostics: ObservableObject {
     /// Duration of last audio chunk
     @Published var chunkDuration: TimeInterval?
 
+    // MARK: - Coach Decision Diagnostics
+
+    /// Whether coach spoke on last tick
+    @Published var lastShouldSpeak: Bool = false
+
+    /// Last coach text (even if not displayed in UI — voice only)
+    @Published var lastCoachText: String?
+
+    /// Count of consecutive silent ticks
+    @Published var consecutiveSilentTicks: Int = 0
+
+    /// Count of times coach spoke
+    @Published var speakCount: Int = 0
+
     // MARK: - VAD Configuration
 
     /// RMS threshold for voice activity detection
@@ -432,7 +446,9 @@ class AudioPipelineDiagnostics: ObservableObject {
         responseTime: TimeInterval,
         chunkBytes: Int?,
         chunkDur: TimeInterval?,
-        reason: String?
+        reason: String?,
+        shouldSpeak: Bool = false,
+        coachText: String? = nil
     ) {
         lastBreathAnalysis = analysis
         breathAnalysisCount += 1
@@ -441,7 +457,18 @@ class AudioPipelineDiagnostics: ObservableObject {
         chunkSizeBytes = chunkBytes
         chunkDuration = chunkDur
         lastBreathReason = reason
-        log(.backendResponse, detail: "Breath: \(analysis.intensity), RTT: \(Int(responseTime * 1000))ms")
+        lastShouldSpeak = shouldSpeak
+        lastCoachText = coachText
+
+        if shouldSpeak {
+            speakCount += 1
+            consecutiveSilentTicks = 0
+        } else {
+            consecutiveSilentTicks += 1
+        }
+
+        let speakStr = shouldSpeak ? "SPEAK" : "SILENT"
+        log(.backendResponse, detail: "[\(speakStr)] \(analysis.intensity), SQ:\(String(format: "%.2f", analysis.signalQuality ?? 0)), RTT:\(Int(responseTime * 1000))ms, reason:\(reason ?? "?")")
     }
 
     func recordBreathAnalysisError(_ message: String = "Unknown error") {

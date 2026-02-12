@@ -134,7 +134,10 @@ struct AudioDiagnosticOverlayView: View {
                 // Status row
                 breathStatusRow
 
-                // Signal quality bar
+                // Coach decision row (SPEAK/SILENT + reason)
+                coachDecisionRow
+
+                // Signal quality bar with threshold markers
                 breathSignalQualityRow(quality: analysis.signalQuality ?? 0)
 
                 // Intensity badge
@@ -184,6 +187,55 @@ struct AudioDiagnosticOverlayView: View {
         }
     }
 
+    // MARK: - Coach Decision Row
+
+    private var coachDecisionRow: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 6) {
+                // SPEAK / SILENT badge
+                HStack(spacing: 3) {
+                    Circle()
+                        .fill(diagnostics.lastShouldSpeak ? AppTheme.success : AppTheme.danger)
+                        .frame(width: 5, height: 5)
+                    Text(diagnostics.lastShouldSpeak ? "SPEAK" : "SILENT")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(diagnostics.lastShouldSpeak ? AppTheme.success : AppTheme.danger)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background((diagnostics.lastShouldSpeak ? AppTheme.success : AppTheme.danger).opacity(0.15))
+                .clipShape(Capsule())
+
+                // Reason
+                if let reason = diagnostics.lastBreathReason {
+                    Text(reason)
+                        .font(.system(size: 7, weight: .medium, design: .monospaced))
+                        .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                // Speak/silent counters
+                Text("🔊\(diagnostics.speakCount)")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(AppTheme.success.opacity(0.7))
+                Text("🔇\(diagnostics.consecutiveSilentTicks)")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(diagnostics.consecutiveSilentTicks > 2 ? AppTheme.danger.opacity(0.7) : AppTheme.textSecondary.opacity(0.5))
+            }
+
+            // Last coach text (what was sent to TTS)
+            if let text = diagnostics.lastCoachText, !text.isEmpty {
+                Text("\"\(text)\"")
+                    .font(.system(size: 7, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.primaryAccent.opacity(0.7))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
     // MARK: - Breath: Signal Quality
 
     private func breathSignalQualityRow(quality: Double) -> some View {
@@ -201,6 +253,18 @@ struct AudioDiagnosticOverlayView: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(signalQualityColor(quality))
                         .frame(width: geo.size.width * CGFloat(min(quality, 1.0)))
+
+                    // Threshold marker at 0.05 (below this = coaching suppressed)
+                    Rectangle()
+                        .fill(AppTheme.danger.opacity(0.8))
+                        .frame(width: 1.5)
+                        .offset(x: geo.size.width * 0.05)
+
+                    // Threshold marker at 0.10 (below this = voice_intelligence silence)
+                    Rectangle()
+                        .fill(AppTheme.warning.opacity(0.6))
+                        .frame(width: 1)
+                        .offset(x: geo.size.width * 0.10)
                 }
             }
             .frame(height: 10)

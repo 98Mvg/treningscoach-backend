@@ -799,13 +799,15 @@ class WorkoutViewModel: ObservableObject {
                 breathAnalysis = response.breathAnalysis
                 coachMessage = response.text
 
-                // Feed breath analysis to diagnostics panel
+                // Feed breath analysis + coach decision to diagnostics panel
                 AudioPipelineDiagnostics.shared.updateBreathAnalysis(
                     response.breathAnalysis,
                     responseTime: responseTime,
                     chunkBytes: chunkBytes,
                     chunkDur: AppConfig.ContinuousCoaching.chunkDuration,
-                    reason: response.reason
+                    reason: response.reason,
+                    shouldSpeak: response.shouldSpeak,
+                    coachText: response.text
                 )
 
                 print("📊 Analysis: \(response.breathAnalysis.intensity), should_speak: \(response.shouldSpeak), reason: \(response.reason ?? "none")")
