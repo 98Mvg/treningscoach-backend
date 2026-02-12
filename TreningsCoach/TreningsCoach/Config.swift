@@ -2,7 +2,7 @@
 //  Config.swift
 //  TreningsCoach
 //
-//  Central configuration for easy customization
+//  Central configuration — production URLs, timings, animation & layout constants
 //
 
 import Foundation
@@ -12,56 +12,36 @@ import SwiftUI
 
 struct AppConfig {
     // MARK: - App Info
-    static let appName = "Treningscoach"
-    static let version = "2.0.0"
+    static let appName = "Coachi"
+    static let appTagline = "Your AI Workout Coach"
+    static let version = "3.0.0"
 
     // MARK: - Backend
     static let productionURL = "https://treningscoach-backend.onrender.com"
     static let localURL = "http://localhost:5001"
-
-    // Switch to productionURL for deployed backend, localURL for dev
     static let backendURL = productionURL
 
     // MARK: - Phase Timings (seconds)
-    static let warmupDuration: TimeInterval = 120  // 2 minutes
-    static let intenseDuration: TimeInterval = 900  // 15 minutes
-    // After intenseDuration = cooldown
+    static let warmupDuration: TimeInterval = 120   // 2 minutes
+    static let intenseDuration: TimeInterval = 900   // 15 minutes
 
-    // MARK: - UI Colors (Dark Purple/Blue Theme)
-    struct Colors {
-        static let idle = AppTheme.primaryAccent
-        static let listening = AppTheme.success
-        static let speaking = AppTheme.danger
-
-        static let idleGradient = [
-            Color(hex: "7C3AED"),
-            Color(hex: "6D28D9")
-        ]
-
-        static let listeningGradient = [
-            Color(hex: "10B981"),
-            Color(hex: "059669")
-        ]
-
-        static let speakingGradient = [
-            Color(hex: "EF4444"),
-            Color(hex: "DC2626")
-        ]
-
-        static let backgroundGradient = [AppTheme.background, AppTheme.backgroundDeep]
+    // MARK: - Animation Constants
+    enum Anim {
+        static let orbIdlePulse: Double = 1.8
+        static let orbListeningPulse: Double = 1.2
+        static let orbSpeakingWave: Double = 0.6
+        static let transitionSpring: SwiftUI.Animation = .spring(response: 0.5, dampingFraction: 0.8)
+        static let buttonSpring: SwiftUI.Animation = .spring(response: 0.35, dampingFraction: 0.7)
+        static let cardAppear: SwiftUI.Animation = .easeOut(duration: 0.4)
     }
 
-    // MARK: - UI Text
-    struct Text {
-        static let phaseWarmup = "Warm-up"
-        static let phaseIntense = "Hard Coach"
-        static let phaseCooldown = "Cool-down"
-    }
-
-    // MARK: - Animation Durations
-    struct Animation {
-        static let pulseDuration: Double = 1.5
-        static let waveDuration: Double = 0.8
+    // MARK: - Layout Constants
+    enum Layout {
+        static let orbSize: CGFloat = 120
+        static let ctaButtonSize: CGFloat = 160
+        static let timerRingSize: CGFloat = 200
+        static let tabBarHeight: CGFloat = 70
+        static let cardCornerRadius: CGFloat = 16
     }
 
     // MARK: - Audio Settings
@@ -80,11 +60,11 @@ struct AppConfig {
     // MARK: - Continuous Coaching Settings
     struct ContinuousCoaching {
         static let defaultInterval: TimeInterval = 8.0
-        static let minInterval: TimeInterval = 5.0  // STEP 2: kritisk = 5s (urgent)
+        static let minInterval: TimeInterval = 5.0
         static let maxInterval: TimeInterval = 15.0
-        static let chunkDuration: TimeInterval = 8.0  // Audio sample window (6-10s)
-        static let minChunkBytes: Int = 8000  // Skip tiny/invalid chunks
-        static let maxWorkoutDuration: TimeInterval = 45 * 60  // 45 min auto-timeout
+        static let chunkDuration: TimeInterval = 8.0
+        static let minChunkBytes: Int = 8000
+        static let maxWorkoutDuration: TimeInterval = 45 * 60
         static let autoTimeoutMessage = "Great workout! Remember to tap Stop when done."
     }
 }

@@ -2,196 +2,88 @@
 //  HomeView.swift
 //  TreningsCoach
 //
-//  Dashboard home screen
-//  Shows greeting, weekly progress, quick-start button, recent workouts
+//  Coachi home screen with greeting, weekly ring, stats, recent workouts
 //
 
 import SwiftUI
 
 struct HomeView: View {
-    @ObservedObject var viewModel: WorkoutViewModel
-    @Binding var selectedTab: Int
+    @EnvironmentObject var appViewModel: AppViewModel
+    @StateObject private var viewModel = HomeViewModel()
+    @State private var appeared = false
+    let onStartWorkout: () -> Void
 
     var body: some View {
-        ZStack {
-            // Dark background
-            AppTheme.backgroundGradient.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-
-                    // MARK: - Greeting Header
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                // Header
+                HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.greetingText + ",")
-                            .font(.title2)
-                            .foregroundStyle(AppTheme.textSecondary)
-
-                        Text(UserDefaults.standard.string(forKey: "user_display_name") ?? L10n.athlete)
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(AppTheme.textPrimary)
+                        Text(viewModel.greeting + ",")
+                            .font(.system(size: 16, weight: .medium)).foregroundColor(CoachiTheme.textSecondary)
+                        Text(appViewModel.userProfile.name)
+                            .font(.system(size: 28, weight: .bold)).foregroundColor(CoachiTheme.textPrimary)
                     }
-                    .padding(.top, 20)
-
-                    // MARK: - Weekly Progress Card
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(L10n.thisWeek)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-
-                        // Progress text
-                        HStack {
-                            Text("\(viewModel.userStats.workoutsThisWeek) \(L10n.of) \(viewModel.userStats.weeklyGoal)")
-                                .font(.title3.bold())
-                                .foregroundStyle(AppTheme.textPrimary)
-
-                            Text(L10n.workoutsCompleted)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-
-                            Spacer()
-                        }
-
-                        // Progress bar
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                // Track
-                                Capsule()
-                                    .fill(AppTheme.primaryAccent.opacity(0.2))
-                                    .frame(height: 8)
-
-                                // Fill
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [AppTheme.primaryAccent, AppTheme.secondaryAccent],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(
-                                        width: geo.size.width * progressFraction,
-                                        height: 8
-                                    )
-                                    .animation(.easeInOut(duration: 0.5), value: viewModel.userStats.workoutsThisWeek)
-                            }
-                        }
-                        .frame(height: 8)
-                    }
-                    .padding(20)
-                    .cardStyle()
-
-                    // MARK: - Quick Start Button
-                    Button {
-                        // Switch to workout tab and start
-                        selectedTab = 1
-                        if !viewModel.isContinuousMode {
-                            viewModel.startContinuousWorkout()
-                        }
-                    } label: {
-                        HStack(spacing: 16) {
-                            Image(systemName: "figure.run")
-                                .font(.title)
-                                .foregroundStyle(.white)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.startWorkout)
-                                    .font(.title3.bold())
-                                    .foregroundStyle(.white)
-
-                                Text(L10n.audioCoachingStarts)
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.7))
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.title3)
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                        .padding(20)
-                        .background(AppTheme.purpleGradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-
-                    // MARK: - Recent Workouts
-                    if !viewModel.workoutHistory.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.recentWorkouts)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-
-                            ForEach(viewModel.workoutHistory.prefix(5)) { record in
-                                HStack(spacing: 12) {
-                                    // Phase icon
-                                    Image(systemName: phaseIcon(for: record.phase))
-                                        .font(.title3)
-                                        .foregroundStyle(AppTheme.primaryAccent)
-                                        .frame(width: 40, height: 40)
-                                        .background(AppTheme.primaryAccent.opacity(0.15))
-                                        .clipShape(Circle())
-
-                                    // Info
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(record.phase.displayName)
-                                            .font(.subheadline.weight(.medium))
-                                            .foregroundStyle(AppTheme.textPrimary)
-
-                                        Text(record.date, style: .relative)
-                                            .font(.caption)
-                                            .foregroundStyle(AppTheme.textSecondary)
-                                    }
-
-                                    Spacer()
-
-                                    // Duration
-                                    Text(record.formattedDuration)
-                                        .font(.subheadline.monospacedDigit().bold())
-                                        .foregroundStyle(AppTheme.secondaryAccent)
-                                }
-                                .padding(12)
-                                .cardStyle()
-                            }
-                        }
-                    }
-
-                    // Empty state when no history
-                    if viewModel.workoutHistory.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "figure.cooldown")
-                                .font(.system(size: 40))
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
-
-                            Text(L10n.noWorkoutsYet)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textSecondary)
-
-                            Text(L10n.tapStartWorkout)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                    }
+                    Spacer()
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 100) // Space for tab bar
+                .padding(.horizontal, 24).padding(.top, 16).opacity(appeared ? 1 : 0)
+
+                // Weekly progress
+                VStack(spacing: 12) {
+                    WeeklyProgressRing(completed: viewModel.stats.workoutsThisWeek, goal: viewModel.stats.weeklyGoal, size: 140)
+                    Text("\(viewModel.stats.workoutsThisWeek) \(L10n.of) \(viewModel.stats.weeklyGoal) \(L10n.workoutsCompleted)")
+                        .font(.system(size: 14, weight: .medium)).foregroundColor(CoachiTheme.textSecondary)
+                }
+                .padding(.top, 32).opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
+
+                // Start button
+                PulseButtonView(title: L10n.startWorkout, icon: "play.fill", size: 140) { onStartWorkout() }
+                    .padding(.top, 36).opacity(appeared ? 1 : 0)
+
+                // Waveform
+                WaveformView(isActive: false, barCount: 14, height: 40)
+                    .padding(.horizontal, 60).padding(.top, 16).opacity(appeared ? 1 : 0)
+
+                // Stats row
+                HStack(spacing: 12) {
+                    StatCardView(icon: "flame.fill", value: "\(viewModel.stats.totalWorkouts)", label: L10n.workouts)
+                    StatCardView(icon: "clock.fill", value: "\(viewModel.stats.totalMinutes)", label: L10n.minutes, color: CoachiTheme.secondary)
+                    StatCardView(icon: "bolt.fill", value: "\(viewModel.stats.currentStreak)", label: L10n.streak, color: CoachiTheme.accent)
+                }
+                .padding(.horizontal, 20).padding(.top, 36).opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 15)
+
+                // Recent workouts
+                if !viewModel.recentWorkouts.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.recentWorkouts).font(.system(size: 18, weight: .bold)).foregroundColor(CoachiTheme.textPrimary).padding(.horizontal, 24)
+                        ForEach(viewModel.recentWorkouts.prefix(4)) { workout in
+                            RecentWorkoutRow(workout: workout).padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 32).opacity(appeared ? 1 : 0)
+                }
+
+                // Empty state
+                if viewModel.recentWorkouts.isEmpty && !viewModel.isLoading {
+                    VStack(spacing: 12) {
+                        Image(systemName: "figure.cooldown")
+                            .font(.system(size: 40))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                        Text(L10n.noWorkoutsYet)
+                            .font(.system(size: 16, weight: .medium)).foregroundColor(CoachiTheme.textSecondary)
+                        Text(L10n.tapStartWorkout)
+                            .font(.system(size: 14)).foregroundColor(CoachiTheme.textTertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 32).opacity(appeared ? 1 : 0)
+                }
+
+                Spacer().frame(height: 100)
             }
         }
-    }
-
-    // Weekly progress as a fraction (0.0 to 1.0)
-    private var progressFraction: CGFloat {
-        guard viewModel.userStats.weeklyGoal > 0 else { return 0 }
-        return min(CGFloat(viewModel.userStats.workoutsThisWeek) / CGFloat(viewModel.userStats.weeklyGoal), 1.0)
-    }
-
-    private func phaseIcon(for phase: WorkoutPhase) -> String {
-        switch phase {
-        case .warmup: return "flame.fill"
-        case .intense: return "bolt.fill"
-        case .cooldown: return "wind"
+        .task {
+            await viewModel.loadData()
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
     }
 }

@@ -90,6 +90,29 @@ struct L10n {
     static var paused: String { current == .no ? "Pauset" : "Paused" }
     static var recording: String { current == .no ? "Opptaker" : "Recording" }
 
+    // MARK: - Onboarding (Coachi flow)
+    static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
+    static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }
+    static var startTraining: String { current == .no ? "Start trening" : "Start Training" }
+    static var realTimeCoaching: String { current == .no ? "Sanntids coaching" : "Real-Time Coaching" }
+    static var trackProgress: String { current == .no ? "Folg fremgang" : "Track Progress" }
+    static var personalTouch: String { current == .no ? "Personlig preg" : "Personal Touch" }
+    static var chooseYourCoach: String { current == .no ? "Velg din coach" : "Choose Your Coach" }
+
+    // MARK: - Workout Complete
+    static var greatWorkout: String { current == .no ? "Bra trening!" : "Great Workout!" }
+    static var duration: String { current == .no ? "Varighet" : "Duration" }
+    static var done: String { current == .no ? "Ferdig" : "Done" }
+
+    // MARK: - Settings / About
+    static var about: String { current == .no ? "Om" : "About" }
+    static var version: String { current == .no ? "Versjon" : "Version" }
+
+    // MARK: - Tab Bar
+    static var home: String { current == .no ? "Hjem" : "Home" }
+    static var workout: String { current == .no ? "Trening" : "Workout" }
+    static var profile: String { current == .no ? "Profil" : "Profile" }
+
     // MARK: - Errors
     static var error: String { current == .no ? "Feil" : "Error" }
     static var ok: String { "OK" }

@@ -2,66 +2,56 @@
 //  OnboardingContainerView.swift
 //  TreningsCoach
 //
-//  Manages the onboarding flow: Language -> Auth -> Training Level
+//  4-step onboarding: Welcome → Language → Features → Setup
 //
 
 import SwiftUI
 
-enum OnboardingStep {
-    case language
-    case auth
-    case trainingLevel
+enum OnboardingStep: Int {
+    case welcome = 0
+    case language = 1
+    case features = 2
+    case setup = 3
 }
 
 struct OnboardingContainerView: View {
-    @ObservedObject var authManager: AuthManager
-    let onComplete: () -> Void
-
-    @State private var currentStep: OnboardingStep = .language
+    @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var authManager: AuthManager
+    @State private var currentStep: OnboardingStep = .welcome
 
     var body: some View {
-        Group {
-            switch currentStep {
-            case .language:
-                LanguageSelectionView { language in
-                    L10n.set(language)
-                    withAnimation {
-                        currentStep = .auth
-                    }
-                }
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .leading)
-                ))
+        ZStack {
+            CoachiTheme.backgroundGradient.ignoresSafeArea()
 
-            case .auth:
-                AuthView(authManager: authManager) {
-                    withAnimation {
-                        currentStep = .trainingLevel
+            Group {
+                switch currentStep {
+                case .welcome:
+                    WelcomePageView {
+                        withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .language }
                     }
-                }
-                .onChange(of: authManager.isAuthenticated) { _, isAuth in
-                    if isAuth {
-                        withAnimation {
-                            currentStep = .trainingLevel
-                        }
-                    }
-                }
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
 
-            case .trainingLevel:
-                TrainingLevelView(authManager: authManager) {
-                    onComplete()
+                case .language:
+                    LanguageSelectionView { language in
+                        L10n.set(language)
+                        withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .features }
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+
+                case .features:
+                    FeaturesPageView {
+                        withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .setup }
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+
+                case .setup:
+                    SetupPageView { name, level in
+                        appViewModel.completeOnboarding(name: name, level: level)
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 }
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .leading)
-                ))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentStep)
+        .animation(AppConfig.Anim.transitionSpring, value: currentStep.rawValue)
     }
 }

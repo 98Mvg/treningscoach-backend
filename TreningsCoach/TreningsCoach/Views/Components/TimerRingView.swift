@@ -2,51 +2,38 @@
 //  TimerRingView.swift
 //  TreningsCoach
 //
-//  Circular progress ring that wraps around the voice orb
-//  Shows elapsed workout time as a visual arc
+//  Circular progress ring for workout timer
 //
 
 import SwiftUI
 
 struct TimerRingView: View {
-    let elapsedTime: TimeInterval
-    var totalTime: TimeInterval = 45 * 60  // 45 min default (matches auto-timeout)
-    var ringSize: CGFloat = 170
-    var lineWidth: CGFloat = 5
-
-    // Progress from 0.0 to 1.0
-    private var progress: Double {
-        guard totalTime > 0 else { return 0 }
-        return min(elapsedTime / totalTime, 1.0)
-    }
+    let progress: Double  // 0.0 to 1.0
+    var size: CGFloat = 200
+    var lineWidth: CGFloat = 8
 
     var body: some View {
         ZStack {
-            // Background track (dim ring)
-            Circle()
-                .stroke(
-                    AppTheme.secondaryAccent.opacity(0.15),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .frame(width: ringSize, height: ringSize)
+            Circle().stroke(CoachiTheme.surface, lineWidth: lineWidth).frame(width: size, height: size)
 
-            // Progress arc (bright cyan)
             Circle()
-                .trim(from: 0, to: progress)
+                .trim(from: 0, to: CGFloat(min(progress, 1.0)))
                 .stroke(
-                    AppTheme.secondaryAccent,
+                    AngularGradient(colors: [CoachiTheme.primary, CoachiTheme.secondary, CoachiTheme.primary],
+                                    center: .center, startAngle: .degrees(0), endAngle: .degrees(360)),
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
-                .frame(width: ringSize, height: ringSize)
-                .rotationEffect(.degrees(-90))  // Start from top
-                .animation(.linear(duration: 1), value: progress)
+                .frame(width: size, height: size)
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 1), value: progress)
+
+            if progress > 0.01 {
+                Circle().fill(CoachiTheme.primary).frame(width: lineWidth * 1.5, height: lineWidth * 1.5)
+                    .glow(color: CoachiTheme.primary, radius: 8)
+                    .offset(y: -size / 2)
+                    .rotationEffect(.degrees(360 * progress - 90))
+                    .animation(.easeInOut(duration: 1), value: progress)
+            }
         }
-    }
-}
-
-#Preview {
-    ZStack {
-        AppTheme.backgroundGradient.ignoresSafeArea()
-        TimerRingView(elapsedTime: 300, totalTime: 2700)
     }
 }

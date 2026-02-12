@@ -49,8 +49,8 @@ enum CoachPersonality: String, CaseIterable, Identifiable, Codable {
 
     var accentColor: Color {
         switch self {
-        case .personalTrainer: return AppTheme.primaryAccent
-        case .toxicMode: return AppTheme.danger
+        case .personalTrainer: return CoachiTheme.primary
+        case .toxicMode: return CoachiTheme.danger
         }
     }
 }

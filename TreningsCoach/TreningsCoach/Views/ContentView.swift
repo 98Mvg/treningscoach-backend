@@ -1,71 +1,50 @@
 //
-//  ContentView.swift
+//  ContentView.swift → MainTabView
 //  TreningsCoach
 //
-//  Tab container — hosts Home, Workout, and Profile tabs
-//  WorkoutViewModel is created here and shared to all child views
+//  Main tab container with floating tab bar — Coachi design
 //
 
 import SwiftUI
 
-struct ContentView: View {
-    @EnvironmentObject var authManager: AuthManager
-    @StateObject private var viewModel = WorkoutViewModel()
-    @State private var selectedTab = 1  // Default to Workout tab (center)
-    @AppStorage("app_language") private var appLanguageCode: String = "en"
+struct MainTabView: View {
+    @StateObject private var workoutViewModel = WorkoutViewModel()
+    @State private var selectedTab: TabItem = .home
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView(viewModel: viewModel, selectedTab: $selectedTab)
-                .tabItem {
-                    Label(appLanguageCode == "no" ? "Hjem" : "Home", systemImage: "house.fill")
-                }
-                .tag(0)
+        ZStack(alignment: .bottom) {
+            CoachiTheme.backgroundGradient.ignoresSafeArea()
 
-            WorkoutView(viewModel: viewModel)
-                .tabItem {
-                    Label(appLanguageCode == "no" ? "Trening" : "Workout", systemImage: "waveform")
+            Group {
+                switch selectedTab {
+                case .home:    HomeView { selectedTab = .workout }
+                case .workout: workoutContent
+                case .profile: ProfileView()
                 }
-                .tag(1)
+            }
 
-            ProfileView(viewModel: viewModel)
-                .environmentObject(authManager)
-                .tabItem {
-                    Label(appLanguageCode == "no" ? "Profil" : "Profile", systemImage: "person.fill")
-                }
-                .tag(2)
+            if workoutViewModel.workoutState == .idle && !workoutViewModel.showComplete {
+                CustomTabBar(selectedTab: $selectedTab)
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .tint(AppTheme.primaryAccent)
-        .onAppear {
-            // Style the tab bar for dark theme
-            let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = UIColor(AppTheme.cardSurface)
-
-            // Unselected tab items
-            appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppTheme.textSecondary)
-            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-                .foregroundColor: UIColor(AppTheme.textSecondary)
-            ]
-
-            // Selected tab items
-            appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppTheme.primaryAccent)
-            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-                .foregroundColor: UIColor(AppTheme.primaryAccent)
-            ]
-
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
-        }
-        .preferredColorScheme(.dark)
+        .environmentObject(workoutViewModel)
+        .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.workoutState)
+        .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.showComplete)
     }
-}
 
-// MARK: - Preview
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(AuthManager())
+    @ViewBuilder
+    private var workoutContent: some View {
+        switch workoutViewModel.workoutState {
+        case .idle:
+            WorkoutLaunchView(viewModel: workoutViewModel)
+        case .active, .paused:
+            ActiveWorkoutView(viewModel: workoutViewModel)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        case .complete:
+            WorkoutCompleteView(viewModel: workoutViewModel)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        }
     }
 }

@@ -7,6 +7,32 @@
 
 import Foundation
 
+// MARK: - Voice State
+
+enum VoiceState {
+    case idle
+    case listening
+    case speaking
+}
+
+// MARK: - Workout State
+
+enum WorkoutState: String {
+    case idle
+    case active
+    case paused
+    case complete
+}
+
+// MARK: - Orb State
+
+enum OrbState: String {
+    case idle
+    case listening
+    case speaking
+    case paused
+}
+
 // MARK: - Workout Phase
 
 enum WorkoutPhase: String, CaseIterable, Identifiable, Codable {
@@ -18,9 +44,9 @@ enum WorkoutPhase: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
-        case .warmup: return "🔥 Warm-up"
-        case .intense: return "💪 Intense"
-        case .cooldown: return "😌 Cool-down"
+        case .warmup: return "Warm-up"
+        case .intense: return "Intense"
+        case .cooldown: return "Cool-down"
         }
     }
 
@@ -29,6 +55,14 @@ enum WorkoutPhase: String, CaseIterable, Identifiable, Codable {
         case .warmup: return "Gentle coaching for warming up"
         case .intense: return "Motivational coaching for intense workout"
         case .cooldown: return "Calming coaching for cooling down"
+        }
+    }
+
+    var duration: TimeInterval {
+        switch self {
+        case .warmup: return AppConfig.warmupDuration
+        case .intense: return AppConfig.intenseDuration
+        case .cooldown: return 180  // 3 minutes
         }
     }
 }
@@ -76,12 +110,10 @@ struct BreathAnalysis: Codable {
         IntensityLevel(rawValue: intensity.lowercased()) ?? .moderate
     }
 
-    /// Latest detected breath phase (inhale/exhale/pause)
     var latestBreathPhase: BreathPhaseEvent? {
         breathPhases?.last(where: { $0.type != "pause" })
     }
 
-    /// Real respiratory rate in BPM (falls back to tempo)
     var effectiveRespiratoryRate: Double {
         respiratoryRate ?? tempo
     }
@@ -121,7 +153,9 @@ struct BreathPhaseEvent: Codable, Identifiable {
     }
 }
 
-enum IntensityLevel: String {
+// MARK: - Intensity Level
+
+enum IntensityLevel: String, CaseIterable {
     case calm = "calm"
     case moderate = "moderate"
     case intense = "intense"
@@ -142,6 +176,15 @@ enum IntensityLevel: String {
         case .moderate: return "💪"
         case .intense: return "🔥"
         case .critical: return "⚠️"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .calm:     return "4ECDC4"
+        case .moderate: return "FF6B35"
+        case .intense:  return "FFD93D"
+        case .critical: return "FF4757"
         }
     }
 }
@@ -171,7 +214,7 @@ struct ContinuousCoachResponse: Codable {
     let audioURL: String?
     let waitSeconds: Double
     let phase: String
-    let reason: String?  // For debugging
+    let reason: String?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -198,31 +241,67 @@ struct WelcomeResponse: Codable {
     }
 }
 
-// MARK: - Workout Record (for Dashboard History)
+// MARK: - Workout Record
 
 struct WorkoutRecord: Identifiable, Codable {
     let id: UUID
     let date: Date
     let durationSeconds: Int
-    let phase: WorkoutPhase
-    let intensity: String
+    let finalPhase: String
+    let avgIntensity: String
+    let personaUsed: String
 
+    init(id: UUID = UUID(), date: Date = Date(), durationSeconds: Int, finalPhase: String = "cooldown", avgIntensity: String = "moderate", personaUsed: String = "personal_trainer") {
+        self.id = id
+        self.date = date
+        self.durationSeconds = durationSeconds
+        self.finalPhase = finalPhase
+        self.avgIntensity = avgIntensity
+        self.personaUsed = personaUsed
+    }
+
+    // Backward compat: init from old WorkoutPhase + intensity String
     init(id: UUID = UUID(), date: Date = Date(), durationSeconds: Int, phase: WorkoutPhase, intensity: String) {
         self.id = id
         self.date = date
         self.durationSeconds = durationSeconds
-        self.phase = phase
-        self.intensity = intensity
+        self.finalPhase = phase.rawValue
+        self.avgIntensity = intensity
+        self.personaUsed = "personal_trainer"
     }
 
-    var formattedDuration: String {
+    var durationFormatted: String {
         let mins = durationSeconds / 60
         let secs = durationSeconds % 60
-        return String(format: "%d:%02d", mins, secs)
+        if mins > 0 {
+            return "\(mins)m \(secs)s"
+        }
+        return "\(secs)s"
     }
+
+    var formattedDuration: String { durationFormatted }
+
+    var dateFormatted: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+
+    var dayOfWeek: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
+    }
+
+    // Legacy compatibility
+    var phase: WorkoutPhase {
+        WorkoutPhase(rawValue: finalPhase) ?? .cooldown
+    }
+
+    var intensity: String { avgIntensity }
 }
 
-// MARK: - User Stats (for Profile)
+// MARK: - User Stats
 
 struct UserStats {
     var totalWorkouts: Int = 0

@@ -3,7 +3,7 @@
 //  TreningsCoach
 //
 //  Training level selection: Beginner / Intermediate / Advanced
-//  Influences coaching tone and intensity
+//  Influences coaching tone and intensity — Coachi theme
 //
 
 import SwiftUI
@@ -13,65 +13,62 @@ struct TrainingLevelView: View {
     let onComplete: () -> Void
 
     @State private var selectedLevel: TrainingLevel?
+    @State private var appeared = false
 
     var body: some View {
-        ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
+        VStack(spacing: 0) {
+            Spacer()
 
-            VStack(spacing: 32) {
-                Spacer()
+            Image(systemName: "chart.bar.fill")
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(CoachiTheme.primaryGradient)
+                .opacity(appeared ? 1 : 0)
 
-                // Header
-                VStack(spacing: 12) {
-                    Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 56))
-                        .foregroundStyle(AppTheme.primaryAccent)
+            Text(L10n.trainingLevel)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .padding(.top, 20)
+                .opacity(appeared ? 1 : 0)
 
-                    Text(L10n.trainingLevel)
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(AppTheme.textPrimary)
+            Text(L10n.trainingLevelSubtitle)
+                .font(.system(size: 15))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .opacity(appeared ? 1 : 0)
 
-                    Text(L10n.trainingLevelSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                ForEach(TrainingLevel.allCases) { level in
+                    levelCard(level: level)
                 }
-
-                // Level cards
-                VStack(spacing: 12) {
-                    ForEach(TrainingLevel.allCases) { level in
-                        levelCard(level: level)
-                    }
-                }
-                .padding(.horizontal, 32)
-
-                // Continue button
-                if let selected = selectedLevel {
-                    Button {
-                        // Save level locally regardless of auth state
-                        UserDefaults.standard.set(selected.rawValue, forKey: "training_level")
-                        UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
-                        // Update backend profile if authenticated
-                        Task {
-                            await authManager.updateProfile(trainingLevel: selected)
-                        }
-                        onComplete()
-                    } label: {
-                        Text(L10n.getStarted)
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(16)
-                            .background(AppTheme.purpleGradient)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .padding(.horizontal, 32)
-                    .transition(.opacity)
-                }
-
-                Spacer()
             }
-            .animation(.easeInOut(duration: 0.2), value: selectedLevel)
+            .padding(.horizontal, 40).padding(.top, 28)
+            .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
+
+            if let selected = selectedLevel {
+                Button {
+                    UserDefaults.standard.set(selected.rawValue, forKey: "training_level")
+                    UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
+                    Task { await authManager.updateProfile(trainingLevel: selected) }
+                    onComplete()
+                } label: {
+                    Text(L10n.getStarted)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(CoachiTheme.primaryGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+                .padding(.horizontal, 40).padding(.top, 32)
+                .transition(.opacity)
+            }
+
+            Spacer()
+        }
+        .animation(.easeInOut(duration: 0.2), value: selectedLevel)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
     }
 
@@ -82,47 +79,47 @@ struct TrainingLevelView: View {
         return Button {
             selectedLevel = level
         } label: {
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 Image(systemName: level.iconName)
-                    .font(.title2)
-                    .foregroundStyle(cardColor)
-                    .frame(width: 44, height: 44)
+                    .font(.system(size: 18))
+                    .foregroundColor(cardColor)
+                    .frame(width: 40, height: 40)
                     .background(cardColor.opacity(0.15))
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(level.displayName)
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.textPrimary)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isSelected ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
 
                     Text(level.description)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.textSecondary)
+                        .font(.system(size: 13))
+                        .foregroundColor(CoachiTheme.textTertiary)
                 }
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(cardColor)
-                        .font(.title3)
+                        .foregroundColor(cardColor)
                 }
             }
-            .padding(16)
-            .background(AppTheme.cardSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(14)
+            .background(isSelected ? cardColor.opacity(0.1) : CoachiTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? cardColor : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? cardColor.opacity(0.5) : Color.white.opacity(0.06), lineWidth: 1)
             )
         }
+        .buttonStyle(.plain)
     }
 
     private func levelColor(for level: TrainingLevel) -> Color {
         switch level {
-        case .beginner: return AppTheme.success
-        case .intermediate: return AppTheme.primaryAccent
-        case .advanced: return AppTheme.warning
+        case .beginner: return CoachiTheme.success
+        case .intermediate: return CoachiTheme.primary
+        case .advanced: return CoachiTheme.accent
         }
     }
 }

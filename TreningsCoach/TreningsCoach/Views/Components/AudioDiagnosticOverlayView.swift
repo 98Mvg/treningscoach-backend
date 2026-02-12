@@ -10,8 +10,14 @@
 import SwiftUI
 
 struct AudioDiagnosticOverlayView: View {
-    @ObservedObject var diagnostics = AudioPipelineDiagnostics.shared
+    @ObservedObject var diagnostics: AudioPipelineDiagnostics = .shared
+    @Binding var isPresented: Bool
     @State private var showFullLog = false
+
+    init(diagnostics: AudioPipelineDiagnostics = .shared, isPresented: Binding<Bool>? = nil) {
+        self._diagnostics = ObservedObject(wrappedValue: diagnostics)
+        self._isPresented = isPresented ?? .constant(true)
+    }
 
     var body: some View {
         VStack(spacing: 0) {

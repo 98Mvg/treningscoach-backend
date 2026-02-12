@@ -60,6 +60,83 @@ class WorkoutViewModel: ObservableObject {
     @Published var workoutHistory: [WorkoutRecord] = []
     @Published var userStats: UserStats = UserStats()
 
+    // MARK: - Coachi UI State
+
+    @Published var workoutState: WorkoutState = .idle
+    @Published var showComplete: Bool = false
+
+    // Computed: map voiceState to OrbState
+    var orbState: OrbState {
+        if workoutState == .paused { return .paused }
+        switch voiceState {
+        case .idle: return .idle
+        case .listening: return .listening
+        case .speaking: return .speaking
+        }
+    }
+
+    // Computed: intensity from latest analysis
+    var currentIntensity: IntensityLevel {
+        breathAnalysis?.intensityLevel ?? .moderate
+    }
+
+    // Computed: phase progress (0.0 to 1.0)
+    var phaseProgress: Double {
+        let phaseDuration = currentPhase.duration
+        guard phaseDuration > 0 else { return 0 }
+        let phaseStart: TimeInterval
+        switch currentPhase {
+        case .warmup: phaseStart = 0
+        case .intense: phaseStart = AppConfig.warmupDuration
+        case .cooldown: phaseStart = AppConfig.warmupDuration + AppConfig.intenseDuration
+        }
+        let phaseElapsed = max(0, elapsedTime - phaseStart)
+        return min(phaseElapsed / phaseDuration, 1.0)
+    }
+
+    // Formatted elapsed time for Coachi display (MM:SS)
+    var elapsedFormatted: String {
+        let mins = Int(elapsedTime) / 60
+        let secs = Int(elapsedTime) % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+
+    // MARK: - Coachi Convenience Methods
+
+    func startWorkout() {
+        workoutState = .active
+        showComplete = false
+        startContinuousWorkout()
+    }
+
+    func pauseWorkout() {
+        workoutState = .paused
+        pauseContinuousWorkout()
+    }
+
+    func resumeWorkout() {
+        workoutState = .active
+        resumeContinuousWorkout()
+    }
+
+    func stopWorkout() {
+        stopContinuousWorkout()
+        workoutState = .complete
+        showComplete = true
+    }
+
+    func resetWorkout() {
+        workoutState = .idle
+        showComplete = false
+        elapsedTime = 0
+        coachMessage = nil
+        breathAnalysis = nil
+    }
+
+    func selectPersonality(_ persona: CoachPersonality) {
+        switchPersonality(persona)
+    }
+
     // Time-of-day greeting for the home screen
     var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())

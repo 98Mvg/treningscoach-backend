@@ -252,7 +252,7 @@ class BackendAPIService {
         }
     }
 
-    /// Get workout history from backend
+    /// Get workout history from backend (raw)
     func getWorkouts() async throws -> [[String: Any]] {
         let url = URL(string: "\(baseURL)/workouts")!
         let request = authenticatedRequest(url: url)
@@ -269,6 +269,30 @@ class BackendAPIService {
             throw APIError.invalidResponse
         }
         return workouts
+    }
+
+    /// Get workout history as WorkoutRecord array
+    func getWorkoutHistory(limit: Int = 20) async throws -> [WorkoutRecord] {
+        let rawWorkouts = try await getWorkouts()
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        return rawWorkouts.prefix(limit).compactMap { dict -> WorkoutRecord? in
+            guard let durationSeconds = dict["duration_seconds"] as? Int else { return nil }
+            let date: Date
+            if let dateStr = dict["date"] as? String {
+                date = dateFormatter.date(from: dateStr) ?? Date()
+            } else {
+                date = Date()
+            }
+            return WorkoutRecord(
+                date: date,
+                durationSeconds: durationSeconds,
+                finalPhase: dict["final_phase"] as? String ?? "cooldown",
+                avgIntensity: dict["avg_intensity"] as? String ?? "moderate",
+                personaUsed: dict["persona_used"] as? String ?? "personal_trainer"
+            )
+        }
     }
 
     // MARK: - Helper Methods

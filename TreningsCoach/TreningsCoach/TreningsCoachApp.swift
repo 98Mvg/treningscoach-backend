@@ -10,21 +10,13 @@ import SwiftUI
 
 @main
 struct TreningsCoachApp: App {
-    @StateObject private var authManager = AuthManager()
-    @State private var hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "has_completed_onboarding")
+    @StateObject private var appViewModel = AppViewModel()
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                ContentView()
-                    .environmentObject(authManager)
-            } else {
-                OnboardingContainerView(authManager: authManager) {
-                    withAnimation {
-                        hasCompletedOnboarding = true
-                    }
-                }
-            }
+            RootView()
+                .environmentObject(appViewModel)
+                .environmentObject(appViewModel.authManager)
         }
     }
 }

@@ -2,122 +2,72 @@
 //  ProfileView.swift
 //  TreningsCoach
 //
-//  Profile and stats screen
-//  Shows workout statistics, settings, and sign-out
+//  Coachi profile screen with stats, settings, sign-out
 //
 
 import SwiftUI
 
 struct ProfileView: View {
-    @ObservedObject var viewModel: WorkoutViewModel
+    @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
+    @StateObject private var viewModel = ProfileViewModel()
     @AppStorage("app_language") private var appLanguageCode: String = "en"
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Dark background
-                AppTheme.backgroundGradient.ignoresSafeArea()
+                CoachiTheme.backgroundGradient.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
-
-                        // MARK: - Profile Header
+                        // Profile Header
                         VStack(spacing: 12) {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 72))
-                                .foregroundStyle(AppTheme.primaryAccent)
+                                .foregroundColor(CoachiTheme.primary)
 
-                            Text(authManager.currentUser?.displayName ?? L10n.athlete)
-                                .font(.title.bold())
-                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(appViewModel.userProfile.name)
+                                .font(.system(size: 24, weight: .bold)).foregroundColor(CoachiTheme.textPrimary)
 
-                            Text(authManager.currentUser?.trainingLevel.displayName ?? L10n.athlete)
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
+                            Text(appViewModel.trainingLevelRaw.capitalized)
+                                .font(.system(size: 13, weight: .bold)).foregroundColor(CoachiTheme.primary)
+                                .padding(.horizontal, 14).padding(.vertical, 6)
+                                .background(Capsule().fill(CoachiTheme.primary.opacity(0.15)))
                         }
                         .padding(.top, 20)
 
-                        // MARK: - Stats Grid
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.myStatistics)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-
-                            HStack(spacing: 12) {
-                                StatCardView(
-                                    title: L10n.workouts,
-                                    value: "\(viewModel.userStats.totalWorkouts)",
-                                    icon: "figure.run",
-                                    color: AppTheme.primaryAccent
-                                )
-
-                                StatCardView(
-                                    title: L10n.minutes,
-                                    value: "\(viewModel.userStats.totalMinutes)",
-                                    icon: "clock.fill",
-                                    color: AppTheme.secondaryAccent
-                                )
-
-                                StatCardView(
-                                    title: L10n.streak,
-                                    value: "\(viewModel.userStats.currentStreak)",
-                                    icon: "flame.fill",
-                                    color: AppTheme.warning
-                                )
-                            }
+                        // Stats Grid
+                        HStack(spacing: 12) {
+                            StatCardView(icon: "flame.fill", value: "\(viewModel.stats.totalWorkouts)", label: L10n.workouts)
+                            StatCardView(icon: "clock.fill", value: "\(viewModel.stats.totalMinutes)", label: L10n.minutes, color: CoachiTheme.secondary)
+                            StatCardView(icon: "bolt.fill", value: "\(viewModel.stats.currentStreak)", label: L10n.streak, color: CoachiTheme.accent)
                         }
                         .padding(.horizontal, 20)
 
-                        // MARK: - Settings Section
+                        // Settings
                         VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.settings)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
+                            Text(L10n.settings).font(.system(size: 18, weight: .bold)).foregroundColor(CoachiTheme.textPrimary)
 
-                            let currentLanguage = AppLanguage(rawValue: appLanguageCode) ?? .en
-
-                            // Language
                             NavigationLink {
-                                LanguageSettingsView()
-                                    .environmentObject(authManager)
+                                LanguageSettingsView().environmentObject(authManager)
                             } label: {
-                                settingsRow(
-                                    icon: "globe",
-                                    title: L10n.language,
-                                    subtitle: currentLanguage.displayName,
-                                    color: AppTheme.primaryAccent
-                                )
+                                settingsRow(icon: "globe", title: L10n.language, subtitle: (AppLanguage(rawValue: appLanguageCode) ?? .en).displayName, color: CoachiTheme.primary)
                             }
                             .buttonStyle(.plain)
 
-                            // Experience level
-                            settingsRow(
-                                icon: "chart.bar.fill",
-                                title: L10n.experienceLevel,
-                                subtitle: authManager.currentUser?.trainingLevel.displayName ?? "Intermediate",
-                                color: AppTheme.primaryAccent
-                            )
+                            settingsRow(icon: "chart.bar.fill", title: L10n.experienceLevel, subtitle: appViewModel.trainingLevelRaw.capitalized, color: CoachiTheme.primary)
+                            settingsRow(icon: "speaker.wave.3.fill", title: L10n.coachVoice, subtitle: "ElevenLabs", color: CoachiTheme.success)
 
-                            // Coach voice
-                            settingsRow(
-                                icon: "speaker.wave.3.fill",
-                                title: L10n.coachVoice,
-                                subtitle: "ElevenLabs",
-                                color: AppTheme.success
-                            )
-
-                            // Backend connection status
-                            settingsRow(
-                                icon: "server.rack",
-                                title: "Backend",
-                                subtitle: AppConfig.backendURL,
-                                color: AppTheme.secondaryAccent
-                            )
+                            NavigationLink {
+                                SettingsView()
+                            } label: {
+                                settingsRow(icon: "gearshape.fill", title: L10n.current == .no ? "Om" : "About", subtitle: "v\(AppConfig.version)", color: CoachiTheme.textSecondary)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 20)
 
-                        // MARK: - Sign Out Button
+                        // Sign Out
                         Button {
                             authManager.signOut()
                         } label: {
@@ -125,62 +75,40 @@ struct ProfileView: View {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
                                 Text(L10n.signOut)
                             }
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(AppTheme.danger)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(CoachiTheme.danger)
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
-                            .background(AppTheme.danger.opacity(0.12))
+                            .background(CoachiTheme.danger.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .padding(.horizontal, 20)
 
-                        // MARK: - App Info
+                        // Version
                         VStack(spacing: 4) {
-                            Text(AppConfig.appName)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(AppTheme.textSecondary)
-
-                            Text("v\(AppConfig.version)")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                            Text(AppConfig.appName).font(.system(size: 12, weight: .medium)).foregroundColor(CoachiTheme.textTertiary)
+                            Text("v\(AppConfig.version)").font(.system(size: 11)).foregroundColor(CoachiTheme.textTertiary.opacity(0.5))
                         }
                         .padding(.top, 20)
                     }
-                    .padding(.bottom, 100) // Space for tab bar
+                    .padding(.bottom, 100)
                 }
             }
         }
+        .task { await viewModel.loadStats() }
     }
-
-    // MARK: - Settings Row
 
     private func settingsRow(icon: String, title: String, subtitle: String, color: Color) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.body)
-                .foregroundStyle(color)
-                .frame(width: 36, height: 36)
-                .background(color.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
+            Image(systemName: icon).font(.body).foregroundColor(color)
+                .frame(width: 36, height: 36).background(color.opacity(0.15)).clipShape(RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .lineLimit(1)
+                Text(title).font(.system(size: 15, weight: .medium)).foregroundColor(CoachiTheme.textPrimary)
+                Text(subtitle).font(.system(size: 12)).foregroundColor(CoachiTheme.textSecondary).lineLimit(1)
             }
-
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+            Image(systemName: "chevron.right").font(.caption).foregroundColor(CoachiTheme.textTertiary)
         }
-        .padding(12)
-        .cardStyle()
+        .padding(12).cardStyle()
     }
 }
