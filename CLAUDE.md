@@ -16,7 +16,7 @@ This is a low-latency AI Coach app ("Coachi", v3.0) with "Midnight Ember" design
 
 **R0.4 — No "breathing app" framing in user-facing copy.** Breath analysis is a backend sensing function. UI/coach language frames this as an AI coach experience.
 
-**R0.5 — Two languages always.** Every user-facing string needs both English (`en`) and Norwegian (`no`).
+**R0.5 — Three languages supported.** Every user-facing string needs English (`en`) and Norwegian (`no`). Danish (`da`) is supported but message banks are still incomplete.
 
 **R0.6 — Config is king.** Tunable values live in `config.py`. Don't hardcode magic numbers elsewhere.
 
@@ -40,19 +40,21 @@ iOS App plays audio through speaker
 
 **Active brain:** Grok (xAI) — cheapest + fastest.
 **Fallback chain:** grok → gemini → openai → claude → config (static messages).
-**TTS:** ElevenLabs cloud only. Qwen TTS disabled (too slow on CPU).
+**TTS:** ElevenLabs `eleven_flash_v2_5` model. Qwen TTS disabled (too slow on CPU). Norwegian uses `language_code="nb"` to force Bokmål phonology.
 **Personas:** `personal_trainer` (supportive) and `toxic_mode` (drill sergeant), each with own voice settings + message banks.
+**Languages:** English (`en`), Norwegian Bokmål (`no` → `nb-NO`), Danish (`da` → `da-DK`). Locale config in `locale_config.py`.
 
 ### Architecture Decisions (Why Things Are This Way)
 
 - **Brain Router abstraction**: App calls ONE backend API. Backend chooses the AI provider. Enables hot-swapping, A/B testing, fallback — UI stays stable.
 - **Adapter pattern**: Each provider inherits from `BaseBrain`. Adding a provider is additive; router logic stays simple.
 - **Grok as default**: Cheapest API, fast response times, good enough quality for real-time coaching.
-- **Priority routing with timeout**: 1.2s timeout per brain. On failure, automatically tries next in chain. App never goes silent.
+- **Priority routing with timeout**: 1.2s timeout per brain (`BRAIN_TIMEOUT`). `BRAIN_SLOW_THRESHOLD` must be > `BRAIN_TIMEOUT` (currently 3.0s) or brains get permanently disabled. Latency tracked via exponential moving average (`BRAIN_LATENCY_DECAY_FACTOR=0.9`). On failure, automatically tries next in chain. App never goes silent.
 - **ElevenLabs over local TTS**: Qwen3-TTS was too slow on Render's CPU.
 - **Librosa pre-warming**: First import takes ~10s. Pre-imported on startup to avoid timeout on first request.
-- **Config fallback messages**: If ALL AI brains fail, `config.py` has static message banks in both languages.
-- **Hybrid mode**: Config handles fast real-time cues. Claude runs in background for pattern detection over longer time windows.
+- **Config fallback messages**: If ALL AI brains fail, `config.py` has static message banks in all supported languages.
+- **Hybrid coaching engine**: Templates are the safety net (anchor). AI generates variations. If AI text fails validation (`coaching_engine.py`), the template plays instead. Validation checks: word count, forbidden phrases (R0.4), language correctness, tone match, profanity.
+- **Breathing timeline**: Active at ALL times — from prep through cooldown. 5 phases: prep → warmup → intense → recovery → cooldown. Each phase has breathing pattern, cue interval, and bilingual message bank (`breathing_timeline.py`).
 - **Memory is minimal by design**: Inject only at session start. Store only coaching style, safety flags, improvement markers, last session config. Never inject full memory every message.
 - **Safety overrides always win**: Critical breathing patterns override humor, pushiness, and long responses. Trigger concise, authoritative coaching.
 
@@ -209,8 +211,8 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 **Auth:** None. Path traversal blocked (`..` rejected).
 
 ### 10. GET `/brain/health` (line 925)
-**Purpose:** Check active AI brain status
-**Response:** `{active_brain, healthy, message}`
+**Purpose:** Check active AI brain status + per-brain observability
+**Response:** `{active_brain, healthy, message, brain_stats}`
 **Auth:** None
 
 ### 11. POST `/brain/switch` (line 945)
@@ -292,6 +294,29 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 - User picks voice/persona/language BEFORE workout.
 - During workout: minimal controls only.
 
+## 5b) Backend Key Files
+
+| File | What it does | When to edit |
+|------|-------------|--------------|
+| `main.py` | Flask app, all 19 routes | Adding/changing endpoints |
+| `config.py` | All tunable values, message banks, brain config | Changing thresholds, messages, feature flags |
+| `brain_router.py` | Priority routing across AI providers, latency tracking | Changing brain selection, timeouts, observability |
+| `brains/*.py` | AI provider adapters (grok, claude, openai, gemini) | Adding/modifying AI providers |
+| `breath_analyzer.py` | Librosa DSP for breath metrics | Changing breath analysis |
+| `elevenlabs_tts.py` | ElevenLabs TTS (`eleven_flash_v2_5` model) | Changing voice synthesis, model, language codes |
+| `locale_config.py` | Single source of truth: languages, voice IDs, BCP47 codes | Adding languages, changing voice IDs |
+| `persona_manager.py` | AI personas + emotional modifiers (EN/NO) | Changing coach personality, adding personas |
+| `coaching_engine.py` | Text validation, anti-repetition, template anchors | Changing coaching quality rules |
+| `breathing_timeline.py` | 5-phase breathing guidance (prep→cooldown) | Changing breathing cues, phase timing |
+| `coaching_intelligence.py` | Pattern detection, strategic insights | Changing AI-driven coaching logic |
+
+### Backend Design Rules
+- **TTS model is `eleven_flash_v2_5`** — NOT `eleven_multilingual_v2` (that one sounds Danish for Norwegian text)
+- **Always pass `language_code`** for non-English TTS (Norwegian = `"nb"`, Danish = `"da"`)
+- **`BRAIN_SLOW_THRESHOLD` must be > `BRAIN_TIMEOUT`** or brains get permanently disabled after one timeout
+- **Coaching text validation** via `coaching_engine.validate_coaching_text()` before sending to TTS
+- **Breathing timeline is always active** — never skip phases, even during warmup
+
 ---
 
 ## 6) Solving Common Problems
@@ -327,11 +352,23 @@ UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
 3. Check backend logs for TTS errors
 4. Test: `curl "https://treningscoach-backend.onrender.com/welcome?language=en"`
 
+### "Norwegian voice sounds Danish"
+1. Check TTS model is `eleven_flash_v2_5` (NOT `eleven_multilingual_v2`)
+2. Check `language_code="nb"` is being passed to ElevenLabs `convert()` call
+3. Check voice ID is Norwegian-native: `nhvaqgRyAq6BmFs3WcdX` (not an English voice)
+4. See `elevenlabs_tts.py` — `LANGUAGE_CODES` dict and `generate_audio()`
+
 ### "Brain/AI not responding"
 1. Check active brain: `curl https://treningscoach-backend.onrender.com/brain/health`
 2. Check API key for that brain is set in Render env vars
 3. Priority routing tries: grok → gemini → openai → claude → config (static)
 4. Switch brain: `curl -X POST .../brain/switch -H "Content-Type: application/json" -d '{"brain":"claude"}'`
+
+### "Grok always skipped / $0.00 usage"
+1. Check `BRAIN_SLOW_THRESHOLD` > `BRAIN_TIMEOUT` in config.py (currently 3.0 > 1.2)
+2. If threshold equals timeout, ANY single timeout permanently disables the brain
+3. Check brain stats: `curl .../brain/health` — look at `brain_stats.grok.avg_latency` and `brain_stats.grok.timeouts`
+4. Latency uses exponential moving average (`BRAIN_LATENCY_DECAY_FACTOR=0.9`) — recovers over time
 
 ### "Breath analysis timing out / first request slow"
 Librosa is pre-warmed on startup. Render free tier cold-starts take 30-60s. Procfile has `--timeout 120` to handle this.
@@ -346,6 +383,10 @@ Librosa is pre-warmed on startup. Render free tier cold-starts take 30-60s. Proc
 | `ELEVENLABS_API_KEY` | Yes (TTS) | elevenlabs_tts.py |
 | `ELEVENLABS_VOICE_ID` | Yes (English voice) | config.py |
 | `ELEVENLABS_VOICE_ID_NO` | Yes (Norwegian voice) | config.py |
+| `ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN` | Optional override | locale_config.py |
+| `ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO` | Optional override | locale_config.py (default: nhvaqgRyAq6BmFs3WcdX) |
+| `ELEVENLABS_VOICE_ID_TOXIC_EN` | Optional override | locale_config.py |
+| `ELEVENLABS_VOICE_ID_TOXIC_NO` | Optional override | locale_config.py |
 | `ANTHROPIC_API_KEY` | If using Claude brain | brains/claude_brain.py |
 | `OPENAI_API_KEY` | If using OpenAI brain | brains/openai_brain.py |
 | `GEMINI_API_KEY` | If using Gemini brain | brains/gemini_brain.py |
@@ -398,3 +439,19 @@ When you touch provider routing:
 - Use the user's name in the FIRST welcome message of a session (if known).
 - Safety overrides always win over personality/humor.
 - Breath analysis is a sensor signal — never expose DSP internals to the user.
+- Emotional progression: personas adapt intensity (supportive → pressing → intense → peak) per `EMOTIONAL_MODIFIERS` in `persona_manager.py`.
+- Breathing interruptions ("can't breathe", "dizzy", "slow down") force safety responses — see `breathing_timeline.py` `BREATHING_INTERRUPTS`.
+- Norwegian coaching must sound natural: "Nydelig", "Kjør på!", "Helt inn nå!", "Trøkk i beina!" — NOT translated English.
+
+## 11) Coaching Engine Architecture
+
+```
+Workout session timeline:
+  PREP (20s cues) → WARMUP (4-4 pattern, 45s) → INTENSE (power, 90s) → RECOVERY (4-6, 30s) → COOLDOWN (4-7, 60s)
+```
+
+- **Prep phase**: Safety words, hydration/stretching reminders, countdown to start, motivating words
+- **Template-anchor pattern**: `get_template_message()` always returns a valid message. AI generates variations. If `validate_coaching_text()` fails, template plays.
+- **Anti-repetition**: `SessionCoachState` tracks last 10 messages + last 5 themes. Cue types (pace/effort/form/breathing/motivation) are weighted by phase.
+- **Forbidden phrases** (R0.4): "breathing exercise", "breathing app", "as an ai", etc. — see `FORBIDDEN_PHRASES` in `coaching_engine.py`.
+- **Integration status**: `coaching_engine.py`, `breathing_timeline.py`, and `locale_config.py` are standalone modules ready to be wired into `main.py`'s `/coach/continuous` endpoint.
