@@ -56,10 +56,17 @@ class VoiceIntelligence:
         elapsed_seconds: int
     ) -> Tuple[bool, str]:
         """
-        STEP 6: Decide if coach should stay silent (optimal breathing).
+        STEP 6: Decide if coach should stay silent.
 
-        "If breathing is optimal, say nothing."
-        Silence = confidence.
+        Key principle: Coach is the user's MOTIVATOR. Silence should be rare,
+        not the default. Users expect an active, engaging coach — not a silent one.
+
+        Only stay silent when:
+        - Breathing is HIGHLY regular AND optimal for the current phase
+        - Even then, only for 1 tick max before coaching again
+
+        Never stay silent for noisy audio — coach should still motivate
+        even when breath analysis is unreliable.
 
         Args:
             breath_data: Current breath analysis
@@ -71,53 +78,38 @@ class VoiceIntelligence:
             (should_be_silent: bool, reason: str)
         """
         intensitet = breath_data.get("intensity", "moderate")
-        tempo = breath_data.get("tempo", 0)
         signal_quality = breath_data.get("signal_quality")
         breath_regularity = breath_data.get("breath_regularity")
 
         # NEVER silent for critical breathing
         if intensitet == "critical":
+            self.silence_count = 0
             return (False, "safety_override")
 
-        # Don't be silent at the very start (greet user)
-        if elapsed_seconds < 10:
-            return (False, "greeting")
+        # Always coach at the start (first 30 seconds = warmup tips, motivation)
+        if elapsed_seconds < 30:
+            self.silence_count = 0
+            return (False, "early_workout")
 
-        # Stay silent if audio is too noisy to analyze reliably
-        # Align with coaching_intelligence threshold to avoid over-silencing
-        if signal_quality is not None and signal_quality < 0.2:
-            self.silence_count += 1
-            return (True, "noisy_audio")
+        # Noisy audio: still coach! Coach should motivate regardless of signal.
+        # Breath data may be unreliable but coach messages (pace, encouragement) still help.
+        # Only note it for logging, don't suppress coaching.
+        if signal_quality is not None and signal_quality < 0.1:
+            # Very poor signal — skip ONE tick, then coach anyway
+            if self.silence_count < 1:
+                self.silence_count += 1
+                return (True, "very_noisy_audio")
 
-        # Stay silent if breathing is highly regular AND matches phase target
-        if breath_regularity is not None and breath_regularity > 0.85:
-            if ((phase == "warmup" and intensitet in ["calm", "moderate"]) or
-                (phase == "intense" and intensitet == "intense") or
+        # Stay silent ONLY if breathing is highly regular AND matches phase target
+        # Even then, max 1 consecutive silent tick
+        if breath_regularity is not None and breath_regularity > 0.9:
+            if ((phase == "intense" and intensitet == "intense") or
                 (phase == "cooldown" and intensitet == "calm")):
-                if self.silence_count < 2:
+                if self.silence_count < 1:
                     self.silence_count += 1
-                    return (True, "highly_regular_optimal")
+                    return (True, "peak_performance")
 
-        # STEP 6: Silence when breathing is optimal for the phase
-        if phase == "warmup" and intensitet in ["calm", "moderate"]:
-            # Optimal warmup breathing - silence is golden
-            if self.silence_count < 2:  # Allow some silence
-                self.silence_count += 1
-                return (True, "optimal_warmup")
-
-        elif phase == "intense" and intensitet == "intense":
-            # Optimal intense breathing - let them focus
-            if self.silence_count < 1:  # Brief silence during optimal performance
-                self.silence_count += 1
-                return (True, "optimal_intense")
-
-        elif phase == "cooldown" and intensitet == "calm":
-            # Optimal cooldown breathing - peaceful silence
-            if self.silence_count < 3:  # Longer silence during recovery
-                self.silence_count += 1
-                return (True, "optimal_cooldown")
-
-        # Reset silence count if not silent
+        # Reset silence count — coach speaks
         self.silence_count = 0
         return (False, "needs_coaching")
 

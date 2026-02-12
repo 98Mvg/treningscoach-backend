@@ -55,15 +55,6 @@ struct ActiveWorkoutView: View {
                     .background(Capsule().fill(Color(hex: viewModel.currentIntensity.color).opacity(0.15)))
                     .padding(.top, 16)
 
-                // Coach message
-                if let message = viewModel.coachMessage, !message.isEmpty {
-                    Text(message)
-                        .font(.system(size: 16, weight: .medium)).foregroundColor(CoachiTheme.textSecondary)
-                        .multilineTextAlignment(.center).lineLimit(2)
-                        .padding(.horizontal, 40).padding(.top, 20)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                }
-
                 Spacer()
 
                 // Controls: stop / pause-play

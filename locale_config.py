@@ -8,7 +8,7 @@
 #
 # Key design decisions:
 # - "no" maps to nb-NO (Bokmål). If Nynorsk needed, add "nn" → nn-NO.
-# - tts_language_code is separate from bcp47 (ElevenLabs uses "nb", iOS uses "nb-NO")
+# - tts_language_code is separate from bcp47 (ElevenLabs uses ISO 639-3 "nor", iOS uses "nb-NO")
 # - Voice IDs are per-persona per-locale with env-var overrides + hardcoded fallbacks
 
 import os
@@ -36,7 +36,7 @@ SUPPORTED_LOCALES = {
     "no": {
         "bcp47": "nb-NO",
         "display_name": {"en": "Norwegian", "no": "Norsk", "da": "Norsk"},
-        "tts_language_code": "nb",  # Forces Norwegian Bokmål phonology
+        "tts_language_code": "nor",  # ElevenLabs ISO 639-3 code for Norwegian
         "speech_recognition_locale": "nb-NO",
         "voice_ids": {
             "personal_trainer": {
@@ -54,7 +54,7 @@ SUPPORTED_LOCALES = {
     "da": {
         "bcp47": "da-DK",
         "display_name": {"en": "Danish", "no": "Dansk", "da": "Dansk"},
-        "tts_language_code": "da",  # Forces Danish phonology
+        "tts_language_code": "dan",  # ElevenLabs ISO 639-3 code for Danish
         "speech_recognition_locale": "da-DK",
         "voice_ids": {
             "personal_trainer": {

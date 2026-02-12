@@ -99,6 +99,12 @@ struct L10n {
     static var personalTouch: String { current == .no ? "Personlig preg" : "Personal Touch" }
     static var chooseYourCoach: String { current == .no ? "Velg din coach" : "Choose Your Coach" }
 
+    // MARK: - Workout Setup
+    static var warmupTime: String { current == .no ? "Oppvarmingstid" : "Warm-up Time" }
+    static var go: String { current == .no ? "KJØR" : "GO" }
+    static var min: String { current == .no ? "min" : "min" }
+    static var noWarmup: String { current == .no ? "Ingen" : "None" }
+
     // MARK: - Workout Complete
     static var greatWorkout: String { current == .no ? "Bra trening!" : "Great Workout!" }
     static var duration: String { current == .no ? "Varighet" : "Duration" }

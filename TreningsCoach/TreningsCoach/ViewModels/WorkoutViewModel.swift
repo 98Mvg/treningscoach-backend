@@ -64,6 +64,7 @@ class WorkoutViewModel: ObservableObject {
 
     @Published var workoutState: WorkoutState = .idle
     @Published var showComplete: Bool = false
+    @Published var selectedWarmupMinutes: Int = 2  // User picks: 0, 1, 2, 3, 5
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -82,14 +83,24 @@ class WorkoutViewModel: ObservableObject {
 
     // Computed: phase progress (0.0 to 1.0)
     var phaseProgress: Double {
-        let phaseDuration = currentPhase.duration
-        guard phaseDuration > 0 else { return 0 }
+        let warmupSecs = TimeInterval(selectedWarmupMinutes * 60)
+        let intenseSecs = AppConfig.intenseDuration
+        let phaseDuration: TimeInterval
         let phaseStart: TimeInterval
+
         switch currentPhase {
-        case .warmup: phaseStart = 0
-        case .intense: phaseStart = AppConfig.warmupDuration
-        case .cooldown: phaseStart = AppConfig.warmupDuration + AppConfig.intenseDuration
+        case .warmup:
+            phaseDuration = warmupSecs
+            phaseStart = 0
+        case .intense:
+            phaseDuration = intenseSecs
+            phaseStart = warmupSecs
+        case .cooldown:
+            phaseDuration = 300 // 5-minute cooldown
+            phaseStart = warmupSecs + intenseSecs
         }
+
+        guard phaseDuration > 0 else { return 0 }
         let phaseElapsed = max(0, elapsedTime - phaseStart)
         return min(phaseElapsed / phaseDuration, 1.0)
     }
@@ -106,6 +117,10 @@ class WorkoutViewModel: ObservableObject {
     func startWorkout() {
         workoutState = .active
         showComplete = false
+        // If no warmup selected, start directly in intense phase
+        if selectedWarmupMinutes == 0 {
+            hasSkippedWarmup = true
+        }
         startContinuousWorkout()
     }
 
@@ -397,20 +412,21 @@ class WorkoutViewModel: ObservableObject {
 
     private func autoDetectPhase() {
         // Auto-detect workout phase based on duration
-        // First 2 minutes: warmup (unless manually skipped)
-        // 2-15 minutes: intense
+        // Uses user-selected warmup time (0, 1, 2, 3, or 5 minutes)
+        // After warmup: intense until 15 minutes total
         // After 15 minutes: cooldown
 
         guard let startTime = sessionStartTime else {
-            currentPhase = .warmup
+            currentPhase = selectedWarmupMinutes > 0 ? .warmup : .intense
             return
         }
 
         let duration = Date().timeIntervalSince(startTime)
+        let warmupSeconds = TimeInterval(selectedWarmupMinutes * 60)
 
-        if duration < 120 && !hasSkippedWarmup { // First 2 minutes (respect skip)
+        if selectedWarmupMinutes > 0 && duration < warmupSeconds && !hasSkippedWarmup {
             currentPhase = .warmup
-        } else if duration < 900 { // 2-15 minutes (or skipped warmup)
+        } else if duration < 900 { // Until 15 minutes total
             currentPhase = .intense
         } else { // After 15 minutes
             currentPhase = .cooldown

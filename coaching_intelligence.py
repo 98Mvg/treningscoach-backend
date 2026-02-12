@@ -179,9 +179,10 @@ def should_coach_speak(
     signal_quality = current_analysis.get("signal_quality")
     respiratory_rate = current_analysis.get("respiratory_rate")
 
-    # Rule 0: Skip coaching if audio quality is too poor to be reliable
-    if signal_quality is not None and signal_quality < 0.2:
-        logger.info("Coach silent: signal_quality too low (%.2f)", signal_quality)
+    # Rule 0: Skip coaching only if signal is essentially noise (very low threshold)
+    # Phone mics during workouts are noisy — don't suppress coaching for marginal signal
+    if signal_quality is not None and signal_quality < 0.05:
+        logger.info("Coach silent: signal_quality extremely low (%.2f)", signal_quality)
         return (False, "low_signal_quality")
 
     # Rule 1: Always speak for critical breathing (safety override)
