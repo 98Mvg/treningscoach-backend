@@ -1,354 +1,248 @@
-# 🏋️ Treningscoach - Complete Project
+<p align="center">
+  <img src="TreningsCoach/TreningsCoach/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="Coachi Logo">
+</p>
 
-AI-powered workout coaching system with ChatGPT-like voice UI and real-time breath analysis.
+<h1 align="center">Coachi</h1>
+
+<p align="center">
+  <strong>AI-Powered Real-Time Workout Coach</strong><br>
+  Voice-guided training with breath analysis, adaptive personas, and multilingual support
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.0.0-blue" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/platform-iOS%2017%2B-black" alt="iOS 17+">
+  <img src="https://img.shields.io/badge/backend-Flask%20on%20Render-green" alt="Flask on Render">
+  <img src="https://img.shields.io/badge/TTS-ElevenLabs-purple" alt="ElevenLabs TTS">
+  <img src="https://img.shields.io/badge/languages-EN%20%7C%20NO%20%7C%20DA-orange" alt="EN | NO | DA">
+</p>
+
+---
 
 ## 📁 Project Structure
 
 ```
 treningscoach/
-├── backend/                    # Flask API for audio analysis
-│   ├── config.py              # 🎨 Easy customization (colors, messages, timings)
-│   ├── main.py                # Main application
-│   ├── requirements.txt
-│   ├── Procfile
-│   ├── runtime.txt
-│   ├── README.md
-│   └── DEPLOYMENT.md
+├── main.py                        # Production Flask app (Render deploys from root)
+├── config.py                      # Central config: thresholds, messages, brain settings
+├── brain_router.py                # AI provider routing with priority fallback
+├── breath_analyzer.py             # Librosa DSP for breath metrics
+├── elevenlabs_tts.py              # ElevenLabs TTS (eleven_flash_v2_5)
+├── locale_config.py               # Language/voice/locale single source of truth
+├── persona_manager.py             # Coach personas + emotional progression
+├── coaching_engine.py             # Text validation, anti-repetition, template anchors
+├── breathing_timeline.py          # 5-phase breathing guidance (prep→cooldown)
+├── coaching_intelligence.py       # Pattern detection + strategic insights
+├── brains/                        # AI provider adapters
+│   ├── base_brain.py              # Abstract base class
+│   ├── grok_brain.py              # xAI Grok (default — cheapest)
+│   ├── gemini_brain.py            # Google Gemini
+│   ├── openai_brain.py            # OpenAI GPT
+│   └── claude_brain.py            # Anthropic Claude
 │
-├── TreningsCoach/             # iOS SwiftUI application
-│   ├── TreningsCoach/
-│   │   ├── Config.swift       # 🎨 Easy customization (iOS settings)
-│   │   ├── TreningsCoachApp.swift
-│   │   ├── Views/
-│   │   │   ├── ContentView.swift
-│   │   │   └── VoiceOrbView.swift  # Main voice orb component
-│   │   ├── ViewModels/
-│   │   │   └── WorkoutViewModel.swift
-│   │   ├── Services/
-│   │   │   ├── AudioRecordingManager.swift
-│   │   │   └── BackendAPIService.swift
-│   │   └── Models/
-│   │       └── Models.swift
-│   └── TreningsCoach.xcodeproj
+├── backend/                       # Development copy (edit here first, sync to root)
+│   ├── main.py
+│   ├── config.py
+│   └── ...
 │
-├── CUSTOMIZATION.md          # 🎨 Complete customization guide
-└── README.md                 # This file
+├── TreningsCoach/                 # iOS app (SwiftUI)
+│   └── TreningsCoach/
+│       ├── App/                   # Entry point, root navigation
+│       ├── Views/                 # All SwiftUI views
+│       ├── ViewModels/            # Workout + app state management
+│       ├── Services/              # Audio, API, wake word, auth
+│       ├── Theme/                 # CoachiTheme "Midnight Ember" design system
+│       ├── Localization/          # L10n.swift (EN + NO bilingual strings)
+│       └── Models/                # Data models
+│
+├── Procfile                       # Gunicorn config for Render
+└── requirements.txt               # Python dependencies
 ```
-
-## 🎨 Customization Made Easy
-
-**All customization in two files:**
-- `backend/config.py` - Backend settings, messages, colors
-- `TreningsCoach/TreningsCoach/Config.swift` - iOS settings
-
-See [CUSTOMIZATION.md](CUSTOMIZATION.md) for the complete guide!
 
 ## 🎯 System Overview
 
-### How It Works
-
-1. **iOS App records breathing** during workout
-2. **Audio sent to Flask backend** for analysis
-3. **Python analyzes** volume, tempo, silence patterns
-4. **AI coach generates** motivational feedback
-5. **Voice response** played back to user
+Coachi is a real-time AI workout coach that listens to your breathing, analyzes effort intensity, and delivers voice-guided coaching — adapting tone, language, and personality to your workout phase.
 
 ### Architecture
 
 ```
-┌─────────────┐
-│  iOS App    │
-│  (SwiftUI)  │
-└──────┬──────┘
-       │ Audio (WAV)
-       ↓
-┌─────────────┐
-│   Backend   │
-│  (Flask)    │
-└──────┬──────┘
-       │ Analysis
-       ↓
-┌─────────────┐
-│   Coach     │
-│   Logic     │
-└──────┬──────┘
-       │ Voice
-       ↓
-┌─────────────┐
-│  iOS App    │
-│  (Playback) │
-└─────────────┘
+iOS App (SwiftUI)
+  ↓ HTTP POST /coach/continuous (6-10s audio chunks)
+Backend (Flask on Render)
+  ↓ breath_analyzer.py → breath metrics (librosa DSP)
+  ↓ brain_router.py → picks AI brain (grok → gemini → openai → claude → config)
+  ↓ persona_manager.py → emotional mode + persona
+  ↓ coaching_engine.py → validates + anchors coaching text
+  ↓ elevenlabs_tts.py → text-to-speech (eleven_flash_v2_5)
+  ↑ Returns audio URL to iOS
+iOS App plays coaching audio
 ```
 
-## 🚀 Quick Start
+**Key design**: The iOS app never knows which AI provider is active. The Brain Router abstracts all provider selection, fallback, and timeout handling.
 
-### Backend Setup
+### Brain Priority Chain
 
-```bash
-cd backend
-pip3 install -r requirements.txt
-PORT=5001 python3 main.py
+```
+grok (1.2s timeout) → gemini → openai → claude → config (static messages)
 ```
 
-Backend runs at: `http://localhost:5001`
+If all AI brains fail, `config.py` has static coaching message banks in all languages — the app never goes silent.
 
-### iOS App Setup
+### Coaching Timeline
 
-```bash
-cd ios-app
-open TreningsCoach.xcodeproj
+```
+PREP (safety + countdown) → WARMUP (4-4 breathing) → INTENSE (power) → RECOVERY (4-6) → COOLDOWN (4-7)
 ```
 
-Then press `Cmd + R` in Xcode to build and run.
-
-## 🌐 Production URLs
-
-- **Backend API:** https://treningscoach-backend.onrender.com
-- **GitHub:** https://github.com/98Mvg/treningscoach-backend
+Active at all times. Each phase has breathing patterns, cue intervals, and bilingual message banks.
 
 ## 📋 Features
 
 ### Backend (Python/Flask)
-- ✅ Audio file processing (WAV/MP3/M4A)
-- ✅ Breath pattern analysis
-- ✅ Intensity classification (rolig, moderat, hard, kritisk)
-- ✅ Dynamic coaching responses
-- ✅ Voice generation (placeholder for PersonaPlex)
-- ✅ RESTful API with CORS support
-- ✅ Comprehensive logging
-- ✅ Error handling and validation
+
+- **19 API endpoints** — workout coaching, chat, persona switching, brain management
+- **Multi-brain AI routing** — Grok, Gemini, OpenAI, Claude with priority fallback + timeout
+- **Real-time breath analysis** — librosa DSP: volume, tempo, respiratory rate, intensity
+- **ElevenLabs TTS** — `eleven_flash_v2_5` model, per-persona voices, Norwegian Bokmål support
+- **2 coach personas** — Personal Trainer (calm discipline) + Toxic Mode (drill sergeant humor)
+- **Emotional progression** — supportive → pressing → intense → peak (per persona)
+- **Coaching text validation** — length, forbidden phrases, language check, tone match
+- **5-phase breathing timeline** — prep, warmup, intense, recovery, cooldown
+- **Safety interrupts** — "can't breathe", "dizzy", "slow down" → immediate safety response
+- **Brain observability** — per-brain call stats, latency tracking, cooldown management
+- **3 languages** — English, Norwegian (Bokmål), Danish
 
 ### iOS App (Swift/SwiftUI)
-- ✅ Real-time audio recording
-- ✅ Microphone permission handling
-- ✅ Workout phase selection (warmup/intense/cooldown)
-- ✅ Beautiful animated UI
-- ✅ Breath metrics visualization
-- ✅ Voice playback
-- ✅ Error handling
+
+- **"Midnight Ember" design system** — CoachiTheme with dark gradients and ember accents
+- **Animated coaching orb** — idle/listening/speaking states with fluid animations
+- **Continuous audio recording** — 6-10s chunks sent to backend in real-time
+- **Workout state machine** — idle → active ↔ paused → complete
+- **Onboarding flow** — Welcome → Language → Features → Setup
+- **Bilingual UI** — L10n.swift with EN + NO strings
+- **Persona selection** — choose coach personality before workout
+- **Wake word support** — talk to coach mid-workout
+- **Workout history** — save and review completed sessions
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Language:** Python 3.11
-- **Framework:** Flask 3.0
-- **Audio:** wave (built-in)
-- **Hosting:** Render
-- **CI/CD:** GitHub → Render auto-deploy
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.11 |
+| Framework | Flask 3.0 |
+| Audio Analysis | librosa + numpy |
+| AI Providers | Grok (xAI), Gemini, OpenAI, Claude |
+| Text-to-Speech | ElevenLabs (`eleven_flash_v2_5`) |
+| Hosting | Render (auto-deploy from GitHub) |
+| Process Manager | Gunicorn (2 workers, 120s timeout) |
 
 ### iOS
-- **Language:** Swift 5.9
-- **Framework:** SwiftUI
-- **Audio:** AVFoundation
-- **Min iOS:** 17.0+
-- **Architecture:** MVVM
+| Component | Technology |
+|-----------|-----------|
+| Language | Swift 5.9 |
+| Framework | SwiftUI |
+| Audio | AVFoundation |
+| Min iOS | 17.0+ |
+| Architecture | MVVM |
+| Design System | CoachiTheme ("Midnight Ember") |
 
-## 📊 API Endpoints
+## 🚀 Quick Start
 
-### GET /health
-Health check endpoint
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "version": "1.1.0",
-  "timestamp": "2026-01-27T..."
-}
-```
-
-### POST /analyze
-Analyze audio only
-
-**Request:**
-- `audio`: Audio file (WAV/MP3/M4A)
-
-**Response:**
-```json
-{
-  "stillhet": 50.0,
-  "volum": 30.0,
-  "tempo": 15.0,
-  "intensitet": "moderat",
-  "varighet": 2.0
-}
-```
-
-### POST /coach
-Get coaching feedback
-
-**Request:**
-- `audio`: Audio file
-- `phase`: "warmup", "intense", or "cooldown"
-
-**Response:**
-```json
-{
-  "text": "PUSH! Hardere!",
-  "breath_analysis": {...},
-  "audio_url": "/download/coach_xxx.mp3",
-  "phase": "intense"
-}
-```
-
-## 🎨 Key Features Explained
-
-### Breath Analysis
-The backend analyzes:
-- **Stillhet** - Amount of silence (0-100%)
-- **Volum** - Breathing volume (0-100)
-- **Tempo** - Breaths per minute
-- **Intensitet** - Overall classification
-
-### Intensity Levels
-- **Rolig** 😌 - Calm breathing
-- **Moderat** 💪 - Moderate intensity
-- **Hard** 🔥 - High intensity
-- **Kritisk** ⚠️ - Safety warning triggered
-
-### Coaching Logic
-- **Warmup:** Gentle encouragement
-- **Intense:** Motivational pushing
-- **Cooldown:** Calming guidance
-
-## 🔧 Development
-
-### Backend Development
+### Backend
 
 ```bash
-cd backend
-
 # Install dependencies
 pip3 install -r requirements.txt
 
+# Set required env vars
+export ELEVENLABS_API_KEY="your_key"
+export ELEVENLABS_VOICE_ID="your_english_voice_id"
+export XAI_API_KEY="your_grok_key"
+
 # Run locally
-PORT=5001 DEBUG=true python3 main.py
-
-# Test endpoints
-curl http://localhost:5001/health
-```
-
-### iOS Development
-
-```bash
-cd ios-app
-
-# Open in Xcode
-open TreningsCoach.xcodeproj
-
-# Or use command line
-xcodebuild -scheme TreningsCoach
-```
-
-## 📦 Deployment
-
-### Backend (Render)
-
-1. Push to GitHub
-```bash
-cd backend
-git add .
-git commit -m "Update backend"
-git push
-```
-
-2. Render auto-deploys (2-3 minutes)
-
-### iOS (TestFlight/App Store)
-
-1. Archive in Xcode
-2. Upload to App Store Connect
-3. Submit for TestFlight or review
-
-## 🐛 Troubleshooting
-
-### Backend Issues
-
-**Port 5000 in use (macOS):**
-```bash
 PORT=5001 python3 main.py
 ```
 
-**Backend sleeping (Render free tier):**
-- First request takes 30-60 seconds
-- Consider upgrading to paid tier
+### iOS
 
-**CORS errors:**
-- Already enabled in v1.1.0
-- Check request headers
+```bash
+open TreningsCoach/TreningsCoach.xcodeproj
+# Press Cmd+R in Xcode to build and run
+```
 
-### iOS Issues
+### Verify
 
-**Microphone permission denied:**
-- Go to Settings → Privacy → Microphone
-- Enable for Treningscoach
+```bash
+# Health check
+curl http://localhost:5001/health
 
-**Recording fails:**
-- Check no other app is using microphone
-- Try restarting app
+# Test welcome
+curl "http://localhost:5001/welcome?language=en&persona=personal_trainer"
 
-**Backend timeout:**
-- Wait for backend to wake up
-- Check internet connection
+# Check brain status
+curl http://localhost:5001/brain/health
+```
+
+## 🌐 Production
+
+- **Backend API:** https://treningscoach-backend.onrender.com
+- **Health Check:** https://treningscoach-backend.onrender.com/health
+- **Brain Status:** https://treningscoach-backend.onrender.com/brain/health
+
+## 📊 API Endpoints (19 routes)
+
+| # | Method | Route | Purpose |
+|---|--------|-------|---------|
+| 1 | GET | `/` | Web interface |
+| 2 | GET | `/health` | Health check + version |
+| 3 | GET | `/welcome` | Welcome message + TTS audio |
+| 4 | POST | `/analyze` | Analyze breath audio |
+| 5 | POST | `/coach` | Single-shot coaching |
+| 6 | POST | `/coach/continuous` | **Main endpoint** — continuous workout coaching |
+| 7 | POST | `/coach/talk` | Talk to coach (wake word) |
+| 8 | POST | `/coach/persona` | Switch persona mid-workout |
+| 9 | GET | `/download/<file>` | Download audio files |
+| 10 | GET | `/brain/health` | Brain status + per-brain stats |
+| 11 | POST | `/brain/switch` | Hot-swap AI brain |
+| 12 | POST | `/chat/start` | Create chat session |
+| 13 | POST | `/chat/stream` | Streaming chat (SSE) |
+| 14 | POST | `/chat/message` | Non-streaming chat |
+| 15 | GET | `/chat/sessions` | List sessions |
+| 16 | DELETE | `/chat/sessions/<id>` | Delete session |
+| 17 | GET | `/chat/personas` | List personas |
+| 18 | POST | `/workouts` | Save workout record |
+| 19 | GET | `/workouts` | Get workout history |
+
+## 🔧 Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `XAI_API_KEY` | Yes | Grok (xAI) API key — active brain |
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs TTS API key |
+| `ELEVENLABS_VOICE_ID` | Yes | Default English voice ID |
+| `ELEVENLABS_VOICE_ID_NO` | Recommended | Norwegian voice ID (fallback: nhvaqgRyAq6BmFs3WcdX) |
+| `ANTHROPIC_API_KEY` | If using Claude | Claude API key |
+| `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
+| `GEMINI_API_KEY` | If using Gemini | Gemini API key |
 
 ## 📝 Version History
 
-### Backend v1.1.0 (2026-01-27)
-- Added CORS support
-- Improved error handling
-- File size validation
-- Security enhancements
-- Better logging
+### v3.0.0 — Coachi (2026-02)
+- Complete UI redesign: "Midnight Ember" design system
+- Multi-brain AI routing with priority fallback
+- ElevenLabs TTS with `eleven_flash_v2_5` (Norwegian Bokmål support)
+- 2 coach personas with emotional progression
+- 5-phase breathing timeline (prep → cooldown)
+- Coaching text validation + anti-repetition
+- Brain observability (per-brain stats, latency tracking)
+- 3 language support (EN, NO, DA)
+- Onboarding flow, workout history
 
-### iOS v1.0.0 (2026-01-27)
-- Initial release
-- Audio recording
-- Backend integration
-- UI animations
-- Voice playback
-
-## 🔮 Roadmap
-
-### Short Term
-- [ ] Integrate PersonaPlex for real TTS
-- [ ] Add workout history
-- [ ] Progress analytics
-- [ ] Better error messages
-
-### Long Term
-- [ ] Apple Watch support
-- [ ] HealthKit integration
-- [ ] Social features
-- [ ] Custom workout programs
-- [ ] Multi-language support
-
-## 📄 Documentation
-
-- [Backend README](backend/README.md) - Complete API documentation
-- [Backend Deployment Guide](backend/DEPLOYMENT.md) - iOS integration details
-- [iOS README](ios-app/README.md) - iOS app documentation
-
-## 💰 Costs
-
-**Current:**
-- Backend: $0/month (Render Free)
-- iOS: Free (Development)
-
-**Production:**
-- Backend: $7/month (Render Starter)
-- iOS: $99/year (Apple Developer)
-
-## 🙏 Acknowledgments
-
-- Flask for the backend framework
-- SwiftUI for iOS development
-- Render for hosting
-- OpenAI/Claude for development assistance
-
-## 📧 Contact
-
-**Marius Gaarder**
-- GitHub: [@98Mvg](https://github.com/98Mvg)
+### v1.1.0 (2026-01)
+- Initial audio analysis + coaching
+- Basic Flask backend
+- Single AI provider
 
 ## 📄 License
 
@@ -356,4 +250,4 @@ This project is private and proprietary.
 
 ---
 
-**Made with ❤️ for Better Workouts**
+**Made by [Marius Gaarder](https://github.com/98Mvg)**
