@@ -40,7 +40,7 @@ iOS App plays audio through speaker
 
 **Active brain:** Grok (xAI) — cheapest + fastest.
 **Fallback chain:** grok → gemini → openai → claude → config (static messages).
-**TTS:** ElevenLabs `eleven_flash_v2_5` model. Qwen TTS disabled (too slow on CPU). Norwegian uses `language_code="nb"` to force Bokmål phonology.
+**TTS:** ElevenLabs `eleven_flash_v2_5` model. Qwen TTS disabled (too slow on CPU). Norwegian uses `language_code="no"` (ISO 639-1). Danish uses `"da"`.
 **Personas:** `personal_trainer` (supportive) and `toxic_mode` (drill sergeant), each with own voice settings + message banks.
 **Languages:** English (`en`), Norwegian Bokmål (`no` → `nb-NO`), Danish (`da` → `da-DK`). Locale config in `locale_config.py`.
 
@@ -287,6 +287,7 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 | `TreningsCoachApp.swift` | Entry point, injects AppViewModel + AuthManager | App startup changes |
 | `CoachOrbView.swift` | Animated coaching orb (idle/listening/speaking) | UI animation changes |
 | `AudioPipelineDiagnostics.swift` | Debug overlay for audio pipeline | Debugging audio |
+| `AudioDiagnosticOverlayView.swift` | Debug overlay for breath analysis + coach decisions | Long-press orb during workout to toggle |
 | `L10n.swift` | All bilingual strings (en/no) | Adding user-facing text |
 
 ### iOS Design Rules
@@ -354,7 +355,7 @@ UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
 
 ### "Norwegian voice sounds Danish"
 1. Check TTS model is `eleven_flash_v2_5` (NOT `eleven_multilingual_v2`)
-2. Check `language_code="nb"` is being passed to ElevenLabs `convert()` call
+2. Check `language_code="no"` (ISO 639-1) is being passed to ElevenLabs `convert()` call — NOT `"nor"` (ISO 639-3 returns 400)
 3. Check voice ID is Norwegian-native: `nhvaqgRyAq6BmFs3WcdX` (not an English voice)
 4. See `elevenlabs_tts.py` — `LANGUAGE_CODES` dict and `generate_audio()`
 
@@ -369,6 +370,19 @@ UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
 2. If threshold equals timeout, ANY single timeout permanently disables the brain
 3. Check brain stats: `curl .../brain/health` — look at `brain_stats.grok.avg_latency` and `brain_stats.grok.timeouts`
 4. Latency uses exponential moving average (`BRAIN_LATENCY_DECAY_FACTOR=0.9`) — recovers over time
+
+### "Coach not speaking during workout (silent coach)"
+1. `voice_intelligence.py` is the ONLY signal quality gate (threshold `< 0.03`). `coaching_intelligence.py` had a second gate at `< 0.05` that was removed to prevent cascading silence.
+2. Check `config.py` `MIN_SIGNAL_QUALITY_TO_FORCE` is `0.0` — max silence override must fire unconditionally
+3. Check `main.py` `getattr` fallback matches config (both should be `0.0`)
+4. Voice intelligence has a hard cap: max 3 consecutive silent ticks. If changed, cascading silence returns.
+5. Mock TTS (`.wav` beeps) vs real ElevenLabs (`.mp3`) — check audio URL extension in response
+
+### "Worktree branch behind main"
+If using git worktrees (e.g. `claude/elegant-bardeen`), the worktree branch can fall behind `main`.
+Since Xcode builds from the main repo, worktree changes must be merged to main (or main merged into worktree).
+Check with: `cd /path/to/worktree && git log --oneline main..HEAD` (shows worktree-only commits)
+Sync with: `git merge main` (from within the worktree)
 
 ### "Breath analysis timing out / first request slow"
 Librosa is pre-warmed on startup. Render free tier cold-starts take 30-60s. Procfile has `--timeout 120` to handle this.
@@ -436,7 +450,7 @@ When you touch provider routing:
 
 - Humor allowed only when user is calm/performing well. No humor in intense/critical states.
 - Keep coaching lines short (often < 10 words in realtime mode).
-- Use the user's name in the FIRST welcome message of a session (if known).
+- Use the user's name in the FIRST welcome message of a session (if known). During workout, name appears max 1-2 times total — never on consecutive messages. Prompt must be explicit about this or LLMs will overuse it.
 - Safety overrides always win over personality/humor.
 - Breath analysis is a sensor signal — never expose DSP internals to the user.
 - Emotional progression: personas adapt intensity (supportive → pressing → intense → peak) per `EMOTIONAL_MODIFIERS` in `persona_manager.py`.

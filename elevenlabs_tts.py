@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 TTS_MODEL = "eleven_flash_v2_5"
 
 # Language codes for ElevenLabs (helps with short/ambiguous text)
-# ElevenLabs uses ISO 639-3 codes, NOT ISO 639-1
+# ElevenLabs uses ISO 639-1 codes for language_code parameter
 # See: https://elevenlabs.io/docs/api-reference/text-to-speech
 LANGUAGE_CODES = {
     "en": None,     # Auto-detect works well for English
-    "no": "nor",    # Norwegian — ISO 639-3 code (NOT "nb" which is unsupported)
-    "da": "dan",    # Danish — ISO 639-3 code
+    "no": "no",     # Norwegian — ISO 639-1 (NOT "nor" which returns 400)
+    "da": "da",     # Danish — ISO 639-1
 }
 
 class ElevenLabsTTS:

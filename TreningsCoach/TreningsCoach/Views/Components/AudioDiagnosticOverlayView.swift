@@ -85,7 +85,10 @@ struct AudioDiagnosticOverlayView: View {
             }
 
             Button {
-                diagnostics.isOverlayVisible = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPresented = false
+                    diagnostics.isOverlayVisible = false
+                }
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
@@ -254,17 +257,11 @@ struct AudioDiagnosticOverlayView: View {
                         .fill(signalQualityColor(quality))
                         .frame(width: geo.size.width * CGFloat(min(quality, 1.0)))
 
-                    // Threshold marker at 0.05 (below this = coaching suppressed)
+                    // Threshold marker at 0.03 (below this = near-zero signal, 1 tick silence)
                     Rectangle()
                         .fill(AppTheme.danger.opacity(0.8))
                         .frame(width: 1.5)
-                        .offset(x: geo.size.width * 0.05)
-
-                    // Threshold marker at 0.10 (below this = voice_intelligence silence)
-                    Rectangle()
-                        .fill(AppTheme.warning.opacity(0.6))
-                        .frame(width: 1)
-                        .offset(x: geo.size.width * 0.10)
+                        .offset(x: geo.size.width * 0.03)
                 }
             }
             .frame(height: 10)
