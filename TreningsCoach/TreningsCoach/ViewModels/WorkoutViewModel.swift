@@ -603,13 +603,15 @@ class WorkoutViewModel: ObservableObject {
                 }
             }
 
-            // Play welcome message immediately (don't wait for first 8s tick)
+            // Play welcome message, then start coaching loop after a delay
+            // This avoids the first tick picking up speaker audio from the welcome message
             Task {
                 await playWelcomeMessage()
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await MainActor.run {
+                    scheduleNextTick()
+                }
             }
-
-            // Start coaching loop (independent of recording)
-            scheduleNextTick()
 
             // Set auto-timeout (45 minutes)
             autoTimeoutTimer = Timer.scheduledTimer(
@@ -761,6 +763,8 @@ class WorkoutViewModel: ObservableObject {
         // Auto-detect phase based on elapsed time
         autoDetectPhase()
 
+        print("🔄 Coaching tick #\(AudioPipelineDiagnostics.shared.breathAnalysisCount + 1) at \(Int(workoutDuration))s | phase: \(currentPhase.rawValue) | interval: \(Int(coachingInterval))s")
+
         // 1. Get latest chunk WITHOUT stopping recording
         guard let audioChunk = continuousRecordingManager.getLatestChunk(
             duration: AppConfig.ContinuousCoaching.chunkDuration
@@ -818,7 +822,7 @@ class WorkoutViewModel: ObservableObject {
                     coachText: response.text
                 )
 
-                print("📊 Analysis: \(response.breathAnalysis.intensity), should_speak: \(response.shouldSpeak), reason: \(response.reason ?? "none")")
+                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none")")
 
                 // 4. Coach speaks ONLY if backend says so
                 // voiceState STAYS .listening (no visual state change during workout)

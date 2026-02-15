@@ -129,7 +129,15 @@ class BrainRouter:
     def _get_brain_instance(self, brain_name: str):
         """Get or lazily initialize a brain instance."""
         if brain_name in self.brain_pool:
-            return self.brain_pool[brain_name]
+            cached = self.brain_pool[brain_name]
+            if cached is not None:
+                return cached
+            # Cached failure — retry if cooldown expired
+            cooldown_until = self.brain_cooldowns.get(brain_name, 0)
+            if time.time() < cooldown_until:
+                return None  # Still in cooldown
+            # Cooldown expired — clear cache and retry below
+            del self.brain_pool[brain_name]
         try:
             brain = self._create_brain(brain_name)
             self.brain_pool[brain_name] = brain

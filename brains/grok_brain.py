@@ -123,6 +123,10 @@ class GrokBrain(BaseBrain):
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
 
+        # Norwegian character instruction
+        if language == "no":
+            context += "\n- IMPORTANT: Use proper Norwegian characters: æ, ø, å (NOT ae, oe, aa). Example: 'Kjør på!' not 'Kjoer paa!'"
+
         # Personalize with user name — RARE usage (max 1-2 times per workout)
         if user_name:
             context += f"\n- Athlete's name: {user_name}. Use their name at MOST once or twice during the entire workout — never on back-to-back messages. Most messages should NOT include the name."
@@ -176,6 +180,10 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."
+
+        # Norwegian character instruction
+        if language == "no":
+            context += "\nIMPORTANT: Use proper Norwegian characters: æ, ø, å (NOT ae, oe, aa). Example: 'Kjør på!' not 'Kjoer paa!'"
 
         # Personalize with user name — RARE usage
         if user_name:

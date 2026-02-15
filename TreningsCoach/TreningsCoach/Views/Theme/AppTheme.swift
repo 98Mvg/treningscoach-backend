@@ -58,6 +58,10 @@ enum CoachiTheme {
     static let textSecondary    = Color(hex: "8E8E9A")
     static let textTertiary     = Color(hex: "55556A")
 
+    // Warmup Dial
+    static let dialPurple       = Color(hex: "7B2FBE")
+    static let dialMagenta      = Color(hex: "D946EF")
+
     // Semantic
     static let danger           = Color(hex: "FF4757")
     static let success          = Color(hex: "2ED573")

@@ -349,24 +349,24 @@ CONTINUOUS_COACH_MESSAGES = {
 WELCOME_MESSAGES_NO = {
     "standard": [
         "Fint at du er her. Vi starter rolig og bygger derfra.",
-        "Klar naar du er. Ta et pust, finn roen, saa setter vi i gang.",
+        "Klar når du er. Ta et pust, finn roen, så setter vi i gang.",
         "Bra timing. La oss varme opp ordentlig og legge grunnlaget.",
-        "La oss komme i gang. Kontrollert tempo til aa begynne med.",
-        "Velkommen tilbake. Kjenn paa kroppen saa bygger vi derfra.",
+        "La oss komme i gang. Kontrollert tempo til å begynne med.",
+        "Velkommen tilbake. Kjenn på kroppen så bygger vi derfra.",
         "Okei, la oss begynne. Rolig og jevnt, ingen hastverk.",
         "Bra at du dukket opp. Start rolig, intensiteten kommer naturlig."
     ],
     "beginner_friendly": [
         "Fint at du er her. Vi starter sakte og holder det enkelt.",
-        "Velkommen. Bare fokuser paa pusten og beveg deg i ditt tempo.",
-        "La oss starte rolig. Ingen press, bare faa kroppen varm.",
-        "Godt aa ha deg her. Ett steg om gangen, jeg guider deg.",
-        "Du er her, det er det vanskeligste. Naa tar vi det rolig sammen."
+        "Velkommen. Bare fokuser på pusten og beveg deg i ditt tempo.",
+        "La oss starte rolig. Ingen press, bare få kroppen varm.",
+        "Godt å ha deg her. Ett steg om gangen, jeg guider deg.",
+        "Du er her, det er det vanskeligste. Nå tar vi det rolig sammen."
     ],
     "breath_aware": [
-        "Ta et oyeblikk. Dyp innpust, rolig utpust. Naa begynner vi.",
-        "Start med aa finne pusten. Skuldrene ned, brystet aapent, rolig tempo.",
-        "La oss koble paa pusten foerst. Alt annet foelger derfra.",
+        "Ta et øyeblikk. Dyp innpust, rolig utpust. Nå begynner vi.",
+        "Start med å finne pusten. Skuldrene ned, brystet åpent, rolig tempo.",
+        "La oss koble på pusten først. Alt annet følger derfra.",
         "Finn roen i pusten, slapp av kroppen. Vi bygger intensiteten gradvis."
     ]
 }
@@ -380,14 +380,14 @@ COACH_MESSAGES_NO = {
     "warmup": [
         "Velkommen. La oss starte rolig. Finn rytmen din.",
         "Bra. Pust inn, og ut. Slapp av skuldrene.",
-        "Rolig naa. Ikke stress. Oppvarming foerst.",
-        "Ta det med ro. Fokuser paa pusten."
+        "Rolig nå. Ikke stress. Oppvarming først.",
+        "Ta det med ro. Fokuser på pusten."
     ],
 
     "cooldown": [
         "Bra jobbet. La pusten roe seg. Du fortjener det.",
         "Slapp av. Senk tempoet. Skuldre og bryst avslappet.",
-        "God oekt. Hold deg rolig og kontrollert.",
+        "God økt. Hold deg rolig og kontrollert.",
         "Jevn pust. Slik avslutter vi sterkt.",
         "Bra jobbet. Du kontrollerte innsatsen godt."
     ],
@@ -401,14 +401,14 @@ COACH_MESSAGES_NO = {
         ],
         "moderate": [
             "Bra. Hold rytmen. Litt raskere, ikke hektisk.",
-            "Stoe armer, stoe pust. Der ja.",
+            "Sterke armer, stø pust. Der ja.",
             "Fortsett! Ikke stopp!",
             "Bra! Hold tempoet!"
         ],
         "intense": [
-            "Pusten oeker. Senk litt.",
+            "Pusten øker. Senk litt.",
             "Behold kontrollen. Hold tempoet.",
-            "En runde til slik, saa er du ferdig. Fokus.",
+            "En runde til slik, så er du ferdig. Fokus.",
             "JA! Hold ut! Ti til!"
         ]
     }
@@ -429,26 +429,26 @@ CONTINUOUS_COACH_MESSAGES_NO = {
     "warmup": [
         "Rolig tempo, fin start.",
         "Jevnt, god oppvarming.",
-        "Forsiktig, fortsett aa varme opp.",
+        "Forsiktig, fortsett å varme opp.",
         "Fint og rolig.",
         "Perfekt oppvarmingstempo."
     ],
 
     "cooldown": [
-        "Senk tempoet, ta det rolig naa.",
-        "Rolige pust, god nedkjoeling.",
+        "Senk tempoet, ta det rolig nå.",
+        "Rolige pust, god nedkjøling.",
         "Slipp av, bra jobbet.",
         "Nesten ferdig, senk farten.",
-        "Perfekt, fortsett aa roe ned."
+        "Perfekt, fortsett å roe ned."
     ],
 
     "intense": {
         "calm": [
             "Du kan pushe hardere!",
             "Mer innsats, du klarer dette!",
-            "Oek tempoet litt!",
+            "Øk tempoet litt!",
             "Gi meg mer kraft!",
-            "La oss oeke farten!"
+            "La oss øke farten!"
         ],
         "moderate": [
             "Fortsett, godt tempo!",
@@ -518,43 +518,43 @@ TOXIC_MODE_MESSAGES = {
     "no": {
         "warmup": [
             "Oppvarming?! Vi KASTER BORT TID!",
-            "Beveg deg RASKERE eller gaa hjem!",
+            "Beveg deg RASKERE eller gå hjem!",
             "BESTEMORA mi varmer opp raskere!",
-            "Dette er PATETISK! La oss KJORE!",
+            "Dette er PATETISK! La oss KJØRE!",
             "Kaller du dette oppvarming? Jeg kaller det en LITEN BLUND!"
         ],
         "intense": {
             "calm": [
                 "PATETISK! Bestemora mi pusher hardere!",
-                "PROVER du i det hele tatt?! BEVEG DEG!",
+                "PRØVER du i det hele tatt?! BEVEG DEG!",
                 "Jeg har sett SNEGLER med mer intensitet!",
                 "Er det ALT du har?! PINLIG!",
-                "VAAKN OPP! Dette er ikke en spa-dag!"
+                "VÅKN OPP! Dette er ikke en spa-dag!"
             ],
             "moderate": [
-                "Saa vidt godkjent. Gi meg MER!",
+                "Så vidt godkjent. Gi meg MER!",
                 "Du kan bedre enn DET!",
-                "Jeg er IKKE imponert ennaa. HARDERE!",
+                "Jeg er IKKE imponert ennå. HARDERE!",
                 "Fortsett ellers dobler jeg det!",
                 "Er det alt?! Push HARDERE!"
             ],
             "intense": [
-                "ENDELIG! Var det saa vanskelig?!",
-                "NAA snakker vi! Ikke VAAG aa senke farten!",
-                "DER er det! Paa TIDE!",
+                "ENDELIG! Var det så vanskelig?!",
+                "NÅ snakker vi! Ikke VÅG å senke farten!",
+                "DER er det! På TIDE!",
                 "JA! Det er det jeg vil ha! MER!",
                 "Ikke verst. Men jeg vil ha BEDRE!"
             ]
         },
         "cooldown": [
             "Ferdig allerede?! Greit. Du FORTJENTE denne pausen.",
-            "Ok, ok. Du overlevde. Saa vidt.",
+            "Ok, ok. Du overlevde. Så vidt.",
             "Ikke det verste jeg har sett. Hvil deg.",
-            "Godkjent prestasjon. Saa vidt godkjent.",
+            "Godkjent prestasjon. Så vidt godkjent.",
             "Greit, pust. Du trenger det til neste gang."
         ],
         "critical": [
-            "Ok, alvor naa. Pust. Sikkerhet foerst.",
+            "Ok, alvor nå. Pust. Sikkerhet først.",
             "Ok, stopp. Jeg er toff, ikke dum. Hvil.",
             "Hei. Ordentlig pause. Pust rolig. Jeg mener det."
         ]

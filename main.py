@@ -766,7 +766,10 @@ def coach_continuous():
                     training_level=training_level
                 )
 
-            logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
+            logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}, "
+                        f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "
+                        f"elapsed_since_last={elapsed_since_last}, "
+                        f"is_first_breath={breath_data.get('is_first_breath', False)}")
 
         # STEP 4: Check if we should use pattern-based insight (hybrid mode)
         pattern_insight = None

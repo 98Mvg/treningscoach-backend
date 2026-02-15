@@ -103,7 +103,9 @@ struct L10n {
     static var warmupTime: String { current == .no ? "Oppvarmingstid" : "Warm-up Time" }
     static var go: String { current == .no ? "KJØR" : "GO" }
     static var min: String { current == .no ? "min" : "min" }
+    static var minutesUpper: String { current == .no ? "MINUTTER" : "MINUTES" }
     static var noWarmup: String { current == .no ? "Ingen" : "None" }
+    static var skipWarmup: String { current == .no ? "HOPP OVER" : "SKIP" }
 
     // MARK: - Workout Complete
     static var greatWorkout: String { current == .no ? "Bra trening!" : "Great Workout!" }

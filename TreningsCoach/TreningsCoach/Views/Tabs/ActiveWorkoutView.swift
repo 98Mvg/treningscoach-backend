@@ -34,11 +34,15 @@ struct ActiveWorkoutView: View {
                 // Orb + timer ring
                 ZStack {
                     TimerRingView(progress: viewModel.phaseProgress, size: AppConfig.Layout.timerRingSize, lineWidth: 6)
+                        .allowsHitTesting(false)
                     CoachOrbView(state: viewModel.orbState, size: AppConfig.Layout.orbSize)
+                        .allowsHitTesting(false)
                 }
-                .onLongPressGesture(minimumDuration: 1.5) {
+                .contentShape(Circle())
+                .onLongPressGesture(minimumDuration: 0.8) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showDiagnostics.toggle()
+                        AudioPipelineDiagnostics.shared.isOverlayVisible = showDiagnostics
                     }
                 }
 
