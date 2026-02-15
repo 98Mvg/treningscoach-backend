@@ -389,17 +389,22 @@ class ContinuousRecordingManager: NSObject {
         let sampleRate = format.sampleRate
         let channels: AVAudioChannelCount = 1
 
-        // Create audio file
+        // Use an explicit Float32 PCM format. On some devices, AVAudioFile's
+        // processingFormat does not expose int16ChannelData, which caused chunk export
+        // to fail and the coaching loop to stall after welcome.
+        guard let exportFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: sampleRate,
+            channels: channels,
+            interleaved: false
+        ) else {
+            print("⚠️ Could not create export format")
+            return nil
+        }
+
         guard let audioFile = try? AVAudioFile(
             forWriting: fileURL,
-            settings: [
-                AVFormatIDKey: kAudioFormatLinearPCM,
-                AVSampleRateKey: sampleRate,
-                AVNumberOfChannelsKey: channels,
-                AVLinearPCMBitDepthKey: 16,
-                AVLinearPCMIsFloatKey: false,
-                AVLinearPCMIsBigEndianKey: false
-            ]
+            settings: exportFormat.settings
         ) else {
             print("⚠️ Could not create audio file")
             return nil
@@ -407,23 +412,26 @@ class ContinuousRecordingManager: NSObject {
 
         // Create buffer for writing
         let frameCount = AVAudioFrameCount(samples.count)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: frameCount) else {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: exportFormat, frameCapacity: frameCount) else {
             print("⚠️ Could not create PCM buffer")
             return nil
         }
 
         buffer.frameLength = frameCount
 
-        // Copy samples to buffer (convert Float to Int16)
-        guard let channelData = buffer.int16ChannelData else {
+        // Copy samples to buffer (prefer float data; fallback to int16 if needed)
+        if let floatData = buffer.floatChannelData {
+            for i in 0..<samples.count {
+                floatData[0][i] = Swift.max(Float(-1.0), Swift.min(Float(1.0), samples[i]))
+            }
+        } else if let int16Data = buffer.int16ChannelData {
+            for i in 0..<samples.count {
+                let sample = Swift.max(Float(-1.0), Swift.min(Float(1.0), samples[i]))
+                int16Data[0][i] = Int16(sample * Float(32767.0))
+            }
+        } else {
             print("⚠️ Could not access channel data")
             return nil
-        }
-
-        for i in 0..<samples.count {
-            // Convert Float (-1.0 to 1.0) to Int16 (-32768 to 32767)
-            let sample = Swift.max(Float(-1.0), Swift.min(Float(1.0), samples[i]))
-            channelData[0][i] = Int16(sample * Float(32767.0))
         }
 
         // Write to file
