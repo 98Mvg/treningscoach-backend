@@ -28,6 +28,51 @@ class BaseBrain(ABC):
         """
         self.api_key = api_key
 
+    @staticmethod
+    def normalize_language(language: Optional[str]) -> str:
+        """Normalize locale-like values to supported language codes."""
+        value = (language or "en").strip().lower()
+        if value.startswith(("nb", "nn", "no")):
+            return "no"
+        if value.startswith("da"):
+            return "da"
+        if value.startswith("en"):
+            return "en"
+        return "en"
+
+    @staticmethod
+    def normalize_intensity(raw_intensity: Optional[str]) -> str:
+        """Normalize legacy/localized intensity values to canonical EN keys."""
+        value = (raw_intensity or "moderate").strip().lower()
+        mapping = {
+            "critical": "critical",
+            "kritisk": "critical",
+            "intense": "intense",
+            "hard": "intense",
+            "hoy": "intense",
+            "høy": "intense",
+            "moderate": "moderate",
+            "moderat": "moderate",
+            "calm": "calm",
+            "rolig": "calm",
+            "easy": "calm",
+        }
+        return mapping.get(value, "moderate")
+
+    def extract_language(self, breath_data: Dict[str, Any]) -> str:
+        """Read language from breath payload with safe normalization."""
+        return self.normalize_language(breath_data.get("language"))
+
+    def extract_intensity(self, breath_data: Dict[str, Any]) -> str:
+        """Read intensity from both new and legacy payload keys."""
+        raw = breath_data.get("intensity", breath_data.get("intensitet"))
+        return self.normalize_intensity(raw)
+
+    @staticmethod
+    def localized_keep_going(language: str) -> str:
+        """Language-safe default fallback cue."""
+        return "Fortsett!" if language == "no" else "Keep going!"
+
     # ============================================
     # BREATH COACHING MODES
     # ============================================

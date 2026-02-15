@@ -53,16 +53,17 @@ class OpenAIBrain(BaseBrain):
         - Actionable commands only
         - Spoken language optimized
         """
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensity = self.extract_intensity(breath_data)
+        language = self.extract_language(breath_data)
 
         # Critical situations: use config message directly (fastest)
-        if intensitet == "kritisk":
-            return random.choice(config.CONTINUOUS_COACH_MESSAGES["kritisk"])
+        if intensity == "critical":
+            messages = config.CONTINUOUS_COACH_MESSAGES_NO if language == "no" else config.CONTINUOUS_COACH_MESSAGES
+            return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build ultra-minimal context for OpenAI
-        language = breath_data.get("language", "en")
-        system_prompt = self._build_realtime_system_prompt(phase, intensitet, language)
-        user_message = f"{intensitet} breathing, {phase} phase. One action:"
+        system_prompt = self._build_realtime_system_prompt(phase, intensity, language)
+        user_message = f"{intensity} breathing, {phase} phase. One action:"
 
         try:
             # Call OpenAI API with aggressive limits
@@ -87,16 +88,16 @@ class OpenAIBrain(BaseBrain):
         except Exception as e:
             print(f"OpenAI real-time API error: {e}")
             # Fallback to config messages (still fast)
-            return self._get_fallback_message(intensitet, phase)
+            return self._get_fallback_message(intensity, phase, language)
 
-    def _build_realtime_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
+    def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the shared endurance coach personality with realtime constraints
         base_prompt = get_coach_prompt(mode="realtime_coach", language=language)
 
         # Add current context
-        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}"
+        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
 
         return base_prompt + context
 
@@ -111,15 +112,16 @@ class OpenAIBrain(BaseBrain):
         This is the conversational, explanatory mode for educational coaching.
         Uses the configured messages as guidance, but lets GPT add personality.
         """
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensity = self.extract_intensity(breath_data)
+        language = self.extract_language(breath_data)
 
         # For critical situations, use config message directly
-        if intensitet == "kritisk":
-            return random.choice(config.COACH_MESSAGES["kritisk"])
+        if intensity == "critical":
+            messages = config.COACH_MESSAGES_NO if language == "no" else config.COACH_MESSAGES
+            return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build context for OpenAI
-        language = breath_data.get("language", "en")
-        system_prompt = self._build_coaching_system_prompt(phase, intensitet, language)
+        system_prompt = self._build_coaching_system_prompt(phase, intensity, language)
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -140,54 +142,56 @@ class OpenAIBrain(BaseBrain):
         except Exception as e:
             print(f"OpenAI API error: {e}")
             # Fallback to config messages
-            return self._get_fallback_message(intensitet, phase)
+            return self._get_fallback_message(intensity, phase, language)
 
-    def _build_coaching_system_prompt(self, phase: str, intensitet: str, language: str) -> str:
+    def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the shared endurance coach personality for conversational coaching
         base_prompt = get_coach_prompt(mode="chat", language=language)
 
         # Add current context
-        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensitet}\n\nProvide coaching in 1-2 concise sentences."
+        context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}\n\nProvide coaching in 1-2 concise sentences."
 
         return base_prompt + context
 
     def _build_coaching_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:
         """Build user message with breath analysis data."""
-        intensitet = breath_data.get("intensitet", "moderat")
+        intensity = self.extract_intensity(breath_data)
         volume = breath_data.get("volume", 0)
         tempo = breath_data.get("tempo", 0)
 
         return f"""Breath analysis:
-- Intensity: {intensitet}
+- Intensity: {intensity}
 - Volume: {volume}
 - Tempo: {tempo} breaths/min
 - Phase: {phase}
 
 Give ONE short coaching message (max 7 words):"""
 
-    def _get_example_messages(self, phase: str, intensitet: str) -> list:
+    def _get_example_messages(self, phase: str, intensity: str, language: str = "en") -> list:
         """Get example messages from config for this phase/intensity."""
+        message_bank = config.COACH_MESSAGES_NO if language == "no" else config.COACH_MESSAGES
         if phase == "warmup":
-            return config.COACH_MESSAGES.get("warmup", [])
+            return message_bank.get("warmup", [])
         elif phase == "cooldown":
-            return config.COACH_MESSAGES.get("cooldown", [])
+            return message_bank.get("cooldown", [])
         else:  # intense
-            intense_msgs = config.COACH_MESSAGES.get("intense", {})
-            return intense_msgs.get(intensitet, [])
+            intense_msgs = message_bank.get("intense", {})
+            return intense_msgs.get(intensity, [])
 
-    def _get_fallback_message(self, intensitet: str, phase: str) -> str:
+    def _get_fallback_message(self, intensity: str, phase: str, language: str = "en") -> str:
         """Get fallback message from config if API fails."""
+        message_bank = config.COACH_MESSAGES_NO if language == "no" else config.COACH_MESSAGES
         if phase == "warmup":
-            return random.choice(config.COACH_MESSAGES["warmup"])
+            return random.choice(message_bank.get("warmup", ["Easy start."]))
         elif phase == "cooldown":
-            return random.choice(config.COACH_MESSAGES["cooldown"])
+            return random.choice(message_bank.get("cooldown", ["Slow down."]))
         else:
-            intense_msgs = config.COACH_MESSAGES["intense"]
-            if intensitet in intense_msgs:
-                return random.choice(intense_msgs[intensitet])
-            return "Fortsett!"
+            intense_msgs = message_bank.get("intense", {})
+            if intensity in intense_msgs and intense_msgs[intensity]:
+                return random.choice(intense_msgs[intensity])
+            return self.localized_keep_going(language)
 
     # ============================================
     # NEW: Streaming Chat Mode

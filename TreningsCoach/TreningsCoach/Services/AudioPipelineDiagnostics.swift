@@ -93,6 +93,10 @@ class AudioPipelineDiagnostics: ObservableObject {
     /// Last captured utterance
     @Published var lastUtterance: String? = nil
 
+    /// Speech recognition restart diagnostics
+    @Published var speechRestartAttempts: Int = 0
+    @Published var speechDegradedEvents: Int = 0
+
     /// Pipeline event log (most recent first, capped at 50)
     @Published var events: [PipelineEvent] = []
 
@@ -206,6 +210,16 @@ class AudioPipelineDiagnostics: ObservableObject {
 
         // Also print for Xcode console debugging
         print("🔬 [\(stage.rawValue)] \(detail)")
+    }
+
+    /// Track speech recognizer restart activity to detect error thrash.
+    func recordSpeechRestart(detail: String, degraded: Bool = false) {
+        speechRestartAttempts += 1
+        if degraded {
+            speechDegradedEvents += 1
+        }
+        let status = degraded ? "DEGRADED" : "RESTART"
+        log(.speechRecogError, detail: "[\(status)] \(detail)")
     }
 
     // MARK: - Standalone Mic Test (with Wake Word)

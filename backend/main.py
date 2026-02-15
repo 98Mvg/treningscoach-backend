@@ -15,6 +15,7 @@ import math
 import random
 import logging
 import asyncio
+import time
 from datetime import datetime
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
@@ -107,6 +108,59 @@ logger.info("TTS service initialized")
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def normalize_language_code(language: str) -> str:
+    """
+    Normalize language/locale hints to supported app language codes.
+    Defaults to English for unknown values.
+    """
+    value = (language or "en").strip().lower()
+    if value.startswith(("nb", "nn", "no")):
+        return "no"
+    if value.startswith("da"):
+        return "da"
+    if value.startswith("en"):
+        return "en"
+    return "en"
+
+def normalize_intensity_value(intensity: str) -> str:
+    """Normalize localized intensity labels to canonical keys."""
+    value = (intensity or "moderate").strip().lower()
+    mapping = {
+        "critical": "critical",
+        "kritisk": "critical",
+        "intense": "intense",
+        "hard": "intense",
+        "moderate": "moderate",
+        "moderat": "moderate",
+        "calm": "calm",
+        "rolig": "calm",
+    }
+    return mapping.get(value, "moderate")
+
+def enforce_language_consistency(text: str, language: str) -> str:
+    """
+    Final guardrail against fallback language drift.
+
+    Keeps normal model output untouched, but rewrites known fallback drift tokens.
+    """
+    if not text:
+        return text
+
+    normalized_language = normalize_language_code(language)
+    stripped = text.strip()
+    lowered = stripped.lower()
+
+    if normalized_language == "en":
+        if lowered.startswith("fortsett") or "æ" in lowered or "ø" in lowered or "å" in lowered:
+            logger.warning(f"Language guard corrected NO->EN drift: '{stripped}'")
+            return "Keep going!"
+    elif normalized_language == "no":
+        if lowered in {"keep going", "keep going!"}:
+            logger.warning(f"Language guard corrected EN->NO drift: '{stripped}'")
+            return "Fortsett!"
+
+    return text
 
 def _ema(values, alpha: float):
     """Exponential moving average for smoothing numeric sequences."""
@@ -310,7 +364,7 @@ def welcome():
     """
     try:
         experience = request.args.get('experience', 'standard')
-        language = request.args.get('language', 'en')
+        language = normalize_language_code(request.args.get('language', 'en'))
         persona = request.args.get('persona', 'personal_trainer')
         user_name = request.args.get('user_name', '').strip()
 
@@ -505,6 +559,12 @@ def coach_continuous():
     - wait_seconds: Optimal time before next tick
     """
     try:
+        request_started = time.perf_counter()
+        analyze_ms = 0.0
+        decision_ms = 0.0
+        brain_ms = 0.0
+        tts_ms = 0.0
+
         if 'audio' not in request.files:
             logger.warning("Continuous coach request missing audio file")
             return jsonify({"error": "No audio file received"}), 400
@@ -514,7 +574,7 @@ def coach_continuous():
         phase = request.form.get('phase', 'intense')
         last_coaching = request.form.get('last_coaching', '')
         elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
-        language = request.form.get('language', 'en')
+        language = normalize_language_code(request.form.get('language', 'en'))
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
         workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
@@ -632,7 +692,9 @@ def coach_continuous():
             })
 
         # Analyze breath
+        analyze_started = time.perf_counter()
         breath_data = breath_analyzer.analyze(filepath)
+        analyze_ms = (time.perf_counter() - analyze_started) * 1000.0
 
         # Get coaching context and workout state
         coaching_context = session_manager.get_coaching_context(session_id)
@@ -725,6 +787,7 @@ def coach_continuous():
         except Exception:
             elapsed_since_last = None
 
+        decision_started = time.perf_counter()
         if is_first_breath:
             # Always speak on first breath to welcome the user
             speak_decision = True
@@ -738,7 +801,8 @@ def coach_continuous():
                 breath_data=breath_data,
                 phase=phase,
                 last_coaching=last_coaching,
-                elapsed_seconds=elapsed_seconds
+                elapsed_seconds=elapsed_seconds,
+                session_id=session_id
             )
 
             if should_be_silent:
@@ -779,8 +843,10 @@ def coach_continuous():
                         f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "
                         f"elapsed_since_last={elapsed_since_last}, "
                         f"is_first_breath={breath_data.get('is_first_breath', False)}")
+        decision_ms = (time.perf_counter() - decision_started) * 1000.0
 
         # STEP 4: Check if we should use pattern-based insight (hybrid mode)
+        brain_started = time.perf_counter()
         pattern_insight = None
         last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
 
@@ -844,13 +910,18 @@ def coach_continuous():
         if speak_decision and not use_welcome:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
+        coach_text = enforce_language_consistency(coach_text, language)
+        brain_ms = (time.perf_counter() - brain_started) * 1000.0
+
         # Generate voice only if should speak (language-aware)
         audio_url = None
         if speak_decision:
+            tts_started = time.perf_counter()
             voice_file = generate_voice(coach_text, language=language, persona=persona)
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
+            tts_ms = (time.perf_counter() - tts_started) * 1000.0
 
         # Update session state
         session_manager.update_workout_state(
@@ -897,6 +968,19 @@ def coach_continuous():
             "reason": reason  # For debugging
         }
 
+        total_ms = (time.perf_counter() - request_started) * 1000.0
+        logger.info(
+            "Tick timing: session=%s total_ms=%.1f analyze_ms=%.1f decision_ms=%.1f brain_ms=%.1f tts_ms=%.1f speak=%s reason=%s",
+            session_id,
+            total_ms,
+            analyze_ms,
+            decision_ms,
+            brain_ms,
+            tts_ms,
+            speak_decision,
+            reason
+        )
+
         return jsonify(response_data)
 
     except Exception as e:
@@ -912,15 +996,18 @@ def get_coach_response_continuous(breath_data, phase, language="en", persona=Non
     Falls back to config messages if brain is disabled.
     Supports language and persona selection.
     """
+    normalized_language = normalize_language_code(language)
+
     # STEP 3: Use realtime_coach brain mode (not chat mode)
-    return brain_router.get_coaching_response(
+    coach_text = brain_router.get_coaching_response(
         breath_data=breath_data,
         phase=phase,
         mode="realtime_coach",  # Product-defining: fast, actionable, no explanations
-        language=language,
+        language=normalized_language,
         persona=persona,
         user_name=user_name
     )
+    return enforce_language_consistency(coach_text, normalized_language)
 
 
 @app.route('/download/<path:filename>')
@@ -1480,9 +1567,9 @@ def coach_talk():
         session_id = data.get('session_id')
         context = data.get('context', 'chat')  # "workout" or "chat"
         phase = data.get('phase', 'intense')
-        intensity = data.get('intensity', 'moderate')
+        intensity = normalize_intensity_value(data.get('intensity', 'moderate'))
         persona = data.get('persona', 'personal_trainer')
-        language = data.get('language', 'en')
+        language = normalize_language_code(data.get('language', 'en'))
         user_name = data.get('user_name', '').strip()
 
         logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
@@ -1543,6 +1630,7 @@ def coach_talk():
                 language=language,
                 persona=persona
             )
+        coach_text = enforce_language_consistency(coach_text, language)
 
         # Generate voice audio with persona-specific voice
         voice_file = generate_voice(coach_text, language=language, persona=persona)

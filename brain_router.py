@@ -58,6 +58,7 @@ class BrainRouter:
             print("✅ Brain Router: Priority routing enabled")
             self.brain = None
             return
+
         if self.brain_type == "claude":
             try:
                 from brains.claude_brain import ClaudeBrain
@@ -107,6 +108,18 @@ class BrainRouter:
             print(f"⚠️ Brain Router: Unknown brain type '{self.brain_type}', using config")
             self.brain_type = "config"
             self.brain = None
+
+    @staticmethod
+    def _normalize_language(language: Optional[str]) -> str:
+        """Normalize locale-like inputs to supported language codes."""
+        value = (language or "en").strip().lower()
+        if value.startswith(("nb", "nn", "no")):
+            return "no"
+        if value.startswith("da"):
+            return "da"
+        if value.startswith("en"):
+            return "en"
+        return "en"
 
     def _create_brain(self, brain_name: str):
         """Create a brain instance by name."""
@@ -284,6 +297,8 @@ class BrainRouter:
         Returns:
             String containing coaching message
         """
+        language = self._normalize_language(language)
+
         # Inject language + user_name into breath_data for AI brains
         local_breath_data = dict(breath_data or {})
         local_breath_data["language"] = language
@@ -370,6 +385,7 @@ class BrainRouter:
         language: str = "en"
     ) -> str:
         """Get response from toxic mode message bank."""
+        language = self._normalize_language(language)
         lang_key = language if language in config.TOXIC_MODE_MESSAGES else "en"
         messages = config.TOXIC_MODE_MESSAGES[lang_key]
 
@@ -391,7 +407,7 @@ class BrainRouter:
             if intensity_key in intense_msgs:
                 return random.choice(intense_msgs[intensity_key])
 
-        return "KEEP GOING!" if language == "en" else "FORTSETT!"
+        return "KEEP GOING!" if language != "no" else "FORTSETT!"
 
     def get_active_brain(self) -> str:
         """Get the name of the currently active brain."""

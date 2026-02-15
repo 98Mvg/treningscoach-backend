@@ -28,6 +28,7 @@ class WakeWordManager: ObservableObject {
     @Published var isCapturingUtterance = false  // Capturing user speech after wake word
     @Published var lastTranscription: String?    // Last captured user utterance
     @Published var wakeWordDetected = false      // Brief flash when wake word heard
+    @Published var isDegradedMode = false        // Speech recognizer temporarily degraded
 
     // MARK: - Configuration
 
@@ -62,6 +63,16 @@ class WakeWordManager: ObservableObject {
     private var capturedText = ""
     private var captureOnResult: ((String) -> Void)?
     private var captureWasListening = false
+
+    // Restart/backoff control (prevents infinite speech error loops)
+    private var restartAttemptCount = 0
+    private var restartWindowStart: Date = .distantPast
+    private var pendingRestartTask: Task<Void, Never>?
+    private var degradedRecoveryTask: Task<Void, Never>?
+    private let restartWindowSeconds: TimeInterval = 20.0
+    private let maxRestartAttemptsPerWindow = 6
+    private let maxRestartBackoffSeconds: TimeInterval = 5.0
+    private let degradedRecoveryDelaySeconds: TimeInterval = 8.0
 
     // MARK: - Initialization
 
@@ -133,6 +144,8 @@ class WakeWordManager: ObservableObject {
         if #available(iOS 13, *) {
             request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
         }
+
+        resetErrorRetryState()
 
         // Use the input node directly — we'll feed buffers manually
         // Instead of a second tap (which conflicts), we'll use a different approach:
@@ -265,6 +278,7 @@ class WakeWordManager: ObservableObject {
                 }
                 await MainActor.run {
                     self.recognitionRequest = request
+                    self.resetErrorRetryState()
                     self.startRecognitionTask(recognizer: recognizer, request: request)
                     self.isListening = true
                 }
@@ -283,6 +297,13 @@ class WakeWordManager: ObservableObject {
         isListening = false
         isCapturingUtterance = false
         wakeWordDetected = false
+        isDegradedMode = false
+        restartAttemptCount = 0
+        restartWindowStart = .distantPast
+        pendingRestartTask?.cancel()
+        pendingRestartTask = nil
+        degradedRecoveryTask?.cancel()
+        degradedRecoveryTask = nil
 
         AudioPipelineDiagnostics.shared.isWakeWordListening = false
         AudioPipelineDiagnostics.shared.wakeWordDetected = false
@@ -307,7 +328,7 @@ class WakeWordManager: ObservableObject {
                 // Restart listening if it was an interruption
                 if self.isListening {
                     Task { @MainActor in
-                        self.restartRecognition()
+                        self.restartRecognition(reason: error.localizedDescription, isErrorRetry: true)
                     }
                 }
                 return
@@ -318,6 +339,7 @@ class WakeWordManager: ObservableObject {
             let transcription = result.bestTranscription.formattedString.lowercased()
 
             Task { @MainActor in
+                self.resetErrorRetryState()
                 if !wakeWordFound {
                     // Phase 1: Looking for wake word
                     for wakeWord in self.currentWakeWords {
@@ -373,7 +395,7 @@ class WakeWordManager: ObservableObject {
             diag.wakeWordDetected = false
             wakeWordDetected = false
             isCapturingUtterance = false
-            restartRecognition()
+            restartRecognition(reason: "empty_utterance")
             return
         }
 
@@ -390,20 +412,68 @@ class WakeWordManager: ObservableObject {
         onUtteranceCaptured?(trimmed)
 
         // Restart listening for next wake word
-        restartRecognition()
+        restartRecognition(reason: "utterance_finalized")
     }
 
-    private func restartRecognition() {
-        // Brief delay before restarting to avoid rapid cycles
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+    private func resetErrorRetryState() {
+        restartAttemptCount = 0
+        restartWindowStart = .distantPast
+        isDegradedMode = false
+        degradedRecoveryTask?.cancel()
+        degradedRecoveryTask = nil
+    }
 
-            guard self.audioEngine != nil, let recognizer = self.speechRecognizer else { return }
+    private func scheduleDegradedRecovery() {
+        degradedRecoveryTask?.cancel()
+        degradedRecoveryTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(degradedRecoveryDelaySeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard self.audioEngine != nil, self.speechRecognizer != nil else { return }
+            self.resetErrorRetryState()
+            self.restartRecognition(reason: "degraded_recovery")
+        }
+    }
+
+    private func restartRecognition(reason: String = "manual", isErrorRetry: Bool = false) {
+        guard self.audioEngine != nil, let recognizer = self.speechRecognizer else { return }
+
+        var delaySeconds: TimeInterval = 0.3
+        if isErrorRetry {
+            let now = Date()
+            if now.timeIntervalSince(restartWindowStart) > restartWindowSeconds {
+                restartWindowStart = now
+                restartAttemptCount = 0
+            }
+            restartAttemptCount += 1
+
+            if restartAttemptCount > maxRestartAttemptsPerWindow {
+                isDegradedMode = true
+                isListening = false
+                isCapturingUtterance = false
+                AudioPipelineDiagnostics.shared.recordSpeechRestart(
+                    detail: "Exceeded retry limit (\(maxRestartAttemptsPerWindow)) in \(Int(restartWindowSeconds))s window",
+                    degraded: true
+                )
+                scheduleDegradedRecovery()
+                return
+            }
+
+            delaySeconds = min(0.5 * pow(2.0, Double(max(0, restartAttemptCount - 1))), maxRestartBackoffSeconds)
+            AudioPipelineDiagnostics.shared.recordSpeechRestart(
+                detail: "reason='\(reason)' attempt=\(restartAttemptCount) delay=\(String(format: "%.2f", delaySeconds))s"
+            )
+        }
+
+        pendingRestartTask?.cancel()
+        pendingRestartTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard self.audioEngine != nil else { return }
 
             // Cancel old task
-            recognitionTask?.cancel()
-            recognitionTask = nil
-            recognitionRequest?.endAudio()
+            self.recognitionTask?.cancel()
+            self.recognitionTask = nil
+            self.recognitionRequest?.endAudio()
 
             // Create new request
             let request = SFSpeechAudioBufferRecognitionRequest()
@@ -411,10 +481,10 @@ class WakeWordManager: ObservableObject {
             if #available(iOS 13, *) {
                 request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
             }
-            recognitionRequest = request
+            self.recognitionRequest = request
 
-            startRecognitionTask(recognizer: recognizer, request: request)
-            isListening = true
+            self.startRecognitionTask(recognizer: recognizer, request: request)
+            self.isListening = true
         }
     }
 }

@@ -46,14 +46,35 @@ class VoiceIntelligence:
     def __init__(self):
         """Initialize voice intelligence."""
         self.last_messages = []  # Track recent messages to avoid repetition
-        self.silence_count = 0  # Track consecutive silent ticks
+        self.silence_count = 0  # Legacy global fallback (when session_id is not provided)
+        self._session_silence_counts = {}  # session_id -> consecutive silent ticks
+
+    def _get_silence_count(self, session_id: Optional[str]) -> int:
+        """Get silence counter for a specific session (or legacy global counter)."""
+        if session_id:
+            return int(self._session_silence_counts.get(session_id, 0))
+        return int(self.silence_count)
+
+    def _set_silence_count(self, session_id: Optional[str], value: int) -> None:
+        """Set silence counter for a specific session (or legacy global counter)."""
+        bounded = max(0, int(value))
+        if session_id:
+            self._session_silence_counts[session_id] = bounded
+        else:
+            self.silence_count = bounded
+
+    def clear_session_state(self, session_id: Optional[str]) -> None:
+        """Clear silence tracking for a completed session."""
+        if session_id:
+            self._session_silence_counts.pop(session_id, None)
 
     def should_stay_silent(
         self,
         breath_data: dict,
         phase: str,
         last_coaching: str,
-        elapsed_seconds: int
+        elapsed_seconds: int,
+        session_id: Optional[str] = None
     ) -> Tuple[bool, str]:
         """
         STEP 6: Decide if coach should stay silent.
@@ -80,29 +101,30 @@ class VoiceIntelligence:
         intensitet = breath_data.get("intensity", "moderate")
         signal_quality = breath_data.get("signal_quality")
         breath_regularity = breath_data.get("breath_regularity")
+        silence_count = self._get_silence_count(session_id)
 
         # NEVER silent for critical breathing
         if intensitet == "critical":
-            self.silence_count = 0
+            self._set_silence_count(session_id, 0)
             return (False, "safety_override")
 
         # Always coach at the start (first 30 seconds = warmup tips, motivation)
         if elapsed_seconds < 30:
-            self.silence_count = 0
+            self._set_silence_count(session_id, 0)
             return (False, "early_workout")
 
         # Hard cap: never stay silent more than 3 consecutive ticks regardless of reason
         # This prevents cascading silence from multiple conditions
-        if self.silence_count >= 3:
-            self.silence_count = 0
+        if silence_count >= 3:
+            self._set_silence_count(session_id, 0)
             return (False, "max_consecutive_silence")
 
         # Noisy audio: still coach! Coach should motivate regardless of signal.
         # Only skip if signal is essentially zero (mic disconnected / muted)
         if signal_quality is not None and signal_quality < 0.03:
             # Near-zero signal — skip ONE tick, then coach anyway
-            if self.silence_count < 1:
-                self.silence_count += 1
+            if silence_count < 1:
+                self._set_silence_count(session_id, silence_count + 1)
                 return (True, "near_zero_signal")
 
         # Stay silent ONLY if breathing is highly regular AND matches phase target
@@ -110,12 +132,12 @@ class VoiceIntelligence:
         if breath_regularity is not None and breath_regularity > 0.9:
             if ((phase == "intense" and intensitet == "intense") or
                 (phase == "cooldown" and intensitet == "calm")):
-                if self.silence_count < 1:
-                    self.silence_count += 1
+                if silence_count < 1:
+                    self._set_silence_count(session_id, silence_count + 1)
                     return (True, "peak_performance")
 
         # Reset silence count — coach speaks
-        self.silence_count = 0
+        self._set_silence_count(session_id, 0)
         return (False, "needs_coaching")
 
     def add_human_variation(self, message: str) -> str:
