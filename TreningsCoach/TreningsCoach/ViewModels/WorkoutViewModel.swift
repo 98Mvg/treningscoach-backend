@@ -197,6 +197,8 @@ class WorkoutViewModel: ObservableObject {
     private var sessionId: String?
     private var autoTimeoutTimer: Timer?
     private var elapsedTimeTimer: Timer?
+    private var consecutiveChunkFailures: Int = 0
+    private var lastAudioRecoveryAttempt: Date?
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -581,6 +583,8 @@ class WorkoutViewModel: ObservableObject {
 
             // Auto-detect initial phase
             autoDetectPhase()
+            consecutiveChunkFailures = 0
+            lastAudioRecoveryAttempt = nil
 
             // Start 1-second timer to update elapsed time (drives the timer ring UI)
             elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -651,6 +655,7 @@ class WorkoutViewModel: ObservableObject {
         elapsedTimeTimer = nil
 
         voiceState = .idle
+        consecutiveChunkFailures = 0
 
         print("✅ Workout paused")
     }
@@ -688,6 +693,7 @@ class WorkoutViewModel: ObservableObject {
         }
 
         // Resume coaching loop
+        consecutiveChunkFailures = 0
         scheduleNextTick()
 
         print("✅ Workout resumed")
@@ -728,6 +734,8 @@ class WorkoutViewModel: ObservableObject {
         isWakeWordActive = false
         sessionId = nil
         hasSkippedWarmup = false
+        consecutiveChunkFailures = 0
+        lastAudioRecoveryAttempt = nil
 
         // Update final workout duration and save to history
         if let startTime = sessionStartTime {
@@ -771,6 +779,8 @@ class WorkoutViewModel: ObservableObject {
         ) else {
             print("⚠️ No audio chunk available, retrying next tick")
             AudioPipelineDiagnostics.shared.recordBreathAnalysisError("No audio chunk available (buffer empty?)")
+            consecutiveChunkFailures += 1
+            attemptAudioPipelineRecoveryIfNeeded(reason: "no_chunk")
             scheduleNextTick()
             return
         }
@@ -785,9 +795,14 @@ class WorkoutViewModel: ObservableObject {
             let msg = "Chunk too small (\(chunkBytes) bytes) — skipping"
             print("⚠️ \(msg)")
             AudioPipelineDiagnostics.shared.recordBreathAnalysisError(msg)
+            consecutiveChunkFailures += 1
+            attemptAudioPipelineRecoveryIfNeeded(reason: "chunk_too_small")
             scheduleNextTick()
             return
         }
+
+        // Chunk extraction recovered.
+        consecutiveChunkFailures = 0
 
         // 2. Send to backend (background task)
         Task {
@@ -877,6 +892,46 @@ class WorkoutViewModel: ObservableObject {
             Task { @MainActor in
                 self?.coachingLoopTick()
             }
+        }
+    }
+
+    private func attemptAudioPipelineRecoveryIfNeeded(reason: String) {
+        // Recover only after repeated failures; avoid restart thrashing.
+        let failureThreshold = 3
+        let minRecoveryGap: TimeInterval = 10
+
+        guard consecutiveChunkFailures >= failureThreshold else { return }
+
+        if let last = lastAudioRecoveryAttempt,
+           Date().timeIntervalSince(last) < minRecoveryGap {
+            return
+        }
+
+        lastAudioRecoveryAttempt = Date()
+        print("🛠️ Recovering audio pipeline (\(reason), failures=\(consecutiveChunkFailures))")
+
+        wakeWordManager.stopListening()
+        continuousRecordingManager.stopContinuousRecording()
+
+        do {
+            try continuousRecordingManager.startContinuousRecording()
+
+            // Reconnect wake-word feed to the restarted recorder.
+            continuousRecordingManager.onAudioBuffer = { [weak self] buffer in
+                self?.wakeWordManager.feedAudioBuffer(buffer)
+            }
+
+            wakeWordManager.updateLanguage()
+            wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
+                Task { @MainActor in
+                    self?.handleWakeWordUtterance(utterance)
+                }
+            }
+
+            consecutiveChunkFailures = 0
+            print("✅ Audio pipeline recovered")
+        } catch {
+            print("❌ Audio pipeline recovery failed: \(error.localizedDescription)")
         }
     }
 
