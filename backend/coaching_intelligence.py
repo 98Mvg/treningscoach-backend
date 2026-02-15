@@ -154,7 +154,8 @@ def should_coach_speak(
     last_analysis: Optional[Dict],
     coaching_history: List[Dict],
     phase: str,
-    training_level: str = "intermediate"
+    training_level: str = "intermediate",
+    elapsed_seconds: Optional[int] = None
 ) -> Tuple[bool, str]:
     """
     Determines whether the coach should speak based on breath analysis and context.
@@ -189,6 +190,16 @@ def should_coach_speak(
     if intensity == "critical":
         logger.info("Coach speaking: critical_breathing detected")
         return (True, "critical_breathing")
+
+    # Rule 1a: Early workout grace period — always speak to keep user engaged
+    try:
+        import config as _config
+        grace = getattr(_config, "EARLY_WORKOUT_GRACE_SECONDS", 30)
+    except (ImportError, AttributeError):
+        grace = 30
+    if elapsed_seconds is not None and elapsed_seconds < grace:
+        logger.info("Coach speaking: early_workout_engagement (elapsed=%ds < %ds grace)", elapsed_seconds, grace)
+        return (True, "early_workout_engagement")
 
     # Rule 1b: Irregular breathing warrants coaching guidance
     if breath_regularity is not None and breath_regularity < 0.4:

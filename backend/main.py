@@ -763,7 +763,8 @@ def coach_continuous():
                     last_analysis=last_breath,
                     coaching_history=coaching_context["coaching_history"],
                     phase=phase,
-                    training_level=training_level
+                    training_level=training_level,
+                    elapsed_seconds=elapsed_seconds
                 )
 
             logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}")
