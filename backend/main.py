@@ -20,7 +20,7 @@ import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
 from persona_manager import PersonaManager  # Import Persona Manager
-from coaching_intelligence import should_coach_speak, calculate_next_interval  # Import coaching intelligence
+from coaching_intelligence import should_coach_speak, calculate_next_interval, apply_max_silence_override  # Import coaching intelligence
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from tts_service import synthesize_speech_mock  # Import mock TTS (Qwen disabled)
@@ -765,6 +765,15 @@ def coach_continuous():
                     phase=phase,
                     training_level=training_level
                 )
+
+            # Hard silence cap for guided mode: coach must re-engage at bounded intervals
+            max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
+            speak_decision, reason = apply_max_silence_override(
+                should_speak=speak_decision,
+                reason=reason,
+                elapsed_since_last=elapsed_since_last,
+                max_silence_seconds=max_silence
+            )
 
             logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}, "
                         f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "

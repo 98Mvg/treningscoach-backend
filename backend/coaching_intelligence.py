@@ -293,6 +293,35 @@ def should_coach_speak(
     return (False, "no_trigger")
 
 
+def apply_max_silence_override(
+    should_speak: bool,
+    reason: str,
+    elapsed_since_last: Optional[float],
+    max_silence_seconds: int
+) -> Tuple[bool, str]:
+    """
+    Enforce a hard upper bound on silence during guided sessions.
+
+    This keeps the coach one-way and active even if other heuristics decide
+    to stay quiet repeatedly.
+    """
+    if should_speak:
+        return should_speak, reason
+
+    if elapsed_since_last is None:
+        return should_speak, reason
+
+    if elapsed_since_last >= max_silence_seconds:
+        logger.info(
+            "Coach speaking: max_silence_override (%ss since last cue, limit=%ss)",
+            int(elapsed_since_last),
+            max_silence_seconds
+        )
+        return (True, "max_silence_override")
+
+    return should_speak, reason
+
+
 def calculate_next_interval(
     phase: str,
     intensity: str,
