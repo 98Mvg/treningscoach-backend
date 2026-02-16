@@ -1,7 +1,47 @@
 # config.py - Central configuration for Coachi AI Coach
 # Voice/locale config lives in locale_config.py (single source of truth)
 
+import json
 import os
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_csv_list(name: str, default: list) -> list:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    values = [item.strip() for item in raw.split(",")]
+    values = [item for item in values if item]
+    return values or default
+
+
+def _env_json_dict(name: str, default: dict) -> dict:
+    raw = os.getenv(name)
+    if not raw:
+        return default
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+        return default
+    except json.JSONDecodeError:
+        return default
 
 # ============================================
 # APP SETTINGS
@@ -244,27 +284,33 @@ INTENSITY_THRESHOLDS = {
 # - "grok":   Uses xAI Grok (requires XAI_API_KEY, OpenAI-compatible API)
 # - "gemini": Uses Google Gemini (requires GEMINI_API_KEY)
 # - "config": Uses simple config-based messages (no AI, no API key needed)
-ACTIVE_BRAIN = "grok"  # Using xAI Grok for AI coaching
+ACTIVE_BRAIN = os.getenv("ACTIVE_BRAIN", "grok").strip().lower() or "grok"
 
 # Priority routing (try brains in order with timeout + fallback)
-USE_PRIORITY_ROUTING = True
-BRAIN_PRIORITY = ["grok", "gemini", "openai", "claude"]
-BRAIN_TIMEOUT = 1.2  # seconds per brain
-USAGE_LIMIT = 0.9  # skip brain if usage >= this (optional BRAIN_USAGE map)
-BRAIN_COOLDOWN_SECONDS = 60
-BRAIN_TIMEOUT_COOLDOWN_SECONDS = 30
-BRAIN_INIT_RETRY_SECONDS = 5  # Short cooldown for init failures (API key missing, import error)
-BRAIN_SLOW_THRESHOLD = 3.0  # seconds avg latency before skipping (must be > BRAIN_TIMEOUT!)
-BRAIN_LATENCY_DECAY_FACTOR = 0.9  # Decay old avg_latency toward recent readings
+USE_PRIORITY_ROUTING = _env_bool("USE_PRIORITY_ROUTING", True)
+BRAIN_PRIORITY = _env_csv_list("BRAIN_PRIORITY", ["grok", "gemini", "openai", "claude"])
+BRAIN_TIMEOUT = _env_float("BRAIN_TIMEOUT", 1.2)  # global default timeout (seconds) for brains without overrides
+# Per-brain timeout overrides. Grok typically needs ~4-5s in production.
+BRAIN_TIMEOUTS = _env_json_dict("BRAIN_TIMEOUTS_JSON", {"grok": 6.0})
+# Optional per-mode overrides (realtime_coach/chat). Falls back to BRAIN_TIMEOUTS/BRAIN_TIMEOUT.
+BRAIN_MODE_TIMEOUTS = _env_json_dict("BRAIN_MODE_TIMEOUTS_JSON", {})
+USAGE_LIMIT = _env_float("USAGE_LIMIT", 0.9)  # skip brain if usage >= this (optional BRAIN_USAGE map)
+BRAIN_COOLDOWN_SECONDS = _env_float("BRAIN_COOLDOWN_SECONDS", 60)
+BRAIN_TIMEOUT_COOLDOWN_SECONDS = _env_float("BRAIN_TIMEOUT_COOLDOWN_SECONDS", 30)
+BRAIN_INIT_RETRY_SECONDS = _env_float("BRAIN_INIT_RETRY_SECONDS", 5)  # Short cooldown for init failures (API key missing, import error)
+BRAIN_SLOW_THRESHOLD = _env_float("BRAIN_SLOW_THRESHOLD", 3.0)  # seconds avg latency before skipping (must be > BRAIN_TIMEOUT)
+# Per-brain slow-threshold overrides. Grok should not be marked slow at 4-5s.
+BRAIN_SLOW_THRESHOLDS = _env_json_dict("BRAIN_SLOW_THRESHOLDS_JSON", {"grok": 6.5})
+BRAIN_LATENCY_DECAY_FACTOR = _env_float("BRAIN_LATENCY_DECAY_FACTOR", 0.9)  # Decay old avg_latency toward recent readings
 # Optional live usage map (0.0-1.0). Example: {"grok": 0.92}
-BRAIN_USAGE = {}
+BRAIN_USAGE = _env_json_dict("BRAIN_USAGE_JSON", {})
 
 # STEP 4: Hybrid Brain Strategy
 # Use Claude for pattern detection, config for speed
-USE_HYBRID_BRAIN = False  # Disabled: pattern insights not wanted during workouts
-HYBRID_CLAUDE_FOR_PATTERNS = False  # Disabled: no Claude insight calls during continuous coaching
-HYBRID_CONFIG_FOR_SPEED = True  # Use config for fast, immediate cues
-USE_STRATEGIC_BRAIN = False  # Disabled: no Claude strategic insights during workouts
+USE_HYBRID_BRAIN = _env_bool("USE_HYBRID_BRAIN", False)  # Disabled by default: pattern insights not wanted during workouts
+HYBRID_CLAUDE_FOR_PATTERNS = _env_bool("HYBRID_CLAUDE_FOR_PATTERNS", False)
+HYBRID_CONFIG_FOR_SPEED = _env_bool("HYBRID_CONFIG_FOR_SPEED", True)
+USE_STRATEGIC_BRAIN = _env_bool("USE_STRATEGIC_BRAIN", False)
 
 # ============================================
 # CONTINUOUS COACHING SETTINGS

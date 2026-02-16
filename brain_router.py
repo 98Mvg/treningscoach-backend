@@ -44,7 +44,15 @@ class BrainRouter:
         self.claude_brain = None  # STEP 4: Keep Claude brain for patterns
         self.brain_pool = {}
         self.brain_stats = {}
+        self.brain_last_outcome = {}
         self.brain_cooldowns = {}
+        self.last_route_meta = {
+            "provider": "uninitialized",
+            "source": "none",
+            "status": "uninitialized",
+            "mode": None,
+            "timestamp": None,
+        }
         self._executor = ThreadPoolExecutor(max_workers=4)
         self._initialize_brain()
 
@@ -121,6 +129,21 @@ class BrainRouter:
             return "en"
         return "en"
 
+    def _set_last_route_meta(self, **kwargs) -> None:
+        meta = {
+            "provider": "unknown",
+            "source": "unknown",
+            "status": "unknown",
+            "mode": None,
+            "timestamp": time.time(),
+        }
+        meta.update(kwargs)
+        self.last_route_meta = meta
+
+    def get_last_route_meta(self) -> Dict[str, Any]:
+        """Get metadata for the most recent brain route decision."""
+        return dict(self.last_route_meta)
+
     def _create_brain(self, brain_name: str):
         """Create a brain instance by name."""
         if brain_name == "claude":
@@ -181,11 +204,44 @@ class BrainRouter:
 
         stats = self.brain_stats.get(brain_name, {})
         avg_latency = stats.get("avg_latency")
-        slow_threshold = getattr(config, "BRAIN_SLOW_THRESHOLD", None)
+        slow_threshold = self._get_slow_threshold(brain_name)
         if slow_threshold and avg_latency and avg_latency > slow_threshold:
             return False
 
         return True
+
+    def _get_brain_timeout(self, brain_name: str, mode: str) -> float:
+        """
+        Resolve timeout for a given brain/mode.
+
+        Priority:
+        1) BRAIN_MODE_TIMEOUTS[mode][brain_name]
+        2) BRAIN_MODE_TIMEOUTS[mode]["default"]
+        3) BRAIN_TIMEOUTS[brain_name]
+        4) BRAIN_TIMEOUT (global default)
+        """
+        mode_timeouts = getattr(config, "BRAIN_MODE_TIMEOUTS", {}) or {}
+        if isinstance(mode_timeouts, dict):
+            per_mode = mode_timeouts.get(mode, {})
+            if isinstance(per_mode, dict):
+                if brain_name in per_mode:
+                    return float(per_mode[brain_name])
+                if "default" in per_mode:
+                    return float(per_mode["default"])
+
+        per_brain_timeouts = getattr(config, "BRAIN_TIMEOUTS", {}) or {}
+        if isinstance(per_brain_timeouts, dict) and brain_name in per_brain_timeouts:
+            return float(per_brain_timeouts[brain_name])
+
+        return float(getattr(config, "BRAIN_TIMEOUT", 1.2))
+
+    def _get_slow_threshold(self, brain_name: str) -> Optional[float]:
+        """Resolve slow-threshold with optional per-brain override."""
+        per_brain_thresholds = getattr(config, "BRAIN_SLOW_THRESHOLDS", {}) or {}
+        if isinstance(per_brain_thresholds, dict) and brain_name in per_brain_thresholds:
+            return float(per_brain_thresholds[brain_name])
+        threshold = getattr(config, "BRAIN_SLOW_THRESHOLD", None)
+        return float(threshold) if threshold is not None else None
 
     def _get_skip_reason(self, brain_name: str) -> str:
         """Return a human-readable reason why this brain is unavailable."""
@@ -204,7 +260,7 @@ class BrainRouter:
 
         stats = self.brain_stats.get(brain_name, {})
         avg_latency = stats.get("avg_latency")
-        slow_threshold = getattr(config, "BRAIN_SLOW_THRESHOLD", None)
+        slow_threshold = self._get_slow_threshold(brain_name)
         if slow_threshold and avg_latency and avg_latency > slow_threshold:
             return f"too_slow (avg {avg_latency:.3f}s > {slow_threshold}s)"
 
@@ -235,17 +291,33 @@ class BrainRouter:
             result = future.result(timeout=timeout)
             latency = time.time() - start
             self._record_latency(brain_name, latency)
+            self.brain_last_outcome[brain_name] = {
+                "status": "success" if result else "empty",
+                "latency": latency,
+                "timeout": timeout,
+            }
             success = bool(result)
             print(f"[BRAIN] {brain_name} | latency={latency:.3f}s | success={success}")
             return result
         except TimeoutError:
             latency = time.time() - start
             self._record_timeout(brain_name)
+            self.brain_last_outcome[brain_name] = {
+                "status": "timeout",
+                "latency": latency,
+                "timeout": timeout,
+            }
             print(f"[BRAIN] {brain_name} | TIMEOUT after {latency:.3f}s")
             return None
         except Exception as e:
             latency = time.time() - start
             self._record_failure(brain_name)
+            self.brain_last_outcome[brain_name] = {
+                "status": "failure",
+                "latency": latency,
+                "timeout": timeout,
+                "error": f"{type(e).__name__}: {e}",
+            }
             print(f"[BRAIN] {brain_name} | FAILURE after {latency:.3f}s | {type(e).__name__}: {e}")
             return None
 
@@ -257,19 +329,27 @@ class BrainRouter:
         language: str,
         persona: Optional[str]
     ) -> str:
-        timeout = getattr(config, "BRAIN_TIMEOUT", 1.2)
-
+        attempted = []
         for brain_name in self.priority_brains:
             if not self._is_brain_available(brain_name):
                 reason = self._get_skip_reason(brain_name)
                 print(f"[BRAIN] {brain_name} | SKIPPED | {reason}")
+                attempted.append({"brain": brain_name, "status": "skipped", "reason": reason})
                 continue
 
             if brain_name == "config":
+                self._set_last_route_meta(
+                    provider="config",
+                    source="config",
+                    status="config_selected",
+                    mode=mode,
+                    attempted=attempted + [{"brain": "config", "status": "selected"}],
+                )
                 return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
             brain = self._get_brain_instance(brain_name)
             if brain is None:
+                attempted.append({"brain": brain_name, "status": "unavailable"})
                 continue
 
             if mode == "realtime_coach":
@@ -277,10 +357,35 @@ class BrainRouter:
             else:
                 fn = lambda: brain.get_coaching_response(breath_data, phase)
 
+            timeout = self._get_brain_timeout(brain_name, mode)
             result = self._call_brain_with_timeout(brain_name, fn, timeout)
             if result:
+                attempted.append({"brain": brain_name, "status": "success"})
+                self._set_last_route_meta(
+                    provider=brain_name,
+                    source="ai",
+                    status="success",
+                    mode=mode,
+                    timeout=timeout,
+                    attempted=attempted,
+                )
                 return result
+            outcome = dict(self.brain_last_outcome.get(brain_name, {}))
+            attempted.append(
+                {
+                    "brain": brain_name,
+                    "status": outcome.get("status", "failed"),
+                    "timeout": timeout,
+                }
+            )
 
+        self._set_last_route_meta(
+            provider="config",
+            source="config_fallback",
+            status="all_brains_failed_or_skipped",
+            mode=mode,
+            attempted=attempted,
+        )
         return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
     def _initialize_hybrid_claude(self):
@@ -338,23 +443,63 @@ class BrainRouter:
             # Use optimized real-time coach brain (fast, actionable, no explanations)
             if self.brain is not None:
                 try:
-                    return self.brain.get_realtime_coaching(local_breath_data, phase)
+                    result = self.brain.get_realtime_coaching(local_breath_data, phase)
+                    self._set_last_route_meta(
+                        provider=self.get_active_brain(),
+                        source="ai",
+                        status="success",
+                        mode=mode,
+                    )
+                    return result
                 except Exception as e:
                     print(f"⚠️ Brain Router: Real-time brain error: {e}, using fallback")
+                    self._set_last_route_meta(
+                        provider="config",
+                        source="config_fallback",
+                        status="exception_fallback",
+                        mode=mode,
+                        error=f"{type(e).__name__}: {e}",
+                    )
                     return self._get_config_response(breath_data, phase, language=language, persona=persona)
             else:
                 # Config mode uses same messages for both modes
+                self._set_last_route_meta(
+                    provider="config",
+                    source="config",
+                    status="config_mode",
+                    mode=mode,
+                )
                 return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
         elif mode == "chat":
             # Use conversational chat brain (explanatory, educational)
             if self.brain is not None:
                 try:
-                    return self.brain.get_coaching_response(local_breath_data, phase)
+                    result = self.brain.get_coaching_response(local_breath_data, phase)
+                    self._set_last_route_meta(
+                        provider=self.get_active_brain(),
+                        source="ai",
+                        status="success",
+                        mode=mode,
+                    )
+                    return result
                 except Exception as e:
                     print(f"⚠️ Brain Router: Chat brain error: {e}, using fallback")
+                    self._set_last_route_meta(
+                        provider="config",
+                        source="config_fallback",
+                        status="exception_fallback",
+                        mode=mode,
+                        error=f"{type(e).__name__}: {e}",
+                    )
                     return self._get_config_response(breath_data, phase, language=language, persona=persona)
             else:
+                self._set_last_route_meta(
+                    provider="config",
+                    source="config",
+                    status="config_mode",
+                    mode=mode,
+                )
                 return self._get_config_response(breath_data, phase, language=language, persona=persona)
 
         else:

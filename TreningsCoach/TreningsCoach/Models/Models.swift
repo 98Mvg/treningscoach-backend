@@ -215,6 +215,10 @@ struct ContinuousCoachResponse: Codable {
     let waitSeconds: Double
     let phase: String
     let reason: String?
+    let brainProvider: String?
+    let brainSource: String?
+    let brainStatus: String?
+    let brainMode: String?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -224,6 +228,10 @@ struct ContinuousCoachResponse: Codable {
         case waitSeconds = "wait_seconds"
         case phase
         case reason
+        case brainProvider = "brain_provider"
+        case brainSource = "brain_source"
+        case brainStatus = "brain_status"
+        case brainMode = "brain_mode"
     }
 }
 

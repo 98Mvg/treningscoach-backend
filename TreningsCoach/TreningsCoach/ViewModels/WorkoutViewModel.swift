@@ -837,7 +837,7 @@ class WorkoutViewModel: ObservableObject {
                     coachText: response.text
                 )
 
-                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none")")
+                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
 
                 // 4. Coach speaks ONLY if backend says so
                 // voiceState STAYS .listening (no visual state change during workout)

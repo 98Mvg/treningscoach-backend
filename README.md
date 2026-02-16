@@ -83,7 +83,7 @@ iOS App plays coaching audio
 ### Brain Priority Chain
 
 ```
-grok (1.2s timeout) → gemini → openai → claude → config (static messages)
+grok (provider timeout via `BRAIN_TIMEOUTS_JSON`, default 6.0s) → gemini → openai → claude → config (static messages)
 ```
 
 If all AI brains fail, `config.py` has static coaching message banks in all languages — the app never goes silent.

@@ -931,28 +931,54 @@ def coach_continuous():
                     if workout_state:
                         workout_state["last_strategic_time"] = elapsed_seconds
 
-        # Get coaching message (priority: strategic > pattern > config)
+        # Get coaching message (priority: strategic > pattern > realtime brain router)
+        brain_meta = {
+            "provider": "system",
+            "source": "system",
+            "status": "not_called",
+            "mode": "realtime_coach",
+        }
         use_welcome = workout_state.get("use_welcome_phrase", False)
         if use_welcome:
             # Use a specific cached phrase for instant welcome
             coach_text = "Perfect."  # This phrase is cached (from pregenerate list)
             workout_state["use_welcome_phrase"] = False  # Clear flag
+            brain_meta = {
+                "provider": "system",
+                "source": "welcome_cache",
+                "status": "cached_phrase",
+                "mode": "realtime_coach",
+            }
             logger.info(f"Using cached welcome phrase: {coach_text}")
         elif strategic_guidance and speak_decision:
             # Strategic Brain guidance (highest priority for strategic moments)
             # System decides: use suggested phrase or pick from config based on guidance
             if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
                 coach_text = strategic_guidance["suggested_phrase"]
+                brain_meta = {
+                    "provider": "strategic",
+                    "source": "strategic_brain",
+                    "status": "suggested_phrase",
+                    "mode": "strategic",
+                }
                 logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
             else:
                 # Use config phrase that matches strategic intent
                 coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
+                brain_meta = brain_router.get_last_route_meta()
                 logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
         elif pattern_insight and speak_decision:
             coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
+            brain_meta = {
+                "provider": "claude",
+                "source": "pattern_insight",
+                "status": "pattern_override",
+                "mode": "strategic",
+            }
             logger.info(f"Using pattern insight instead of config message")
         else:
             coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
+            brain_meta = brain_router.get_last_route_meta()
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
         if speak_decision and not use_welcome:
@@ -1013,12 +1039,16 @@ def coach_continuous():
             "wait_seconds": wait_seconds,
             "phase": phase,
             "workout_mode": workout_mode,
-            "reason": reason  # For debugging
+            "reason": reason,  # For debugging
+            "brain_provider": brain_meta.get("provider"),
+            "brain_source": brain_meta.get("source"),
+            "brain_status": brain_meta.get("status"),
+            "brain_mode": brain_meta.get("mode"),
         }
 
         total_ms = (time.perf_counter() - request_started) * 1000.0
         logger.info(
-            "Tick timing: session=%s total_ms=%.1f analyze_ms=%.1f decision_ms=%.1f brain_ms=%.1f tts_ms=%.1f speak=%s reason=%s",
+            "Tick timing: session=%s total_ms=%.1f analyze_ms=%.1f decision_ms=%.1f brain_ms=%.1f tts_ms=%.1f speak=%s reason=%s brain=%s/%s/%s",
             session_id,
             total_ms,
             analyze_ms,
@@ -1026,7 +1056,10 @@ def coach_continuous():
             brain_ms,
             tts_ms,
             speak_decision,
-            reason
+            reason,
+            brain_meta.get("provider"),
+            brain_meta.get("source"),
+            brain_meta.get("status"),
         )
 
         return jsonify(response_data)
