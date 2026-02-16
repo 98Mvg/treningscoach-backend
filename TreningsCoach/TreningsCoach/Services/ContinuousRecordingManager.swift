@@ -42,6 +42,13 @@ class ContinuousRecordingManager: NSObject {
 
     /// Start continuous recording session
     func startContinuousRecording() throws {
+        try startContinuousRecording(retryCount: 1)
+    }
+
+    // MARK: - Internal Start Logic
+
+    /// Internal start helper with bounded retry for transient CoreAudio startup failures.
+    private func startContinuousRecording(retryCount: Int) throws {
         guard !isRecording else {
             print("⚠️ Already recording")
             return
@@ -143,6 +150,13 @@ class ContinuousRecordingManager: NSObject {
         } catch {
             print("⚠️ Failed to start audio engine: \(error)")
             teardownAudioPipeline()
+            if retryCount > 0 {
+                // Small backoff helps recover from transient "AUIOClient_StartIO failed (nope)".
+                Thread.sleep(forTimeInterval: 0.15)
+                print("🔁 Retrying continuous recording start (\(retryCount) retries left)")
+                try startContinuousRecording(retryCount: retryCount - 1)
+                return
+            }
             throw error
         }
 
