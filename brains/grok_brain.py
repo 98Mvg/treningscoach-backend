@@ -90,10 +90,14 @@ class GrokBrain(BaseBrain):
         user_name = breath_data.get("user_name", "")
         recent_cues = breath_data.get("recent_coach_cues") or []
         coaching_reason = breath_data.get("coaching_reason")
+        persona = breath_data.get("persona")
+        training_level = breath_data.get("training_level")
         system_prompt = self._build_realtime_system_prompt(
             phase,
             intensity,
             language,
+            persona=persona,
+            training_level=training_level,
             user_name=user_name,
             recent_cues=recent_cues,
             coaching_reason=coaching_reason,
@@ -128,6 +132,8 @@ class GrokBrain(BaseBrain):
         phase: str,
         intensity: str,
         language: str,
+        persona: Optional[str] = None,
+        training_level: Optional[str] = None,
         user_name: str = "",
         recent_cues: Optional[list] = None,
         coaching_reason: Optional[str] = None,
@@ -140,6 +146,7 @@ class GrokBrain(BaseBrain):
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
         context += "\n- Response format: 2-5 words, one actionable cue."
+        context += self._get_realtime_persona_rules(persona, training_level)
 
         if coaching_reason:
             context += f"\n- Decision reason: {coaching_reason}"
@@ -180,7 +187,16 @@ class GrokBrain(BaseBrain):
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         user_name = breath_data.get("user_name", "")
-        system_prompt = self._build_coaching_system_prompt(phase, intensity, language, user_name=user_name)
+        persona = breath_data.get("persona")
+        training_level = breath_data.get("training_level")
+        system_prompt = self._build_coaching_system_prompt(
+            phase,
+            intensity,
+            language,
+            user_name=user_name,
+            persona=persona,
+            training_level=training_level,
+        )
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -201,7 +217,15 @@ class GrokBrain(BaseBrain):
             print(f"Grok API error: {e}")
             raise RuntimeError(f"Grok chat request failed: {e}") from e
 
-    def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str, user_name: str = "") -> str:
+    def _build_coaching_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        user_name: str = "",
+        persona: Optional[str] = None,
+        training_level: Optional[str] = None,
+    ) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the shared endurance coach personality for conversational coaching
@@ -209,6 +233,7 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}\n\nProvide coaching in 1-2 concise sentences."
+        context += self._get_chat_persona_rules(persona, training_level)
 
         # Norwegian character instruction
         if language == "no":
@@ -219,6 +244,64 @@ class GrokBrain(BaseBrain):
             context += f"\nAthlete's name: {user_name}. Use their name at MOST once or twice total — never on consecutive messages. Most messages should NOT include the name."
 
         return base_prompt + context
+
+    def _normalize_persona(self, persona: Optional[str]) -> str:
+        value = (persona or "personal_trainer").strip().lower()
+        if value not in {"personal_trainer", "toxic_mode"}:
+            return "personal_trainer"
+        return value
+
+    def _get_realtime_persona_rules(self, persona: Optional[str], training_level: Optional[str]) -> str:
+        persona_key = self._normalize_persona(persona)
+        level = (training_level or "").strip().lower()
+
+        if persona_key == "toxic_mode":
+            rules = (
+                "\n- Persona mode: toxic_mode."
+                "\n- Voice style: aggressive drill-sergeant with dark humor."
+                "\n- Use sharp commands, occasional CAPS, and confrontational energy."
+                "\n- Keep it playful-mocking, never personal or unsafe."
+                "\n- Do not repeat the exact same cue on consecutive speaking ticks."
+            )
+        else:
+            rules = (
+                "\n- Persona mode: personal_trainer."
+                "\n- Voice style: calm and disciplined elite coach."
+                "\n- Use direct, constructive cues with steady confidence."
+                "\n- No sarcasm and no shouting."
+                "\n- Do not repeat the exact same cue on consecutive speaking ticks."
+            )
+
+        if level == "beginner":
+            rules += "\n- Beginner athlete: prioritize clarity and control over aggression."
+        elif level == "advanced":
+            rules += "\n- Advanced athlete: increase challenge and precision."
+
+        return rules
+
+    def _get_chat_persona_rules(self, persona: Optional[str], training_level: Optional[str]) -> str:
+        persona_key = self._normalize_persona(persona)
+        level = (training_level or "").strip().lower()
+
+        if persona_key == "toxic_mode":
+            rules = (
+                "\n- Persona mode: toxic_mode."
+                "\n- Tone: intense, confrontational, and darkly humorous."
+                "\n- Keep responses short and energetic, but never unsafe."
+            )
+        else:
+            rules = (
+                "\n- Persona mode: personal_trainer."
+                "\n- Tone: calm, structured, and performance-focused."
+                "\n- Be honest and constructive without hype."
+            )
+
+        if level == "beginner":
+            rules += "\n- Beginner athlete: simplify wording and focus on fundamentals."
+        elif level == "advanced":
+            rules += "\n- Advanced athlete: include higher-level performance cues."
+
+        return rules
 
     def _build_coaching_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:
         """Build user message with breath analysis data."""
