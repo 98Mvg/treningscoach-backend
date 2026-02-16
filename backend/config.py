@@ -22,6 +22,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def _env_csv_list(name: str, default: list) -> list:
     raw = os.getenv(name)
     if not raw:
@@ -298,10 +308,12 @@ USAGE_LIMIT = _env_float("USAGE_LIMIT", 0.9)  # skip brain if usage >= this (opt
 BRAIN_COOLDOWN_SECONDS = _env_float("BRAIN_COOLDOWN_SECONDS", 60)
 BRAIN_TIMEOUT_COOLDOWN_SECONDS = _env_float("BRAIN_TIMEOUT_COOLDOWN_SECONDS", 30)
 BRAIN_INIT_RETRY_SECONDS = _env_float("BRAIN_INIT_RETRY_SECONDS", 5)  # Short cooldown for init failures (API key missing, import error)
+BRAIN_QUOTA_COOLDOWN_SECONDS = _env_float("BRAIN_QUOTA_COOLDOWN_SECONDS", 300)  # Longer cooldown for provider quota failures
 BRAIN_SLOW_THRESHOLD = _env_float("BRAIN_SLOW_THRESHOLD", 3.0)  # seconds avg latency before skipping (must be > BRAIN_TIMEOUT)
 # Per-brain slow-threshold overrides. Grok should not be marked slow at 4-5s.
 BRAIN_SLOW_THRESHOLDS = _env_json_dict("BRAIN_SLOW_THRESHOLDS_JSON", {"grok": 6.5})
 BRAIN_LATENCY_DECAY_FACTOR = _env_float("BRAIN_LATENCY_DECAY_FACTOR", 0.9)  # Decay old avg_latency toward recent readings
+BRAIN_RECENT_CUE_WINDOW = _env_int("BRAIN_RECENT_CUE_WINDOW", 4)  # Anti-repetition memory per session
 # Optional live usage map (0.0-1.0). Example: {"grok": 0.92}
 BRAIN_USAGE = _env_json_dict("BRAIN_USAGE_JSON", {})
 

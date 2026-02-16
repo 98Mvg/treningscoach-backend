@@ -88,7 +88,16 @@ class GrokBrain(BaseBrain):
 
         # Build ultra-minimal context for Grok
         user_name = breath_data.get("user_name", "")
-        system_prompt = self._build_realtime_system_prompt(phase, intensity, language, user_name=user_name)
+        recent_cues = breath_data.get("recent_coach_cues") or []
+        coaching_reason = breath_data.get("coaching_reason")
+        system_prompt = self._build_realtime_system_prompt(
+            phase,
+            intensity,
+            language,
+            user_name=user_name,
+            recent_cues=recent_cues,
+            coaching_reason=coaching_reason,
+        )
         user_message = f"{intensity} breathing, {phase} phase. One action:"
 
         try:
@@ -112,10 +121,17 @@ class GrokBrain(BaseBrain):
 
         except Exception as e:
             print(f"Grok real-time API error: {e}")
-            # Fallback to config messages (still fast)
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"Grok realtime request failed: {e}") from e
 
-    def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str, user_name: str = "") -> str:
+    def _build_realtime_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        user_name: str = "",
+        recent_cues: Optional[list] = None,
+        coaching_reason: Optional[str] = None,
+    ) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the shared endurance coach personality with realtime constraints
@@ -123,6 +139,17 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
+        context += "\n- Response format: 2-5 words, one actionable cue."
+
+        if coaching_reason:
+            context += f"\n- Decision reason: {coaching_reason}"
+
+        cleaned_recent = [str(c).strip() for c in (recent_cues or []) if str(c).strip()]
+        if cleaned_recent:
+            context += "\n- Avoid repeating these recent cues verbatim:"
+            for cue in cleaned_recent[-4:]:
+                context += f"\n  - {cue}"
+            context += "\n- Use different wording from recent cues."
 
         # Norwegian character instruction
         if language == "no":
@@ -172,7 +199,7 @@ class GrokBrain(BaseBrain):
 
         except Exception as e:
             print(f"Grok API error: {e}")
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"Grok chat request failed: {e}") from e
 
     def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str, user_name: str = "") -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""

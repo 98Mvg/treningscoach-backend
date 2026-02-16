@@ -15,6 +15,11 @@ class _FakeBrain:
         return "chat cue"
 
 
+class _RepeatBrain:
+    def get_realtime_coaching(self, breath_data, phase):
+        return "Push harder."
+
+
 def test_per_brain_timeout_override_for_grok(monkeypatch):
     monkeypatch.setattr(config, "BRAIN_TIMEOUT", 1.2, raising=False)
     monkeypatch.setattr(config, "BRAIN_TIMEOUTS", {"grok": 6.0}, raising=False)
@@ -92,3 +97,33 @@ def test_route_metadata_reports_config_fallback_after_failure(monkeypatch):
     assert meta["provider"] == "config"
     assert meta["source"] == "config_fallback"
     assert meta["status"] == "all_brains_failed_or_skipped"
+
+
+def test_gemini_quota_error_gets_longer_cooldown(monkeypatch):
+    monkeypatch.setattr(config, "BRAIN_COOLDOWN_SECONDS", 60.0, raising=False)
+    monkeypatch.setattr(config, "BRAIN_QUOTA_COOLDOWN_SECONDS", 300.0, raising=False)
+
+    router = BrainRouter(brain_type="config")
+    cooldown = router._get_failure_cooldown_seconds(
+        "gemini",
+        RuntimeError("quota exceeded retry_delay { seconds: 24 }"),
+    )
+
+    assert cooldown == 300.0
+    assert router._get_failure_cooldown_seconds("grok", RuntimeError("quota")) is None
+
+
+def test_realtime_response_rewrites_recent_repeats(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok"]
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(router, "_get_brain_instance", lambda _: _RepeatBrain())
+    monkeypatch.setattr(router, "_get_config_response", lambda *args, **kwargs: "Hold rhythm.")
+
+    first = router.get_coaching_response({"session_id": "s1"}, mode="realtime_coach", language="en")
+    second = router.get_coaching_response({"session_id": "s1"}, mode="realtime_coach", language="en")
+
+    assert first == "Push harder."
+    assert second == "Hold rhythm."

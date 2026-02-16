@@ -273,7 +273,7 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 ### 6. POST `/coach/continuous` (line 476) — MAIN ENDPOINT
 **Purpose:** Continuous workout coaching — rapid coaching cycles
 **Request:** multipart/form-data — `audio` (6-10s chunk), `session_id` (required), `phase`, `last_coaching`, `elapsed_seconds`, `language`, `training_level`, `persona`, `workout_mode`
-**Response:** `{text, should_speak, breath_analysis, audio_url, wait_seconds, phase, workout_mode, reason}`
+**Response:** `{text, should_speak, breath_analysis, audio_url, wait_seconds, phase, workout_mode, reason, brain_provider, brain_source, brain_status, brain_mode}`
 **Auth:** None
 
 ### 7. POST `/coach/talk` (line 1425)

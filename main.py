@@ -207,6 +207,61 @@ def enforce_language_consistency(text: str, language: str) -> str:
 
     return text
 
+
+def _get_silent_debug_text(reason: str, language: str) -> str:
+    """
+    Short, language-safe placeholder text for silent ticks.
+
+    This is returned in API payloads for diagnostics, but not spoken.
+    """
+    lang = normalize_language_code(language)
+    reason_key = (reason or "default").strip().lower()
+
+    messages = {
+        "en": {
+            "near_zero_signal": "Listening...",
+            "no_change": "Hold rhythm.",
+            "too_frequent": "Stay steady.",
+            "default": "Hold form.",
+        },
+        "no": {
+            "near_zero_signal": "Lytter...",
+            "no_change": "Hold rytmen.",
+            "too_frequent": "Hold jevnt.",
+            "default": "Hold flyten.",
+        },
+        "da": {
+            "near_zero_signal": "Lytter...",
+            "no_change": "Hold rytmen.",
+            "too_frequent": "Hold stabilt.",
+            "default": "Hold fokus.",
+        },
+    }
+
+    lang_messages = messages.get(lang, messages["en"])
+    return lang_messages.get(reason_key, lang_messages["default"])
+
+
+def _extract_recent_spoken_cues(coaching_history, limit: int = 4) -> list:
+    """Extract recent spoken coach lines for anti-repetition context."""
+    if not coaching_history:
+        return []
+
+    cues = []
+    for item in reversed(coaching_history):
+        if not isinstance(item, dict):
+            continue
+        text = (item.get("text") or "").strip()
+        if not text:
+            continue
+        cues.append(text)
+        if len(cues) >= max(1, int(limit)):
+            break
+
+    cues.reverse()
+    return cues
+
+
 def _ema(values, alpha: float):
     """Exponential moving average for smoothing numeric sequences."""
     ema = None
@@ -891,55 +946,32 @@ def coach_continuous():
                         f"is_first_breath={breath_data.get('is_first_breath', False)}")
         decision_ms = (time.perf_counter() - decision_started) * 1000.0
 
-        # STEP 4: Check if we should use pattern-based insight (hybrid mode)
-        brain_started = time.perf_counter()
-        pattern_insight = None
-        last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
-
-        if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
-            pattern_insight = brain_router.detect_pattern(
-                breath_history=coaching_context["breath_history"],
-                coaching_history=coaching_context["coaching_history"],
-                phase=phase
-            )
-
-            if pattern_insight:
-                logger.info(f"Pattern detected: {pattern_insight}")
-                # Update last pattern time
-                if workout_state:
-                    workout_state["last_pattern_time"] = elapsed_seconds
-
-        # Strategic Brain: High-level coaching guidance (every 2-3 minutes)
-        # Disabled via USE_STRATEGIC_BRAIN config flag
-        strategic_guidance = None
-        if strategic_brain is not None:
-            last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
-
-            if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
-                strategic_guidance = strategic_brain.get_strategic_insight(
-                    breath_history=coaching_context["breath_history"],
-                    coaching_history=coaching_context["coaching_history"],
-                    phase=phase,
-                    elapsed_seconds=elapsed_seconds,
-                    session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
-                    language=language
-                )
-
-                if strategic_guidance:
-                    logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
-                    # Update last strategic time
-                    if workout_state:
-                        workout_state["last_strategic_time"] = elapsed_seconds
-
         # Get coaching message (priority: strategic > pattern > realtime brain router)
+        brain_started = time.perf_counter()
         brain_meta = {
             "provider": "system",
             "source": "system",
             "status": "not_called",
             "mode": "realtime_coach",
         }
+        pattern_insight = None
+        strategic_guidance = None
         use_welcome = workout_state.get("use_welcome_phrase", False)
-        if use_welcome:
+        recent_cues = _extract_recent_spoken_cues(
+            coaching_context.get("coaching_history", []),
+            limit=getattr(config, "BRAIN_RECENT_CUE_WINDOW", 4),
+        )
+
+        if not speak_decision:
+            # Low-latency path: skip AI generation when coach will stay silent.
+            coach_text = _get_silent_debug_text(reason, language)
+            brain_meta = {
+                "provider": "system",
+                "source": "silent_policy",
+                "status": "skipped_generation",
+                "mode": "realtime_coach",
+            }
+        elif use_welcome:
             # Use a specific cached phrase for instant welcome
             coach_text = "Perfect."  # This phrase is cached (from pregenerate list)
             workout_state["use_welcome_phrase"] = False  # Clear flag
@@ -950,35 +982,85 @@ def coach_continuous():
                 "mode": "realtime_coach",
             }
             logger.info(f"Using cached welcome phrase: {coach_text}")
-        elif strategic_guidance and speak_decision:
+        else:
+            # Only run expensive brain paths when we already decided to speak.
+            last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
+            if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
+                pattern_insight = brain_router.detect_pattern(
+                    breath_history=coaching_context["breath_history"],
+                    coaching_history=coaching_context["coaching_history"],
+                    phase=phase
+                )
+
+                if pattern_insight:
+                    logger.info(f"Pattern detected: {pattern_insight}")
+                    if workout_state:
+                        workout_state["last_pattern_time"] = elapsed_seconds
+
+            if strategic_brain is not None:
+                last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
+
+                if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
+                    strategic_guidance = strategic_brain.get_strategic_insight(
+                        breath_history=coaching_context["breath_history"],
+                        coaching_history=coaching_context["coaching_history"],
+                        phase=phase,
+                        elapsed_seconds=elapsed_seconds,
+                        session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
+                        language=language
+                    )
+
+                    if strategic_guidance:
+                        logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
+                        if workout_state:
+                            workout_state["last_strategic_time"] = elapsed_seconds
+
+            generation_breath_data = dict(breath_data)
+            generation_breath_data["session_id"] = session_id
+            generation_breath_data["persona"] = persona
+            generation_breath_data["coaching_reason"] = reason
+            generation_breath_data["recent_coach_cues"] = recent_cues
+
+            if strategic_guidance:
             # Strategic Brain guidance (highest priority for strategic moments)
             # System decides: use suggested phrase or pick from config based on guidance
-            if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
-                coach_text = strategic_guidance["suggested_phrase"]
+                if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
+                    coach_text = strategic_guidance["suggested_phrase"]
+                    brain_meta = {
+                        "provider": "strategic",
+                        "source": "strategic_brain",
+                        "status": "suggested_phrase",
+                        "mode": "strategic",
+                    }
+                    logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
+                else:
+                    coach_text = get_coach_response_continuous(
+                        generation_breath_data,
+                        phase,
+                        language=language,
+                        persona=persona,
+                        user_name=user_name,
+                    )
+                    brain_meta = brain_router.get_last_route_meta()
+                    logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
+            elif pattern_insight:
+                coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
                 brain_meta = {
-                    "provider": "strategic",
-                    "source": "strategic_brain",
-                    "status": "suggested_phrase",
+                    "provider": "claude",
+                    "source": "pattern_insight",
+                    "status": "pattern_override",
                     "mode": "strategic",
                 }
-                logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
+                logger.info(f"Using pattern insight instead of config message")
             else:
-                # Use config phrase that matches strategic intent
-                coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
+                coach_text = get_coach_response_continuous(
+                    generation_breath_data,
+                    phase,
+                    language=language,
+                    persona=persona,
+                    user_name=user_name,
+                )
                 brain_meta = brain_router.get_last_route_meta()
-                logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
-        elif pattern_insight and speak_decision:
-            coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
-            brain_meta = {
-                "provider": "claude",
-                "source": "pattern_insight",
-                "status": "pattern_override",
-                "mode": "strategic",
-            }
-            logger.info(f"Using pattern insight instead of config message")
-        else:
-            coach_text = get_coach_response_continuous(breath_data, phase, language=language, persona=persona, user_name=user_name)
-            brain_meta = brain_router.get_last_route_meta()
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
         if speak_decision and not use_welcome:

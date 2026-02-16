@@ -87,8 +87,7 @@ class OpenAIBrain(BaseBrain):
 
         except Exception as e:
             print(f"OpenAI real-time API error: {e}")
-            # Fallback to config messages (still fast)
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"OpenAI realtime request failed: {e}") from e
 
     def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
@@ -141,8 +140,7 @@ class OpenAIBrain(BaseBrain):
 
         except Exception as e:
             print(f"OpenAI API error: {e}")
-            # Fallback to config messages
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"OpenAI chat request failed: {e}") from e
 
     def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""

@@ -5,6 +5,7 @@
 
 import os
 import random
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Dict, Any, Optional
@@ -45,6 +46,7 @@ class BrainRouter:
         self.brain_pool = {}
         self.brain_stats = {}
         self.brain_last_outcome = {}
+        self._recent_outputs_by_session = {}
         self.brain_cooldowns = {}
         self.last_route_meta = {
             "provider": "uninitialized",
@@ -143,6 +145,74 @@ class BrainRouter:
     def get_last_route_meta(self) -> Dict[str, Any]:
         """Get metadata for the most recent brain route decision."""
         return dict(self.last_route_meta)
+
+    @staticmethod
+    def _normalize_repeat_key(text: str) -> str:
+        """Normalize text for repetition checks."""
+        return " ".join((text or "").strip().lower().split())
+
+    def _recent_output_window(self) -> int:
+        try:
+            return max(1, int(getattr(config, "BRAIN_RECENT_CUE_WINDOW", 4)))
+        except Exception:
+            return 4
+
+    def _get_recent_outputs(self, session_id: Optional[str]) -> list:
+        if not session_id:
+            return []
+        return list(self._recent_outputs_by_session.get(session_id, []))
+
+    def _record_recent_output(self, session_id: Optional[str], text: str) -> None:
+        if not session_id:
+            return
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return
+        bucket = self._recent_outputs_by_session.setdefault(session_id, [])
+        bucket.append(cleaned)
+        window = self._recent_output_window()
+        if len(bucket) > window:
+            del bucket[:-window]
+
+    def _rewrite_if_recent_repeat(
+        self,
+        text: str,
+        session_id: Optional[str],
+        breath_data: Dict[str, Any],
+        phase: str,
+        language: str,
+        persona: Optional[str],
+    ) -> str:
+        """
+        Avoid exact cue repeats for the same session.
+
+        If provider output repeats a recent cue, use a config cue fallback
+        that differs from recent outputs when possible.
+        """
+        if not session_id:
+            return text
+
+        normalized = self._normalize_repeat_key(text)
+        recent_norm = {self._normalize_repeat_key(item) for item in self._get_recent_outputs(session_id)}
+        if normalized not in recent_norm:
+            return text
+
+        replacement = text
+        for _ in range(4):
+            candidate = self._get_config_response(breath_data, phase, language=language, persona=persona)
+            candidate_norm = self._normalize_repeat_key(candidate)
+            if candidate_norm != normalized and candidate_norm not in recent_norm:
+                replacement = candidate
+                break
+
+        if self._normalize_repeat_key(replacement) != normalized:
+            meta = dict(self.last_route_meta)
+            meta["status"] = "anti_repeat_rewrite"
+            meta["source"] = f"{meta.get('source', 'ai')}_anti_repeat"
+            meta["timestamp"] = time.time()
+            self.last_route_meta = meta
+
+        return replacement
 
     def _create_brain(self, brain_name: str):
         """Create a brain instance by name."""
@@ -251,6 +321,9 @@ class BrainRouter:
             # Distinguish init failure from runtime cooldown
             if brain_name in self.brain_pool and self.brain_pool[brain_name] is None:
                 return f"init_failed (retry in {remaining:.0f}s)"
+            outcome = self.brain_last_outcome.get(brain_name, {})
+            if outcome.get("status") == "quota_limited":
+                return f"quota_cooldown ({remaining:.0f}s remaining)"
             return f"cooldown ({remaining:.0f}s remaining)"
 
         usage = getattr(config, "BRAIN_USAGE", {}).get(brain_name, 0.0)
@@ -274,10 +347,48 @@ class BrainRouter:
         decay = getattr(config, "BRAIN_LATENCY_DECAY_FACTOR", 0.9)
         stats["avg_latency"] = (stats["avg_latency"] * decay) + (latency * (1 - decay))
 
-    def _record_failure(self, brain_name: str):
+    def _record_failure(self, brain_name: str, cooldown_seconds: Optional[float] = None):
         stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
         stats["failures"] += 1
-        self._set_cooldown(brain_name)
+        self._set_cooldown(brain_name, seconds=cooldown_seconds)
+
+    def _get_failure_cooldown_seconds(self, brain_name: str, error: Exception) -> Optional[float]:
+        """
+        Return provider-aware cooldown override for known transient failures.
+
+        Gemini free-tier quota errors should cool down longer to avoid repeated
+        retries every tick.
+        """
+        if brain_name != "gemini":
+            return None
+
+        message = str(error or "")
+        lower = message.lower()
+        quota_markers = (
+            "quota",
+            "resource_exhausted",
+            "generativelanguage.googleapis.com",
+            "429",
+            "retry_delay",
+        )
+        if not any(marker in lower for marker in quota_markers):
+            return None
+
+        quota_cooldown = float(getattr(config, "BRAIN_QUOTA_COOLDOWN_SECONDS", 300))
+        parsed_retry = None
+
+        match = re.search(r"retry_delay.*?seconds\s*[:=]\s*(\d+)", message, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            parsed_retry = float(match.group(1))
+        else:
+            match = re.search(r"seconds\s*[:=]\s*(\d+)", message, flags=re.IGNORECASE)
+            if match:
+                parsed_retry = float(match.group(1))
+
+        if parsed_retry is not None:
+            return max(quota_cooldown, parsed_retry + 5.0)
+
+        return quota_cooldown
 
     def _record_timeout(self, brain_name: str):
         stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0})
@@ -311,12 +422,15 @@ class BrainRouter:
             return None
         except Exception as e:
             latency = time.time() - start
-            self._record_failure(brain_name)
+            failure_cooldown = self._get_failure_cooldown_seconds(brain_name, e)
+            self._record_failure(brain_name, cooldown_seconds=failure_cooldown)
+            failure_status = "quota_limited" if failure_cooldown is not None else "failure"
             self.brain_last_outcome[brain_name] = {
-                "status": "failure",
+                "status": failure_status,
                 "latency": latency,
                 "timeout": timeout,
                 "error": f"{type(e).__name__}: {e}",
+                "cooldown_seconds": failure_cooldown,
             }
             print(f"[BRAIN] {brain_name} | FAILURE after {latency:.3f}s | {type(e).__name__}: {e}")
             return None
@@ -434,16 +548,40 @@ class BrainRouter:
         # Inject language + user_name into breath_data for AI brains
         local_breath_data = dict(breath_data or {})
         local_breath_data["language"] = language
+        if persona:
+            local_breath_data["persona"] = persona
         if user_name:
             local_breath_data["user_name"] = user_name
         if self.use_priority_routing and self.priority_brains:
-            return self._get_priority_response(local_breath_data, phase, mode, language, persona)
+            result = self._get_priority_response(local_breath_data, phase, mode, language, persona)
+            if mode == "realtime_coach":
+                session_id = local_breath_data.get("session_id")
+                result = self._rewrite_if_recent_repeat(
+                    text=result,
+                    session_id=session_id,
+                    breath_data=local_breath_data,
+                    phase=phase,
+                    language=language,
+                    persona=persona,
+                )
+                self._record_recent_output(session_id, result)
+            return result
         # STEP 3: Route to appropriate brain mode
         if mode == "realtime_coach":
             # Use optimized real-time coach brain (fast, actionable, no explanations)
             if self.brain is not None:
                 try:
                     result = self.brain.get_realtime_coaching(local_breath_data, phase)
+                    session_id = local_breath_data.get("session_id")
+                    result = self._rewrite_if_recent_repeat(
+                        text=result,
+                        session_id=session_id,
+                        breath_data=local_breath_data,
+                        phase=phase,
+                        language=language,
+                        persona=persona,
+                    )
+                    self._record_recent_output(session_id, result)
                     self._set_last_route_meta(
                         provider=self.get_active_brain(),
                         source="ai",
@@ -476,6 +614,7 @@ class BrainRouter:
             if self.brain is not None:
                 try:
                     result = self.brain.get_coaching_response(local_breath_data, phase)
+                    self._record_recent_output(local_breath_data.get("session_id"), result)
                     self._set_last_route_meta(
                         provider=self.get_active_brain(),
                         source="ai",

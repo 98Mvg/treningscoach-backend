@@ -104,7 +104,7 @@ class GeminiBrain(BaseBrain):
 
         except Exception as e:
             print(f"Gemini real-time API error: {e}")
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"Gemini realtime request failed: {e}") from e
 
     def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
@@ -147,7 +147,7 @@ class GeminiBrain(BaseBrain):
 
         except Exception as e:
             print(f"Gemini API error: {e}")
-            return self._get_fallback_message(intensity, phase, language)
+            raise RuntimeError(f"Gemini chat request failed: {e}") from e
 
     def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
