@@ -138,11 +138,43 @@ def normalize_intensity_value(intensity: str) -> str:
     }
     return mapping.get(value, "moderate")
 
+# Common English words that should never appear in Norwegian coaching output
+_ENGLISH_COACHING_WORDS = {
+    "keep going", "good job", "push harder", "well done", "hold on",
+    "nice work", "stay focused", "you got this", "let's go", "come on",
+    "great work", "push it", "almost there", "hang in there", "breathe",
+    "slow down", "speed up", "perfect", "excellent", "amazing",
+    "fantastic", "steady", "hold it", "more effort", "pick up",
+}
+
+def _looks_english(text: str) -> bool:
+    """Heuristic: returns True if text appears to be English rather than Norwegian."""
+    lowered = text.lower().strip().rstrip("!.")
+    # Direct match against known English coaching phrases
+    if lowered in _ENGLISH_COACHING_WORDS:
+        return True
+    # Check if any known English phrase is a substring
+    for phrase in _ENGLISH_COACHING_WORDS:
+        if phrase in lowered:
+            return True
+    # No Norwegian characters AND only ASCII letters = likely English
+    has_norwegian = any(c in text for c in "æøåÆØÅ")
+    if not has_norwegian:
+        words = text.split()
+        if len(words) >= 2:
+            # Common English function words that don't exist in Norwegian
+            english_markers = {"the", "is", "are", "you", "your", "this", "that", "it", "do", "don't"}
+            if any(w.lower().rstrip(".,!?") in english_markers for w in words):
+                return True
+    return False
+
+
 def enforce_language_consistency(text: str, language: str) -> str:
     """
     Final guardrail against fallback language drift.
 
     Keeps normal model output untouched, but rewrites known fallback drift tokens.
+    For Norwegian: detects English-dominant output and replaces with Norwegian fallback.
     """
     if not text:
         return text
@@ -159,6 +191,15 @@ def enforce_language_consistency(text: str, language: str) -> str:
         if lowered in {"keep going", "keep going!"}:
             logger.warning(f"Language guard corrected EN->NO drift: '{stripped}'")
             return "Fortsett!"
+        # Broader detection: English-dominant output when Norwegian expected
+        if _looks_english(stripped):
+            import random
+            fallback_messages = getattr(config, "CONTINUOUS_COACH_MESSAGES_NO", {})
+            # Pick from warmup messages as safe Norwegian fallback
+            warmup = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
+            replacement = random.choice(warmup)
+            logger.warning(f"Language guard replaced English text in NO mode: '{stripped}' -> '{replacement}'")
+            return replacement
 
     return text
 

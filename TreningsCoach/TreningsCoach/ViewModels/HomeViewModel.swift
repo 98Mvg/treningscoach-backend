@@ -26,6 +26,9 @@ class HomeViewModel: ObservableObject {
     }
 
     func loadData() async {
+        // Wake backend from Render cold-start while we prepare the request
+        apiService.wakeBackend()
+
         isLoading = true
         do {
             let history = try await apiService.getWorkoutHistory(limit: 10)

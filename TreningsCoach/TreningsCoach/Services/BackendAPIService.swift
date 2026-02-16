@@ -22,6 +22,16 @@ class BackendAPIService {
         self.session = URLSession(configuration: configuration)
     }
 
+    // MARK: - Backend Wake-Up
+
+    /// Fire-and-forget ping to /health to wake Render from cold start.
+    /// Call early (app launch) so the backend is warm by the time real requests arrive.
+    func wakeBackend() {
+        guard let url = URL(string: "\(baseURL)/health") else { return }
+        let request = URLRequest(url: url, timeoutInterval: 10)
+        session.dataTask(with: request) { _, _, _ in }.resume()
+    }
+
     // MARK: - Auth Header
 
     /// Adds JWT auth token to request if available

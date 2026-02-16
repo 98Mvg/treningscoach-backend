@@ -15,13 +15,18 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             CoachiTheme.backgroundGradient.ignoresSafeArea()
 
-            Group {
-                switch selectedTab {
-                case .home:    HomeView { selectedTab = .workout }
-                case .workout: workoutContent
-                case .profile: ProfileView()
-                }
-            }
+            // Keep all tab views alive to prevent .task cancellation on tab switch
+            HomeView { selectedTab = .workout }
+                .opacity(selectedTab == .home ? 1 : 0)
+                .allowsHitTesting(selectedTab == .home)
+
+            workoutContent
+                .opacity(selectedTab == .workout ? 1 : 0)
+                .allowsHitTesting(selectedTab == .workout)
+
+            ProfileView()
+                .opacity(selectedTab == .profile ? 1 : 0)
+                .allowsHitTesting(selectedTab == .profile)
 
             if workoutViewModel.workoutState == .idle && !workoutViewModel.showComplete {
                 CustomTabBar(selectedTab: $selectedTab)

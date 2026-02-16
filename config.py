@@ -261,8 +261,8 @@ BRAIN_USAGE = {}
 
 # STEP 4: Hybrid Brain Strategy
 # Use Claude for pattern detection, config for speed
-USE_HYBRID_BRAIN = True  # Enable intelligent fallback
-HYBRID_CLAUDE_FOR_PATTERNS = True  # Use Claude to detect trends over time
+USE_HYBRID_BRAIN = False  # Disabled: pattern insights not wanted during workouts
+HYBRID_CLAUDE_FOR_PATTERNS = False  # Disabled: no Claude insight calls during continuous coaching
 HYBRID_CONFIG_FOR_SPEED = True  # Use config for fast, immediate cues
 
 # ============================================
