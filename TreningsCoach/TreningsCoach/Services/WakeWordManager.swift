@@ -63,6 +63,7 @@ class WakeWordManager: ObservableObject {
     private var capturedText = ""
     private var captureOnResult: ((String) -> Void)?
     private var captureWasListening = false
+    private var isButtonCaptureSession = false
 
     // Restart/backoff control (prevents infinite speech error loops)
     private var restartAttemptCount = 0
@@ -73,6 +74,7 @@ class WakeWordManager: ObservableObject {
     private let maxRestartAttemptsPerWindow = 6
     private let maxRestartBackoffSeconds: TimeInterval = 5.0
     private let degradedRecoveryDelaySeconds: TimeInterval = 8.0
+    private let idleNoSpeechRestartDelaySeconds: TimeInterval = 1.5
 
     // MARK: - Initialization
 
@@ -192,10 +194,22 @@ class WakeWordManager: ObservableObject {
             return
         }
 
+        guard !isCapturingUtterance else {
+            print("⚠️ Capture already active — ignoring duplicate capture request")
+            onResult("")
+            return
+        }
+
         // Store state for the capture session
         captureWasListening = isListening
         captureOnResult = onResult
         capturedText = ""
+        isButtonCaptureSession = true
+
+        // Prevent in-flight wake-word restarts from colliding with button capture.
+        isListening = false
+        pendingRestartTask?.cancel()
+        pendingRestartTask = nil
 
         // Stop any existing wake-word listening (we'll restart after capture)
         recognitionTask?.cancel()
@@ -216,7 +230,14 @@ class WakeWordManager: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
-                print("⚠️ Capture speech recognition error: \(error.localizedDescription)")
+                if self.isNoSpeechError(error) {
+                    print("⚠️ Capture speech recognition error: No speech detected")
+                } else {
+                    print("⚠️ Capture speech recognition error: \(error.localizedDescription)")
+                    Task { @MainActor in
+                        AudioPipelineDiagnostics.shared.log(.speechRecogError, detail: "Capture: \(error.localizedDescription)")
+                    }
+                }
                 return
             }
 
@@ -249,6 +270,7 @@ class WakeWordManager: ObservableObject {
     private func finishCapture() {
         guard isCapturingUtterance else { return }  // Already finished
         isCapturingUtterance = false
+        isButtonCaptureSession = false
         utteranceCaptureTimer?.invalidate()
         utteranceCaptureTimer = nil
 
@@ -296,6 +318,7 @@ class WakeWordManager: ObservableObject {
         utteranceCaptureTimer = nil
         isListening = false
         isCapturingUtterance = false
+        isButtonCaptureSession = false
         wakeWordDetected = false
         isDegradedMode = false
         restartAttemptCount = 0
@@ -320,15 +343,35 @@ class WakeWordManager: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
-                // Recognition errors are common (timeouts, etc.) — not critical
-                print("⚠️ Speech recognition error: \(error.localizedDescription)")
-                Task { @MainActor in
-                    AudioPipelineDiagnostics.shared.log(.speechRecogError, detail: error.localizedDescription)
-                }
-                // Restart listening if it was an interruption
-                if self.isListening {
+                let detail = error.localizedDescription
+                let noSpeech = self.isNoSpeechError(error)
+
+                // "No speech detected" is common in idle wake-word listening and should not trigger
+                // aggressive exponential backoff/degraded mode.
+                if noSpeech {
+                    print("⚠️ Speech recognition error: No speech detected")
                     Task { @MainActor in
-                        self.restartRecognition(reason: error.localizedDescription, isErrorRetry: true)
+                        AudioPipelineDiagnostics.shared.log(.speechRecogError, detail: "No speech detected")
+                    }
+                } else {
+                    print("⚠️ Speech recognition error: \(detail)")
+                    Task { @MainActor in
+                        AudioPipelineDiagnostics.shared.log(.speechRecogError, detail: detail)
+                    }
+                }
+
+                // Restart listening only when wake-word listener is active (not during button capture).
+                if self.isListening && !self.isButtonCaptureSession {
+                    Task { @MainActor in
+                        if noSpeech {
+                            self.restartRecognition(
+                                reason: "idle_no_speech",
+                                isErrorRetry: false,
+                                delayOverride: self.idleNoSpeechRestartDelaySeconds
+                            )
+                        } else {
+                            self.restartRecognition(reason: detail, isErrorRetry: true)
+                        }
                     }
                 }
                 return
@@ -434,7 +477,11 @@ class WakeWordManager: ObservableObject {
         }
     }
 
-    private func restartRecognition(reason: String = "manual", isErrorRetry: Bool = false) {
+    private func restartRecognition(
+        reason: String = "manual",
+        isErrorRetry: Bool = false,
+        delayOverride: TimeInterval? = nil
+    ) {
         guard self.audioEngine != nil, let recognizer = self.speechRecognizer else { return }
 
         var delaySeconds: TimeInterval = 0.3
@@ -463,6 +510,9 @@ class WakeWordManager: ObservableObject {
                 detail: "reason='\(reason)' attempt=\(restartAttemptCount) delay=\(String(format: "%.2f", delaySeconds))s"
             )
         }
+        if let override = delayOverride {
+            delaySeconds = max(0, override)
+        }
 
         pendingRestartTask?.cancel()
         pendingRestartTask = Task { @MainActor in
@@ -486,5 +536,10 @@ class WakeWordManager: ObservableObject {
             self.startRecognitionTask(recognizer: recognizer, request: request)
             self.isListening = true
         }
+    }
+
+    private func isNoSpeechError(_ error: Error) -> Bool {
+        let text = error.localizedDescription.lowercased()
+        return text.contains("no speech")
     }
 }

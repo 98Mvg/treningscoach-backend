@@ -358,6 +358,10 @@ class WorkoutViewModel: ObservableObject {
     func talkToCoachButtonPressed() {
         guard isContinuousMode else { return }
         guard coachInteractionState == .passiveListening else { return }
+        guard !wakeWordManager.isCapturingUtterance && !wakeWordManager.wakeWordDetected else {
+            print("⚠️ Ignoring button capture while wake-word capture is active")
+            return
+        }
 
         print("🎤 Talk-to-coach button pressed — starting speech capture")
         coachInteractionState = .commandMode
