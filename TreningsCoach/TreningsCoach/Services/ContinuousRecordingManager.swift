@@ -30,6 +30,7 @@ class ContinuousRecordingManager: NSObject {
 
     // Diagnostics: count tap callbacks to verify the tap is firing
     private var tapCallbackCount: Int = 0
+    private var hasInstalledTap = false
 
     // Wake word: callback to feed audio buffers to speech recognizer
     var onAudioBuffer: ((AVAudioPCMBuffer) -> Void)?
@@ -45,6 +46,9 @@ class ContinuousRecordingManager: NSObject {
             print("⚠️ Already recording")
             return
         }
+
+        // Defensive cleanup in case a previous start attempt failed mid-way.
+        teardownAudioPipeline()
 
         // Configure audio session for BOTH recording AND playback
         // .playAndRecord allows coach voice to play while mic stays active
@@ -131,9 +135,16 @@ class ContinuousRecordingManager: NSObject {
             // Forward to wake word speech recognizer
             self.onAudioBuffer?(buffer)
         }
+        hasInstalledTap = true
 
-        // Start engine
-        try audioEngine.start()
+        // Start engine. If this fails, ensure tap/session are cleaned up so retry won't crash.
+        do {
+            try audioEngine.start()
+        } catch {
+            print("⚠️ Failed to start audio engine: \(error)")
+            teardownAudioPipeline()
+            throw error
+        }
 
         isRecording = true
         recordingStartTime = Date()
@@ -148,8 +159,10 @@ class ContinuousRecordingManager: NSObject {
         isPaused = true
         pauseStartTime = Date()
 
-        // Stop the engine but keep the buffer
-        audioEngine.stop()
+        // Stop the engine but keep tap + buffer for resume.
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
 
         print("⏸️ Recording paused")
     }
@@ -174,17 +187,7 @@ class ContinuousRecordingManager: NSObject {
     /// Stop continuous recording session
     func stopContinuousRecording() {
         guard isRecording else { return }
-
-        // Remove tap
-        audioEngine.inputNode.removeTap(onBus: 0)
-
-        // Stop engine
-        audioEngine.stop()
-
-        // Clear buffer
-        bufferQueue.sync {
-            audioBuffer.removeAll()
-        }
+        teardownAudioPipeline()
 
         isRecording = false
         isPaused = false
@@ -193,6 +196,7 @@ class ContinuousRecordingManager: NSObject {
         pauseStartTime = nil
         currentFormat = nil
         tapCallbackCount = 0
+        hasInstalledTap = false
 
         // Deactivate audio session
         do {
@@ -442,6 +446,30 @@ class ContinuousRecordingManager: NSObject {
         } catch {
             print("⚠️ Could not write audio file: \(error)")
             return nil
+        }
+    }
+
+    private func teardownAudioPipeline() {
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+
+        if hasInstalledTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInstalledTap = false
+        }
+
+        bufferQueue.sync {
+            audioBuffer.removeAll()
+        }
+
+        currentFormat = nil
+        tapCallbackCount = 0
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+        } catch {
+            print("⚠️ Could not deactivate audio session: \(error)")
         }
     }
 }
