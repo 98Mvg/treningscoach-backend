@@ -264,6 +264,7 @@ BRAIN_USAGE = {}
 USE_HYBRID_BRAIN = False  # Disabled: pattern insights not wanted during workouts
 HYBRID_CLAUDE_FOR_PATTERNS = False  # Disabled: no Claude insight calls during continuous coaching
 HYBRID_CONFIG_FOR_SPEED = True  # Use config for fast, immediate cues
+USE_STRATEGIC_BRAIN = False  # Disabled: no Claude strategic insights during workouts
 
 # ============================================
 # CONTINUOUS COACHING SETTINGS

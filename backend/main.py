@@ -80,12 +80,16 @@ try:
     logger.info("✅ Librosa pre-warmed successfully")
 except Exception as e:
     logger.warning(f"⚠️ Librosa pre-warm failed: {e}")
-strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
-logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
-if strategic_brain.is_available():
-    logger.info("✅ Strategic Brain (Claude) is available")
+if getattr(config, "USE_STRATEGIC_BRAIN", False):
+    strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
+    if strategic_brain.is_available():
+        logger.info("✅ Strategic Brain (Claude) is available")
+    else:
+        logger.info("⚠️ Strategic Brain disabled (no ANTHROPIC_API_KEY)")
 else:
-    logger.info("⚠️ Strategic Brain disabled (no ANTHROPIC_API_KEY)")
+    strategic_brain = None
+    logger.info("ℹ️ Strategic Brain disabled via config (USE_STRATEGIC_BRAIN=False)")
+logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 
 # Initialize TTS service (ElevenLabs for production)
 elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
@@ -906,24 +910,26 @@ def coach_continuous():
                     workout_state["last_pattern_time"] = elapsed_seconds
 
         # Strategic Brain: High-level coaching guidance (every 2-3 minutes)
+        # Disabled via USE_STRATEGIC_BRAIN config flag
         strategic_guidance = None
-        last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
+        if strategic_brain is not None:
+            last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
 
-        if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
-            strategic_guidance = strategic_brain.get_strategic_insight(
-                breath_history=coaching_context["breath_history"],
-                coaching_history=coaching_context["coaching_history"],
-                phase=phase,
-                elapsed_seconds=elapsed_seconds,
-                session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
-                language=language
-            )
+            if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
+                strategic_guidance = strategic_brain.get_strategic_insight(
+                    breath_history=coaching_context["breath_history"],
+                    coaching_history=coaching_context["coaching_history"],
+                    phase=phase,
+                    elapsed_seconds=elapsed_seconds,
+                    session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
+                    language=language
+                )
 
-            if strategic_guidance:
-                logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
-                # Update last strategic time
-                if workout_state:
-                    workout_state["last_strategic_time"] = elapsed_seconds
+                if strategic_guidance:
+                    logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
+                    # Update last strategic time
+                    if workout_state:
+                        workout_state["last_strategic_time"] = elapsed_seconds
 
         # Get coaching message (priority: strategic > pattern > config)
         use_welcome = workout_state.get("use_welcome_phrase", False)
@@ -1648,9 +1654,9 @@ def coach_talk():
                 system_prompt += "\n- RESPOND IN NORWEGIAN."
             max_tokens = 60
 
-        # Use strategic brain (Claude Haiku for cost efficiency)
+        # Use strategic brain (Claude Haiku for cost efficiency) if enabled
         coach_text = None
-        if strategic_brain.is_available():
+        if strategic_brain is not None and strategic_brain.is_available():
             try:
                 response = strategic_brain.client.messages.create(
                     model="claude-3-haiku-20240307",
