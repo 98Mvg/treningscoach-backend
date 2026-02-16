@@ -827,7 +827,8 @@ def coach_continuous():
                     last_analysis=last_breath,
                     coaching_history=coaching_context["coaching_history"],
                     phase=phase,
-                    training_level=training_level
+                    training_level=training_level,
+                    elapsed_seconds=elapsed_seconds
                 )
 
             # Hard silence cap for guided mode: coach must re-engage at bounded intervals

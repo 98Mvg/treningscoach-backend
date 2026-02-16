@@ -154,7 +154,8 @@ def should_coach_speak(
     last_analysis: Optional[Dict],
     coaching_history: List[Dict],
     phase: str,
-    training_level: str = "intermediate"
+    training_level: str = "intermediate",
+    elapsed_seconds: Optional[int] = None
 ) -> Tuple[bool, str]:
     """
     Determines whether the coach should speak based on breath analysis and context.
@@ -183,10 +184,22 @@ def should_coach_speak(
     # Phone mics during workouts are noisy; suppressing coaching here caused cascading silence
     # with voice_intelligence's own threshold. Let voice_intelligence be the single gate.
 
+    # Import config early — used by grace period and training level
+    try:
+        import config as _config
+    except ImportError:
+        _config = None
+
     # Rule 1: Always speak for critical breathing (safety override)
     if intensity == "critical":
         logger.info("Coach speaking: critical_breathing detected")
         return (True, "critical_breathing")
+
+    # Rule 1a: Early workout grace period — always speak to keep user engaged
+    grace = getattr(_config, "EARLY_WORKOUT_GRACE_SECONDS", 30) if _config else 30
+    if elapsed_seconds is not None and elapsed_seconds < grace:
+        logger.info("Coach speaking: early_workout_engagement (elapsed=%ds < %ds grace)", elapsed_seconds, grace)
+        return (True, "early_workout_engagement")
 
     # Rule 1b: Irregular breathing warrants coaching guidance
     if breath_regularity is not None and breath_regularity < 0.4:
@@ -224,14 +237,14 @@ def should_coach_speak(
 
     # Training level adjusts coaching frequency
     # Beginners need more guidance (1.5x), advanced need less (0.7x)
-    try:
-        import config
-        level_config = config.TRAINING_LEVEL_CONFIG.get(training_level, {})
-        frequency_multiplier = level_config.get("coaching_frequency_multiplier", 1.0)
-        # Lower multiplier = less frequent = longer interval
-        periodic_interval = int(periodic_interval / frequency_multiplier)
-    except (ImportError, AttributeError):
-        pass  # Use default if config not available
+    if _config:
+        try:
+            level_config = _config.TRAINING_LEVEL_CONFIG.get(training_level, {})
+            frequency_multiplier = level_config.get("coaching_frequency_multiplier", 1.0)
+            # Lower multiplier = less frequent = longer interval
+            periodic_interval = int(periodic_interval / frequency_multiplier)
+        except AttributeError:
+            pass  # Use default if config not available
 
     if not intensity_changed and not tempo_changed:
         if coaching_history and len(coaching_history) > 0:

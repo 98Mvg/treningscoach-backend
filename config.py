@@ -52,6 +52,7 @@ BREATH_SMOOTHING_WINDOW = 4
 # Maximum silence before forcing a coach cue (seconds)
 # 30s ensures coach doesn't disappear — users expect active coaching
 MAX_SILENCE_SECONDS = 30
+EARLY_WORKOUT_GRACE_SECONDS = 30  # Force coaching output during early workout
 # Minimum signal quality required to force a cue after max silence
 # Set to 0.0 so the override ALWAYS fires — phone mics are noisy during workouts
 # and we never want the coach to go permanently silent
@@ -252,6 +253,7 @@ BRAIN_TIMEOUT = 1.2  # seconds per brain
 USAGE_LIMIT = 0.9  # skip brain if usage >= this (optional BRAIN_USAGE map)
 BRAIN_COOLDOWN_SECONDS = 60
 BRAIN_TIMEOUT_COOLDOWN_SECONDS = 30
+BRAIN_INIT_RETRY_SECONDS = 5  # Short cooldown for init failures (API key missing, import error)
 BRAIN_SLOW_THRESHOLD = 3.0  # seconds avg latency before skipping (must be > BRAIN_TIMEOUT!)
 BRAIN_LATENCY_DECAY_FACTOR = 0.9  # Decay old avg_latency toward recent readings
 # Optional live usage map (0.0-1.0). Example: {"grok": 0.92}

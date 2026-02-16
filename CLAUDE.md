@@ -24,6 +24,89 @@ This is a low-latency AI Coach app ("Coachi", v3.0) with "Midnight Ember" design
 
 ---
 
+## 0.1) Latest Session Learnings (2026-02-15)
+
+Use this as the first checklist before touching behavior quality code.
+
+### A) Language consistency guardrails (must preserve)
+
+1. Normalize language at ingress for:
+- `/welcome`
+- `/coach/continuous`
+- `/coach/talk`
+
+2. Keep locale-aware fallbacks across brains/router:
+- Never return Norwegian default fallback when `language=en`.
+- Preserve canonical defaults: `"Keep going!"` for English, `"Fortsett!"` for Norwegian.
+
+3. Keep final output language guard before TTS:
+- Prevent known drift fallback (e.g., `"Fortsett!"` when request language is English).
+
+### B) Intensity normalization (must preserve)
+
+- Canonical intensity is: `calm | moderate | intense | critical`.
+- Legacy/localized aliases (`intensitet`, `moderat`, `kritisk`, etc.) must map to canonical values.
+
+### C) Silence policy (must preserve)
+
+- Silence state is session-scoped (not global).
+- Do not reintroduce global silence counters for workout decision logic.
+
+### D) Wake-word error loop protection (must preserve)
+
+- Wake-word restart is bounded with exponential backoff.
+- There is a retry window cap and temporary degraded mode.
+- Degraded mode schedules delayed recovery.
+- Diagnostics track restart attempts and degraded events.
+
+### E) Latency observability (must preserve)
+
+Per continuous tick, log:
+- `analyze_ms`
+- `decision_ms`
+- `brain_ms`
+- `tts_ms`
+- `total_ms`
+
+Tune behavior only using observed timing data.
+
+### F) Files changed in this session
+
+Backend/runtime:
+- `main.py`
+- `brain_router.py`
+- `voice_intelligence.py`
+- `brains/base_brain.py`
+- `brains/openai_brain.py`
+- `brains/claude_brain.py`
+- `brains/gemini_brain.py`
+- `brains/grok_brain.py`
+
+iOS:
+- `TreningsCoach/TreningsCoach/Services/WakeWordManager.swift`
+- `TreningsCoach/TreningsCoach/Services/AudioPipelineDiagnostics.swift`
+
+Tests:
+- `tests_phaseb/test_base_brain_normalization.py`
+- `tests_phaseb/test_language_consistency.py`
+- `tests_phaseb/test_voice_intelligence_session_state.py`
+
+Mirror sync:
+- Keep root and `backend/` copies synchronized for all changed backend files.
+
+### G) Validation commands to run after related edits
+
+```bash
+pytest -q tests_phaseb
+python3 -m py_compile main.py brain_router.py voice_intelligence.py brains/*.py
+```
+
+If Swift touched, run Xcode build when simulator/runtime is available.
+
+Reference commit for this bundle of changes: `87414c6`.
+
+---
+
 ## 1) Architecture (How It All Fits Together)
 
 ```

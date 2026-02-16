@@ -159,7 +159,9 @@ class BrainRouter:
             return brain
         except Exception as e:
             print(f"⚠️ Brain Router: Failed to initialize {brain_name}: {e}")
-            self._set_cooldown(brain_name)
+            # Use short init-retry cooldown (not the 60s runtime cooldown)
+            init_retry = getattr(config, "BRAIN_INIT_RETRY_SECONDS", 5)
+            self._set_cooldown(brain_name, seconds=init_retry)
             self.brain_pool[brain_name] = None
             return None
 
@@ -184,6 +186,29 @@ class BrainRouter:
             return False
 
         return True
+
+    def _get_skip_reason(self, brain_name: str) -> str:
+        """Return a human-readable reason why this brain is unavailable."""
+        cooldown_until = self.brain_cooldowns.get(brain_name)
+        if cooldown_until and time.time() < cooldown_until:
+            remaining = cooldown_until - time.time()
+            # Distinguish init failure from runtime cooldown
+            if brain_name in self.brain_pool and self.brain_pool[brain_name] is None:
+                return f"init_failed (retry in {remaining:.0f}s)"
+            return f"cooldown ({remaining:.0f}s remaining)"
+
+        usage = getattr(config, "BRAIN_USAGE", {}).get(brain_name, 0.0)
+        usage_limit = getattr(config, "USAGE_LIMIT", 0.9)
+        if usage >= usage_limit:
+            return f"usage_limit ({usage:.0%} >= {usage_limit:.0%})"
+
+        stats = self.brain_stats.get(brain_name, {})
+        avg_latency = stats.get("avg_latency")
+        slow_threshold = getattr(config, "BRAIN_SLOW_THRESHOLD", None)
+        if slow_threshold and avg_latency and avg_latency > slow_threshold:
+            return f"too_slow (avg {avg_latency:.3f}s > {slow_threshold}s)"
+
+        return "unknown"
 
     def _record_latency(self, brain_name: str, latency: float):
         stats = self.brain_stats.setdefault(brain_name, {"calls": 0, "avg_latency": 0.0, "timeouts": 0, "failures": 0, "last_used": None})
@@ -236,6 +261,8 @@ class BrainRouter:
 
         for brain_name in self.priority_brains:
             if not self._is_brain_available(brain_name):
+                reason = self._get_skip_reason(brain_name)
+                print(f"[BRAIN] {brain_name} | SKIPPED | {reason}")
                 continue
 
             if brain_name == "config":
@@ -442,11 +469,20 @@ class BrainRouter:
         Returns:
             Dictionary with health status
         """
+        # Build pool_status: which brains are cached and their state
+        pool_status = {}
+        for brain_name in self.brain_pool:
+            if self.brain_pool[brain_name] is None:
+                pool_status[brain_name] = "failed_init"
+            else:
+                pool_status[brain_name] = "ready"
+
         status = {
             "active_brain": self.get_active_brain(),
             "healthy": True,
             "message": "OK",
-            "brain_stats": self.get_brain_stats()
+            "brain_stats": self.get_brain_stats(),
+            "pool_status": pool_status
         }
 
         if self.brain is not None:
