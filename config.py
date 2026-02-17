@@ -298,7 +298,8 @@ ACTIVE_BRAIN = os.getenv("ACTIVE_BRAIN", "grok").strip().lower() or "grok"
 
 # Priority routing (try brains in order with timeout + fallback)
 USE_PRIORITY_ROUTING = _env_bool("USE_PRIORITY_ROUTING", True)
-BRAIN_PRIORITY = _env_csv_list("BRAIN_PRIORITY", ["grok", "gemini", "openai", "claude"])
+# Default: Grok first, then immediate config fallback (no Gemini/OpenAI/Claude calls).
+BRAIN_PRIORITY = _env_csv_list("BRAIN_PRIORITY", ["grok", "config"])
 BRAIN_TIMEOUT = _env_float("BRAIN_TIMEOUT", 1.2)  # global default timeout (seconds) for brains without overrides
 # Per-brain timeout overrides. Grok typically needs ~4-5s in production.
 BRAIN_TIMEOUTS = _env_json_dict("BRAIN_TIMEOUTS_JSON", {"grok": 6.0})
