@@ -314,6 +314,13 @@ BRAIN_SLOW_THRESHOLD = _env_float("BRAIN_SLOW_THRESHOLD", 3.0)  # seconds avg la
 BRAIN_SLOW_THRESHOLDS = _env_json_dict("BRAIN_SLOW_THRESHOLDS_JSON", {"grok": 6.5})
 BRAIN_LATENCY_DECAY_FACTOR = _env_float("BRAIN_LATENCY_DECAY_FACTOR", 0.9)  # Decay old avg_latency toward recent readings
 BRAIN_RECENT_CUE_WINDOW = _env_int("BRAIN_RECENT_CUE_WINDOW", 4)  # Anti-repetition memory per session
+# Latency-aware response strategy:
+# - If expected brain latency is high, return fast config fallback cue immediately.
+# - Force one richer AI follow-up cue on the next tick.
+LATENCY_FAST_FALLBACK_ENABLED = _env_bool("LATENCY_FAST_FALLBACK_ENABLED", True)
+LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS = _env_float("LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS", 2.8)
+LATENCY_FAST_FALLBACK_MIN_CALLS = _env_int("LATENCY_FAST_FALLBACK_MIN_CALLS", 2)
+LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS = _env_float("LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS", 20.0)
 # Optional live usage map (0.0-1.0). Example: {"grok": 0.92}
 BRAIN_USAGE = _env_json_dict("BRAIN_USAGE_JSON", {})
 
@@ -414,7 +421,7 @@ WELCOME_MESSAGES_NO = {
         "Bra timing. La oss varme opp ordentlig og legge grunnlaget.",
         "La oss komme i gang. Kontrollert tempo til å begynne med.",
         "Velkommen tilbake. Kjenn på kroppen så bygger vi derfra.",
-        "Okei, la oss begynne. Rolig og jevnt, ingen hastverk.",
+        "Ok, la oss begynne. Rolig og jevnt, uten stress.",
         "Bra at du dukket opp. Start rolig, intensiteten kommer naturlig."
     ],
     "beginner_friendly": [
@@ -490,7 +497,7 @@ CONTINUOUS_COACH_MESSAGES_NO = {
     "warmup": [
         "Rolig tempo, fin start.",
         "Jevnt, god oppvarming.",
-        "Forsiktig, fortsett å varme opp.",
+        "Rolig, fortsett oppvarmingen.",
         "Fint og rolig.",
         "Perfekt oppvarmingstempo."
     ],
@@ -505,10 +512,10 @@ CONTINUOUS_COACH_MESSAGES_NO = {
 
     "intense": {
         "calm": [
-            "Du kan pushe hardere!",
+            "Du kan presse hardere!",
             "Mer innsats, du klarer dette!",
             "Øk tempoet litt!",
-            "Gi meg mer kraft!",
+            "Mer trykk nå!",
             "La oss øke farten!"
         ],
         "moderate": [

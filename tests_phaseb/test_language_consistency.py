@@ -75,3 +75,15 @@ def test_language_guard_leaves_norwegian_untouched():
     for phrase in norwegian_phrases:
         result = enforce_language_consistency(phrase, "no")
         assert result == phrase, f"Norwegian phrase '{phrase}' was incorrectly modified to '{result}'"
+
+
+def test_norwegian_quality_guard_rewrites_known_awkward_phrases():
+    assert enforce_language_consistency("Vakkert.", "no", phase="intense") == "Bra jobba."
+    assert enforce_language_consistency("Gi meg mer kraft!", "no", phase="intense") == "Mer trykk nå!"
+    assert enforce_language_consistency("Trykk hardere.", "no", phase="intense") == "Press hardere."
+    assert enforce_language_consistency("Jevn opp.", "no", phase="intense") == "Finn jevn rytme."
+
+
+def test_norwegian_quality_guard_blocks_warmup_phrases_after_warmup():
+    result = enforce_language_consistency("Forsiktig, fortsett å varme opp.", "no", phase="intense")
+    assert result == "Nå øker vi trykket."

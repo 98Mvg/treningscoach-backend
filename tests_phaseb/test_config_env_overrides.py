@@ -30,3 +30,17 @@ def test_timeout_and_threshold_json_overrides(monkeypatch):
     assert config.BRAIN_TIMEOUTS["openai"] == 2.2
     assert config.BRAIN_SLOW_THRESHOLDS["grok"] == 7.0
     assert config.BRAIN_MODE_TIMEOUTS["realtime_coach"]["grok"] == 4.6
+
+
+def test_latency_strategy_env_overrides(monkeypatch):
+    monkeypatch.setenv("LATENCY_FAST_FALLBACK_ENABLED", "false")
+    monkeypatch.setenv("LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS", "3.4")
+    monkeypatch.setenv("LATENCY_FAST_FALLBACK_MIN_CALLS", "5")
+    monkeypatch.setenv("LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS", "18")
+
+    importlib.reload(config)
+
+    assert config.LATENCY_FAST_FALLBACK_ENABLED is False
+    assert config.LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS == 3.4
+    assert config.LATENCY_FAST_FALLBACK_MIN_CALLS == 5
+    assert config.LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS == 18.0

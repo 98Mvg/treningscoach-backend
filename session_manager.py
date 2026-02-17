@@ -335,7 +335,14 @@ class SessionManager:
             "workout_start": datetime.now().isoformat(),
             "training_level": training_level,
             # Emotional progression state
-            "emotional_state": EmotionalState().to_dict()
+            "emotional_state": EmotionalState().to_dict(),
+            # Latency-aware response strategy state (per session)
+            "latency_strategy": {
+                "pending_rich_followup": False,
+                "last_fast_fallback_elapsed": -10_000,
+                "last_rich_followup_elapsed": -10_000,
+                "last_latency_provider": None,
+            },
         }
 
     def update_workout_state(

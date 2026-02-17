@@ -31,6 +31,7 @@ from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # I
 from database import init_db  # Import database initialization
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
+from norwegian_phrase_quality import rewrite_norwegian_phrase
 
 # Configure logging
 logging.basicConfig(
@@ -173,7 +174,7 @@ def _looks_english(text: str) -> bool:
     return False
 
 
-def enforce_language_consistency(text: str, language: str) -> str:
+def enforce_language_consistency(text: str, language: str, phase: str = None) -> str:
     """
     Final guardrail against fallback language drift.
 
@@ -199,11 +200,18 @@ def enforce_language_consistency(text: str, language: str) -> str:
         if _looks_english(stripped):
             import random
             fallback_messages = getattr(config, "CONTINUOUS_COACH_MESSAGES_NO", {})
-            # Pick from warmup messages as safe Norwegian fallback
-            warmup = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
-            replacement = random.choice(warmup)
+            if phase == "intense":
+                intense = fallback_messages.get("intense", {})
+                pool = intense.get("moderate", ["Hold trykket oppe.", "Bra flyt, fortsett."])
+            elif phase == "cooldown":
+                pool = fallback_messages.get("cooldown", ["Rolige pust.", "Senk tempoet rolig."])
+            else:
+                pool = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
+            replacement = random.choice(pool)
             logger.warning(f"Language guard replaced English text in NO mode: '{stripped}' -> '{replacement}'")
-            return replacement
+            return rewrite_norwegian_phrase(replacement, phase=phase)
+
+        return rewrite_norwegian_phrase(stripped, phase=phase)
 
     return text
 
@@ -260,6 +268,32 @@ def _extract_recent_spoken_cues(coaching_history, limit: int = 4) -> list:
 
     cues.reverse()
     return cues
+
+
+def _ensure_latency_strategy_state(workout_state: dict) -> dict:
+    """Ensure per-session latency strategy state exists with safe defaults."""
+    if workout_state is None:
+        return {
+            "pending_rich_followup": False,
+            "last_fast_fallback_elapsed": -10_000,
+            "last_rich_followup_elapsed": -10_000,
+            "last_latency_provider": None,
+        }
+
+    state = workout_state.setdefault("latency_strategy", {})
+    state.setdefault("pending_rich_followup", False)
+    state.setdefault("last_fast_fallback_elapsed", -10_000)
+    state.setdefault("last_rich_followup_elapsed", -10_000)
+    state.setdefault("last_latency_provider", None)
+    return state
+
+
+def _latency_fast_fallback_allowed(latency_state: dict, elapsed_seconds: int) -> bool:
+    """Return True when fast fallback cooldown has elapsed for this session."""
+    cooldown = float(getattr(config, "LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS", 20.0))
+    now_elapsed = float(elapsed_seconds or 0)
+    last_elapsed = float(latency_state.get("last_fast_fallback_elapsed", -10_000))
+    return (now_elapsed - last_elapsed) >= cooldown
 
 
 def _ema(values, alpha: float):
@@ -486,6 +520,7 @@ def welcome():
                 welcome_text = f"Hei {user_name}! {welcome_text}"
             else:
                 welcome_text = f"Hey {user_name}! {welcome_text}"
+        welcome_text = enforce_language_consistency(welcome_text, language, phase="warmup")
 
         logger.info(f"Welcome message requested: experience={experience}, language={language}, user={user_name or 'anon'}, message='{welcome_text}'")
 
@@ -798,6 +833,7 @@ def coach_continuous():
         workout_state = session_manager.get_workout_state(session_id)
         if workout_state is not None:
             workout_state["workout_mode"] = workout_mode
+        latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema
         breath_data["analysis_version"] = breath_data.get("analysis_version", 2)
@@ -884,6 +920,7 @@ def coach_continuous():
             elapsed_since_last = None
 
         decision_started = time.perf_counter()
+        rich_followup_forced = False
         if is_first_breath:
             # Always speak on first breath to welcome the user
             speak_decision = True
@@ -940,10 +977,23 @@ def coach_continuous():
                         f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "
                         f"elapsed_since_last={elapsed_since_last}, "
                         f"is_first_breath={breath_data.get('is_first_breath', False)}")
+
+        # Latency strategy: if previous tick used fast fallback, force one richer follow-up cue.
+        if not is_first_breath and latency_state.get("pending_rich_followup"):
+            rich_followup_forced = True
+            if not speak_decision:
+                speak_decision = True
+                reason = "latency_rich_followup"
+                logger.info(
+                    "Latency strategy: forcing rich follow-up cue (provider=%s)",
+                    latency_state.get("last_latency_provider"),
+                )
         decision_ms = (time.perf_counter() - decision_started) * 1000.0
 
         # Get coaching message (priority: strategic > pattern > realtime brain router)
         brain_started = time.perf_counter()
+        fast_fallback_used = False
+        latency_signal = None
         brain_meta = {
             "provider": "system",
             "source": "system",
@@ -980,61 +1030,106 @@ def coach_continuous():
             logger.info(f"Using cached welcome phrase: {coach_text}")
         else:
             # Only run expensive brain paths when we already decided to speak.
-            last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
-            if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
-                pattern_insight = brain_router.detect_pattern(
-                    breath_history=coaching_context["breath_history"],
-                    coaching_history=coaching_context["coaching_history"],
-                    phase=phase
+            use_fast_fallback = False
+            if not rich_followup_forced:
+                latency_signal = brain_router.get_latency_fallback_signal(mode="realtime_coach")
+                if latency_signal.get("should_fallback") and _latency_fast_fallback_allowed(latency_state, elapsed_seconds):
+                    use_fast_fallback = True
+
+            if use_fast_fallback:
+                coach_text = brain_router.get_fast_fallback_response(
+                    breath_data=breath_data,
+                    phase=phase,
+                    language=language,
+                    persona=persona,
                 )
-
-                if pattern_insight:
-                    logger.info(f"Pattern detected: {pattern_insight}")
-                    if workout_state:
-                        workout_state["last_pattern_time"] = elapsed_seconds
-
-            if strategic_brain is not None:
-                last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
-
-                if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
-                    strategic_guidance = strategic_brain.get_strategic_insight(
+                brain_meta = brain_router.get_last_route_meta()
+                fast_fallback_used = True
+                latency_state["pending_rich_followup"] = True
+                latency_state["last_fast_fallback_elapsed"] = float(elapsed_seconds)
+                latency_state["last_latency_provider"] = latency_signal.get("provider")
+                logger.info(
+                    "Latency strategy: fast fallback used (provider=%s avg=%.3fs threshold=%.3fs calls=%s)",
+                    latency_signal.get("provider"),
+                    float(latency_signal.get("avg_latency", 0.0)),
+                    float(latency_signal.get("threshold", 0.0)),
+                    latency_signal.get("calls"),
+                )
+            else:
+                last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
+                if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
+                    pattern_insight = brain_router.detect_pattern(
                         breath_history=coaching_context["breath_history"],
                         coaching_history=coaching_context["coaching_history"],
-                        phase=phase,
-                        elapsed_seconds=elapsed_seconds,
-                        session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
-                        language=language
+                        phase=phase
                     )
 
-                    if strategic_guidance:
-                        logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
+                    if pattern_insight:
+                        logger.info(f"Pattern detected: {pattern_insight}")
                         if workout_state:
-                            workout_state["last_strategic_time"] = elapsed_seconds
+                            workout_state["last_pattern_time"] = elapsed_seconds
 
-            generation_breath_data = dict(breath_data)
-            generation_breath_data["session_id"] = session_id
-            generation_breath_data["persona"] = persona
-            generation_breath_data["training_level"] = training_level
-            generation_breath_data["persona_mode"] = coaching_context.get("persona_mode")
-            generation_breath_data["emotional_intensity"] = coaching_context.get("emotional_intensity")
-            generation_breath_data["emotional_trend"] = coaching_context.get("emotional_trend")
-            generation_breath_data["safety_override"] = coaching_context.get("safety_override")
-            generation_breath_data["time_in_struggle"] = coaching_context.get("time_in_struggle")
-            generation_breath_data["coaching_reason"] = reason
-            generation_breath_data["recent_coach_cues"] = recent_cues
+                if strategic_brain is not None:
+                    last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
 
-            if strategic_guidance:
-            # Strategic Brain guidance (highest priority for strategic moments)
-            # System decides: use suggested phrase or pick from config based on guidance
-                if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
-                    coach_text = strategic_guidance["suggested_phrase"]
+                    if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
+                        strategic_guidance = strategic_brain.get_strategic_insight(
+                            breath_history=coaching_context["breath_history"],
+                            coaching_history=coaching_context["coaching_history"],
+                            phase=phase,
+                            elapsed_seconds=elapsed_seconds,
+                            session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
+                            language=language
+                        )
+
+                        if strategic_guidance:
+                            logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
+                            if workout_state:
+                                workout_state["last_strategic_time"] = elapsed_seconds
+
+                generation_breath_data = dict(breath_data)
+                generation_breath_data["session_id"] = session_id
+                generation_breath_data["persona"] = persona
+                generation_breath_data["training_level"] = training_level
+                generation_breath_data["persona_mode"] = coaching_context.get("persona_mode")
+                generation_breath_data["emotional_intensity"] = coaching_context.get("emotional_intensity")
+                generation_breath_data["emotional_trend"] = coaching_context.get("emotional_trend")
+                generation_breath_data["safety_override"] = coaching_context.get("safety_override")
+                generation_breath_data["time_in_struggle"] = coaching_context.get("time_in_struggle")
+                generation_breath_data["coaching_reason"] = reason
+                generation_breath_data["recent_coach_cues"] = recent_cues
+
+                if strategic_guidance:
+                # Strategic Brain guidance (highest priority for strategic moments)
+                # System decides: use suggested phrase or pick from config based on guidance
+                    if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
+                        coach_text = strategic_guidance["suggested_phrase"]
+                        brain_meta = {
+                            "provider": "strategic",
+                            "source": "strategic_brain",
+                            "status": "suggested_phrase",
+                            "mode": "strategic",
+                        }
+                        logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
+                    else:
+                        coach_text = get_coach_response_continuous(
+                            generation_breath_data,
+                            phase,
+                            language=language,
+                            persona=persona,
+                            user_name=user_name,
+                        )
+                        brain_meta = brain_router.get_last_route_meta()
+                        logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
+                elif pattern_insight:
+                    coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
                     brain_meta = {
-                        "provider": "strategic",
-                        "source": "strategic_brain",
-                        "status": "suggested_phrase",
+                        "provider": "claude",
+                        "source": "pattern_insight",
+                        "status": "pattern_override",
                         "mode": "strategic",
                     }
-                    logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
+                    logger.info(f"Using pattern insight instead of config message")
                 else:
                     coach_text = get_coach_response_continuous(
                         generation_breath_data,
@@ -1044,31 +1139,21 @@ def coach_continuous():
                         user_name=user_name,
                     )
                     brain_meta = brain_router.get_last_route_meta()
-                    logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
-            elif pattern_insight:
-                coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
-                brain_meta = {
-                    "provider": "claude",
-                    "source": "pattern_insight",
-                    "status": "pattern_override",
-                    "mode": "strategic",
-                }
-                logger.info(f"Using pattern insight instead of config message")
-            else:
-                coach_text = get_coach_response_continuous(
-                    generation_breath_data,
-                    phase,
-                    language=language,
-                    persona=persona,
-                    user_name=user_name,
-                )
-                brain_meta = brain_router.get_last_route_meta()
+
+                if rich_followup_forced:
+                    latency_state["pending_rich_followup"] = False
+                    latency_state["last_rich_followup_elapsed"] = float(elapsed_seconds)
+                    logger.info(
+                        "Latency strategy: rich follow-up completed (provider=%s source=%s)",
+                        brain_meta.get("provider"),
+                        brain_meta.get("source"),
+                    )
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
-        if speak_decision and not use_welcome:
+        if speak_decision and not use_welcome and not fast_fallback_used:
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
-        coach_text = enforce_language_consistency(coach_text, language)
+        coach_text = enforce_language_consistency(coach_text, language, phase=phase)
         brain_ms = (time.perf_counter() - brain_started) * 1000.0
 
         # Generate voice only if should speak (language-aware)
@@ -1128,11 +1213,17 @@ def coach_continuous():
             "brain_source": brain_meta.get("source"),
             "brain_status": brain_meta.get("status"),
             "brain_mode": brain_meta.get("mode"),
+            "latency_fast_fallback_used": fast_fallback_used,
+            "latency_rich_followup_forced": rich_followup_forced,
+            "latency_pending_rich_followup": bool(latency_state.get("pending_rich_followup")),
+            "latency_signal_reason": latency_signal.get("reason") if latency_signal else None,
+            "latency_signal_provider": latency_signal.get("provider") if latency_signal else None,
+            "latency_signal_avg": latency_signal.get("avg_latency") if latency_signal else None,
         }
 
         total_ms = (time.perf_counter() - request_started) * 1000.0
         logger.info(
-            "Tick timing: session=%s total_ms=%.1f analyze_ms=%.1f decision_ms=%.1f brain_ms=%.1f tts_ms=%.1f speak=%s reason=%s brain=%s/%s/%s",
+            "Tick timing: session=%s total_ms=%.1f analyze_ms=%.1f decision_ms=%.1f brain_ms=%.1f tts_ms=%.1f speak=%s reason=%s brain=%s/%s/%s fast_fallback=%s rich_followup=%s",
             session_id,
             total_ms,
             analyze_ms,
@@ -1144,6 +1235,8 @@ def coach_continuous():
             brain_meta.get("provider"),
             brain_meta.get("source"),
             brain_meta.get("status"),
+            fast_fallback_used,
+            rich_followup_forced,
         )
 
         return jsonify(response_data)
@@ -1172,7 +1265,7 @@ def get_coach_response_continuous(breath_data, phase, language="en", persona=Non
         persona=persona,
         user_name=user_name
     )
-    return enforce_language_consistency(coach_text, normalized_language)
+    return enforce_language_consistency(coach_text, normalized_language, phase=phase)
 
 
 @app.route('/download/<path:filename>')
@@ -1795,7 +1888,11 @@ def coach_talk():
                 language=language,
                 persona=persona
             )
-        coach_text = enforce_language_consistency(coach_text, language)
+        coach_text = enforce_language_consistency(
+            coach_text,
+            language,
+            phase=phase if context == "workout" else None
+        )
 
         # Generate voice audio with persona-specific voice
         voice_file = generate_voice(coach_text, language=language, persona=persona)

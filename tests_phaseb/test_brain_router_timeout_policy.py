@@ -127,3 +127,53 @@ def test_realtime_response_rewrites_recent_repeats(monkeypatch):
 
     assert first == "Push harder."
     assert second == "Hold rhythm."
+
+
+def test_latency_fallback_signal_triggers_when_avg_latency_is_high(monkeypatch):
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_ENABLED", True, raising=False)
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS", 2.8, raising=False)
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_MIN_CALLS", 2, raising=False)
+
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+    router.brain_stats["grok"] = {"calls": 4, "avg_latency": 3.6, "timeouts": 0, "failures": 0}
+
+    signal = router.get_latency_fallback_signal()
+
+    assert signal["should_fallback"] is True
+    assert signal["provider"] == "grok"
+    assert signal["reason"] == "latency_high"
+    assert signal["calls"] == 4
+
+
+def test_latency_fallback_signal_requires_minimum_samples(monkeypatch):
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_ENABLED", True, raising=False)
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS", 2.8, raising=False)
+    monkeypatch.setattr(config, "LATENCY_FAST_FALLBACK_MIN_CALLS", 3, raising=False)
+
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+    router.brain_stats["grok"] = {"calls": 2, "avg_latency": 4.2, "timeouts": 0, "failures": 0}
+
+    signal = router.get_latency_fallback_signal()
+
+    assert signal["should_fallback"] is False
+    assert signal["reason"] == "insufficient_samples"
+
+
+def test_fast_fallback_response_sets_route_metadata():
+    router = BrainRouter(brain_type="config")
+    text = router.get_fast_fallback_response(
+        breath_data={"intensity": "moderate"},
+        phase="intense",
+        language="en",
+        persona="personal_trainer",
+    )
+    meta = router.get_last_route_meta()
+
+    assert isinstance(text, str) and len(text) > 0
+    assert meta["provider"] == "system"
+    assert meta["source"] == "latency_fast_fallback"
+    assert meta["status"] == "fast_fallback"

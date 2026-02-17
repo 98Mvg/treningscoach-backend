@@ -781,6 +781,101 @@ class BrainRouter:
 
         return status
 
+    def get_fast_fallback_response(
+        self,
+        breath_data: Dict[str, Any],
+        phase: str,
+        language: str = "en",
+        persona: str = None
+    ) -> str:
+        """Return a fast config cue when latency strategy chooses immediate fallback."""
+        normalized_language = self._normalize_language(language)
+        text = self._get_config_response(
+            breath_data=breath_data,
+            phase=phase,
+            language=normalized_language,
+            persona=persona,
+        )
+        self._set_last_route_meta(
+            provider="system",
+            source="latency_fast_fallback",
+            status="fast_fallback",
+            mode="realtime_coach",
+        )
+        return text
+
+    def get_latency_fallback_signal(self, mode: str = "realtime_coach") -> Dict[str, Any]:
+        """
+        Estimate if a fast fallback should be used based on observed provider latency.
+
+        Uses per-provider EMA latency statistics from priority routing.
+        """
+        enabled = bool(getattr(config, "LATENCY_FAST_FALLBACK_ENABLED", True))
+        threshold = float(getattr(config, "LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS", 2.8))
+        min_calls = int(getattr(config, "LATENCY_FAST_FALLBACK_MIN_CALLS", 2))
+
+        base = {
+            "should_fallback": False,
+            "provider": None,
+            "avg_latency": 0.0,
+            "threshold": threshold,
+            "calls": 0,
+            "reason": "unknown",
+            "mode": mode,
+        }
+
+        if not enabled:
+            base["reason"] = "disabled"
+            return base
+
+        if self.use_priority_routing and self.priority_brains:
+            order = [name for name in self.priority_brains if name != "config"]
+        else:
+            active = self.get_active_brain()
+            order = [] if active in {"config", "priority"} else [active]
+
+        if not order:
+            base["reason"] = "no_ai_provider"
+            return base
+
+        stats = self.get_brain_stats()
+        selected = None
+        for provider in order:
+            provider_stats = stats.get(provider, {})
+            if not provider_stats:
+                continue
+            if not provider_stats.get("available", True):
+                continue
+            selected = (provider, provider_stats)
+            break
+
+        if selected is None:
+            # Use first candidate even if currently unavailable (best effort signal).
+            provider = order[0]
+            selected = (provider, stats.get(provider, {}))
+
+        provider, provider_stats = selected
+        calls = int(provider_stats.get("calls", 0) or 0)
+        avg_latency = float(provider_stats.get("avg_latency", 0.0) or 0.0)
+
+        base.update({
+            "provider": provider,
+            "avg_latency": avg_latency,
+            "calls": calls,
+        })
+
+        if calls < min_calls:
+            base["reason"] = "insufficient_samples"
+            return base
+
+        if avg_latency >= threshold:
+            base["should_fallback"] = True
+            base["reason"] = "latency_high"
+        else:
+            base["reason"] = "latency_ok"
+
+        return base
+
     def switch_brain(self, new_brain_type: str, preserve_hybrid: bool = True) -> bool:
         """
         STEP 4: Hot-switch to a different brain at runtime.
