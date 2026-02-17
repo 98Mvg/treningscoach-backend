@@ -290,49 +290,69 @@ Rules for examples:
 
 Approved examples:
 
-- "<add line>"
-- "<add line>"
+- "Good. Hold that pace. Steady."
+- "Control first, speed second."
+- "Walk easy. Breathe. Reset."
+- "Baby steps are fine if they move forward."
+- "Don't win the week. Win the routine."
 
 Avoid examples:
 
-- "<add line that is too harsh/sarcastic>"
-- "<add line that is too long>"
+- "Pathetic. Is that all you've got?"
+- "You are weak."
+- "Long multi-part lectures while they are training."
+- "Mocking sarcasm in personal_trainer mode."
 
 #### Mode: `pressing`
 
 Approved examples:
 
-- "<add line>"
-- "<add line>"
+- "We don't wait for motivation. We train anyway."
+- "Discipline beats emotion. Today we execute."
+- "You don't need motivation. You need consistency."
+- "Four months, not three weeks. Think long-term."
+- "Stay in long enough for your body to accept this as normal."
 
 Avoid examples:
 
-- "<add line>"
-- "<add line>"
+- "Let's skip today and try tomorrow."
+- "Wait until you feel motivated."
+- "Vague hype without a clear action."
+- "Aggressive insults."
 
 #### Mode: `intense`
 
 Approved examples:
 
-- "<add line>"
-- "<add line>"
+- "Count reps now. One more. Then one more."
+- "It should sting a little. That's the price of change."
+- "No magic trick here. Just do the work."
+- "Stand in it long enough to build discipline."
+- "Finish clean."
 
 Avoid examples:
 
-- "<add line>"
-- "<add line>"
+- "Personal attacks or humiliation."
+- "Unsafe push language during clear red flags."
+- "Long explanations that break workout flow."
+- "Chaotic yelling."
 
 #### Mode: `peak`
 
 Approved examples:
 
-- "<add line>"
-- "<add line>"
+- "Everything, now."
+- "One more. Do not stop."
+- "Hold form. Finish this rep."
+- "Execute. Stay clean."
+- "Full focus. Right now."
 
 Avoid examples:
 
-- "<add line>"
-- "<add line>"
+- "Threatening or panic wording."
+- "Unclear commands."
+- "Rambling multi-sentence cues."
+- "Reusing the same exact line repeatedly."
 
 ### `personal_trainer` - Norwegian (`no`)
 
