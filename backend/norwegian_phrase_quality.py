@@ -40,5 +40,7 @@ def rewrite_norwegian_phrase(text: str, phase: Optional[str] = None) -> str:
         "gi meg mer kraft": "Mer trykk nå!",
         "trykk hardere": "Press hardere.",
         "jevn opp": "Finn jevn rytme.",
+        "fin rytme, behold": "Bra tempo!",
+        "holdt": "Fortsett!",
     }
     return replacements.get(lowered, stripped)

@@ -522,7 +522,7 @@ CONTINUOUS_COACH_MESSAGES_NO = {
         "moderate": [
             "Fortsett, godt tempo!",
             "Hold deg i det!",
-            "Fin rytme, behold!",
+            "Bra tempo!",
             "Du klarer dette!",
             "Bra jobbet, hold jevnt!"
         ],

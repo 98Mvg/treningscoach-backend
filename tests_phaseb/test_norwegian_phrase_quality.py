@@ -11,6 +11,8 @@ def test_rewrite_known_awkward_lines():
     assert rewrite_norwegian_phrase("Gi meg mer kraft!", phase="intense") == "Mer trykk nå!"
     assert rewrite_norwegian_phrase("Trykk hardere.", phase="intense") == "Press hardere."
     assert rewrite_norwegian_phrase("Jevn opp.", phase="intense") == "Finn jevn rytme."
+    assert rewrite_norwegian_phrase("Fin rytme, behold!", phase="intense") == "Bra tempo!"
+    assert rewrite_norwegian_phrase("Holdt.", phase="intense") == "Fortsett!"
 
 
 def test_phase_guard_rewrites_warmup_wording_in_intense():
