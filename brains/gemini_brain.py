@@ -79,7 +79,17 @@ class GeminiBrain(BaseBrain):
             messages = config.CONTINUOUS_COACH_MESSAGES_NO if language == "no" else config.CONTINUOUS_COACH_MESSAGES
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
-        system_prompt = self._build_realtime_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="realtime_coach",
+        )
+        system_prompt = self._build_realtime_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = f"{intensity} breathing, {phase} phase. One action:"
 
         try:
@@ -106,10 +116,19 @@ class GeminiBrain(BaseBrain):
             print(f"Gemini real-time API error: {e}")
             raise RuntimeError(f"Gemini realtime request failed: {e}") from e
 
-    def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_realtime_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
         base_prompt = get_coach_prompt(mode="realtime_coach", language=language)
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
+        context += "\n- Response format: 2-5 words, one actionable cue."
+        if persona_directives:
+            context += persona_directives
         return base_prompt + context
 
     def get_coaching_response(
@@ -128,7 +147,17 @@ class GeminiBrain(BaseBrain):
             messages = config.COACH_MESSAGES_NO if language == "no" else config.COACH_MESSAGES
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
-        system_prompt = self._build_coaching_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="chat",
+        )
+        system_prompt = self._build_coaching_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -149,7 +178,13 @@ class GeminiBrain(BaseBrain):
             print(f"Gemini API error: {e}")
             raise RuntimeError(f"Gemini chat request failed: {e}") from e
 
-    def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_coaching_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
         base_prompt = get_coach_prompt(mode="chat", language=language)
         context = (
@@ -157,6 +192,8 @@ class GeminiBrain(BaseBrain):
             f"- Breathing intensity: {intensity}\n\n"
             "Provide coaching in 1-2 concise sentences."
         )
+        if persona_directives:
+            context += persona_directives
         return base_prompt + context
 
     def _build_coaching_user_message(self, breath_data: Dict[str, Any], phase: str) -> str:

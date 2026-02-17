@@ -468,13 +468,9 @@ def welcome():
         persona = request.args.get('persona', 'personal_trainer')
         user_name = request.args.get('user_name', '').strip()
 
-        # Select message category based on experience
-        if experience == 'beginner':
-            message_category = 'beginner_friendly'
-        elif experience in ['breath_aware', 'advanced']:
-            message_category = 'breath_aware'
-        else:
-            message_category = 'standard'
+        # Keep welcome personality consistent across experience levels
+        # (experience is retained for API compatibility and analytics/logging)
+        message_category = 'standard'
 
         # Get random welcome message from config (language-aware)
         if language == "no":
@@ -797,7 +793,7 @@ def coach_continuous():
         analyze_ms = (time.perf_counter() - analyze_started) * 1000.0
 
         # Get coaching context and workout state
-        coaching_context = session_manager.get_coaching_context(session_id)
+        coaching_context = session_manager.get_coaching_context_with_emotion(session_id)
         last_breath = session_manager.get_last_breath_analysis(session_id)
         workout_state = session_manager.get_workout_state(session_id)
         if workout_state is not None:
@@ -1018,6 +1014,12 @@ def coach_continuous():
             generation_breath_data = dict(breath_data)
             generation_breath_data["session_id"] = session_id
             generation_breath_data["persona"] = persona
+            generation_breath_data["training_level"] = training_level
+            generation_breath_data["persona_mode"] = coaching_context.get("persona_mode")
+            generation_breath_data["emotional_intensity"] = coaching_context.get("emotional_intensity")
+            generation_breath_data["emotional_trend"] = coaching_context.get("emotional_trend")
+            generation_breath_data["safety_override"] = coaching_context.get("safety_override")
+            generation_breath_data["time_in_struggle"] = coaching_context.get("time_in_struggle")
             generation_breath_data["coaching_reason"] = reason
             generation_breath_data["recent_coach_cues"] = recent_cues
 

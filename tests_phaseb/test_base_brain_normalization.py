@@ -54,3 +54,84 @@ def test_localized_keep_going():
 
     assert brain.localized_keep_going("en") == "Keep going!"
     assert brain.localized_keep_going("no") == "Fortsett!"
+
+
+def test_persona_directives_include_role_character_humor():
+    brain = DummyBrain()
+
+    directives = brain.build_persona_directives(
+        {"persona": "toxic_mode", "training_level": "advanced"},
+        language="en",
+        mode="realtime_coach",
+    )
+
+    assert "Persona role: toxic_mode drill-sergeant coach." in directives
+    assert "Character: confrontational, high-energy, darkly humorous." in directives
+    assert "Humor: sarcasm/playful roasting" in directives
+    assert "Level: advanced, increase challenge and precision." not in directives
+
+
+def test_persona_directives_default_to_personal_trainer():
+    brain = DummyBrain()
+
+    directives = brain.build_persona_directives(
+        {"persona": "unknown_mode"},
+        language="en",
+        mode="chat",
+    )
+
+    assert "Persona role: personal_trainer elite endurance coach." in directives
+    assert "Humor: light and rare, never sarcastic." in directives
+
+
+def test_persona_directives_include_emotional_segment():
+    brain = DummyBrain()
+
+    directives = brain.build_persona_directives(
+        {
+            "persona": "toxic_mode",
+            "training_level": "advanced",
+            "persona_mode": "peak",
+            "emotional_trend": "rising",
+            "emotional_intensity": 0.82,
+        },
+        language="en",
+        mode="realtime_coach",
+    )
+
+    assert "Emotional segment: mode=peak." in directives
+    assert "Trend: rising." in directives
+    assert "Emotional intensity: 0.82." in directives
+
+
+def test_persona_directives_safety_override_forces_supportive_segment():
+    brain = DummyBrain()
+
+    directives = brain.build_persona_directives(
+        {
+            "persona": "toxic_mode",
+            "safety_override": True,
+            "persona_mode": "peak",
+        },
+        language="en",
+        mode="realtime_coach",
+    )
+
+    assert "Emotional segment: SAFETY override active, force supportive mode now." in directives
+
+
+def test_persona_directives_ignore_training_level_for_tone():
+    brain = DummyBrain()
+
+    beginner = brain.build_persona_directives(
+        {"persona": "personal_trainer", "training_level": "beginner"},
+        language="en",
+        mode="realtime_coach",
+    )
+    advanced = brain.build_persona_directives(
+        {"persona": "personal_trainer", "training_level": "advanced"},
+        language="en",
+        mode="realtime_coach",
+    )
+
+    assert beginner == advanced

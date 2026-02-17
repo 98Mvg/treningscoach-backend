@@ -59,6 +59,14 @@ class BaseBrain(ABC):
         }
         return mapping.get(value, "moderate")
 
+    @staticmethod
+    def normalize_persona(persona: Optional[str]) -> str:
+        """Normalize persona identifier to known runtime personas."""
+        value = (persona or "personal_trainer").strip().lower()
+        if value not in {"personal_trainer", "toxic_mode"}:
+            return "personal_trainer"
+        return value
+
     def extract_language(self, breath_data: Dict[str, Any]) -> str:
         """Read language from breath payload with safe normalization."""
         return self.normalize_language(breath_data.get("language"))
@@ -67,6 +75,111 @@ class BaseBrain(ABC):
         """Read intensity from both new and legacy payload keys."""
         raw = breath_data.get("intensity", breath_data.get("intensitet"))
         return self.normalize_intensity(raw)
+
+    def build_persona_directives(
+        self,
+        breath_data: Dict[str, Any],
+        language: str,
+        mode: str = "realtime_coach",
+    ) -> str:
+        """
+        Build compact persona directives so model outputs stay in-character.
+
+        Covers role, character, humor style, and safety boundaries.
+        """
+        lang = self.normalize_language(language)
+        persona = self.normalize_persona(breath_data.get("persona"))
+        realtime = mode == "realtime_coach"
+        emotional_mode = (breath_data.get("persona_mode") or "").strip().lower()
+        emotional_trend = (breath_data.get("emotional_trend") or "").strip().lower()
+        emotional_intensity = breath_data.get("emotional_intensity")
+        safety_override = bool(breath_data.get("safety_override"))
+
+        if emotional_mode not in {"supportive", "pressing", "intense", "peak"}:
+            emotional_mode = self._infer_emotional_mode(emotional_intensity)
+
+        if lang == "no":
+            if persona == "toxic_mode":
+                lines = [
+                    "Persona/rolle: toxic_mode (hard drillsersjant).",
+                    "Karakter: konfronterende, energisk, mørk humor.",
+                    "Humor: sarkasme og lett roasting, aldri personangrep.",
+                    "Sikkerhet: slipp akten umiddelbart ved kritisk pust.",
+                ]
+                if realtime:
+                    lines.append("Stil nå: korte, slagkraftige kommandoer, moderat CAPS.")
+            else:
+                lines = [
+                    "Persona/rolle: personal_trainer (rolig elitecoach).",
+                    "Karakter: disiplinert, konstruktiv, jordnær.",
+                    "Humor: lett og sjelden, aldri sarkasme.",
+                    "Sikkerhet: prioriter kontroll og trygg progresjon.",
+                    "Metode: prosess-først (møt opp, gjennomfør, restituer, gjenta).",
+                    "Stilregel: bruk eksempler som referanse, ikke fast manus.",
+                    "Stilregel: lag av og til nye korte formuleringer, uten å gjenta samme cue på rad.",
+                ]
+                if realtime:
+                    lines.append("Stil nå: korte, tydelige og handlingsrettede cues (typisk 2-8 ord, maks én setning).")
+
+            if safety_override:
+                lines.append("Emosjonell segment: SAFETY override aktiv, bruk støttende modus nå.")
+            elif emotional_mode:
+                lines.append(f"Emosjonell segment: modus={emotional_mode}.")
+
+            if emotional_trend in {"rising", "falling", "stable"}:
+                trend_map = {"rising": "stigende", "falling": "fallende", "stable": "stabil"}
+                lines.append(f"Trend: {trend_map.get(emotional_trend, emotional_trend)}.")
+        else:
+            if persona == "toxic_mode":
+                lines = [
+                    "Persona role: toxic_mode drill-sergeant coach.",
+                    "Character: confrontational, high-energy, darkly humorous.",
+                    "Humor: sarcasm/playful roasting, never personal attacks.",
+                    "Safety: drop the act immediately on critical breathing.",
+                ]
+                if realtime:
+                    lines.append("Style now: short punchy commands, occasional ALL CAPS.")
+            else:
+                lines = [
+                    "Persona role: personal_trainer elite endurance coach.",
+                    "Character: calm, disciplined, constructive, grounded.",
+                    "Humor: light and rare, never sarcastic.",
+                    "Safety: prioritize control and sustainable effort.",
+                    "Method: process-first coaching (show up, execute, recover, repeat).",
+                    "Style rule: treat examples as references, not fixed scripts.",
+                    "Style rule: occasionally generate fresh short phrasing; avoid repeating identical cues back-to-back.",
+                ]
+                if realtime:
+                    lines.append("Style now: short direct actionable cues (typically 2-8 words, max one sentence).")
+
+            if safety_override:
+                lines.append("Emotional segment: SAFETY override active, force supportive mode now.")
+            elif emotional_mode:
+                lines.append(f"Emotional segment: mode={emotional_mode}.")
+
+            if emotional_trend in {"rising", "falling", "stable"}:
+                lines.append(f"Trend: {emotional_trend}.")
+
+            if isinstance(emotional_intensity, (int, float)):
+                lines.append(f"Emotional intensity: {float(emotional_intensity):.2f}.")
+
+        return "\n\nPersona directives:\n- " + "\n- ".join(lines)
+
+    @staticmethod
+    def _infer_emotional_mode(emotional_intensity: Any) -> str:
+        """Infer persona mode from emotional intensity if explicit mode is missing."""
+        try:
+            value = float(emotional_intensity)
+        except (TypeError, ValueError):
+            return "supportive"
+
+        if value < 0.3:
+            return "supportive"
+        if value < 0.5:
+            return "pressing"
+        if value < 0.75:
+            return "intense"
+        return "peak"
 
     @staticmethod
     def localized_keep_going(language: str) -> str:

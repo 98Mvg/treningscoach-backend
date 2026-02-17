@@ -63,7 +63,17 @@ class ClaudeBrain(BaseBrain):
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build ultra-minimal context for Claude
-        system_prompt = self._build_realtime_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="realtime_coach",
+        )
+        system_prompt = self._build_realtime_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = f"{intensity} breathing, {phase} phase. One action:"
 
         try:
@@ -90,7 +100,13 @@ class ClaudeBrain(BaseBrain):
             print(f"Claude real-time API error: {e}")
             raise RuntimeError(f"Claude realtime request failed: {e}") from e
 
-    def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_realtime_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the endurance coach personality with realtime constraints
@@ -98,6 +114,9 @@ class ClaudeBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
+        context += "\n- Response format: 2-5 words, one actionable cue."
+        if persona_directives:
+            context += persona_directives
 
         return base_prompt + context
 
@@ -121,7 +140,17 @@ class ClaudeBrain(BaseBrain):
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build context for Claude
-        system_prompt = self._build_coaching_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="chat",
+        )
+        system_prompt = self._build_coaching_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -143,7 +172,13 @@ class ClaudeBrain(BaseBrain):
             print(f"Claude API error: {e}")
             raise RuntimeError(f"Claude chat request failed: {e}") from e
 
-    def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_coaching_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the endurance coach personality for conversational coaching
@@ -151,6 +186,8 @@ class ClaudeBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}\n\nProvide coaching in 1-2 concise sentences."
+        if persona_directives:
+            context += persona_directives
 
         return base_prompt + context
 

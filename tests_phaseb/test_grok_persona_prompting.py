@@ -40,7 +40,7 @@ def test_realtime_prompt_includes_personal_trainer_rules():
     assert "No sarcasm and no shouting." in prompt
 
 
-def test_realtime_prompt_beginner_rule_applies():
+def test_realtime_prompt_does_not_add_training_level_tone_rules():
     brain = _brain()
     prompt = brain._build_realtime_system_prompt(
         phase="warmup",
@@ -50,4 +50,24 @@ def test_realtime_prompt_beginner_rule_applies():
         training_level="beginner",
     )
 
-    assert "Beginner athlete: prioritize clarity and control over aggression." in prompt
+    assert "Beginner athlete: prioritize clarity and control over aggression." not in prompt
+    assert "Advanced athlete: increase challenge and precision." not in prompt
+
+
+def test_realtime_prompt_includes_emotional_segment_directives():
+    brain = _brain()
+    prompt = brain._build_realtime_system_prompt(
+        phase="intense",
+        intensity="moderate",
+        language="en",
+        persona="toxic_mode",
+        training_level="advanced",
+        persona_mode="peak",
+        emotional_trend="rising",
+        emotional_intensity=0.91,
+        safety_override=False,
+    )
+
+    assert "Emotional segment: mode=peak." in prompt
+    assert "Trend: rising." in prompt
+    assert "Emotional intensity: 0.91." in prompt

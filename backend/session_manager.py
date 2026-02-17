@@ -48,11 +48,13 @@ class EmotionalState:
         """
         self.last_update = datetime.now().isoformat()
 
-        # Training level modifies escalation speed
+        # Training level guardrails:
+        # - beginner: slightly slower escalation (safety margin)
+        # - intermediate/advanced: same escalation profile (consistent personality)
         level_multiplier = {
-            "beginner": 0.7,    # Slower escalation (more supportive)
+            "beginner": 0.85,
             "intermediate": 1.0,
-            "advanced": 1.3     # Faster escalation (can handle pressure)
+            "advanced": 1.0
         }.get(training_level, 1.0)
 
         # Near phase end = faster escalation (urgency)

@@ -62,7 +62,17 @@ class OpenAIBrain(BaseBrain):
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build ultra-minimal context for OpenAI
-        system_prompt = self._build_realtime_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="realtime_coach",
+        )
+        system_prompt = self._build_realtime_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = f"{intensity} breathing, {phase} phase. One action:"
 
         try:
@@ -89,7 +99,13 @@ class OpenAIBrain(BaseBrain):
             print(f"OpenAI real-time API error: {e}")
             raise RuntimeError(f"OpenAI realtime request failed: {e}") from e
 
-    def _build_realtime_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_realtime_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for REALTIME COACH mode using endurance coach personality."""
 
         # Use the shared endurance coach personality with realtime constraints
@@ -97,6 +113,9 @@ class OpenAIBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
+        context += "\n- Response format: 2-5 words, one actionable cue."
+        if persona_directives:
+            context += persona_directives
 
         return base_prompt + context
 
@@ -120,7 +139,17 @@ class OpenAIBrain(BaseBrain):
             return random.choice(messages.get("critical", ["Stop. Breathe slow."]))
 
         # Build context for OpenAI
-        system_prompt = self._build_coaching_system_prompt(phase, intensity, language)
+        persona_directives = self.build_persona_directives(
+            breath_data,
+            language=language,
+            mode="chat",
+        )
+        system_prompt = self._build_coaching_system_prompt(
+            phase,
+            intensity,
+            language,
+            persona_directives=persona_directives,
+        )
         user_message = self._build_coaching_user_message(breath_data, phase)
 
         try:
@@ -142,7 +171,13 @@ class OpenAIBrain(BaseBrain):
             print(f"OpenAI API error: {e}")
             raise RuntimeError(f"OpenAI chat request failed: {e}") from e
 
-    def _build_coaching_system_prompt(self, phase: str, intensity: str, language: str) -> str:
+    def _build_coaching_system_prompt(
+        self,
+        phase: str,
+        intensity: str,
+        language: str,
+        persona_directives: str = "",
+    ) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
         # Use the shared endurance coach personality for conversational coaching
@@ -150,6 +185,8 @@ class OpenAIBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}\n\nProvide coaching in 1-2 concise sentences."
+        if persona_directives:
+            context += persona_directives
 
         return base_prompt + context
 

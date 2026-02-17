@@ -224,7 +224,7 @@ def should_coach_speak(
     tempo_delta = abs(tempo - last_tempo)
     tempo_changed = tempo_delta > 5  # More than 5 breaths/min change
 
-    # Rule 4: Phase-aware periodic speaking (adjusted by training level)
+    # Rule 4: Phase-aware periodic speaking (same baseline for all users)
     # Warmup: coach talks more (every 30s) — tips, encouragement, preparation
     # Intense: coach stays quieter, breath-focused (every 60s) — minimal distraction
     # Cooldown: moderate (every 45s) — recovery guidance
@@ -234,17 +234,6 @@ def should_coach_speak(
         "cooldown": 45    # Moderate during cooldown
     }
     periodic_interval = periodic_intervals.get(phase, 60)
-
-    # Training level adjusts coaching frequency
-    # Beginners need more guidance (1.5x), advanced need less (0.7x)
-    if _config:
-        try:
-            level_config = _config.TRAINING_LEVEL_CONFIG.get(training_level, {})
-            frequency_multiplier = level_config.get("coaching_frequency_multiplier", 1.0)
-            # Lower multiplier = less frequent = longer interval
-            periodic_interval = int(periodic_interval / frequency_multiplier)
-        except AttributeError:
-            pass  # Use default if config not available
 
     if not intensity_changed and not tempo_changed:
         if coaching_history and len(coaching_history) > 0:
@@ -270,7 +259,11 @@ def should_coach_speak(
             return (True, "no_history")
 
     # Rule 5: During intense phase, push if breathing is too calm
+    # Beginner guardrail: avoid explicit "push harder" escalation.
     if phase == "intense" and intensity == "calm":
+        if training_level == "beginner":
+            logger.info("Coach speaking: beginner_guardrail (calm during intense)")
+            return (True, "beginner_guardrail")
         logger.info("Coach speaking: push_harder (calm during intense)")
         return (True, "push_harder")
 

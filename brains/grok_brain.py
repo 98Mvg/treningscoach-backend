@@ -92,12 +92,20 @@ class GrokBrain(BaseBrain):
         coaching_reason = breath_data.get("coaching_reason")
         persona = breath_data.get("persona")
         training_level = breath_data.get("training_level")
+        persona_mode = breath_data.get("persona_mode")
+        emotional_trend = breath_data.get("emotional_trend")
+        emotional_intensity = breath_data.get("emotional_intensity")
+        safety_override = breath_data.get("safety_override")
         system_prompt = self._build_realtime_system_prompt(
             phase,
             intensity,
             language,
             persona=persona,
             training_level=training_level,
+            persona_mode=persona_mode,
+            emotional_trend=emotional_trend,
+            emotional_intensity=emotional_intensity,
+            safety_override=safety_override,
             user_name=user_name,
             recent_cues=recent_cues,
             coaching_reason=coaching_reason,
@@ -134,6 +142,10 @@ class GrokBrain(BaseBrain):
         language: str,
         persona: Optional[str] = None,
         training_level: Optional[str] = None,
+        persona_mode: Optional[str] = None,
+        emotional_trend: Optional[str] = None,
+        emotional_intensity: Optional[float] = None,
+        safety_override: bool = False,
         user_name: str = "",
         recent_cues: Optional[list] = None,
         coaching_reason: Optional[str] = None,
@@ -146,6 +158,18 @@ class GrokBrain(BaseBrain):
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}"
         context += "\n- Response format: 2-5 words, one actionable cue."
+        context += self.build_persona_directives(
+            {
+                "persona": persona,
+                "training_level": training_level,
+                "persona_mode": persona_mode,
+                "emotional_trend": emotional_trend,
+                "emotional_intensity": emotional_intensity,
+                "safety_override": safety_override,
+            },
+            language=language,
+            mode="realtime_coach",
+        )
         context += self._get_realtime_persona_rules(persona, training_level)
 
         if coaching_reason:
@@ -189,6 +213,10 @@ class GrokBrain(BaseBrain):
         user_name = breath_data.get("user_name", "")
         persona = breath_data.get("persona")
         training_level = breath_data.get("training_level")
+        persona_mode = breath_data.get("persona_mode")
+        emotional_trend = breath_data.get("emotional_trend")
+        emotional_intensity = breath_data.get("emotional_intensity")
+        safety_override = breath_data.get("safety_override")
         system_prompt = self._build_coaching_system_prompt(
             phase,
             intensity,
@@ -196,6 +224,10 @@ class GrokBrain(BaseBrain):
             user_name=user_name,
             persona=persona,
             training_level=training_level,
+            persona_mode=persona_mode,
+            emotional_trend=emotional_trend,
+            emotional_intensity=emotional_intensity,
+            safety_override=safety_override,
         )
         user_message = self._build_coaching_user_message(breath_data, phase)
 
@@ -225,6 +257,10 @@ class GrokBrain(BaseBrain):
         user_name: str = "",
         persona: Optional[str] = None,
         training_level: Optional[str] = None,
+        persona_mode: Optional[str] = None,
+        emotional_trend: Optional[str] = None,
+        emotional_intensity: Optional[float] = None,
+        safety_override: bool = False,
     ) -> str:
         """Build system prompt for CHAT MODE using endurance coach personality."""
 
@@ -233,6 +269,18 @@ class GrokBrain(BaseBrain):
 
         # Add current context
         context = f"\n\nCurrent context:\n- Phase: {phase.upper()}\n- Breathing intensity: {intensity}\n\nProvide coaching in 1-2 concise sentences."
+        context += self.build_persona_directives(
+            {
+                "persona": persona,
+                "training_level": training_level,
+                "persona_mode": persona_mode,
+                "emotional_trend": emotional_trend,
+                "emotional_intensity": emotional_intensity,
+                "safety_override": safety_override,
+            },
+            language=language,
+            mode="chat",
+        )
         context += self._get_chat_persona_rules(persona, training_level)
 
         # Norwegian character instruction
@@ -253,7 +301,6 @@ class GrokBrain(BaseBrain):
 
     def _get_realtime_persona_rules(self, persona: Optional[str], training_level: Optional[str]) -> str:
         persona_key = self._normalize_persona(persona)
-        level = (training_level or "").strip().lower()
 
         if persona_key == "toxic_mode":
             rules = (
@@ -272,16 +319,10 @@ class GrokBrain(BaseBrain):
                 "\n- Do not repeat the exact same cue on consecutive speaking ticks."
             )
 
-        if level == "beginner":
-            rules += "\n- Beginner athlete: prioritize clarity and control over aggression."
-        elif level == "advanced":
-            rules += "\n- Advanced athlete: increase challenge and precision."
-
         return rules
 
     def _get_chat_persona_rules(self, persona: Optional[str], training_level: Optional[str]) -> str:
         persona_key = self._normalize_persona(persona)
-        level = (training_level or "").strip().lower()
 
         if persona_key == "toxic_mode":
             rules = (
@@ -295,11 +336,6 @@ class GrokBrain(BaseBrain):
                 "\n- Tone: calm, structured, and performance-focused."
                 "\n- Be honest and constructive without hype."
             )
-
-        if level == "beginner":
-            rules += "\n- Beginner athlete: simplify wording and focus on fundamentals."
-        elif level == "advanced":
-            rules += "\n- Advanced athlete: include higher-level performance cues."
 
         return rules
 
