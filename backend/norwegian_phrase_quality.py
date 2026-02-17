@@ -98,11 +98,19 @@ def rewrite_norwegian_phrase(text: str, phase: Optional[str] = None) -> str:
     replacements = {
         "forsiktig, fortsett å varme opp": "Rolig, fortsett oppvarmingen.",
         "vakkert": "Bra jobba.",
-        "gi meg mer kraft": "Mer trykk nå!",
+        "gi meg mer kraft": "Mer press nå!",
         "trykk hardere": "Press hardere.",
         "jevn opp": "Finn jevn rytme.",
         "fin rytme, behold": "Bra tempo!",
         "holdt": "Fortsett!",
+        "mer trykk nå": "Mer press nå!",
+        "øk tempoet litt": "Øk tempoet.",
+        "mer innsats, du klarer dette": "Mer innsats, du klarer det!",
+        "hold deg i det": "Hold deg fokusert!",
+        "du klarer dette": "Du klarer det!",
+        "bra jobbet, hold jevnt": "Bra jobba! Hold jevnt tempo.",
+        "bra jobbet, hold jevnt tempo": "Bra jobba! Hold jevnt tempo.",
+        "bra jobba! hold jevnt tempo": "Bra jobba! Hold jevnt tempo.",
     }
     custom_rewrites = _load_custom_rewrites()
     if lowered in custom_rewrites:

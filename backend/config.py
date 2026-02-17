@@ -112,6 +112,7 @@ MIN_SIGNAL_QUALITY_TO_FORCE = 0.0
 # Maps to iOS CoachPersonality enum values
 # voice_ids: Dict of language -> voice_id (use language default if not set)
 # stability: 0.0-1.0 (higher = more consistent delivery)
+# similarity_boost: 0.0-1.0 (higher = keeps core timbre more consistent)
 # style: 0.0-1.0 (higher = more expressive/dramatic)
 PERSONA_VOICE_CONFIG = {
     "personal_trainer": {
@@ -120,8 +121,9 @@ PERSONA_VOICE_CONFIG = {
             "no": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "nhvaqgRyAq6BmFs3WcdX"),
         },
         "name": "Personal Trainer",
-        "stability": 0.6,
-        "style": 0.0
+        "stability": 0.7,
+        "similarity_boost": 0.9,
+        "style": 0.25
     },
     "toxic_mode": {
         "voice_ids": {
@@ -130,6 +132,7 @@ PERSONA_VOICE_CONFIG = {
         },
         "name": "Toxic Mode",
         "stability": 0.25,
+        "similarity_boost": 0.85,
         "style": 0.9
     }
 }
@@ -514,17 +517,17 @@ CONTINUOUS_COACH_MESSAGES_NO = {
     "intense": {
         "calm": [
             "Du kan presse hardere!",
-            "Mer innsats, du klarer dette!",
-            "Øk tempoet litt!",
-            "Mer trykk nå!",
+            "Mer innsats, du klarer det!",
+            "Øk tempoet.",
+            "Mer press nå!",
             "La oss øke farten!"
         ],
         "moderate": [
             "Fortsett, godt tempo!",
-            "Hold deg i det!",
+            "Hold deg fokusert!",
             "Bra tempo!",
-            "Du klarer dette!",
-            "Bra jobbet, hold jevnt!"
+            "Du klarer det!",
+            "Bra jobba! Hold jevnt tempo."
         ],
         "intense": [
             "Perfekt! Hold det!",

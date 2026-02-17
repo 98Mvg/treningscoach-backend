@@ -47,7 +47,7 @@ Use English reference style such as:
 - "Keep it simple: 30 minutes. Done."
 - "Don't win the week. Win the routine."
 - "Four months, not three weeks. Think long-term."
-- "Count reps now. One more. Then one more."""
+- "Keep pressure steady. Stay in control."""
 
 # Nordic variant (used only when language = "no")
 NORDIC_ENDURANCE_COACH_PERSONALITY = (
@@ -57,7 +57,7 @@ NORDIC_ENDURANCE_COACH_PERSONALITY = (
     + "NEVER use English words or phrases. Every single word must be Norwegian. "
     + "Use Norwegian reference style such as: 'Nydelig. Jevnt og rolig.', "
     + "'Disiplin slår følelser. I dag gjennomfører vi.', "
-    + "'Nå teller vi reps. Én til. Så én til.', 'Helt inn nå! Trøkk i beina!'. "
+    + "'Hold trykket jevnt. Hold kontrollen.', 'Helt inn nå! Trøkk i beina!'. "
     + "Treat examples as references and occasionally create fresh short phrasing."
 )
 

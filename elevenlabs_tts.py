@@ -110,14 +110,16 @@ class ElevenLabsTTS:
             if persona_voice:
                 voice_id = persona_voice
             stability = persona_config.get("stability", stability)
+            similarity_boost = persona_config.get("similarity_boost", similarity_boost)
             style = persona_config.get("style", style)
-            logger.info(f"Persona '{persona}': stability={stability}, style={style}")
+            logger.info(f"Persona '{persona}': stability={stability}, similarity={similarity_boost}, style={style}")
 
         # Manual pacing overrides persona defaults
         if voice_pacing:
             stability = voice_pacing.get("stability", stability)
+            similarity_boost = voice_pacing.get("similarity_boost", similarity_boost)
             style = voice_pacing.get("style", style)
-            logger.info(f"Voice pacing override: stability={stability}, style={style}")
+            logger.info(f"Voice pacing override: stability={stability}, similarity={similarity_boost}, style={style}")
 
         lang_label = f" [{language}]" if language else ""
         persona_label = f" ({persona})" if persona else ""
@@ -173,6 +175,7 @@ class ElevenLabsTTS:
         """
         voice_id = self.get_voice_id(language)
         stability = 0.5
+        similarity_boost = 0.75
         style = 0.0
 
         # Apply persona-specific settings
@@ -183,11 +186,13 @@ class ElevenLabsTTS:
             if persona_voice:
                 voice_id = persona_voice
             stability = persona_config.get("stability", stability)
+            similarity_boost = persona_config.get("similarity_boost", similarity_boost)
             style = persona_config.get("style", style)
 
         # Manual pacing overrides
         if voice_pacing:
             stability = voice_pacing.get("stability", stability)
+            similarity_boost = voice_pacing.get("similarity_boost", similarity_boost)
             style = voice_pacing.get("style", style)
 
         language_code = LANGUAGE_CODES.get(language) if language else None
@@ -199,7 +204,7 @@ class ElevenLabsTTS:
             model_id=TTS_MODEL,
             voice_settings=VoiceSettings(
                 stability=stability,
-                similarity_boost=0.75,
+                similarity_boost=similarity_boost,
                 style=style,
                 use_speaker_boost=True
             )

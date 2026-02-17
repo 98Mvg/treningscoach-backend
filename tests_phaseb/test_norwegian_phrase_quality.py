@@ -11,11 +11,17 @@ from norwegian_phrase_quality import rewrite_norwegian_phrase
 
 def test_rewrite_known_awkward_lines():
     assert rewrite_norwegian_phrase("Vakkert.", phase="intense") == "Bra jobba."
-    assert rewrite_norwegian_phrase("Gi meg mer kraft!", phase="intense") == "Mer trykk nå!"
+    assert rewrite_norwegian_phrase("Gi meg mer kraft!", phase="intense") == "Mer press nå!"
     assert rewrite_norwegian_phrase("Trykk hardere.", phase="intense") == "Press hardere."
     assert rewrite_norwegian_phrase("Jevn opp.", phase="intense") == "Finn jevn rytme."
     assert rewrite_norwegian_phrase("Fin rytme, behold!", phase="intense") == "Bra tempo!"
     assert rewrite_norwegian_phrase("Holdt.", phase="intense") == "Fortsett!"
+    assert rewrite_norwegian_phrase("Øk tempoet litt!", phase="intense") == "Øk tempoet."
+    assert rewrite_norwegian_phrase("Mer trykk nå!", phase="intense") == "Mer press nå!"
+    assert rewrite_norwegian_phrase("Mer innsats, du klarer dette!", phase="intense") == "Mer innsats, du klarer det!"
+    assert rewrite_norwegian_phrase("Hold deg i det!", phase="intense") == "Hold deg fokusert!"
+    assert rewrite_norwegian_phrase("Du klarer dette!", phase="intense") == "Du klarer det!"
+    assert rewrite_norwegian_phrase("Bra jobbet, hold jevnt!", phase="intense") == "Bra jobba! Hold jevnt tempo."
 
 
 def test_phase_guard_rewrites_warmup_wording_in_intense():

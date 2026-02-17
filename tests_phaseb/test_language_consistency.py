@@ -79,7 +79,7 @@ def test_language_guard_leaves_norwegian_untouched():
 
 def test_norwegian_quality_guard_rewrites_known_awkward_phrases():
     assert enforce_language_consistency("Vakkert.", "no", phase="intense") == "Bra jobba."
-    assert enforce_language_consistency("Gi meg mer kraft!", "no", phase="intense") == "Mer trykk nå!"
+    assert enforce_language_consistency("Gi meg mer kraft!", "no", phase="intense") == "Mer press nå!"
     assert enforce_language_consistency("Trykk hardere.", "no", phase="intense") == "Press hardere."
     assert enforce_language_consistency("Jevn opp.", "no", phase="intense") == "Finn jevn rytme."
 

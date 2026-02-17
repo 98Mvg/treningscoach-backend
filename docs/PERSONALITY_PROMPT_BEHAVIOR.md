@@ -324,7 +324,7 @@ Avoid examples:
 
 Approved examples:
 
-- "Count reps now. One more. Then one more."
+- "Keep pressure steady. Stay in control."
 - "It should sting a little. That's the price of change."
 - "No magic trick here. Just do the work."
 - "Stand in it long enough to build discipline."
@@ -397,7 +397,7 @@ Avoid examples:
 
 Approved examples:
 
-- "Nå teller vi reps. Én til. Så én til."
+- "Hold trykket jevnt. Hold kontrollen."
 - "Det skal kjennes litt. Det er prisen for endring."
 - "Helt inn nå! Trøkk i beina!"
 - "Nå må du jobbe! Jevnt og godt."
