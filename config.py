@@ -88,6 +88,20 @@ VOICE_CONFIG = {
 # ============================================
 # Local Qwen3-TTS is disabled (too slow on CPU). Use ElevenLabs instead.
 ENABLE_QWEN_TTS = False
+# Voice delivery quality (premium speech pacing)
+VOICE_TTS_PACING_ENABLED = _env_bool("VOICE_TTS_PACING_ENABLED", True)
+VOICE_TEXT_PACING_ENABLED = _env_bool("VOICE_TEXT_PACING_ENABLED", True)
+# Optional persistent audio cache for ElevenLabs output.
+# Default OFF so current behavior/cost profile remains unchanged until enabled.
+TTS_AUDIO_CACHE_ENABLED = _env_bool("TTS_AUDIO_CACHE_ENABLED", False)
+TTS_AUDIO_CACHE_READ_ENABLED = _env_bool("TTS_AUDIO_CACHE_READ_ENABLED", True)
+TTS_AUDIO_CACHE_WRITE_ENABLED = _env_bool("TTS_AUDIO_CACHE_WRITE_ENABLED", True)
+# Bump cache version (for example v1 -> v2) to invalidate old voice files.
+TTS_AUDIO_CACHE_VERSION = (os.getenv("TTS_AUDIO_CACHE_VERSION", "v1") or "v1").strip()
+# Cache retention controls (applied only when cache write is enabled).
+TTS_AUDIO_CACHE_MAX_FILES = _env_int("TTS_AUDIO_CACHE_MAX_FILES", 1000)
+TTS_AUDIO_CACHE_MAX_AGE_SECONDS = _env_int("TTS_AUDIO_CACHE_MAX_AGE_SECONDS", 14 * 24 * 3600)
+TTS_AUDIO_CACHE_CLEANUP_INTERVAL_WRITES = _env_int("TTS_AUDIO_CACHE_CLEANUP_INTERVAL_WRITES", 25)
 
 # ============================================
 # BREATH ANALYSIS SETTINGS
@@ -308,6 +322,15 @@ BRAIN_TIMEOUT = _env_float("BRAIN_TIMEOUT", 1.2)  # global default timeout (seco
 BRAIN_TIMEOUTS = _env_json_dict("BRAIN_TIMEOUTS_JSON", {"grok": 6.0})
 # Optional per-mode overrides (realtime_coach/chat). Falls back to BRAIN_TIMEOUTS/BRAIN_TIMEOUT.
 BRAIN_MODE_TIMEOUTS = _env_json_dict("BRAIN_MODE_TIMEOUTS_JSON", {})
+#
+# Provider client timeout strategy:
+# Keep provider HTTP timeout slightly below router timeout so timed-out work
+# does not continue running in background threads.
+BRAIN_CLIENT_TIMEOUT_MARGIN_SECONDS = _env_float("BRAIN_CLIENT_TIMEOUT_MARGIN_SECONDS", 0.25)
+GROK_CLIENT_TIMEOUT_SECONDS = _env_float(
+    "GROK_CLIENT_TIMEOUT_SECONDS",
+    max(1.0, float(BRAIN_TIMEOUTS.get("grok", BRAIN_TIMEOUT)) - BRAIN_CLIENT_TIMEOUT_MARGIN_SECONDS),
+)
 USAGE_LIMIT = _env_float("USAGE_LIMIT", 0.9)  # skip brain if usage >= this (optional BRAIN_USAGE map)
 BRAIN_COOLDOWN_SECONDS = _env_float("BRAIN_COOLDOWN_SECONDS", 60)
 BRAIN_TIMEOUT_COOLDOWN_SECONDS = _env_float("BRAIN_TIMEOUT_COOLDOWN_SECONDS", 30)
@@ -538,7 +561,7 @@ CONTINUOUS_COACH_MESSAGES_NO = {
             "Bra jobba! Hold jevnt tempo."
         ],
         "intense": [
-            "Perfekt! Hold det!",
+            "Perfekt! Hold tempoet!",
             "Ja! Sterkt!",
             "Behold dette!",
             "Utmerket jobbet!",

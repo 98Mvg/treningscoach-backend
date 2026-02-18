@@ -20,7 +20,7 @@ def _mock_breath_analysis(_path: str):
 
 
 def _mock_generate_voice_factory(audio_path: str):
-    def _mock_generate_voice(_text, language=None, persona=None):
+    def _mock_generate_voice(_text, language=None, persona=None, emotional_mode=None):
         return audio_path
 
     return _mock_generate_voice
@@ -75,6 +75,35 @@ def test_brain_health_contract(monkeypatch, tmp_path):
     assert "healthy" in payload
     assert "message" in payload
     assert "brain_stats" in payload
+
+
+def test_tts_cache_stats_contract(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+
+    class _StubTTS:
+        def get_cache_stats(self):
+            return {
+                "enabled": True,
+                "files": 3,
+                "total_bytes": 1200,
+                "cache_hits": 4,
+                "cache_misses": 2,
+                "hit_rate": 0.667,
+                "version": "v1",
+                "max_files": 1000,
+                "max_age_seconds": 1209600,
+            }
+
+    monkeypatch.setattr(main, "USE_ELEVENLABS", True, raising=False)
+    monkeypatch.setattr(main, "elevenlabs_tts", _StubTTS(), raising=False)
+
+    response = client.get("/tts/cache/stats")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload.get("enabled") is True
+    assert isinstance(payload.get("files"), int)
+    assert isinstance(payload.get("cache_hits"), int)
+    assert isinstance(payload.get("cache_misses"), int)
 
 
 def test_coach_talk_contract(monkeypatch, tmp_path):

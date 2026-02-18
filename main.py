@@ -312,6 +312,17 @@ def _latency_fast_fallback_allowed(latency_state: dict, elapsed_seconds: int) ->
     return (now_elapsed - last_elapsed) >= cooldown
 
 
+def _infer_emotional_mode(intensity: str) -> str:
+    """Map normalized intensity to a stable emotional voice mode."""
+    mapping = {
+        "calm": "supportive",
+        "moderate": "pressing",
+        "intense": "intense",
+        "critical": "peak",
+    }
+    return mapping.get((intensity or "moderate").strip().lower(), "supportive")
+
+
 def _ema(values, alpha: float):
     """Exponential moving average for smoothing numeric sequences."""
     ema = None
@@ -446,7 +457,7 @@ def get_coach_response(breath_data, phase="intense", mode="chat"):
 # VOICE GENERATION (ELEVENLABS; QWEN DISABLED)
 # ============================================
 
-def generate_voice(text, language=None, persona=None):
+def generate_voice(text, language=None, persona=None, emotional_mode=None):
     """
     Generates speech audio from text using ElevenLabs (local Qwen disabled).
 
@@ -462,15 +473,45 @@ def generate_voice(text, language=None, persona=None):
         Path to generated audio file (MP3 or WAV)
     """
     try:
+        normalized_language = normalize_language_code(language or "en")
+        selected_persona = persona or "personal_trainer"
+        selected_mode = emotional_mode or "supportive"
+        tts_text = text
+        voice_pacing = None
+
+        if getattr(config, "VOICE_TTS_PACING_ENABLED", True) or getattr(config, "VOICE_TEXT_PACING_ENABLED", True):
+            voice_pacing = voice_intelligence.get_voice_pacing(
+                persona=selected_persona,
+                emotional_mode=selected_mode,
+                message=text,
+            )
+
+        if getattr(config, "VOICE_TEXT_PACING_ENABLED", True) and voice_pacing:
+            paced_text = voice_intelligence.apply_text_rhythm(
+                message=text,
+                language=normalized_language,
+                emotional_mode=selected_mode,
+                pacing=voice_pacing,
+            )
+            if paced_text != text:
+                logger.info("Voice text pacing applied: %r -> %r", text, paced_text)
+            tts_text = paced_text
+
         if USE_ELEVENLABS:
             # Use ElevenLabs with persona-specific voice settings
-            result = elevenlabs_tts.generate_audio(text, language=language, persona=persona)
-            print(f"[TTS] OK lang={language} persona={persona} file={os.path.basename(result)}")
+            pacing_override = voice_pacing if getattr(config, "VOICE_TTS_PACING_ENABLED", True) else None
+            result = elevenlabs_tts.generate_audio(
+                tts_text,
+                language=normalized_language,
+                persona=selected_persona,
+                voice_pacing=pacing_override,
+            )
+            print(f"[TTS] OK lang={normalized_language} persona={selected_persona} mode={selected_mode} file={os.path.basename(result)}")
             return result
         else:
             # Fallback to mock (Qwen disabled)
-            print(f"[TTS] MOCK (ElevenLabs disabled) lang={language}")
-            return synthesize_speech_mock(text)
+            print(f"[TTS] MOCK (ElevenLabs disabled) lang={normalized_language}")
+            return synthesize_speech_mock(tts_text)
     except Exception as e:
         logger.error(f"TTS failed, using mock: {e}")
         print(f"[TTS] FAILED lang={language} persona={persona} error={type(e).__name__}: {e}")
@@ -500,6 +541,22 @@ def health():
             "welcome": "/welcome"
         }
     })
+
+@app.route('/tts/cache/stats', methods=['GET'])
+def tts_cache_stats():
+    """Expose ElevenLabs audio cache stats for tuning/observability."""
+    if not USE_ELEVENLABS:
+        return jsonify({
+            "enabled": False,
+            "message": "ElevenLabs disabled",
+        }), 503
+
+    try:
+        stats = elevenlabs_tts.get_cache_stats()
+        return jsonify(stats), 200
+    except Exception as e:
+        logger.error(f"Error reading TTS cache stats: {e}", exc_info=True)
+        return jsonify({"error": "Failed to read TTS cache stats"}), 500
 
 @app.route('/welcome', methods=['GET'])
 def welcome():
@@ -541,7 +598,7 @@ def welcome():
         logger.info(f"Welcome message requested: experience={experience}, language={language}, user={user_name or 'anon'}, message='{welcome_text}'")
 
         # Generate or use cached audio (language + persona-aware voice)
-        voice_file = generate_voice(welcome_text, language=language, persona=persona)
+        voice_file = generate_voice(welcome_text, language=language, persona=persona, emotional_mode="supportive")
 
         # Return relative path for download
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
@@ -630,6 +687,7 @@ def coach():
         phase = request.form.get('phase', 'intense')
         mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
         persona = request.form.get('persona', 'personal_trainer')
+        language = normalize_language_code(request.form.get('language', 'en'))
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
@@ -661,7 +719,12 @@ def coach():
         coach_text = get_coach_response(breath_data, phase, mode=mode)
 
         # Generate voice with persona-specific settings
-        voice_file = generate_voice(coach_text, persona=persona)
+        voice_file = generate_voice(
+            coach_text,
+            language=language,
+            persona=persona,
+            emotional_mode=_infer_emotional_mode(breath_data.get("intensity", "moderate")),
+        )
 
         # Delete temporary input file
         try:
@@ -1239,7 +1302,12 @@ def coach_continuous():
         audio_url = None
         if speak_decision:
             tts_started = time.perf_counter()
-            voice_file = generate_voice(coach_text, language=language, persona=persona)
+            voice_file = generate_voice(
+                coach_text,
+                language=language,
+                persona=persona,
+                emotional_mode=coaching_context.get("persona_mode") or _infer_emotional_mode(breath_data.get("intensity", "moderate")),
+            )
             # Convert absolute path to relative path from OUTPUT_FOLDER
             relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
             audio_url = f"/download/{relative_path}"
@@ -1985,7 +2053,12 @@ def coach_talk():
         )
 
         # Generate voice audio with persona-specific voice
-        voice_file = generate_voice(coach_text, language=language, persona=persona)
+        voice_file = generate_voice(
+            coach_text,
+            language=language,
+            persona=persona,
+            emotional_mode=_infer_emotional_mode(intensity),
+        )
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         audio_url = f"/download/{relative_path}"
 
