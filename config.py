@@ -344,6 +344,14 @@ MIN_COACHING_INTERVAL = 6      # fastest interval
 MAX_COACHING_INTERVAL = 15     # slowest interval
 MIN_TIME_BETWEEN_COACHING = 20  # minimum seconds between spoken messages (prevent over-coaching)
 
+# Optional quality systems (defaulted for behavior parity)
+# - Shadow mode logs/observes only.
+# - Enforce mode can alter spoken output (off by default).
+COACHING_VALIDATION_SHADOW_MODE = _env_bool("COACHING_VALIDATION_SHADOW_MODE", True)
+COACHING_VALIDATION_ENFORCE = _env_bool("COACHING_VALIDATION_ENFORCE", False)
+BREATHING_TIMELINE_SHADOW_MODE = _env_bool("BREATHING_TIMELINE_SHADOW_MODE", True)
+BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", False)
+
 # ============================================
 # WORKOUT MODES (BACKEND-ONLY FOR NOW)
 # ============================================

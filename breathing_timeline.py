@@ -36,11 +36,11 @@ BREATHING_TIMELINE = {
             "Shake it out. Loosen up.",
         ],
         "messages_no": [
-            "Greit, la oss gjore oss klare.",
+            "Greit, la oss gjøre oss klare.",
             "Drikk litt vann om du trenger.",
-            "Toey ut det som kjenns stramt.",
+            "Tøy ut det som kjennes stramt.",
             "Vi starter snart. Ta et dypt pust.",
-            "Husk: om du trenger aa stoppe, bare stopp. Lytt til kroppen.",
+            "Husk: om du trenger å stoppe, bare stopp. Lytt til kroppen.",
             "Rist det ut. Slapp av.",
         ],
         "countdown_en": [
@@ -51,10 +51,10 @@ BREATHING_TIMELINE = {
         "countdown_no": [
             "Starter om {seconds} sekunder.",
             "{seconds} sekunder. Klar?",
-            "Her kjorer vi om {seconds}.",
+            "Her kjører vi om {seconds}.",
         ],
         "safety_en": "If anything feels wrong during the workout, stop immediately. Your safety comes first.",
-        "safety_no": "Hvis noe foeles feil under oekten, stopp med en gang. Din sikkerhet kommer foerst.",
+        "safety_no": "Hvis noe føles feil under økten, stopp med en gang. Din sikkerhet kommer først.",
     },
 
     "warmup": {
@@ -70,7 +70,7 @@ BREATHING_TIMELINE = {
         "messages_no": [
             "Finn rytmen. Jevne pust.",
             "Rolig pust. La det flyte.",
-            "Skuldrene ned, brystet aapent.",
+            "Skuldrene ned, brystet åpent.",
             "Fint og kontrollert. Bygg sakte.",
             "Pust gjennom nesen om du kan.",
         ],
@@ -90,8 +90,8 @@ BREATHING_TIMELINE = {
             "Pust gjennom det.",
             "Sterk utpust. Kraft.",
             "Ikke hold pusten.",
-            "Pust ut paa innsatsen.",
-            "Fortsett aa puste. Hold deg i det.",
+            "Pust ut på innsatsen.",
+            "Fortsett å puste. Hold deg i det.",
         ],
     },
 
@@ -129,7 +129,7 @@ BREATHING_TIMELINE = {
             "Du fortjente dette. Pust dypt.",
             "La pusten komme tilbake til normalt.",
             "Slapp av alt. Bare pust.",
-            "Bra oekt. Ro det ned.",
+            "Bra økt. Ro det ned.",
         ],
     },
 }
@@ -142,7 +142,7 @@ BREATHING_TIMELINE = {
 BREATHING_INTERRUPTS = {
     "cant_breathe": {
         "triggers_en": ["can't breathe", "hard to breathe", "can not breathe", "struggling to breathe"],
-        "triggers_no": ["kan ikke puste", "vanskelig aa puste", "sliter med pusten", "faar ikke pust"],
+        "triggers_no": ["kan ikke puste", "vanskelig å puste", "sliter med pusten", "får ikke pust"],
         "response_en": "That's okay. Slow way down. Breathe through your nose.",
         "response_no": "Det er greit. Senk farten. Pust gjennom nesen.",
         "action": "force_recovery",
@@ -151,7 +151,7 @@ BREATHING_INTERRUPTS = {
         "triggers_en": ["slow down", "too fast", "too much", "too hard"],
         "triggers_no": ["saktere", "for fort", "for mye", "for hardt"],
         "response_en": "Slowing down. Match my count. In... two... three...",
-        "response_no": "Vi senker tempoet. Foelg tellingen. Inn... to... tre...",
+        "response_no": "Vi senker tempoet. Følg tellingen. Inn... to... tre...",
         "action": "extend_pattern",
     },
     "dizzy": {

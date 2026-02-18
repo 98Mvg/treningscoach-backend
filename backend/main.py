@@ -32,6 +32,8 @@ from database import init_db  # Import database initialization
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from norwegian_phrase_quality import rewrite_norwegian_phrase
+from coaching_engine import validate_coaching_text, get_template_message
+from breathing_timeline import BreathingTimeline
 
 # Configure logging
 logging.basicConfig(
@@ -268,6 +270,20 @@ def _extract_recent_spoken_cues(coaching_history, limit: int = 4) -> list:
 
     cues.reverse()
     return cues
+
+
+def _get_or_create_session_timeline(session_id: str):
+    """Return per-session breathing timeline state (in-memory)."""
+    session = session_manager.sessions.get(session_id)
+    if not session:
+        return None
+
+    metadata = session.setdefault("metadata", {})
+    timeline = metadata.get("breathing_timeline")
+    if timeline is None:
+        timeline = BreathingTimeline()
+        metadata["breathing_timeline"] = timeline
+    return timeline
 
 
 def _ensure_latency_strategy_state(workout_state: dict) -> dict:
@@ -760,7 +776,7 @@ def coach_continuous():
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
-                "metadata": {"workout_mode": workout_mode, "user_name": user_name}
+                "metadata": {"workout_mode": workout_mode, "user_name": user_name, "user_id": user_id}
             }
             logger.info(f"✅ Created session: {session_id}")
             session_manager.init_workout_state(session_id, phase=phase)
@@ -773,6 +789,8 @@ def coach_continuous():
             # Mark that this is the first breath of the workout
             workout_state = session_manager.get_workout_state(session_id)
             workout_state["is_first_breath"] = True
+
+        current_user_id = session_manager.sessions.get(session_id, {}).get("metadata", {}).get("user_id", "unknown")
 
         # Early guard: too-small audio chunks are often invalid/corrupted
         min_bytes = getattr(config, "BREATH_MIN_AUDIO_BYTES", 8000)
@@ -1007,6 +1025,24 @@ def coach_continuous():
             coaching_context.get("coaching_history", []),
             limit=getattr(config, "BRAIN_RECENT_CUE_WINDOW", 4),
         )
+        timeline_cue = None
+        timeline_shadow = bool(getattr(config, "BREATHING_TIMELINE_SHADOW_MODE", True))
+        timeline_enforce = bool(getattr(config, "BREATHING_TIMELINE_ENFORCE", False))
+        if timeline_shadow or timeline_enforce:
+            timeline = _get_or_create_session_timeline(session_id)
+            if timeline is not None:
+                timeline_cue = timeline.get_breathing_cue(
+                    phase=phase,
+                    elapsed_seconds=elapsed_seconds,
+                    language=language,
+                )
+                if timeline_cue:
+                    logger.info(
+                        "Breathing timeline cue candidate: phase=%s elapsed=%ss cue='%s'",
+                        phase,
+                        elapsed_seconds,
+                        timeline_cue,
+                    )
 
         if not speak_decision:
             # Low-latency path: skip AI generation when coach will stay silent.
@@ -1149,6 +1185,49 @@ def coach_continuous():
                         brain_meta.get("source"),
                     )
 
+        if speak_decision and timeline_cue and timeline_enforce and not use_welcome and not fast_fallback_used:
+            coach_text = timeline_cue
+            brain_meta = {
+                "provider": "system",
+                "source": "breathing_timeline",
+                "status": "timeline_override",
+                "mode": "realtime_coach",
+            }
+
+        validation_shadow = bool(getattr(config, "COACHING_VALIDATION_SHADOW_MODE", True))
+        validation_enforce = bool(getattr(config, "COACHING_VALIDATION_ENFORCE", False))
+        if speak_decision and not use_welcome and (validation_shadow or validation_enforce):
+            is_valid = validate_coaching_text(
+                text=coach_text,
+                phase=phase,
+                intensity=breath_data.get("intensity", "moderate"),
+                persona=persona or "personal_trainer",
+                language=language,
+                mode="realtime",
+            )
+            if not is_valid:
+                logger.warning(
+                    "Coaching validation failed (phase=%s intensity=%s persona=%s enforce=%s): %r",
+                    phase,
+                    breath_data.get("intensity", "moderate"),
+                    persona or "personal_trainer",
+                    validation_enforce,
+                    coach_text,
+                )
+                if validation_enforce:
+                    coach_text = get_template_message(
+                        phase=phase,
+                        intensity=breath_data.get("intensity", "moderate"),
+                        persona=persona or "personal_trainer",
+                        language=language,
+                    )
+                    brain_meta = {
+                        "provider": "system",
+                        "source": "coaching_validation",
+                        "status": "template_fallback",
+                        "mode": "realtime_coach",
+                    }
+
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
         if speak_decision and not use_welcome and not fast_fallback_used:
             coach_text = voice_intelligence.add_human_variation(coach_text)
@@ -1190,8 +1269,8 @@ def coach_continuous():
 
         # STEP 5: Update user memory if critical event occurred
         if breath_data.get("intensity") == "critical":
-            user_memory.mark_safety_event(user_id)
-            logger.info(f"Memory: marked critical breathing event for user {user_id}")
+            user_memory.mark_safety_event(current_user_id)
+            logger.info(f"Memory: marked critical breathing event for user {current_user_id}")
 
         # Clean up temp file
         try:
@@ -1272,17 +1351,23 @@ def get_coach_response_continuous(breath_data, phase, language="en", persona=Non
 def download(filename):
     """Download generated voice file"""
     try:
-        # Security: Prevent directory traversal (but allow cache/ subdirectory)
-        if '..' in filename:
-            logger.warning(f"Attempted directory traversal: {filename}")
+        # Security: Resolve the full path and verify it stays under OUTPUT_FOLDER.
+        # os.path.normpath collapses "..", ".", and redundant separators so tricks
+        # like "cache/../../etc/passwd" are neutralized.
+        filepath = os.path.normpath(os.path.join(OUTPUT_FOLDER, filename))
+        output_root = os.path.normpath(OUTPUT_FOLDER)
+
+        if not filepath.startswith(output_root + os.sep) and filepath != output_root:
+            logger.warning(f"Path traversal blocked: {filename!r} resolved to {filepath}")
             return jsonify({"error": "Invalid filename"}), 400
 
-        # Support both direct files and cache/ subdirectory
-        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        # Only serve audio files (reject non-audio extensions)
+        if not filename.endswith(('.wav', '.mp3', '.m4a')):
+            logger.warning(f"Non-audio file requested: {filename}")
+            return jsonify({"error": "Invalid file type"}), 400
 
         if os.path.exists(filepath):
             logger.info(f"Serving file: {filename}")
-            # Determine mimetype based on file extension
             mimetype = 'audio/wav' if filename.endswith('.wav') else 'audio/mpeg'
             return send_file(filepath, mimetype=mimetype)
 
@@ -1692,6 +1777,28 @@ def switch_persona():
 # WORKOUT HISTORY ENDPOINTS
 # ============================================
 
+def _extract_optional_user_id() -> str:
+    """
+    Extract user_id from optional Bearer JWT in Authorization header.
+
+    Returns user_id string or None. Logs decode failures at warning level
+    instead of silently swallowing them.
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    try:
+        from auth import decode_jwt
+        import jwt as pyjwt
+        token = auth_header.split("Bearer ", 1)[1]
+        payload = decode_jwt(token)
+        return payload.get("user_id")
+    except Exception as e:
+        # Log a sanitized warning (no token content) so failures are visible
+        logger.warning(f"Optional JWT decode failed: {type(e).__name__}")
+        return None
+
+
 @app.route('/workouts', methods=['POST'])
 def save_workout():
     """
@@ -1707,24 +1814,13 @@ def save_workout():
     }
     """
     try:
-        from auth import optional_auth
         from database import db, WorkoutHistory
 
         data = request.get_json()
         if not data:
             return jsonify({"error": "Missing request body"}), 400
 
-        # Try to get user from auth token (optional)
-        user_id = None
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            try:
-                from auth import decode_jwt
-                token = auth_header.split("Bearer ")[1]
-                payload = decode_jwt(token)
-                user_id = payload.get("user_id")
-            except:
-                pass
+        user_id = _extract_optional_user_id()
 
         workout = WorkoutHistory(
             user_id=user_id or "anonymous",
@@ -1752,24 +1848,18 @@ def get_workouts():
     Get workout history for a user.
 
     Query params:
-    - limit: Max number of records (default: 20)
+    - limit: Max number of records (default: 20, max: 100)
     """
     try:
         from database import WorkoutHistory
 
-        # Try to get user from auth token
-        user_id = None
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            try:
-                from auth import decode_jwt
-                token = auth_header.split("Bearer ")[1]
-                payload = decode_jwt(token)
-                user_id = payload.get("user_id")
-            except:
-                pass
+        user_id = _extract_optional_user_id()
 
-        limit = int(request.args.get("limit", 20))
+        # Bounds-check limit to prevent abuse
+        try:
+            limit = max(1, min(100, int(request.args.get("limit", 20))))
+        except (ValueError, TypeError):
+            limit = 20
 
         if user_id:
             workouts = WorkoutHistory.query.filter_by(user_id=user_id)\

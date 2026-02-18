@@ -43,11 +43,20 @@ class ResponseCache:
         """
         self.cache: Dict[str, CachedResponse] = {}
         self.ttl_seconds = ttl_seconds
+        self._ops_since_cleanup = 0
+        self._cleanup_interval_ops = 100
         self.stats = {
             "hits": 0,
             "misses": 0,
             "evictions": 0
         }
+
+    def _maybe_clear_expired(self):
+        """Run periodic expired-entry cleanup without adding timer threads."""
+        self._ops_since_cleanup += 1
+        if self._ops_since_cleanup >= self._cleanup_interval_ops:
+            self.clear_expired()
+            self._ops_since_cleanup = 0
 
     def _bucket_tempo(self, tempo: float) -> str:
         """
@@ -127,6 +136,7 @@ class ResponseCache:
         Returns:
             CachedResponse if cache hit, None if miss
         """
+        self._maybe_clear_expired()
         key = self._generate_key(intensity, phase, tempo, volume, mode)
 
         if key not in self.cache:
@@ -172,6 +182,7 @@ class ResponseCache:
             audio_bytes: Generated audio (optional)
             mode: Coach mode
         """
+        self._maybe_clear_expired()
         key = self._generate_key(intensity, phase, tempo, volume, mode)
 
         self.cache[key] = CachedResponse(

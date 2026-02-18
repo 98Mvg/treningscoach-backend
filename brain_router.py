@@ -62,6 +62,15 @@ class BrainRouter:
         if self.use_hybrid and self.brain_type in ("config", "priority"):
             self._initialize_hybrid_claude()
 
+    def _prune_expired_cooldowns(self) -> None:
+        """Drop expired cooldown entries to keep state compact/observable."""
+        if not self.brain_cooldowns:
+            return
+        now = time.time()
+        expired = [name for name, until in self.brain_cooldowns.items() if until <= now]
+        for name in expired:
+            self.brain_cooldowns.pop(name, None)
+
     def _initialize_brain(self):
         """Initialize the active brain based on configuration."""
         if self.brain_type == "priority":
@@ -263,6 +272,7 @@ class BrainRouter:
         self.brain_cooldowns[brain_name] = time.time() + cooldown
 
     def _is_brain_available(self, brain_name: str) -> bool:
+        self._prune_expired_cooldowns()
         cooldown_until = self.brain_cooldowns.get(brain_name)
         if cooldown_until and time.time() < cooldown_until:
             return False
@@ -315,6 +325,7 @@ class BrainRouter:
 
     def _get_skip_reason(self, brain_name: str) -> str:
         """Return a human-readable reason why this brain is unavailable."""
+        self._prune_expired_cooldowns()
         cooldown_until = self.brain_cooldowns.get(brain_name)
         if cooldown_until and time.time() < cooldown_until:
             remaining = cooldown_until - time.time()
@@ -730,6 +741,7 @@ class BrainRouter:
 
     def get_brain_stats(self) -> Dict[str, Any]:
         """Get per-brain call statistics for observability."""
+        self._prune_expired_cooldowns()
         stats = {}
         for brain_name in (self.priority_brains or [self.brain_type]):
             s = self.brain_stats.get(brain_name, {})
@@ -753,6 +765,7 @@ class BrainRouter:
         Returns:
             Dictionary with health status
         """
+        self._prune_expired_cooldowns()
         # Build pool_status: which brains are cached and their state
         pool_status = {}
         for brain_name in self.brain_pool:
