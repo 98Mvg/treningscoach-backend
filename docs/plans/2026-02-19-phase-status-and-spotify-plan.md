@@ -50,3 +50,13 @@ Remaining:
   - launch flow includes Easy Run + Intervals + Strength (coming soon)
   - post-workout summary includes CoachScore vibe, why bullets, and next-time advice
   - active workout has Spotify quick-access button (background music UX)
+
+## Ship record (2026-02-19)
+
+- GitHub branch: `main`
+- Release commit: `25e4f87`
+- Verification run after implementation:
+  - `python3 -m py_compile main.py brain_router.py zone_event_motor.py running_personalization.py brains/base_brain.py brains/grok_brain.py`
+  - `python3 -m py_compile backend/main.py backend/config.py backend/brain_router.py backend/zone_event_motor.py backend/running_personalization.py backend/brains/base_brain.py backend/brains/grok_brain.py`
+  - `pytest -q tests_phaseb/test_zone_event_motor.py tests_phaseb/test_zone_llm_phrase_layer.py tests_phaseb/test_running_personalization.py tests_phaseb/test_config_env_overrides.py`
+  - Result: `20 passed`
