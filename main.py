@@ -554,14 +554,52 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
         if USE_ELEVENLABS:
             # Use ElevenLabs with persona-specific voice settings
             pacing_override = voice_pacing if getattr(config, "VOICE_TTS_PACING_ENABLED", True) else None
-            result = elevenlabs_tts.generate_audio(
-                tts_text,
-                language=normalized_language,
-                persona=selected_persona,
-                voice_pacing=pacing_override,
-            )
-            print(f"[TTS] OK lang={normalized_language} persona={selected_persona} mode={selected_mode} file={os.path.basename(result)}")
-            return result
+            try:
+                result = elevenlabs_tts.generate_audio(
+                    tts_text,
+                    language=normalized_language,
+                    persona=selected_persona,
+                    voice_pacing=pacing_override,
+                )
+                print(f"[TTS] OK lang={normalized_language} persona={selected_persona} mode={selected_mode} file={os.path.basename(result)}")
+                return result
+            except Exception as persona_error:
+                logger.warning(
+                    "Persona voice TTS failed (lang=%s persona=%s): %s. Retrying with base language voice.",
+                    normalized_language,
+                    selected_persona,
+                    persona_error,
+                )
+
+                try:
+                    result = elevenlabs_tts.generate_audio(
+                        tts_text,
+                        language=normalized_language,
+                        persona=None,
+                        voice_pacing=pacing_override,
+                    )
+                    print(f"[TTS] RETRY_OK lang={normalized_language} persona=base mode={selected_mode} file={os.path.basename(result)}")
+                    return result
+                except Exception as base_error:
+                    logger.warning(
+                        "Base language voice TTS retry failed (lang=%s): %s",
+                        normalized_language,
+                        base_error,
+                    )
+                    if normalized_language != "en":
+                        try:
+                            result = elevenlabs_tts.generate_audio(
+                                tts_text,
+                                language="en",
+                                persona=None,
+                                voice_pacing=pacing_override,
+                            )
+                            print(f"[TTS] RETRY_OK lang=en persona=base mode={selected_mode} file={os.path.basename(result)}")
+                            return result
+                        except Exception as english_error:
+                            logger.warning("English base voice TTS retry failed: %s", english_error)
+
+                    raise base_error
         else:
             # Fallback to mock (Qwen disabled)
             print(f"[TTS] MOCK (ElevenLabs disabled) lang={normalized_language}")
