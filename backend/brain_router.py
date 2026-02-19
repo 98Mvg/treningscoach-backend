@@ -423,13 +423,15 @@ class BrainRouter:
             return result
         except TimeoutError:
             latency = time.time() - start
+            cancelled = future.cancel()  # Best-effort; returns False if already running
             self._record_timeout(brain_name)
             self.brain_last_outcome[brain_name] = {
                 "status": "timeout",
                 "latency": latency,
                 "timeout": timeout,
+                "cancelled": cancelled,
             }
-            print(f"[BRAIN] {brain_name} | TIMEOUT after {latency:.3f}s")
+            print(f"[BRAIN] {brain_name} | TIMEOUT after {latency:.3f}s | cancelled={cancelled}")
             return None
         except Exception as e:
             latency = time.time() - start
@@ -816,6 +818,92 @@ class BrainRouter:
             mode="realtime_coach",
         )
         return text
+
+    def rewrite_zone_event_text(
+        self,
+        base_text: str,
+        *,
+        language: str = "en",
+        persona: Optional[str] = None,
+        coaching_style: str = "normal",
+        event_type: Optional[str] = None,
+    ) -> str:
+        """
+        Optional Phase-4 language layer for deterministic zone events.
+
+        The event motor still owns decisioning/cooldowns/scoring; this method
+        can only rewrite wording and always falls back to the deterministic
+        template text.
+        """
+        seed = (base_text or "").strip()
+        if not seed:
+            return seed
+
+        language = self._normalize_language(language)
+        timeout_cap = float(getattr(config, "ZONE_EVENT_LLM_REWRITE_TIMEOUT_SECONDS", 0.9))
+        attempted = []
+
+        if self.use_priority_routing and self.priority_brains:
+            candidate_brains = [name for name in self.priority_brains if name != "config"]
+        else:
+            active = self.get_active_brain()
+            candidate_brains = [] if active in {"config", "priority"} else [active]
+
+        for brain_name in candidate_brains:
+            if not self._is_brain_available(brain_name):
+                attempted.append({"brain": brain_name, "status": "skipped", "reason": self._get_skip_reason(brain_name)})
+                continue
+
+            if brain_name == self.get_active_brain() and self.brain is not None:
+                brain = self.brain
+            else:
+                brain = self._get_brain_instance(brain_name)
+
+            if brain is None:
+                attempted.append({"brain": brain_name, "status": "unavailable"})
+                continue
+
+            timeout = min(timeout_cap, self._get_brain_timeout(brain_name, "realtime_coach"))
+            fn = lambda: brain.rewrite_zone_event_text(
+                seed,
+                language=language,
+                persona=persona,
+                coaching_style=coaching_style,
+                event_type=event_type,
+            )
+            rewritten = self._call_brain_with_timeout(brain_name, fn, timeout)
+            cleaned = (rewritten or "").strip()
+            if cleaned:
+                attempted.append({"brain": brain_name, "status": "success", "timeout": timeout})
+                self._set_last_route_meta(
+                    provider=brain_name,
+                    source="zone_event_llm",
+                    status="rewrite_success",
+                    mode="deterministic_zone",
+                    timeout=timeout,
+                    event_type=event_type,
+                    attempted=attempted,
+                )
+                return cleaned
+
+            outcome = dict(self.brain_last_outcome.get(brain_name, {}))
+            attempted.append(
+                {
+                    "brain": brain_name,
+                    "status": outcome.get("status", "failed"),
+                    "timeout": timeout,
+                }
+            )
+
+        self._set_last_route_meta(
+            provider="system",
+            source="zone_event_motor",
+            status="rewrite_fallback",
+            mode="deterministic_zone",
+            event_type=event_type,
+            attempted=attempted,
+        )
+        return seed
 
     def get_latency_fallback_signal(self, mode: str = "realtime_coach") -> Dict[str, Any]:
         """

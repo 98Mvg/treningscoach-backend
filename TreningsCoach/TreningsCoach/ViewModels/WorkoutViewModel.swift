@@ -8,6 +8,9 @@
 import Foundation
 import SwiftUI
 import AVFoundation
+import HealthKit
+import CoreMotion
+import UIKit
 
 /// State machine for coach interaction during workout
 enum CoachInteractionState: String {
@@ -15,6 +18,226 @@ enum CoachInteractionState: String {
     case wakeWordDetected   // Wake word heard, capturing command
     case commandMode        // User is speaking a command
     case responding         // Coach is generating/speaking response
+}
+
+private final class HealthKitHeartRateService {
+    struct Update {
+        let bpm: Int
+        let date: Date
+        let isWatchSource: Bool
+    }
+
+    private let healthStore = HKHealthStore()
+    private var observerQuery: HKObserverQuery?
+    private var anchoredQuery: HKAnchoredObjectQuery?
+    private var queryAnchor: HKQueryAnchor?
+    private var onUpdate: ((Update) -> Void)?
+
+    private var heartRateType: HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: .heartRate)
+    }
+
+    private var restingHeartRateType: HKQuantityType? {
+        HKObjectType.quantityType(forIdentifier: .restingHeartRate)
+    }
+
+    func requestAuthorization() async -> Bool {
+        guard HKHealthStore.isHealthDataAvailable(),
+              let heartRateType,
+              let restingHeartRateType else {
+            return false
+        }
+
+        let readTypes: Set<HKObjectType> = [heartRateType, restingHeartRateType]
+        return await withCheckedContinuation { continuation in
+            healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, _ in
+                continuation.resume(returning: success)
+            }
+        }
+    }
+
+    func fetchLatestHeartRateSnapshot() async -> Update? {
+        guard let heartRateType else { return nil }
+        return await withCheckedContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let query = HKSampleQuery(
+                sampleType: heartRateType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { [weak self] _, samples, _ in
+                guard let sample = (samples as? [HKQuantitySample])?.first,
+                      let update = self?.makeUpdate(from: sample) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: update)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    func fetchLatestRestingHeartRate() async -> Int? {
+        guard let restingHeartRateType else { return nil }
+        return await withCheckedContinuation { continuation in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let query = HKSampleQuery(
+                sampleType: restingHeartRateType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, _ in
+                guard let sample = (samples as? [HKQuantitySample])?.first else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let unit = HKUnit.count().unitDivided(by: HKUnit.minute())
+                let bpm = Int(round(sample.quantity.doubleValue(for: unit)))
+                continuation.resume(returning: bpm > 0 ? bpm : nil)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    func startHeartRateUpdates(onUpdate: @escaping (Update) -> Void) {
+        stopHeartRateUpdates()
+        guard let heartRateType else { return }
+
+        self.onUpdate = onUpdate
+        queryAnchor = nil
+
+        observerQuery = HKObserverQuery(sampleType: heartRateType, predicate: nil) { [weak self] _, completionHandler, _ in
+            self?.runAnchoredHeartRateQuery()
+            completionHandler()
+        }
+
+        if let observerQuery {
+            healthStore.execute(observerQuery)
+        }
+
+        runAnchoredHeartRateQuery()
+    }
+
+    func stopHeartRateUpdates() {
+        if let observerQuery {
+            healthStore.stop(observerQuery)
+        }
+        if let anchoredQuery {
+            healthStore.stop(anchoredQuery)
+        }
+        observerQuery = nil
+        anchoredQuery = nil
+        queryAnchor = nil
+        onUpdate = nil
+    }
+
+    private func runAnchoredHeartRateQuery() {
+        guard let heartRateType else { return }
+
+        anchoredQuery = HKAnchoredObjectQuery(
+            type: heartRateType,
+            predicate: nil,
+            anchor: queryAnchor,
+            limit: HKObjectQueryNoLimit
+        ) { [weak self] _, addedSamples, _, newAnchor, _ in
+            guard let self else { return }
+            self.queryAnchor = newAnchor
+            self.emit(samples: addedSamples)
+        }
+
+        anchoredQuery?.updateHandler = { [weak self] _, addedSamples, _, newAnchor, _ in
+            guard let self else { return }
+            self.queryAnchor = newAnchor
+            self.emit(samples: addedSamples)
+        }
+
+        if let anchoredQuery {
+            healthStore.execute(anchoredQuery)
+        }
+    }
+
+    private func emit(samples: [HKSample]?) {
+        guard let onUpdate else { return }
+        let quantitySamples = (samples as? [HKQuantitySample] ?? []).sorted { $0.endDate < $1.endDate }
+        for sample in quantitySamples {
+            if let update = makeUpdate(from: sample) {
+                onUpdate(update)
+            }
+        }
+    }
+
+    private func makeUpdate(from sample: HKQuantitySample) -> Update? {
+        let unit = HKUnit.count().unitDivided(by: HKUnit.minute())
+        let bpm = Int(round(sample.quantity.doubleValue(for: unit)))
+        guard bpm > 0 else { return nil }
+
+        let productType = sample.sourceRevision.productType?.lowercased() ?? ""
+        let sourceName = sample.sourceRevision.source.name.lowercased()
+        let deviceModel = sample.device?.model?.lowercased() ?? ""
+        let isWatch = productType.contains("watch") || sourceName.contains("watch") || deviceModel.contains("watch")
+
+        return Update(bpm: bpm, date: sample.endDate, isWatchSource: isWatch)
+    }
+}
+
+private final class MotionCadenceService {
+    struct Update {
+        let movementScore: Double?
+        let cadenceSPM: Double?
+        let source: String
+        let date: Date
+    }
+
+    private let pedometer = CMPedometer()
+    private var onUpdate: ((Update) -> Void)?
+    private var lastStepCount: Int?
+    private var lastStepDate: Date?
+
+    static func movementScore(from cadenceSPM: Double) -> Double {
+        clamp((cadenceSPM - 30.0) / 150.0, lower: 0.0, upper: 1.0)
+    }
+
+    func startUpdates(onUpdate: @escaping (Update) -> Void) {
+        stopUpdates()
+        guard CMPedometer.isStepCountingAvailable() else { return }
+
+        self.onUpdate = onUpdate
+        pedometer.startUpdates(from: Date()) { [weak self] data, error in
+            guard let self, error == nil, let data else { return }
+
+            let now = data.endDate
+            if let cadenceHz = data.currentCadence?.doubleValue, cadenceHz > 0 {
+                let cadenceSPM = cadenceHz * 60.0
+                let score = Self.movementScore(from: cadenceSPM)
+                self.onUpdate?(Update(movementScore: score, cadenceSPM: cadenceSPM, source: "cadence", date: now))
+            }
+
+            let stepCount = data.numberOfSteps.intValue
+            if let prevSteps = self.lastStepCount, let prevDate = self.lastStepDate {
+                let deltaSteps = max(0, stepCount - prevSteps)
+                let deltaSeconds = max(0.0, now.timeIntervalSince(prevDate))
+                if deltaSeconds >= 0.5 {
+                    let cadenceSPM = (Double(deltaSteps) / deltaSeconds) * 60.0
+                    let score = Self.movementScore(from: cadenceSPM)
+                    self.onUpdate?(Update(movementScore: score, cadenceSPM: cadenceSPM, source: "steps_fallback", date: now))
+                }
+            }
+
+            self.lastStepCount = stepCount
+            self.lastStepDate = now
+        }
+    }
+
+    func stopUpdates() {
+        pedometer.stopUpdates()
+        onUpdate = nil
+        lastStepCount = nil
+        lastStepDate = nil
+    }
+
+    private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
+        max(lower, min(upper, value))
+    }
 }
 
 @MainActor
@@ -65,8 +288,29 @@ class WorkoutViewModel: ObservableObject {
     @Published var workoutState: WorkoutState = .idle
     @Published var showComplete: Bool = false
     @Published var selectedWarmupMinutes: Int = 2  // User picks: 0, 1, 2, 3, 5
+    @Published var selectedWorkoutMode: WorkoutMode = .easyRun
+    @Published var selectedEasyRunMinutes: Int = 30
+    @Published var selectedIntervalTemplate: IntervalTemplate = .fourByFour
+    @Published var coachingStyle: CoachingStyle = .normal
+    @Published var useBreathingMicCues: Bool = true
+    @Published var watchConnected: Bool = false
+    @Published var hrSignalQuality: String = "poor"
+    @Published var heartRate: Int?
+    @Published var movementScore: Double?
+    @Published var cadenceSPM: Double?
+    @Published var movementSource: String = "none"
+    @Published var movementState: String = "unknown"
+    @Published var zoneStatus: String = "hr_unstable"
+    @Published var targetZoneLabel: String = "Z2"
+    @Published var targetHRLow: Int?
+    @Published var targetHRHigh: Int?
+    @Published var zoneScoreConfidence: String = "low"
     @Published var coachScore: Int = 82
     @Published var coachScoreLine: String = ""
+    @Published var zoneTimeInTargetPct: Double?
+    @Published var zoneOvershoots: Int = 0
+    @Published var personalizationTip: String = ""
+    @Published var recoveryLine: String = ""
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -85,8 +329,9 @@ class WorkoutViewModel: ObservableObject {
 
     // Computed: phase progress (0.0 to 1.0)
     var phaseProgress: Double {
-        let warmupSecs = TimeInterval(selectedWarmupMinutes * 60)
-        let intenseSecs = AppConfig.intenseDuration
+        let warmupSecs = configuredWarmupDuration
+        let intenseSecs = configuredIntenseDuration
+        let cooldownSecs = configuredCooldownDuration
         let phaseDuration: TimeInterval
         let phaseStart: TimeInterval
 
@@ -98,7 +343,7 @@ class WorkoutViewModel: ObservableObject {
             phaseDuration = intenseSecs
             phaseStart = warmupSecs
         case .cooldown:
-            phaseDuration = 300 // 5-minute cooldown
+            phaseDuration = cooldownSecs
             phaseStart = warmupSecs + intenseSecs
         }
 
@@ -119,6 +364,119 @@ class WorkoutViewModel: ObservableObject {
         return formattedCoachScoreLine(score: coachScore)
     }
 
+    var coachScoreHeadline: String {
+        let clamped = max(0, min(100, coachScore))
+        let band = scoreBand(for: clamped)
+        if currentLanguage == "no" {
+            return "CoachScore: \(clamped) — \(coachWorkPhraseNo(for: band))"
+        }
+        return "CoachScore: \(clamped) — \(coachWorkPhraseEn(for: band))"
+    }
+
+    var effortScore: Int {
+        max(0, min(100, coachScore + 4))
+    }
+
+    var effortScoreSummaryLine: String {
+        let score = effortScore
+        if currentLanguage == "no" {
+            return "Innsatsscore \(score) (\(scoreLabelNo(for: scoreBand(for: score))))"
+        }
+        return "Effort Score \(score) (\(scoreLabelEn(for: scoreBand(for: score))))"
+    }
+
+    var targetRangeText: String {
+        guard let low = targetHRLow, let high = targetHRHigh else { return "--" }
+        return "\(low)-\(high) bpm"
+    }
+
+    var zoneStatusDisplay: String {
+        switch zoneStatus {
+        case "in_zone":
+            return "In zone"
+        case "above_zone":
+            return "Above zone"
+        case "below_zone":
+            return "Below zone"
+        case "timing_control":
+            return "Timing control"
+        default:
+            return "HR unstable"
+        }
+    }
+
+    var hrIsReliable: Bool {
+        watchConnected && hrSignalQuality == "good"
+    }
+
+    var hrQualityDisplay: String {
+        hrIsReliable ? "HR good" : "HR limited"
+    }
+
+    var hrQualityHint: String {
+        hrIsReliable ? "Zone cues are using heart rate." : "Using timing and movement fallback until HR stabilizes."
+    }
+
+    var movementStateDisplay: String {
+        switch movementState {
+        case "paused":
+            return "Paused"
+        case "moving":
+            return "Moving"
+        default:
+            return "Unknown"
+        }
+    }
+
+    var movementSourceDisplay: String {
+        switch movementSource {
+        case "cadence":
+            return "Cadence"
+        case "steps_fallback":
+            return "Steps"
+        case "movement_score":
+            return "Movement"
+        default:
+            return "None"
+        }
+    }
+
+    var cadenceDisplayText: String {
+        guard let cadenceSPM else { return "--" }
+        return "\(Int(round(cadenceSPM))) spm"
+    }
+
+    var scoreConfidenceNote: String? {
+        switch zoneScoreConfidence {
+        case "low":
+            return "Score confidence is low due to HR signal gaps."
+        case "partial":
+            return "Score includes some periods with HR gaps."
+        default:
+            return nil
+        }
+    }
+
+    var zoneWhyBullets: [String] {
+        var items: [String] = []
+        if let pct = zoneTimeInTargetPct {
+            items.append(String(format: "%.0f%% in target zone", pct))
+        }
+        items.append("\(zoneOvershoots) overshoots above target")
+        return items
+    }
+
+    var nextTimeAdvice: String {
+        let trimmed = personalizationTip.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        if currentLanguage == "no" {
+            return "Start 5 bpm lavere de første 10 minuttene."
+        }
+        return "Start 5 bpm lower the first 10 minutes."
+    }
+
     // MARK: - Coachi Convenience Methods
 
     func startWorkout() {
@@ -126,9 +484,24 @@ class WorkoutViewModel: ObservableObject {
         showComplete = false
         coachScore = 82
         coachScoreLine = ""
+        zoneStatus = "hr_unstable"
+        targetZoneLabel = selectedWorkoutMode == .easyRun ? "Z2" : "Z4"
+        targetHRLow = nil
+        targetHRHigh = nil
+        zoneScoreConfidence = "low"
+        zoneTimeInTargetPct = nil
+        zoneOvershoots = 0
+        personalizationTip = ""
+        recoveryLine = ""
+        movementScore = nil
+        cadenceSPM = nil
+        movementSource = "none"
+        movementState = "unknown"
         // If no warmup selected, start directly in intense phase
-        if selectedWarmupMinutes == 0 {
+        if selectedWorkoutMode != .intervals && selectedWarmupMinutes == 0 {
             hasSkippedWarmup = true
+        } else {
+            hasSkippedWarmup = false
         }
         startContinuousWorkout()
     }
@@ -157,10 +530,33 @@ class WorkoutViewModel: ObservableObject {
         breathAnalysis = nil
         coachScore = 82
         coachScoreLine = ""
+        zoneStatus = "hr_unstable"
+        targetHRLow = nil
+        targetHRHigh = nil
+        zoneScoreConfidence = "low"
+        zoneTimeInTargetPct = nil
+        zoneOvershoots = 0
+        personalizationTip = ""
+        recoveryLine = ""
+        movementScore = nil
+        cadenceSPM = nil
+        movementSource = "none"
+        movementState = "unknown"
     }
 
     func selectPersonality(_ persona: CoachPersonality) {
         switchPersonality(persona)
+    }
+
+    func openSpotify() {
+        let appURL = URL(string: "spotify://")!
+        let webURL = URL(string: "https://open.spotify.com")!
+
+        if UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+        } else {
+            UIApplication.shared.open(webURL)
+        }
     }
 
     // Time-of-day greeting for the home screen
@@ -188,6 +584,68 @@ class WorkoutViewModel: ObservableObject {
         UserDefaults.standard.string(forKey: "user_display_name") ?? ""
     }
 
+    private var storedHRMax: Int? {
+        let value = UserDefaults.standard.integer(forKey: "hr_max")
+        return value > 0 ? value : nil
+    }
+
+    private var storedRestingHR: Int? {
+        let value = UserDefaults.standard.integer(forKey: "resting_hr")
+        return value > 0 ? value : nil
+    }
+
+    private var storedAge: Int? {
+        let value = UserDefaults.standard.integer(forKey: "user_age")
+        return value > 0 ? value : nil
+    }
+
+    private var personalizationProfileId: String {
+        let key = "personalization_profile_id"
+        if let existing = UserDefaults.standard.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        let generated = "profile_\(UUID().uuidString.lowercased())"
+        UserDefaults.standard.set(generated, forKey: key)
+        return generated
+    }
+
+    private var configuredWarmupDuration: TimeInterval {
+        if selectedWorkoutMode == .intervals {
+            return 10 * 60
+        }
+        return TimeInterval(selectedWarmupMinutes * 60)
+    }
+
+    private var configuredIntenseDuration: TimeInterval {
+        switch selectedWorkoutMode {
+        case .easyRun:
+            return TimeInterval(selectedEasyRunMinutes * 60)
+        case .intervals:
+            switch selectedIntervalTemplate {
+            case .fourByFour:
+                return TimeInterval((4 * (4 + 3)) * 60) // 4x (4 min work + 3 min recovery)
+            case .eightByOne:
+                return TimeInterval((8 * (1 + 1)) * 60) // 8x (1 min work + 1 min recovery)
+            case .tenByThirtyThirty:
+                return TimeInterval(10 * 60) // 10x (30/30) = 10 minutes total
+            }
+        case .standard:
+            return AppConfig.intenseDuration
+        }
+    }
+
+    private var configuredCooldownDuration: TimeInterval {
+        if selectedWorkoutMode == .intervals {
+            switch selectedIntervalTemplate {
+            case .tenByThirtyThirty:
+                return 6 * 60
+            default:
+                return 8 * 60
+            }
+        }
+        return 5 * 60
+    }
+
     // Formatted elapsed time string (MM:SS)
     var elapsedTimeFormatted: String {
         let mins = Int(elapsedTime) / 60
@@ -210,6 +668,13 @@ class WorkoutViewModel: ObservableObject {
     private var elapsedTimeTimer: Timer?
     private var consecutiveChunkFailures: Int = 0
     private var lastAudioRecoveryAttempt: Date?
+    private let healthKitService = HealthKitHeartRateService()
+    private let motionCadenceService = MotionCadenceService()
+    private var latestHeartRateSampleDate: Date?
+    private var previousHeartRate: Int?
+    private var previousHeartRateSampleDate: Date?
+    private var latestMovementSampleDate: Date?
+    private var latestMovementSource: String = "none"
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -232,6 +697,10 @@ class WorkoutViewModel: ObservableObject {
         // Check backend connectivity on launch
         Task {
             await checkBackendHealth()
+        }
+
+        Task {
+            await setupHealthSignals()
         }
         print("🔗 Backend URL: \(AppConfig.backendURL)")
     }
@@ -445,10 +914,10 @@ class WorkoutViewModel: ObservableObject {
         }
 
         let duration = Date().timeIntervalSince(startTime)
-        let warmupSeconds = TimeInterval(selectedWarmupMinutes * 60)
-        let intenseEndSeconds = warmupSeconds + AppConfig.intenseDuration // warmup + 15 min
+        let warmupSeconds = configuredWarmupDuration
+        let intenseEndSeconds = warmupSeconds + configuredIntenseDuration
 
-        if selectedWarmupMinutes > 0 && duration < warmupSeconds && !hasSkippedWarmup {
+        if warmupSeconds > 0 && duration < warmupSeconds && !hasSkippedWarmup {
             currentPhase = .warmup
         } else if duration < intenseEndSeconds {
             currentPhase = .intense
@@ -470,12 +939,79 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private enum ScoreBand {
+        case strong
+        case solid
+        case mixed
+        case needsControl
+    }
+
+    private func scoreBand(for score: Int) -> ScoreBand {
+        if score >= 85 { return .strong }
+        if score >= 70 { return .solid }
+        if score >= 55 { return .mixed }
+        return .needsControl
+    }
+
+    private func scoreLabelEn(for band: ScoreBand) -> String {
+        switch band {
+        case .strong:
+            return "Strong"
+        case .solid:
+            return "Solid"
+        case .mixed:
+            return "Mixed"
+        case .needsControl:
+            return "Needs control"
+        }
+    }
+
+    private func scoreLabelNo(for band: ScoreBand) -> String {
+        switch band {
+        case .strong:
+            return "Sterk"
+        case .solid:
+            return "Solid"
+        case .mixed:
+            return "Blandet"
+        case .needsControl:
+            return "Trenger kontroll"
+        }
+    }
+
+    private func coachWorkPhraseEn(for band: ScoreBand) -> String {
+        switch band {
+        case .strong:
+            return "Strong work."
+        case .solid:
+            return "Solid work."
+        case .mixed:
+            return "Good effort."
+        case .needsControl:
+            return "Keep building."
+        }
+    }
+
+    private func coachWorkPhraseNo(for band: ScoreBand) -> String {
+        switch band {
+        case .strong:
+            return "Sterk jobb."
+        case .solid:
+            return "Solid jobb."
+        case .mixed:
+            return "Bra innsats."
+        case .needsControl:
+            return "Bygg videre."
+        }
+    }
+
     private func formattedCoachScoreLine(score: Int) -> String {
         let clampedScore = max(0, min(100, score))
+        let band = scoreBand(for: clampedScore)
         if currentLanguage == "no" {
-            return "CoachScore: \(clampedScore) — Solid jobb. Du traff intensiteten som forbedrer helsa di."
+            return "CoachScore: \(clampedScore) — \(coachWorkPhraseNo(for: band))"
         }
-        return "CoachScore: \(clampedScore) — Solid work. You hit the intensity that improves your health."
+        return "CoachScore: \(clampedScore) — \(coachWorkPhraseEn(for: band))"
     }
 
     // MARK: - API Communication
@@ -598,6 +1134,120 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    // MARK: - HealthKit HR Signals
+
+    private func setupHealthSignals() async {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            watchConnected = false
+            hrSignalQuality = "poor"
+            return
+        }
+
+        let authorized = await healthKitService.requestAuthorization()
+        guard authorized else {
+            watchConnected = false
+            hrSignalQuality = "poor"
+            return
+        }
+
+        if let resting = await healthKitService.fetchLatestRestingHeartRate() {
+            UserDefaults.standard.set(resting, forKey: "resting_hr")
+        }
+
+        if let snapshot = await healthKitService.fetchLatestHeartRateSnapshot() {
+            applyHeartRateUpdate(snapshot)
+        }
+    }
+
+    private func startHealthMonitoring() {
+        healthKitService.startHeartRateUpdates { [weak self] update in
+            Task { @MainActor in
+                self?.applyHeartRateUpdate(update)
+            }
+        }
+    }
+
+    private func stopHealthMonitoring() {
+        healthKitService.stopHeartRateUpdates()
+    }
+
+    private func startMotionMonitoring() {
+        motionCadenceService.startUpdates { [weak self] update in
+            Task { @MainActor in
+                self?.applyMotionUpdate(update)
+            }
+        }
+    }
+
+    private func stopMotionMonitoring() {
+        motionCadenceService.stopUpdates()
+    }
+
+    private func applyHeartRateUpdate(_ update: HealthKitHeartRateService.Update) {
+        heartRate = update.bpm
+        latestHeartRateSampleDate = update.date
+
+        let ageSeconds = max(0, Date().timeIntervalSince(update.date))
+        let stale = ageSeconds > AppConfig.Health.hrStaleThresholdSeconds
+
+        var quality = stale ? "poor" : "good"
+        if let prev = previousHeartRate, let prevDate = previousHeartRateSampleDate {
+            let gap = abs(update.date.timeIntervalSince(prevDate))
+            if gap <= AppConfig.Health.hrPoorSpikeWindowSeconds &&
+                abs(update.bpm - prev) > AppConfig.Health.hrPoorSpikeDeltaBPM {
+                quality = "poor"
+            }
+        }
+
+        watchConnected = update.isWatchSource && !stale
+        hrSignalQuality = quality
+        previousHeartRate = update.bpm
+        previousHeartRateSampleDate = update.date
+    }
+
+    private var hrSampleAgeSecondsForRequest: Double? {
+        guard let sampleDate = latestHeartRateSampleDate else { return nil }
+        return max(0, Date().timeIntervalSince(sampleDate))
+    }
+
+    private func refreshHeartRateSignalQualityFromAge() {
+        guard let age = hrSampleAgeSecondsForRequest else {
+            watchConnected = false
+            hrSignalQuality = "poor"
+            return
+        }
+        if age > AppConfig.Health.hrStaleThresholdSeconds {
+            watchConnected = false
+            hrSignalQuality = "poor"
+        }
+    }
+
+    private func applyMotionUpdate(_ update: MotionCadenceService.Update) {
+        movementScore = update.movementScore
+        cadenceSPM = update.cadenceSPM
+        movementSource = update.source
+        latestMovementSource = update.source
+        latestMovementSampleDate = update.date
+    }
+
+    private func refreshMotionSignalFromAge() {
+        guard let sampleDate = latestMovementSampleDate else {
+            movementScore = nil
+            cadenceSPM = nil
+            movementSource = "none"
+            latestMovementSource = "none"
+            return
+        }
+
+        let age = max(0.0, Date().timeIntervalSince(sampleDate))
+        if age > AppConfig.Motion.staleThresholdSeconds {
+            movementScore = nil
+            cadenceSPM = nil
+            movementSource = "none"
+            latestMovementSource = "none"
+        }
+    }
+
     // MARK: - Continuous Coaching Loop
 
     func startContinuousWorkout() {
@@ -621,6 +1271,10 @@ class WorkoutViewModel: ObservableObject {
             autoDetectPhase()
             consecutiveChunkFailures = 0
             lastAudioRecoveryAttempt = nil
+
+            // Start live heart-rate monitoring from HealthKit/Watch
+            startHealthMonitoring()
+            startMotionMonitoring()
 
             // Start 1-second timer to update elapsed time (drives the timer ring UI)
             elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -754,6 +1408,8 @@ class WorkoutViewModel: ObservableObject {
 
         // Stop recording
         continuousRecordingManager.stopContinuousRecording()
+        stopHealthMonitoring()
+        stopMotionMonitoring()
 
         // Cancel timers
         coachingTimer?.invalidate()
@@ -772,6 +1428,12 @@ class WorkoutViewModel: ObservableObject {
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0
         lastAudioRecoveryAttempt = nil
+        movementScore = nil
+        cadenceSPM = nil
+        movementSource = "none"
+        movementState = "unknown"
+        latestMovementSource = "none"
+        latestMovementSampleDate = nil
 
         // Update final workout duration and save to history
         if let startTime = sessionStartTime {
@@ -849,6 +1511,15 @@ class WorkoutViewModel: ObservableObject {
         Task {
             let tickStart = Date()
             do {
+                refreshHeartRateSignalQualityFromAge()
+                refreshMotionSignalFromAge()
+                let tickHeartRate = heartRate
+                let tickSampleAge = hrSampleAgeSecondsForRequest
+                let tickQuality = (tickHeartRate != nil && watchConnected) ? "good" : "poor"
+                let tickMovementScore = movementScore
+                let tickCadenceSPM = cadenceSPM
+                let tickMovementSource = (tickMovementScore != nil || tickCadenceSPM != nil) ? latestMovementSource : "none"
+                hrSignalQuality = tickQuality
                 let response = try await apiService.getContinuousCoachFeedback(
                     audioChunk,
                     sessionId: sessionId ?? "",
@@ -858,7 +1529,23 @@ class WorkoutViewModel: ObservableObject {
                     language: currentLanguage,
                     trainingLevel: currentTrainingLevel,
                     persona: activePersonality.rawValue,
-                    userName: currentUserName
+                    userName: currentUserName,
+                    workoutMode: selectedWorkoutMode,
+                    coachingStyle: coachingStyle,
+                    intervalTemplate: selectedIntervalTemplate,
+                    userProfileId: personalizationProfileId,
+                    heartRate: tickHeartRate,
+                    hrSampleAgeSeconds: tickSampleAge,
+                    hrQuality: tickQuality,
+                    hrConfidence: tickQuality == "good" ? 0.9 : 0.2,
+                    watchConnected: watchConnected,
+                    watchStatus: watchConnected ? "connected" : "disconnected",
+                    movementScore: tickMovementScore,
+                    cadenceSPM: tickCadenceSPM,
+                    movementSource: tickMovementSource,
+                    hrMax: storedHRMax,
+                    restingHR: storedRestingHR,
+                    age: storedAge
                 )
 
                 let responseTime = Date().timeIntervalSince(tickStart)
@@ -875,6 +1562,48 @@ class WorkoutViewModel: ObservableObject {
                     coachScoreLine = line
                 } else {
                     coachScoreLine = formattedCoachScoreLine(score: coachScore)
+                }
+                if let responseStyle = response.coachingStyle,
+                   let parsedStyle = CoachingStyle(rawValue: responseStyle) {
+                    coachingStyle = parsedStyle
+                }
+                if let zone = response.zoneStatus {
+                    zoneStatus = zone
+                }
+                if let hr = response.heartRate {
+                    heartRate = hr
+                }
+                if let label = response.targetZoneLabel {
+                    targetZoneLabel = label
+                }
+                targetHRLow = response.targetHRLow
+                targetHRHigh = response.targetHRHigh
+                if let quality = response.hrQuality {
+                    hrSignalQuality = quality
+                }
+                if let score = response.movementScore {
+                    movementScore = score
+                }
+                if let cadence = response.cadenceSPM {
+                    cadenceSPM = cadence
+                }
+                if let source = response.movementSource, !source.isEmpty {
+                    movementSource = source
+                    latestMovementSource = source
+                }
+                if let state = response.movementState, !state.isEmpty {
+                    movementState = state
+                }
+                if let confidence = response.zoneScoreConfidence {
+                    zoneScoreConfidence = confidence
+                }
+                zoneTimeInTargetPct = response.zoneTimeInTargetPct
+                zoneOvershoots = response.zoneOvershoots ?? zoneOvershoots
+                if let tip = response.personalizationTip, !tip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    personalizationTip = tip
+                }
+                if let line = response.recoveryLine, !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    recoveryLine = line
                 }
 
                 // Feed breath analysis + coach decision to diagnostics panel

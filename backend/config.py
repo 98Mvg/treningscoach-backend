@@ -132,7 +132,7 @@ MIN_SIGNAL_QUALITY_TO_FORCE = 0.0
 PERSONA_VOICE_CONFIG = {
     "personal_trainer": {
         "voice_ids": {
-            "en": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "1DHhvmhXw9p08Sc79vuJ"),
+            "en": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "9MPvdQh2pLsLhn7SuiIS"),
             "no": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "nhvaqgRyAq6BmFs3WcdX"),
         },
         "name": "Personal Trainer",
@@ -379,8 +379,142 @@ BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", False)
 # ============================================
 # WORKOUT MODES (BACKEND-ONLY FOR NOW)
 # ============================================
-SUPPORTED_WORKOUT_MODES = ["standard", "interval"]
+SUPPORTED_WORKOUT_MODES = ["standard", "interval", "easy_run"]
 DEFAULT_WORKOUT_MODE = "standard"
+ZONE_COACHING_WORKOUT_MODES = ["easy_run", "interval"]
+
+# Running session templates (v1)
+SUPPORTED_INTERVAL_TEMPLATES = ["4x4", "8x1", "10x30/30"]
+DEFAULT_INTERVAL_TEMPLATE = (os.getenv("DEFAULT_INTERVAL_TEMPLATE", "4x4") or "4x4").strip()
+
+INTERVAL_TEMPLATES = {
+    "4x4": {
+        "warmup_seconds": 600,
+        "work_seconds": 240,
+        "rest_seconds": 180,
+        "reps": 4,
+        "cooldown_seconds": 480,
+        "work_target": "Z4",
+        "rest_target": "Z1-2",
+        "work_hr_enforced": True,
+    },
+    "8x1": {
+        "warmup_seconds": 600,
+        "work_seconds": 60,
+        "rest_seconds": 60,
+        "reps": 8,
+        "cooldown_seconds": 480,
+        "work_target": "Z4-5",
+        "rest_target": "Z1-2",
+        # HR lags on short reps; timing cues are primary.
+        "work_hr_enforced": False,
+    },
+    "10x30/30": {
+        "warmup_seconds": 600,
+        "work_seconds": 30,
+        "rest_seconds": 30,
+        "reps": 10,
+        "cooldown_seconds": 360,
+        "work_target": "hard",
+        "rest_target": "easy",
+        # HR lags on very short reps; timing cues are primary.
+        "work_hr_enforced": False,
+    },
+}
+
+# Zone 2 definition
+# Primary: HRR (Karvonen) when resting HR exists
+ZONE2_HRR_LOW = _env_float("ZONE2_HRR_LOW", 0.60)
+ZONE2_HRR_HIGH = _env_float("ZONE2_HRR_HIGH", 0.70)
+# Fallback: HRmax percentages when resting HR is missing
+ZONE2_HRMAX_LOW = _env_float("ZONE2_HRMAX_LOW", 0.70)
+ZONE2_HRMAX_HIGH = _env_float("ZONE2_HRMAX_HIGH", 0.80)
+
+# HR quality policy
+HR_QUALITY_STALE_SECONDS = _env_float("HR_QUALITY_STALE_SECONDS", 8.0)
+HR_QUALITY_SPIKE_DELTA_BPM = _env_float("HR_QUALITY_SPIKE_DELTA_BPM", 20.0)
+HR_QUALITY_SPIKE_WINDOW_SECONDS = _env_float("HR_QUALITY_SPIKE_WINDOW_SECONDS", 2.0)
+HR_QUALITY_MIN_CONFIDENCE = _env_float("HR_QUALITY_MIN_CONFIDENCE", 0.5)
+
+# Event stability
+HR_ZONE_HYSTERESIS_BPM = _env_float("HR_ZONE_HYSTERESIS_BPM", 3.0)
+HR_ZONE_DWELL_SECONDS = _env_float("HR_ZONE_DWELL_SECONDS", 8.0)
+
+# Movement/cadence fallback (sensor layer B/C)
+MOVEMENT_SCORE_PAUSE_THRESHOLD = _env_float("MOVEMENT_SCORE_PAUSE_THRESHOLD", 0.12)
+MOVEMENT_SCORE_ACTIVE_THRESHOLD = _env_float("MOVEMENT_SCORE_ACTIVE_THRESHOLD", 0.25)
+MOVEMENT_PAUSE_DWELL_SECONDS = _env_float("MOVEMENT_PAUSE_DWELL_SECONDS", 8.0)
+MOVEMENT_PAUSE_MIN_HR_DROP_BPM = _env_float("MOVEMENT_PAUSE_MIN_HR_DROP_BPM", 1.0)
+MOVEMENT_PAUSE_HR_DROP_MAX_GAP_SECONDS = _env_float("MOVEMENT_PAUSE_HR_DROP_MAX_GAP_SECONDS", 10.0)
+HR_PAUSE_RAPID_DROP_BPM = _env_float("HR_PAUSE_RAPID_DROP_BPM", 6.0)
+HR_PAUSE_RAPID_DROP_MAX_GAP_SECONDS = _env_float("HR_PAUSE_RAPID_DROP_MAX_GAP_SECONDS", 8.0)
+
+# Phase 3: sustained push/ease rules
+ZONE_BELOW_PUSH_SUSTAIN_SECONDS = _env_float("ZONE_BELOW_PUSH_SUSTAIN_SECONDS", 25.0)
+ZONE_BELOW_PUSH_MIN_MOVEMENT_SCORE = _env_float("ZONE_BELOW_PUSH_MIN_MOVEMENT_SCORE", 0.30)
+ZONE_ABOVE_EASE_SUSTAIN_SECONDS = _env_float("ZONE_ABOVE_EASE_SUSTAIN_SECONDS", 20.0)
+ZONE_ABOVE_EASE_MIN_HR_RISE_BPM = _env_float("ZONE_ABOVE_EASE_MIN_HR_RISE_BPM", 1.5)
+ZONE_ABOVE_EASE_RISE_MAX_GAP_SECONDS = _env_float("ZONE_ABOVE_EASE_RISE_MAX_GAP_SECONDS", 10.0)
+ZONE_SUSTAINED_EVENT_REPEAT_SECONDS = _env_float("ZONE_SUSTAINED_EVENT_REPEAT_SECONDS", 45.0)
+
+# Coaching style controls frequency/tone only - never core decision logic.
+SUPPORTED_COACHING_STYLES = ["minimal", "normal", "motivational"]
+DEFAULT_COACHING_STYLE = (
+    os.getenv("DEFAULT_COACHING_STYLE", "normal") or "normal"
+).strip().lower()
+COACHING_STYLE_COOLDOWNS = {
+    "minimal": {
+        "min_seconds_between_any_speech": 45,
+        "min_seconds_between_same_cue_type": 90,
+        "max_cues_per_10min": 10,
+        "praise_min_seconds": 360,
+    },
+    "normal": {
+        "min_seconds_between_any_speech": 30,
+        "min_seconds_between_same_cue_type": 60,
+        "max_cues_per_10min": 16,
+        "praise_min_seconds": 240,
+    },
+    "motivational": {
+        "min_seconds_between_any_speech": 20,
+        "min_seconds_between_same_cue_type": 45,
+        "max_cues_per_10min": 22,
+        "praise_min_seconds": 150,
+    },
+}
+
+# Phase 4: LLM is allowed to rewrite deterministic zone cues for wording only.
+# Event decisions, cooldowns, and scoring remain owned by the event motor.
+ZONE_EVENT_LLM_REWRITE_ENABLED = _env_bool("ZONE_EVENT_LLM_REWRITE_ENABLED", False)
+ZONE_EVENT_LLM_REWRITE_TIMEOUT_SECONDS = _env_float("ZONE_EVENT_LLM_REWRITE_TIMEOUT_SECONDS", 0.9)
+ZONE_EVENT_LLM_REWRITE_MAX_WORDS = _env_int("ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16)
+ZONE_EVENT_LLM_REWRITE_MAX_CHARS = _env_int("ZONE_EVENT_LLM_REWRITE_MAX_CHARS", 120)
+ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS = _env_csv_list(
+    "ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS",
+    [
+        "above_zone",
+        "above_zone_ease",
+        "below_zone",
+        "below_zone_push",
+        "in_zone_recovered",
+        "phase_change_work",
+        "phase_change_rest",
+        "phase_change_warmup",
+        "phase_change_cooldown",
+        "pause_detected",
+        "pause_resumed",
+        "max_silence_override",
+    ],
+)
+
+# Phase 5: personalization is analytics/insight only in v1 (no decision mutation).
+ZONE_PERSONALIZATION_ENABLED = _env_bool("ZONE_PERSONALIZATION_ENABLED", True)
+ZONE_PERSONALIZATION_STORAGE_PATH = (
+    os.getenv("ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json")
+    or "zone_personalization.json"
+).strip()
+ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES = _env_int("ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24)
+ZONE_PERSONALIZATION_MAX_SESSION_HISTORY = _env_int("ZONE_PERSONALIZATION_MAX_SESSION_HISTORY", 20)
 
 # STEP 2: Intensity-driven message bank with personality
 # Message characteristics:
@@ -500,7 +634,7 @@ COACH_MESSAGES_NO = {
         "calm": [
             "Behold kontrollen. Hold tempoet. Ikke overdrive.",
             "Bra. Hold rytmen. Litt raskere, ikke hektisk.",
-            "PUSH! Hardere!",
+            "TRYKK! Hardere!",
             "Du har mer!"
         ],
         "moderate": [
@@ -629,7 +763,7 @@ TOXIC_MODE_MESSAGES = {
         ],
         "intense": {
             "calm": [
-                "PATETISK! Bestemora mi pusher hardere!",
+                "PATETISK! Bestemora mi presser hardere!",
                 "PRØVER du i det hele tatt?! BEVEG DEG!",
                 "Jeg har sett SNEGLER med mer intensitet!",
                 "Er det ALT du har?! PINLIG!",
@@ -640,7 +774,7 @@ TOXIC_MODE_MESSAGES = {
                 "Du kan bedre enn DET!",
                 "Jeg er IKKE imponert ennå. HARDERE!",
                 "Fortsett ellers dobler jeg det!",
-                "Er det alt?! Push HARDERE!"
+                "Er det alt?! TRYKK HARDERE!"
             ],
             "intense": [
                 "ENDELIG! Var det så vanskelig?!",

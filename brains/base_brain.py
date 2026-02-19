@@ -186,6 +186,24 @@ class BaseBrain(ABC):
         """Language-safe default fallback cue."""
         return "Fortsett!" if language == "no" else "Keep going!"
 
+    def rewrite_zone_event_text(
+        self,
+        base_text: str,
+        *,
+        language: str = "en",
+        persona: Optional[str] = None,
+        coaching_style: str = "normal",
+        event_type: Optional[str] = None,
+    ) -> str:
+        """
+        Optional provider hook for zone-event phrasing.
+
+        Default behavior is a no-op so deterministic event text remains intact
+        when the provider does not support rewrite mode.
+        """
+        _ = (language, persona, coaching_style, event_type)
+        return (base_text or "").strip()
+
     # ============================================
     # BREATH COACHING MODES
     # ============================================

@@ -67,6 +67,63 @@ enum WorkoutPhase: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum WorkoutMode: String, CaseIterable, Identifiable, Codable {
+    case easyRun = "easy_run"
+    case intervals = "interval"
+    case standard = "standard"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .easyRun:
+            return "Easy Run"
+        case .intervals:
+            return "Intervals"
+        case .standard:
+            return "Standard"
+        }
+    }
+}
+
+enum IntervalTemplate: String, CaseIterable, Identifiable, Codable {
+    case fourByFour = "4x4"
+    case eightByOne = "8x1"
+    case tenByThirtyThirty = "10x30/30"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .fourByFour:
+            return "4×4"
+        case .eightByOne:
+            return "8×1"
+        case .tenByThirtyThirty:
+            return "10×30/30"
+        }
+    }
+}
+
+enum CoachingStyle: String, CaseIterable, Identifiable, Codable {
+    case minimal = "minimal"
+    case normal = "normal"
+    case motivational = "motivational"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .minimal:
+            return "Minimal"
+        case .normal:
+            return "Normal"
+        case .motivational:
+            return "Motivational"
+        }
+    }
+}
+
 // MARK: - Breath Analysis
 
 struct BreathAnalysis: Codable {
@@ -221,6 +278,30 @@ struct ContinuousCoachResponse: Codable {
     let brainSource: String?
     let brainStatus: String?
     let brainMode: String?
+    let coachingStyle: String?
+    let intervalTemplate: String?
+    let zoneStatus: String?
+    let zoneEvent: String?
+    let heartRate: Int?
+    let targetZoneLabel: String?
+    let targetHRLow: Int?
+    let targetHRHigh: Int?
+    let targetSource: String?
+    let targetHREnforced: Bool?
+    let hrQuality: String?
+    let hrQualityReasons: [String]?
+    let movementScore: Double?
+    let cadenceSPM: Double?
+    let movementSource: String?
+    let movementState: String?
+    let zoneScoreConfidence: String?
+    let zoneTimeInTargetPct: Double?
+    let zoneOvershoots: Int?
+    let recoverySeconds: Double?
+    let recoveryAvgSeconds: Double?
+    let personalizationTip: String?
+    let recoveryLine: String?
+    let recoveryBaselineSeconds: Double?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -236,6 +317,30 @@ struct ContinuousCoachResponse: Codable {
         case brainSource = "brain_source"
         case brainStatus = "brain_status"
         case brainMode = "brain_mode"
+        case coachingStyle = "coaching_style"
+        case intervalTemplate = "interval_template"
+        case zoneStatus = "zone_status"
+        case zoneEvent = "zone_event"
+        case heartRate = "heart_rate"
+        case targetZoneLabel = "target_zone_label"
+        case targetHRLow = "target_hr_low"
+        case targetHRHigh = "target_hr_high"
+        case targetSource = "target_source"
+        case targetHREnforced = "target_hr_enforced"
+        case hrQuality = "hr_quality"
+        case hrQualityReasons = "hr_quality_reasons"
+        case movementScore = "movement_score"
+        case cadenceSPM = "cadence_spm"
+        case movementSource = "movement_source"
+        case movementState = "movement_state"
+        case zoneScoreConfidence = "zone_score_confidence"
+        case zoneTimeInTargetPct = "zone_time_in_target_pct"
+        case zoneOvershoots = "zone_overshoots"
+        case recoverySeconds = "recovery_seconds"
+        case recoveryAvgSeconds = "recovery_avg_seconds"
+        case personalizationTip = "personalization_tip"
+        case recoveryLine = "recovery_line"
+        case recoveryBaselineSeconds = "recovery_baseline_seconds"
     }
 }
 

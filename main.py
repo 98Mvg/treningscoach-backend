@@ -34,6 +34,13 @@ from auth_routes import auth_bp  # Import auth blueprint
 from norwegian_phrase_quality import rewrite_norwegian_phrase
 from coaching_engine import validate_coaching_text, get_template_message
 from breathing_timeline import BreathingTimeline
+from running_personalization import RunningPersonalizationStore
+from zone_event_motor import (
+    evaluate_zone_tick,
+    is_zone_mode,
+    normalize_coaching_style,
+    normalize_interval_template,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +78,11 @@ voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligenc
 breath_analyzer = BreathAnalyzer(
     sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100)
 )  # Advanced breath analysis with DSP + spectral features
+running_personalization = RunningPersonalizationStore(
+    storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json"),
+    max_recovery_samples=getattr(config, "ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24),
+    max_session_history=getattr(config, "ZONE_PERSONALIZATION_MAX_SESSION_HISTORY", 20),
+)
 
 # Pre-warm librosa to avoid cold-start delay on first request
 # librosa lazy-loads heavy modules (numba, etc.) which can cause 30s+ timeout
@@ -210,6 +222,116 @@ def _coach_score_line(score: int, language: str) -> str:
     return f"CoachScore: {clamped} — Solid work. You hit the intensity that improves your health."
 
 
+def _normalize_personalization_user_id(
+    explicit_profile_id: str,
+    current_user_id: str,
+    user_name: str,
+) -> str:
+    """
+    Build a stable user key for running personalization.
+
+    Priority:
+    1) explicit profile id from client
+    2) authenticated/known user id
+    3) user name slug (if present)
+    4) empty string (disabled)
+    """
+    profile_id = (explicit_profile_id or "").strip().lower()
+    if profile_id:
+        return profile_id[:128]
+
+    user_id = (current_user_id or "").strip().lower()
+    if user_id and user_id != "unknown":
+        return user_id[:128]
+
+    name = (user_name or "").strip().lower()
+    if not name:
+        return ""
+    slug = "".join(ch if ch.isalnum() else "_" for ch in name).strip("_")
+    return slug[:128]
+
+
+def _should_allow_zone_llm_rewrite(event_type: str) -> bool:
+    if not bool(getattr(config, "ZONE_EVENT_LLM_REWRITE_ENABLED", False)):
+        return False
+    allowed = set(getattr(config, "ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS", []))
+    if not allowed:
+        return False
+    return (event_type or "") in allowed
+
+
+def _maybe_rephrase_zone_event_text(
+    *,
+    base_text: str,
+    language: str,
+    persona: str,
+    coaching_style: str,
+    event_type: str,
+) -> tuple[str, dict]:
+    """
+    Optional Phase-4 phrasing layer for deterministic zone event text.
+    """
+    seed = (base_text or "").strip()
+    if not seed:
+        return seed, {
+            "provider": "system",
+            "source": "zone_event_motor",
+            "status": "event_template",
+            "mode": "deterministic_zone",
+        }
+
+    if not _should_allow_zone_llm_rewrite(event_type):
+        return seed, {
+            "provider": "system",
+            "source": "zone_event_motor",
+            "status": "event_template",
+            "mode": "deterministic_zone",
+        }
+
+    try:
+        rewritten = brain_router.rewrite_zone_event_text(
+            seed,
+            language=language,
+            persona=persona,
+            coaching_style=coaching_style,
+            event_type=event_type,
+        )
+        cleaned = (rewritten or "").strip()
+        if not cleaned:
+            return seed, {
+                "provider": "system",
+                "source": "zone_event_motor",
+                "status": "rewrite_empty_fallback",
+                "mode": "deterministic_zone",
+            }
+        max_words = max(6, int(getattr(config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16)))
+        if len(cleaned.split()) > max_words:
+            return seed, {
+                "provider": "system",
+                "source": "zone_event_motor",
+                "status": "rewrite_word_limit_fallback",
+                "mode": "deterministic_zone",
+            }
+
+        route_meta = brain_router.get_last_route_meta()
+        provider = route_meta.get("provider") or "system"
+        status = route_meta.get("status") or "rewrite_success"
+        return cleaned, {
+            "provider": provider,
+            "source": "zone_event_llm",
+            "status": status,
+            "mode": "deterministic_zone",
+        }
+    except Exception as exc:
+        logger.warning("Zone LLM rewrite failed (%s): %s", type(exc).__name__, exc)
+        return seed, {
+            "provider": "system",
+            "source": "zone_event_motor",
+            "status": "rewrite_exception_fallback",
+            "mode": "deterministic_zone",
+        }
+
+
 def _record_tts_success(provider: str, language: str, persona: str, file_path: str):
     TTS_RUNTIME_DIAGNOSTICS["last_success"] = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -239,6 +361,52 @@ _ENGLISH_COACHING_WORDS = {
     "slow down", "speed up", "perfect", "excellent", "amazing",
     "fantastic", "steady", "hold it", "more effort", "pick up",
 }
+_ENGLISH_TOKEN_MARKERS = {
+    "keep", "going", "good", "job", "push", "harder", "focused",
+    "great", "excellent", "amazing", "fantastic", "steady", "breathe",
+    "faster", "move", "you", "your", "this", "that", "don't", "lets",
+}
+_NORWEGIAN_TOKEN_MARKERS = {
+    "fortsett", "kjør", "jobba", "pust", "rolig", "rytmen", "tempoet",
+    "hardere", "innsats", "press", "klarer", "beveg", "farten", "senk",
+    "oppvarming", "bestemora", "bestemor", "nå", "økt", "sterkt",
+}
+_NORWEGIAN_COACHING_PHRASES = {
+    "fortsett", "kjør på", "bra jobba", "hold rytmen", "ta det rolig",
+    "senk tempoet", "du klarer det", "mer innsats", "behold tempoet",
+}
+_ENGLISH_FUNCTION_MARKERS = {
+    "the", "is", "are", "you", "your", "this", "that", "it", "do", "don't",
+}
+
+
+def _tokenize_language_markers(text: str) -> list:
+    punctuation = ".,!?;:\"'()[]{}"
+    return [
+        token.strip(punctuation).lower()
+        for token in (text or "").split()
+        if token.strip(punctuation)
+    ]
+
+
+def _looks_norwegian(text: str) -> bool:
+    """Heuristic: returns True if text appears to be Norwegian rather than English."""
+    lowered = text.lower().strip().rstrip("!.")
+    if any(c in text for c in "æøåÆØÅ"):
+        return True
+    for phrase in _NORWEGIAN_COACHING_PHRASES:
+        if phrase in lowered:
+            return True
+    words = _tokenize_language_markers(text)
+    if not words:
+        return False
+    norwegian_hits = sum(1 for w in words if w in _NORWEGIAN_TOKEN_MARKERS)
+    english_hits = sum(1 for w in words if w in _ENGLISH_TOKEN_MARKERS)
+    if norwegian_hits >= 2:
+        return True
+    if norwegian_hits >= 1 and english_hits == 0 and len(words) <= 5:
+        return True
+    return False
 
 def _looks_english(text: str) -> bool:
     """Heuristic: returns True if text appears to be English rather than Norwegian."""
@@ -250,16 +418,35 @@ def _looks_english(text: str) -> bool:
     for phrase in _ENGLISH_COACHING_WORDS:
         if phrase in lowered:
             return True
-    # No Norwegian characters AND only ASCII letters = likely English
+    words = _tokenize_language_markers(text)
+    if words:
+        english_hits = sum(1 for w in words if w in _ENGLISH_TOKEN_MARKERS)
+        norwegian_hits = sum(1 for w in words if w in _NORWEGIAN_TOKEN_MARKERS)
+        if english_hits >= 2:
+            return True
+        # Treat mixed short cues as drift when English tokens are present.
+        if english_hits >= 1 and norwegian_hits >= 1:
+            return True
+        if english_hits >= 1 and norwegian_hits == 0 and len(words) <= 5:
+            return True
+
+    # No Norwegian characters AND common English markers = likely English
     has_norwegian = any(c in text for c in "æøåÆØÅ")
     if not has_norwegian:
         words = text.split()
         if len(words) >= 2:
-            # Common English function words that don't exist in Norwegian
-            english_markers = {"the", "is", "are", "you", "your", "this", "that", "it", "do", "don't"}
-            if any(w.lower().rstrip(".,!?") in english_markers for w in words):
+            if any(w.lower().rstrip(".,!?") in _ENGLISH_FUNCTION_MARKERS for w in words):
                 return True
     return False
+
+
+def _pick_deterministic_fallback(pool, seed_text: str) -> str:
+    """Stable pool selection for guardrail replacements."""
+    if not pool:
+        return "Fortsett!"
+    seed = (seed_text or "").strip().lower()
+    index = sum(ord(ch) for ch in seed) % len(pool)
+    return pool[index]
 
 
 def enforce_language_consistency(text: str, language: str, phase: str = None) -> str:
@@ -277,7 +464,7 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
     lowered = stripped.lower()
 
     if normalized_language == "en":
-        if lowered.startswith("fortsett") or "æ" in lowered or "ø" in lowered or "å" in lowered:
+        if _looks_norwegian(stripped):
             logger.warning(f"Language guard corrected NO->EN drift: '{stripped}'")
             return "Keep going!"
     elif normalized_language == "no":
@@ -286,7 +473,6 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
             return "Fortsett!"
         # Broader detection: English-dominant output when Norwegian expected
         if _looks_english(stripped):
-            import random
             fallback_messages = getattr(config, "CONTINUOUS_COACH_MESSAGES_NO", {})
             if phase == "intense":
                 intense = fallback_messages.get("intense", {})
@@ -295,7 +481,7 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
                 pool = fallback_messages.get("cooldown", ["Rolige pust.", "Senk tempoet rolig."])
             else:
                 pool = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
-            replacement = random.choice(pool)
+            replacement = _pick_deterministic_fallback(pool, f"{phase}:{stripped}")
             logger.warning(f"Language guard replaced English text in NO mode: '{stripped}' -> '{replacement}'")
             return rewrite_norwegian_phrase(replacement, phase=phase)
 
@@ -963,7 +1149,16 @@ def coach_continuous():
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
         workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
+        coaching_style = normalize_coaching_style(
+            request.form.get('coaching_style', getattr(config, "DEFAULT_COACHING_STYLE", "normal")),
+            config,
+        )
+        interval_template = normalize_interval_template(
+            request.form.get('interval_template', getattr(config, "DEFAULT_INTERVAL_TEMPLATE", "4x4")),
+            config,
+        )
         user_name = request.form.get('user_name', '').strip()
+        user_profile_id = request.form.get('user_profile_id', '').strip()
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -995,7 +1190,19 @@ def coach_continuous():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(filepath)
 
-        logger.info(f"Continuous coaching tick: session={session_id}, phase={phase}, mode={workout_mode}, elapsed={elapsed_seconds}s, lang={language}, level={training_level}, persona={persona}, user={user_name or 'anon'}")
+        logger.info(
+            "Continuous coaching tick: session=%s phase=%s mode=%s elapsed=%ss lang=%s level=%s persona=%s style=%s template=%s user=%s",
+            session_id,
+            phase,
+            workout_mode,
+            elapsed_seconds,
+            language,
+            training_level,
+            persona,
+            coaching_style,
+            interval_template,
+            user_name or "anon",
+        )
 
         # Create session if doesn't exist
         if not session_manager.session_exists(session_id):
@@ -1014,7 +1221,14 @@ def coach_continuous():
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
-                "metadata": {"workout_mode": workout_mode, "user_name": user_name, "user_id": user_id}
+                "metadata": {
+                    "workout_mode": workout_mode,
+                    "coaching_style": coaching_style,
+                    "interval_template": interval_template,
+                    "user_name": user_name,
+                    "user_id": user_id,
+                    "user_profile_id": user_profile_id,
+                }
             }
             logger.info(f"✅ Created session: {session_id}")
             session_manager.init_workout_state(session_id, phase=phase)
@@ -1028,7 +1242,23 @@ def coach_continuous():
             workout_state = session_manager.get_workout_state(session_id)
             workout_state["is_first_breath"] = True
 
-        current_user_id = session_manager.sessions.get(session_id, {}).get("metadata", {}).get("user_id", "unknown")
+        session_meta = session_manager.sessions.get(session_id, {}).setdefault("metadata", {})
+        session_meta["workout_mode"] = workout_mode
+        session_meta["coaching_style"] = coaching_style
+        session_meta["interval_template"] = interval_template
+        if user_name:
+            session_meta["user_name"] = user_name
+        else:
+            user_name = session_meta.get("user_name", "")
+        if user_profile_id:
+            session_meta["user_profile_id"] = user_profile_id
+        current_user_id = session_meta.get("user_id", "unknown")
+        personalization_user_id = _normalize_personalization_user_id(
+            explicit_profile_id=session_meta.get("user_profile_id", ""),
+            current_user_id=current_user_id,
+            user_name=user_name,
+        )
+        session_meta["personalization_user_id"] = personalization_user_id
 
         # Early guard: too-small audio chunks are often invalid/corrupted
         min_bytes = getattr(config, "BREATH_MIN_AUDIO_BYTES", 8000)
@@ -1080,6 +1310,8 @@ def coach_continuous():
                 "reason": "audio_too_small",
                 "coach_score": coach_score,
                 "coach_score_line": coach_score_line,
+                "coaching_style": coaching_style,
+                "interval_template": interval_template if workout_mode == "interval" else None,
             })
 
         # Analyze breath
@@ -1093,6 +1325,8 @@ def coach_continuous():
         workout_state = session_manager.get_workout_state(session_id)
         if workout_state is not None:
             workout_state["workout_mode"] = workout_mode
+            workout_state["coaching_style"] = coaching_style
+            workout_state["interval_template"] = interval_template
         latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema
@@ -1160,6 +1394,58 @@ def coach_continuous():
             "window": getattr(config, "BREATH_SMOOTHING_WINDOW", 4)
         }
 
+        zone_mode_active = is_zone_mode(workout_mode, config)
+        zone_tick = None
+        zone_forced_text = None
+        zone_mode_speaks = False
+        if zone_mode_active and workout_state is not None:
+            zone_tick = evaluate_zone_tick(
+                workout_state=workout_state,
+                workout_mode=workout_mode,
+                phase=phase,
+                elapsed_seconds=elapsed_seconds,
+                language=language,
+                persona=persona,
+                coaching_style=coaching_style,
+                interval_template=interval_template,
+                heart_rate=request.form.get("heart_rate"),
+                hr_quality=request.form.get("hr_quality"),
+                hr_confidence=request.form.get("hr_confidence"),
+                hr_sample_age_seconds=request.form.get("hr_sample_age_seconds"),
+                hr_sample_gap_seconds=request.form.get("hr_sample_gap_seconds"),
+                movement_score=request.form.get("movement_score"),
+                cadence_spm=request.form.get("cadence_spm"),
+                movement_source=request.form.get("movement_source"),
+                watch_connected=request.form.get("watch_connected"),
+                watch_status=request.form.get("watch_status"),
+                hr_max=request.form.get("hr_max"),
+                resting_hr=request.form.get("resting_hr"),
+                age=request.form.get("age"),
+                config_module=config,
+                breath_intensity=breath_data.get("intensity"),
+            )
+            zone_mode_speaks = bool(zone_tick.get("should_speak"))
+            zone_forced_text = zone_tick.get("coach_text")
+            breath_data["heart_rate"] = zone_tick.get("heart_rate")
+            breath_data["zone_status"] = zone_tick.get("zone_status")
+            breath_data["target_zone_label"] = zone_tick.get("target_zone_label")
+            breath_data["target_hr_low"] = zone_tick.get("target_hr_low")
+            breath_data["target_hr_high"] = zone_tick.get("target_hr_high")
+            breath_data["target_source"] = zone_tick.get("target_source")
+            breath_data["target_hr_enforced"] = zone_tick.get("target_hr_enforced")
+            breath_data["hr_quality"] = zone_tick.get("hr_quality")
+            breath_data["hr_quality_reasons"] = zone_tick.get("hr_quality_reasons")
+            breath_data["hr_delta_bpm"] = zone_tick.get("hr_delta_bpm")
+            breath_data["zone_duration_seconds"] = zone_tick.get("zone_duration_seconds")
+            breath_data["movement_score"] = zone_tick.get("movement_score")
+            breath_data["cadence_spm"] = zone_tick.get("cadence_spm")
+            breath_data["movement_source"] = zone_tick.get("movement_source")
+            breath_data["movement_state"] = zone_tick.get("movement_state")
+            breath_data["coaching_style"] = zone_tick.get("coaching_style")
+            breath_data["interval_template"] = zone_tick.get("interval_template")
+            breath_data["recovery_seconds"] = zone_tick.get("recovery_seconds")
+            breath_data["recovery_avg_seconds"] = zone_tick.get("recovery_avg_seconds")
+
         # Check if this is the very first breath (welcome message)
         is_first_breath = workout_state.get("is_first_breath", False)
 
@@ -1189,40 +1475,56 @@ def coach_continuous():
             workout_state["use_welcome_phrase"] = True  # Flag to use specific cached phrase
             logger.info(f"First breath detected - will provide welcome message")
         else:
-            # STEP 6: Check if coach should stay silent (optimal breathing)
-            should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
-                breath_data=breath_data,
-                phase=phase,
-                last_coaching=last_coaching,
-                elapsed_seconds=elapsed_seconds,
-                session_id=session_id
-            )
-
-            if should_be_silent:
-                # Cap silence so coach doesn't disappear
-                max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
-                signal_quality = breath_data.get("signal_quality") or 0.0
-
-                if elapsed_since_last is not None and elapsed_since_last >= max_silence and signal_quality >= min_quality:
-                    speak_decision = True
-                    reason = "max_silence_override"
-                    logger.info(f"Voice intelligence override: speaking after {elapsed_since_last:.0f}s silence")
-                else:
-                    # Silence = confidence
-                    logger.info(f"Voice intelligence: staying silent ({silence_reason})")
-                    speak_decision = False
-                    reason = silence_reason
-            else:
-                # Decide if coach should speak (STEP 1/2 logic)
-                speak_decision, reason = should_coach_speak(
-                    current_analysis=breath_data,
-                    last_analysis=last_breath,
-                    coaching_history=coaching_context["coaching_history"],
-                    phase=phase,
-                    training_level=training_level,
-                    elapsed_seconds=elapsed_seconds
+            if zone_mode_active and zone_tick is not None:
+                speak_decision = bool(zone_tick.get("should_speak"))
+                reason = zone_tick.get("reason") or "zone_no_change"
+                zone_forced_text = zone_tick.get("coach_text")
+                logger.info(
+                    "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s",
+                    speak_decision,
+                    reason,
+                    zone_tick.get("zone_status"),
+                    zone_tick.get("heart_rate"),
+                    zone_tick.get("hr_quality"),
+                    zone_tick.get("coaching_style"),
                 )
+            else:
+                # STEP 6: Check if coach should stay silent (optimal breathing)
+                should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
+                    breath_data=breath_data,
+                    phase=phase,
+                    last_coaching=last_coaching,
+                    elapsed_seconds=elapsed_seconds,
+                    session_id=session_id
+                )
+
+                if should_be_silent:
+                    # Cap silence so coach doesn't disappear
+                    max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
+                    min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
+                    signal_quality = breath_data.get("signal_quality") or 0.0
+
+                    if elapsed_since_last is not None and elapsed_since_last >= max_silence and signal_quality >= min_quality:
+                        speak_decision = True
+                        reason = "max_silence_override"
+                        logger.info(f"Voice intelligence override: speaking after {elapsed_since_last:.0f}s silence")
+                    else:
+                        # Silence = confidence
+                        logger.info(f"Voice intelligence: staying silent ({silence_reason})")
+                        speak_decision = False
+                        reason = silence_reason
+                else:
+                    # Event motor contract: persona controls wording/voice only.
+                    # Decision logic must stay persona-agnostic for predictable coaching behavior.
+                    # Decide if coach should speak (STEP 1/2 logic)
+                    speak_decision, reason = should_coach_speak(
+                        current_analysis=breath_data,
+                        last_analysis=last_breath,
+                        coaching_history=coaching_context["coaching_history"],
+                        phase=phase,
+                        training_level=training_level,
+                        elapsed_seconds=elapsed_seconds
+                    )
 
             # Hard silence cap for guided mode: coach must re-engage at bounded intervals
             max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
@@ -1232,6 +1534,8 @@ def coach_continuous():
                 elapsed_since_last=elapsed_since_last,
                 max_silence_seconds=max_silence
             )
+            if speak_decision and reason == "max_silence_override" and zone_mode_active and zone_tick is not None and not zone_forced_text:
+                zone_forced_text = zone_tick.get("max_silence_text")
 
             logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}, "
                         f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "
@@ -1239,7 +1543,7 @@ def coach_continuous():
                         f"is_first_breath={breath_data.get('is_first_breath', False)}")
 
         # Latency strategy: if previous tick used fast fallback, force one richer follow-up cue.
-        if not is_first_breath and latency_state.get("pending_rich_followup"):
+        if not is_first_breath and latency_state.get("pending_rich_followup") and not zone_mode_active:
             rich_followup_forced = True
             if not speak_decision:
                 speak_decision = True
@@ -1306,6 +1610,15 @@ def coach_continuous():
                 "mode": "realtime_coach",
             }
             logger.info(f"Using cached welcome phrase: {coach_text}")
+        elif zone_mode_active and zone_forced_text:
+            zone_event_type = (zone_tick or {}).get("event_type") or reason
+            coach_text, brain_meta = _maybe_rephrase_zone_event_text(
+                base_text=zone_forced_text,
+                language=language,
+                persona=persona,
+                coaching_style=coaching_style,
+                event_type=zone_event_type,
+            )
         else:
             # Only run expensive brain paths when we already decided to speak.
             use_fast_fallback = False
@@ -1471,7 +1784,12 @@ def coach_continuous():
                     }
 
         # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
-        if speak_decision and not use_welcome and not fast_fallback_used:
+        if (
+            speak_decision
+            and not use_welcome
+            and not fast_fallback_used
+            and not str(brain_meta.get("source", "")).startswith("zone_event_")
+        ):
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
         coach_text = enforce_language_consistency(coach_text, language, phase=phase)
@@ -1508,9 +1826,13 @@ def coach_continuous():
             intensity=breath_data.get("intensity", "moderate"),
             coaching_frequency=recent_coaching_count
         )
+        if zone_mode_active:
+            style_policy = getattr(config, "COACHING_STYLE_COOLDOWNS", {}).get(coaching_style, {})
+            min_any = int(style_policy.get("min_seconds_between_any_speech", wait_seconds))
+            wait_seconds = max(wait_seconds, min_any)
 
         # STEP 6: Increase wait time if coach is overtalking
-        if voice_intelligence.should_reduce_frequency(breath_data, coaching_context["coaching_history"]):
+        if (not zone_mode_active) and voice_intelligence.should_reduce_frequency(breath_data, coaching_context["coaching_history"]):
             wait_seconds = min(15, wait_seconds + 3)  # Add 3 seconds, max 15s
             logger.info(f"Voice intelligence: reducing frequency (new wait: {wait_seconds}s)")
 
@@ -1525,8 +1847,63 @@ def coach_continuous():
         except Exception as e:
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
-        coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
-        coach_score_line = _coach_score_line(coach_score, language)
+        if zone_mode_active and zone_tick is not None:
+            coach_score = int(zone_tick.get("score", _coach_score_from_intensity(breath_data.get("intensity", "moderate"))))
+            coach_score_line = zone_tick.get("score_line") or _coach_score_line(coach_score, language)
+        else:
+            coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
+            coach_score_line = _coach_score_line(coach_score, language)
+
+        personalization_tip = None
+        recovery_line = None
+        recovery_baseline_seconds = None
+        if (
+            zone_mode_active
+            and zone_tick is not None
+            and workout_state is not None
+            and bool(getattr(config, "ZONE_PERSONALIZATION_ENABLED", True))
+        ):
+            cached_summary = workout_state.get("personalization_last_summary")
+            if isinstance(cached_summary, dict):
+                personalization_tip = cached_summary.get("next_time_tip")
+                recovery_line = cached_summary.get("recovery_line")
+                recovery_baseline_seconds = cached_summary.get("recovery_baseline_seconds")
+
+            if personalization_user_id and not workout_state.get("personalization_committed"):
+                profile_snapshot = running_personalization.get_profile(personalization_user_id)
+                recovery_baseline_seconds = profile_snapshot.get("recovery_baseline_seconds")
+                recovery_line = running_personalization.build_recovery_line(
+                    language=language,
+                    recovery_avg_seconds=zone_tick.get("recovery_avg_seconds"),
+                    recovery_baseline_seconds=recovery_baseline_seconds,
+                )
+
+                if zone_tick.get("event_type") == "phase_change_cooldown":
+                    personal_payload = running_personalization.record_session(
+                        user_id=personalization_user_id,
+                        language=language,
+                        score=coach_score,
+                        time_in_target_pct=zone_tick.get("time_in_target_pct"),
+                        overshoots=zone_tick.get("overshoots"),
+                        recovery_avg_seconds=zone_tick.get("recovery_avg_seconds"),
+                    )
+                    profile_data = personal_payload.get("profile", {})
+                    personalization_tip = personal_payload.get("next_time_tip")
+                    recovery_line = personal_payload.get("recovery_line")
+                    recovery_baseline_seconds = profile_data.get("recovery_baseline_seconds")
+                    workout_state["personalization_committed"] = True
+                    workout_state["personalization_last_summary"] = {
+                        "next_time_tip": personalization_tip,
+                        "recovery_line": recovery_line,
+                        "recovery_baseline_seconds": recovery_baseline_seconds,
+                    }
+                    logger.info(
+                        "Personalization committed: user=%s sessions=%s baseline=%s tip=%r",
+                        personalization_user_id,
+                        profile_data.get("sessions_completed"),
+                        recovery_baseline_seconds,
+                        personalization_tip,
+                    )
 
         # Response
         response_data = {
@@ -1550,7 +1927,38 @@ def coach_continuous():
             "latency_signal_reason": latency_signal.get("reason") if latency_signal else None,
             "latency_signal_provider": latency_signal.get("provider") if latency_signal else None,
             "latency_signal_avg": latency_signal.get("avg_latency") if latency_signal else None,
+            "coaching_style": coaching_style,
+            "interval_template": interval_template if workout_mode == "interval" else None,
+            "personalization_tip": personalization_tip,
+            "recovery_line": recovery_line,
+            "recovery_baseline_seconds": recovery_baseline_seconds,
         }
+        if zone_mode_active and zone_tick is not None:
+            response_data.update(
+                {
+                    "zone_status": zone_tick.get("zone_status"),
+                    "zone_event": zone_tick.get("event_type"),
+                    "heart_rate": zone_tick.get("heart_rate"),
+                    "target_zone_label": zone_tick.get("target_zone_label"),
+                    "target_hr_low": zone_tick.get("target_hr_low"),
+                    "target_hr_high": zone_tick.get("target_hr_high"),
+                    "target_source": zone_tick.get("target_source"),
+                    "target_hr_enforced": zone_tick.get("target_hr_enforced"),
+                    "hr_quality": zone_tick.get("hr_quality"),
+                    "hr_quality_reasons": zone_tick.get("hr_quality_reasons"),
+                    "hr_delta_bpm": zone_tick.get("hr_delta_bpm"),
+                    "zone_duration_seconds": zone_tick.get("zone_duration_seconds"),
+                    "movement_score": zone_tick.get("movement_score"),
+                    "cadence_spm": zone_tick.get("cadence_spm"),
+                    "movement_source": zone_tick.get("movement_source"),
+                    "movement_state": zone_tick.get("movement_state"),
+                    "zone_score_confidence": zone_tick.get("score_confidence"),
+                    "zone_time_in_target_pct": zone_tick.get("time_in_target_pct"),
+                    "zone_overshoots": zone_tick.get("overshoots"),
+                    "recovery_seconds": zone_tick.get("recovery_seconds"),
+                    "recovery_avg_seconds": zone_tick.get("recovery_avg_seconds"),
+                }
+            )
 
         total_ms = (time.perf_counter() - request_started) * 1000.0
         logger.info(

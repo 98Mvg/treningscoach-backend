@@ -44,3 +44,19 @@ def test_latency_strategy_env_overrides(monkeypatch):
     assert config.LATENCY_FAST_FALLBACK_THRESHOLD_SECONDS == 3.4
     assert config.LATENCY_FAST_FALLBACK_MIN_CALLS == 5
     assert config.LATENCY_FAST_FALLBACK_COOLDOWN_SECONDS == 18.0
+
+
+def test_zone_layer_env_overrides(monkeypatch):
+    monkeypatch.setenv("ZONE_EVENT_LLM_REWRITE_ENABLED", "true")
+    monkeypatch.setenv("ZONE_EVENT_LLM_REWRITE_TIMEOUT_SECONDS", "1.1")
+    monkeypatch.setenv("ZONE_EVENT_LLM_REWRITE_MAX_WORDS", "12")
+    monkeypatch.setenv("ZONE_PERSONALIZATION_ENABLED", "false")
+    monkeypatch.setenv("ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", "18")
+
+    importlib.reload(config)
+
+    assert config.ZONE_EVENT_LLM_REWRITE_ENABLED is True
+    assert config.ZONE_EVENT_LLM_REWRITE_TIMEOUT_SECONDS == 1.1
+    assert config.ZONE_EVENT_LLM_REWRITE_MAX_WORDS == 12
+    assert config.ZONE_PERSONALIZATION_ENABLED is False
+    assert config.ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES == 18

@@ -139,7 +139,23 @@ class BackendAPIService {
         language: String = "en",
         trainingLevel: String = "intermediate",
         persona: String = "personal_trainer",
-        userName: String = ""
+        userName: String = "",
+        workoutMode: WorkoutMode = .standard,
+        coachingStyle: CoachingStyle = .normal,
+        intervalTemplate: IntervalTemplate = .fourByFour,
+        userProfileId: String? = nil,
+        heartRate: Int? = nil,
+        hrSampleAgeSeconds: Double? = nil,
+        hrQuality: String? = nil,
+        hrConfidence: Double? = nil,
+        watchConnected: Bool? = nil,
+        watchStatus: String? = nil,
+        movementScore: Double? = nil,
+        cadenceSPM: Double? = nil,
+        movementSource: String? = nil,
+        hrMax: Int? = nil,
+        restingHR: Int? = nil,
+        age: Int? = nil
     ) async throws -> ContinuousCoachResponse {
         let url = URL(string: "\(baseURL)/coach/continuous")!
         let request = try createContinuousMultipartRequest(
@@ -152,7 +168,23 @@ class BackendAPIService {
             language: language,
             trainingLevel: trainingLevel,
             persona: persona,
-            userName: userName
+            userName: userName,
+            workoutMode: workoutMode,
+            coachingStyle: coachingStyle,
+            intervalTemplate: intervalTemplate,
+            userProfileId: userProfileId,
+            heartRate: heartRate,
+            hrSampleAgeSeconds: hrSampleAgeSeconds,
+            hrQuality: hrQuality,
+            hrConfidence: hrConfidence,
+            watchConnected: watchConnected,
+            watchStatus: watchStatus,
+            movementScore: movementScore,
+            cadenceSPM: cadenceSPM,
+            movementSource: movementSource,
+            hrMax: hrMax,
+            restingHR: restingHR,
+            age: age
         )
 
         let (data, response) = try await session.data(for: request)
@@ -359,7 +391,23 @@ class BackendAPIService {
         language: String = "en",
         trainingLevel: String = "intermediate",
         persona: String = "personal_trainer",
-        userName: String = ""
+        userName: String = "",
+        workoutMode: WorkoutMode = .standard,
+        coachingStyle: CoachingStyle = .normal,
+        intervalTemplate: IntervalTemplate = .fourByFour,
+        userProfileId: String? = nil,
+        heartRate: Int? = nil,
+        hrSampleAgeSeconds: Double? = nil,
+        hrQuality: String? = nil,
+        hrConfidence: Double? = nil,
+        watchConnected: Bool? = nil,
+        watchStatus: String? = nil,
+        movementScore: Double? = nil,
+        cadenceSPM: Double? = nil,
+        movementSource: String? = nil,
+        hrMax: Int? = nil,
+        restingHR: Int? = nil,
+        age: Int? = nil
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -394,8 +442,50 @@ class BackendAPIService {
         appendField(name: "language", value: language)
         appendField(name: "training_level", value: trainingLevel)
         appendField(name: "persona", value: persona)
+        appendField(name: "workout_mode", value: workoutMode.rawValue)
+        appendField(name: "coaching_style", value: coachingStyle.rawValue)
+        appendField(name: "interval_template", value: intervalTemplate.rawValue)
+        if let userProfileId = userProfileId, !userProfileId.isEmpty {
+            appendField(name: "user_profile_id", value: userProfileId)
+        }
         if !userName.isEmpty {
             appendField(name: "user_name", value: userName)
+        }
+        if let heartRate = heartRate {
+            appendField(name: "heart_rate", value: "\(heartRate)")
+        }
+        if let hrSampleAgeSeconds = hrSampleAgeSeconds {
+            appendField(name: "hr_sample_age_seconds", value: String(format: "%.2f", hrSampleAgeSeconds))
+        }
+        if let hrQuality = hrQuality, !hrQuality.isEmpty {
+            appendField(name: "hr_quality", value: hrQuality)
+        }
+        if let hrConfidence = hrConfidence {
+            appendField(name: "hr_confidence", value: String(format: "%.3f", hrConfidence))
+        }
+        if let watchConnected = watchConnected {
+            appendField(name: "watch_connected", value: watchConnected ? "true" : "false")
+        }
+        if let watchStatus = watchStatus, !watchStatus.isEmpty {
+            appendField(name: "watch_status", value: watchStatus)
+        }
+        if let movementScore = movementScore {
+            appendField(name: "movement_score", value: String(format: "%.3f", movementScore))
+        }
+        if let cadenceSPM = cadenceSPM {
+            appendField(name: "cadence_spm", value: String(format: "%.1f", cadenceSPM))
+        }
+        if let movementSource = movementSource, !movementSource.isEmpty {
+            appendField(name: "movement_source", value: movementSource)
+        }
+        if let hrMax = hrMax {
+            appendField(name: "hr_max", value: "\(hrMax)")
+        }
+        if let restingHR = restingHR {
+            appendField(name: "resting_hr", value: "\(restingHR)")
+        }
+        if let age = age {
+            appendField(name: "age", value: "\(age)")
         }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)

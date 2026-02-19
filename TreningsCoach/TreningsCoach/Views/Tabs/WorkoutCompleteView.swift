@@ -40,11 +40,60 @@ struct WorkoutCompleteView: View {
                             SummaryStatItem(label: L10n.selectCoach, value: viewModel.activePersonality.displayName)
                         }
                         Divider().overlay(CoachiTheme.textTertiary.opacity(0.3))
-                        Text(viewModel.coachScoreSummaryLine)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Coach vibe")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                                .tracking(1.2)
+                            Text(viewModel.coachScoreHeadline)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(viewModel.effortScoreSummaryLine)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Divider().overlay(CoachiTheme.textTertiary.opacity(0.3))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Why")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                                .tracking(1.2)
+                            ForEach(viewModel.zoneWhyBullets, id: \.self) { bullet in
+                                Text("• \(bullet)")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Divider().overlay(CoachiTheme.textTertiary.opacity(0.3))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Next time")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                                .tracking(1.2)
+                            Text(viewModel.nextTimeAdvice)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if !viewModel.recoveryLine.isEmpty {
+                                Text(viewModel.recoveryLine)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if let confidenceNote = viewModel.scoreConfidenceNote {
+                            Text(confidenceNote)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 .padding(.horizontal, 30).padding(.top, 28).opacity(contentVisible ? 1 : 0).offset(y: contentVisible ? 0 : 20)

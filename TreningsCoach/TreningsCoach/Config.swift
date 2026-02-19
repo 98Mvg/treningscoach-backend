@@ -13,7 +13,7 @@ import SwiftUI
 struct AppConfig {
     // MARK: - App Info
     static let appName = "Coachi"
-    static let appTagline = "Your AI Workout Coach"
+    static let appTagline = "Real-time running coach that keeps you in the right HR zone and uses breathing to help you get there."
     static let version = "3.0.0"
 
     // MARK: - Backend
@@ -66,5 +66,17 @@ struct AppConfig {
         static let minChunkBytes: Int = 8000
         static let maxWorkoutDuration: TimeInterval = 45 * 60
         static let autoTimeoutMessage = "Great workout! Remember to tap Stop when done."
+    }
+
+    // MARK: - Health Signals
+    struct Health {
+        static let hrStaleThresholdSeconds: TimeInterval = 8.0
+        static let hrPoorSpikeDeltaBPM: Int = 20
+        static let hrPoorSpikeWindowSeconds: TimeInterval = 2.0
+    }
+
+    // MARK: - Motion Signals
+    struct Motion {
+        static let staleThresholdSeconds: TimeInterval = 8.0
     }
 }

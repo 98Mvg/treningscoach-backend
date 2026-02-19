@@ -10,6 +10,7 @@
 
 import os
 import random
+import re
 from typing import Dict, Any, Optional, AsyncIterator, List
 from openai import OpenAI, AsyncOpenAI
 from .base_brain import BaseBrain
@@ -47,16 +48,44 @@ class GrokBrain(BaseBrain):
         # grok-3-mini is cheapest ($0.30/$0.50 per 1M tokens) and outperforms grok-3
         self.model = model or os.getenv("XAI_MODEL", "grok-3-mini")
 
+        # Keep HTTP client timeouts slightly below router timeouts to avoid
+        # timed-out work continuing in background threads.
+        self.request_timeout = self._timeout_for_mode("realtime_coach")
+
         # Sync client for legacy coaching (OpenAI SDK with xAI base URL)
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.XAI_BASE_URL
+            base_url=self.XAI_BASE_URL,
+            max_retries=0,
+            timeout=self.request_timeout,
         )
         # Async client for streaming chat
         self.async_client = AsyncOpenAI(
             api_key=self.api_key,
-            base_url=self.XAI_BASE_URL
+            base_url=self.XAI_BASE_URL,
+            max_retries=0,
+            timeout=self.request_timeout,
         )
+
+    def _timeout_for_mode(self, mode: str) -> float:
+        """Resolve provider HTTP timeout for this mode."""
+        mode_timeouts = getattr(config, "BRAIN_MODE_TIMEOUTS", {}) or {}
+        if isinstance(mode_timeouts, dict):
+            per_mode = mode_timeouts.get(mode, {})
+            if isinstance(per_mode, dict):
+                if "grok" in per_mode:
+                    return max(1.0, float(per_mode["grok"]))
+                if "default" in per_mode:
+                    return max(1.0, float(per_mode["default"]))
+
+        explicit = getattr(config, "GROK_CLIENT_TIMEOUT_SECONDS", None)
+        if explicit is not None:
+            return max(1.0, float(explicit))
+
+        per_brain = getattr(config, "BRAIN_TIMEOUTS", {}) or {}
+        base = float(per_brain.get("grok", getattr(config, "BRAIN_TIMEOUT", 6.0)))
+        margin = float(getattr(config, "BRAIN_CLIENT_TIMEOUT_MARGIN_SECONDS", 0.25))
+        return max(1.0, base - margin)
 
     # ============================================
     # BREATH COACHING MODES
@@ -120,7 +149,8 @@ class GrokBrain(BaseBrain):
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
-                ]
+                ],
+                timeout=self._timeout_for_mode("realtime_coach"),
             )
 
             message = response.choices[0].message.content.strip()
@@ -239,7 +269,8 @@ class GrokBrain(BaseBrain):
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
-                ]
+                ],
+                timeout=self._timeout_for_mode("chat"),
             )
 
             message = response.choices[0].message.content.strip()
@@ -377,6 +408,96 @@ Give ONE short coaching message (max 7 words):"""
                 return random.choice(intense_msgs[intensity])
             return self.localized_keep_going(language)
 
+    def rewrite_zone_event_text(
+        self,
+        base_text: str,
+        *,
+        language: str = "en",
+        persona: Optional[str] = None,
+        coaching_style: str = "normal",
+        event_type: Optional[str] = None,
+    ) -> str:
+        """
+        Rephrase deterministic zone-event text without changing intent or action.
+
+        This is used only by the Phase 4 phrasing layer; event decisions are
+        still made by the deterministic zone event motor.
+        """
+        seed = (base_text or "").strip()
+        if not seed:
+            return seed
+
+        lang = self.normalize_language(language)
+        persona_key = self.normalize_persona(persona)
+        style = (coaching_style or "normal").strip().lower()
+        if style not in {"minimal", "normal", "motivational"}:
+            style = "normal"
+
+        max_words = max(6, int(getattr(config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16)))
+        max_chars = max(60, int(getattr(config, "ZONE_EVENT_LLM_REWRITE_MAX_CHARS", 120)))
+
+        if lang == "no":
+            system_prompt = (
+                "Du omskriver en løpecoach-setning på norsk. "
+                "Behold NØYAKTIG samme handling og mening. "
+                "Ikke legg til nye instruksjoner, tall eller soner. "
+                "Maks én kort setning."
+            )
+            user_prompt = (
+                f"Event: {event_type or 'zone_event'}\n"
+                f"Persona: {persona_key}\n"
+                f"Style: {style}\n"
+                f"Original: {seed}\n"
+                "Omskriv med samme betydning:"
+            )
+        else:
+            system_prompt = (
+                "You rewrite running-coach cues in English. "
+                "Keep the EXACT same action and meaning. "
+                "Do not add new instructions, numbers, or zones. "
+                "Output one short sentence only."
+            )
+            user_prompt = (
+                f"Event: {event_type or 'zone_event'}\n"
+                f"Persona: {persona_key}\n"
+                f"Style: {style}\n"
+                f"Original: {seed}\n"
+                "Rewrite with identical meaning:"
+            )
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            max_tokens=48,
+            temperature=0.35,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            timeout=self._timeout_for_mode("realtime_coach"),
+        )
+
+        rewritten = (response.choices[0].message.content or "").strip()
+        if not rewritten:
+            return seed
+
+        rewritten = re.sub(r"\s+", " ", rewritten).strip()
+        sentence_split = re.split(r"(?<=[.!?])\s+", rewritten)
+        rewritten = sentence_split[0].strip() if sentence_split else rewritten
+
+        if len(rewritten) > max_chars:
+            rewritten = rewritten[:max_chars].rstrip(" ,;:-")
+
+        words = rewritten.split()
+        if len(words) > max_words:
+            rewritten = " ".join(words[:max_words]).rstrip(" ,;:-")
+            if not rewritten.endswith((".", "!", "?")):
+                rewritten += "."
+
+        # Guard against empty/degenerate output after trimming.
+        if len(rewritten) < 4:
+            return seed
+        return rewritten
+
     # ============================================
     # STREAMING CHAT MODE
     # ============================================
@@ -412,7 +533,8 @@ Give ONE short coaching message (max 7 words):"""
                 messages=full_messages,
                 temperature=kwargs.get("temperature", 0.8),
                 max_tokens=kwargs.get("max_tokens", 2048),
-                stream=True
+                stream=True,
+                timeout=kwargs.get("timeout", self._timeout_for_mode("chat")),
             )
 
             async for chunk in stream:
@@ -449,7 +571,8 @@ Give ONE short coaching message (max 7 words):"""
                 model=self.model,
                 messages=full_messages,
                 temperature=kwargs.get("temperature", 0.8),
-                max_tokens=kwargs.get("max_tokens", 2048)
+                max_tokens=kwargs.get("max_tokens", 2048),
+                timeout=kwargs.get("timeout", self._timeout_for_mode("chat")),
             )
             return response.choices[0].message.content
 
@@ -471,7 +594,8 @@ Give ONE short coaching message (max 7 words):"""
             self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=5,
-                messages=[{"role": "user", "content": "test"}]
+                messages=[{"role": "user", "content": "test"}],
+                timeout=min(2.5, self._timeout_for_mode("chat")),
             )
             return True
         except Exception:

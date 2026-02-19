@@ -53,12 +53,59 @@ struct ActiveWorkoutView: View {
                 Text(viewModel.workoutState == .paused ? L10n.paused.uppercased() : viewModel.currentPhase.displayName.uppercased())
                     .font(.system(size: 11, weight: .bold)).foregroundColor(CoachiTheme.textSecondary).tracking(2).padding(.top, 4)
 
-                // Intensity badge
-                Text(viewModel.currentIntensity.displayName)
-                    .font(.system(size: 12, weight: .bold)).foregroundColor(Color(hex: viewModel.currentIntensity.color))
-                    .padding(.horizontal, 14).padding(.vertical, 6)
-                    .background(Capsule().fill(Color(hex: viewModel.currentIntensity.color).opacity(0.15)))
-                    .padding(.top, 16)
+                // Zone status (glanceable)
+                VStack(spacing: 8) {
+                    Text(viewModel.zoneStatusDisplay.uppercased())
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(zoneColor(for: viewModel.zoneStatus))
+                        .padding(.horizontal, 14).padding(.vertical, 6)
+                        .background(Capsule().fill(zoneColor(for: viewModel.zoneStatus).opacity(0.16)))
+
+                    HStack(spacing: 8) {
+                        sensorPill(
+                            title: viewModel.hrQualityDisplay,
+                            color: viewModel.hrIsReliable ? CoachiTheme.secondary : CoachiTheme.accent
+                        )
+                        sensorPill(
+                            title: "Move: \(viewModel.movementStateDisplay)",
+                            color: movementColor(for: viewModel.movementState)
+                        )
+                    }
+
+                    HStack(spacing: 10) {
+                        Text("HR: \(viewModel.heartRate.map(String.init) ?? "--")")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text("Target: \(viewModel.targetRangeText)")
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+
+                    HStack(spacing: 10) {
+                        Text("Cadence: \(viewModel.cadenceDisplayText)")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                        Text("Source: \(viewModel.movementSourceDisplay)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+
+                    if !viewModel.hrIsReliable {
+                        Text(viewModel.hrQualityHint)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    if let cue = viewModel.coachMessage, !cue.isEmpty {
+                        Text(cue)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .padding(.top, 16)
 
                 Spacer()
 
@@ -85,8 +132,51 @@ struct ActiveWorkoutView: View {
                         Image(systemName: "mic.fill").font(.system(size: 22, weight: .semibold)).foregroundColor(CoachiTheme.secondary)
                             .frame(width: 56, height: 56).background(CoachiTheme.secondary.opacity(0.15)).clipShape(Circle())
                     }
+
+                    // Spotify quick-access (late-phase media UX, does not affect coaching logic)
+                    Button { viewModel.openSpotify() } label: {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(Color(hex: "1DB954"))
+                            .frame(width: 48, height: 48)
+                            .background(Color(hex: "1DB954").opacity(0.15))
+                            .clipShape(Circle())
+                    }
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, 10)
+
+                HStack(spacing: 10) {
+                    Button {
+                        viewModel.coachingStyle = .minimal
+                    } label: {
+                        Text("Less coaching")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(viewModel.coachingStyle == .minimal ? .white : CoachiTheme.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(viewModel.coachingStyle == .minimal ? CoachiTheme.primary : CoachiTheme.surface)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        viewModel.coachingStyle = .motivational
+                    } label: {
+                        Text("More coaching")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(viewModel.coachingStyle == .motivational ? .white : CoachiTheme.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(viewModel.coachingStyle == .motivational ? CoachiTheme.primary : CoachiTheme.surface)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 34)
             }
 
             // Diagnostics overlay (long-press orb to toggle)
@@ -99,5 +189,41 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
+    }
+
+    private func zoneColor(for zone: String) -> Color {
+        switch zone {
+        case "in_zone":
+            return CoachiTheme.secondary
+        case "above_zone":
+            return CoachiTheme.danger
+        case "below_zone":
+            return CoachiTheme.accent
+        case "timing_control":
+            return CoachiTheme.primary
+        default:
+            return CoachiTheme.textSecondary
+        }
+    }
+
+    private func movementColor(for state: String) -> Color {
+        switch state {
+        case "moving":
+            return CoachiTheme.secondary
+        case "paused":
+            return CoachiTheme.accent
+        default:
+            return CoachiTheme.textSecondary
+        }
+    }
+
+    @ViewBuilder
+    private func sensorPill(title: String, color: Color) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(color.opacity(0.14)))
     }
 }

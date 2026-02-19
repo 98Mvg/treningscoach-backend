@@ -16,72 +16,179 @@ struct WorkoutLaunchView: View {
             CoachiTheme.backgroundGradient.ignoresSafeArea()
             ParticleBackgroundView(particleCount: 30)
 
-            VStack(spacing: 0) {
-                // Top bar
-                HStack {
-                    HStack(spacing: 6) {
-                        CoachiLogoView(size: 24)
-                        Text(AppConfig.appName).font(.system(size: 17, weight: .semibold)).foregroundColor(CoachiTheme.textSecondary)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            CoachiLogoView(size: 24)
+                            Text(AppConfig.appName).font(.system(size: 17, weight: .semibold)).foregroundColor(CoachiTheme.textSecondary)
+                        }
+                        Spacer()
                     }
-                    Spacer()
-                }
-                .padding(.horizontal, 24).padding(.top, 8).opacity(appeared ? 1 : 0)
+                    .padding(.top, 8)
 
-                Spacer()
-
-                // GO button (large, centered)
-                Button {
-                    // Persist warmup selection for next session
-                    UserDefaults.standard.set(viewModel.selectedWarmupMinutes, forKey: "last_warmup_minutes")
-                    withAnimation(AppConfig.Anim.transitionSpring) { viewModel.startWorkout() }
-                } label: {
-                    ZStack {
-                        Circle().fill(CoachiTheme.primary.opacity(0.06))
-                            .frame(width: 200, height: 200)
-                        Circle().fill(CoachiTheme.primary.opacity(0.12))
-                            .frame(width: 170, height: 170)
-                        Circle()
-                            .fill(CoachiTheme.primaryGradient)
-                            .frame(width: 140, height: 140)
-                            .shadow(color: CoachiTheme.primary.opacity(0.4), radius: 25, y: 8)
-                        Text(L10n.go)
-                            .font(.system(size: 42, weight: .black, design: .rounded))
-                            .foregroundColor(.white)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("What are you doing today?")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text("Choose session, inputs, and coaching style.")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
                     }
-                }
-                .buttonStyle(ScaleButtonStyle())
-                .opacity(appeared ? 1 : 0).scaleEffect(appeared ? 1 : 0.8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer().frame(height: 20)
+                    // Session choice (Step A)
+                    HStack(spacing: 10) {
+                        launchCard(
+                            title: "Easy Run",
+                            subtitle: "Stay easy. Build endurance.",
+                            selected: viewModel.selectedWorkoutMode == .easyRun
+                        ) {
+                            viewModel.selectedWorkoutMode = .easyRun
+                        }
+                        launchCard(
+                            title: "Intervals",
+                            subtitle: "Fast reps + recovery.",
+                            selected: viewModel.selectedWorkoutMode == .intervals
+                        ) {
+                            viewModel.selectedWorkoutMode = .intervals
+                        }
+                    }
+                    launchComingSoonCard(
+                        title: "Strength",
+                        subtitle: "Coming soon."
+                    )
 
-                // Warmup time — circular dial
-                VStack(spacing: 4) {
-                    Text(L10n.warmupTime.uppercased())
-                        .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
-                        .tracking(1)
+                    if viewModel.selectedWorkoutMode == .easyRun {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Easy Run duration")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                            HStack(spacing: 8) {
+                                durationChip(20)
+                                durationChip(30)
+                                durationChip(45)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if viewModel.selectedWorkoutMode == .intervals {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Interval template")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                            HStack(spacing: 8) {
+                                templateChip(.fourByFour)
+                                templateChip(.eightByOne)
+                                templateChip(.tenByThirtyThirty)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
-                    CircularDialPicker(selectedMinutes: $viewModel.selectedWarmupMinutes)
-                }
-                .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 15)
+                    // Input source status (Step B)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Inputs")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                        HStack {
+                            Label(viewModel.watchConnected ? "Apple Watch connected" : "Apple Watch not connected", systemImage: viewModel.watchConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(viewModel.watchConnected ? CoachiTheme.secondary : CoachiTheme.textSecondary)
+                            Spacer()
+                        }
+                        HStack {
+                            Text("HR signal quality: \(viewModel.hrSignalQuality.capitalized)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.secondary : CoachiTheme.textSecondary)
+                            Spacer()
+                        }
+                        HStack {
+                            Text("Movement source: \(viewModel.movementSourceDisplay)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(viewModel.movementSource == "none" ? CoachiTheme.textSecondary : CoachiTheme.secondary)
+                            Spacer()
+                        }
+                        HStack {
+                            Text("Cadence: \(viewModel.cadenceDisplayText)")
+                                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                            Spacer()
+                        }
+                        Toggle(isOn: $viewModel.useBreathingMicCues) {
+                            Text("Use breathing mic cues")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                        }
+                        .tint(CoachiTheme.primary)
+                    }
+                    .padding(14)
+                    .background(CoachiTheme.surface.opacity(0.9))
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                Spacer().frame(height: 20)
+                    // Coaching style (Step C)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Coaching style")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                        HStack(spacing: 8) {
+                            styleChip(.minimal)
+                            styleChip(.normal)
+                            styleChip(.motivational)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Persona selector
-                VStack(spacing: 12) {
-                    Text(L10n.selectCoach.uppercased())
-                        .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
-                        .tracking(1)
-                    HStack(spacing: 12) {
-                        ForEach(CoachPersonality.allCases) { persona in
-                            PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
-                                withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                    if viewModel.selectedWorkoutMode != .intervals {
+                        VStack(spacing: 4) {
+                            Text(L10n.warmupTime.uppercased())
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                                .tracking(1)
+                            CircularDialPicker(selectedMinutes: $viewModel.selectedWarmupMinutes)
+                        }
+                    }
+
+                    // Persona selector
+                    VStack(spacing: 12) {
+                        Text(L10n.selectCoach.uppercased())
+                            .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
+                            .tracking(1)
+                        HStack(spacing: 12) {
+                            ForEach(CoachPersonality.allCases) { persona in
+                                PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
+                                    withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                                }
                             }
                         }
                     }
-                }
-                .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
 
-                Spacer().frame(height: 80)
+                    // GO button
+                    Button {
+                        UserDefaults.standard.set(viewModel.selectedWarmupMinutes, forKey: "last_warmup_minutes")
+                        withAnimation(AppConfig.Anim.transitionSpring) { viewModel.startWorkout() }
+                    } label: {
+                        ZStack {
+                            Circle().fill(CoachiTheme.primary.opacity(0.06))
+                                .frame(width: 200, height: 200)
+                            Circle().fill(CoachiTheme.primary.opacity(0.12))
+                                .frame(width: 170, height: 170)
+                            Circle()
+                                .fill(CoachiTheme.primaryGradient)
+                                .frame(width: 140, height: 140)
+                                .shadow(color: CoachiTheme.primary.opacity(0.4), radius: 25, y: 8)
+                            Text("Start coaching")
+                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .padding(.top, 8)
+                    .padding(.bottom, 60)
+                }
+                .padding(.horizontal, 20)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 12)
             }
         }
         .onAppear {
@@ -92,6 +199,112 @@ struct WorkoutLaunchView: View {
             }
             withAnimation(.easeOut(duration: 0.7).delay(0.15)) { appeared = true }
         }
+    }
+
+    @ViewBuilder
+    private func launchComingSoonCard(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(CoachiTheme.textSecondary)
+            Text(subtitle)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(CoachiTheme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(CoachiTheme.surface.opacity(0.7))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(CoachiTheme.textTertiary.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func launchCard(title: String, subtitle: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(selected ? .white.opacity(0.9) : CoachiTheme.textSecondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
+            .padding(12)
+            .background(
+                Group {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous).fill(CoachiTheme.primaryGradient)
+                    } else {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous).fill(CoachiTheme.surface)
+                    }
+                }
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func durationChip(_ minutes: Int) -> some View {
+        let selected = viewModel.selectedEasyRunMinutes == minutes
+        Button {
+            viewModel.selectedEasyRunMinutes = minutes
+        } label: {
+            Text("\(minutes) min")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func templateChip(_ template: IntervalTemplate) -> some View {
+        let selected = viewModel.selectedIntervalTemplate == template
+        Button {
+            viewModel.selectedIntervalTemplate = template
+        } label: {
+            Text(template.displayName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func styleChip(_ style: CoachingStyle) -> some View {
+        let selected = viewModel.coachingStyle == style
+        Button {
+            viewModel.coachingStyle = style
+        } label: {
+            Text(style.displayName)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
