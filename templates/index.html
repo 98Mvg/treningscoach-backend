@@ -1,543 +1,623 @@
 <!DOCTYPE html>
-<html>
+<html lang="no">
 <head>
-    <title>Treningscoach</title>
+    <!-- ====================================================
+         Coachi Landing Page v2
+         Design: Midnight Ember + waitlist-first funnel
+         Tech: Tailwind CDN, no build step, single file
+         Bilingual: NO (default) / EN via data-i18n toggle
+         Docs: docs/plans/2026-02-19-coachi-landing-page-v2.md
+    ==================================================== -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <title>Coachi — AI Treningscoach | Din personlige stemmecoach</title>
+    <meta name="description" content="Sanntids AI-stemmecoaching koblet til pulsen din. Naturlig norsk og engelsk. Prøv gratis.">
+    <meta property="og:title" content="Coachi — Din personlige AI-trener">
+    <meta property="og:description" content="Sanntids pulscoaching med AI-stemme. Norsk og engelsk.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ember-bg': '#1a1a2e',
+                        'ember-bg2': '#16213e',
+                        'ember-card': '#1e2a3a',
+                        'ember-accent': '#7B68EE',
+                        'ember-cyan': '#00D9FF',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #1e2a3a;
+            --accent: #7B68EE;
+            --accent-cyan: #00D9FF;
+            --text: #ffffff;
+            --text-muted: rgba(255,255,255,0.6);
+            --text-dim: rgba(255,255,255,0.4);
+            --radius: 12px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            overflow: hidden;
-            color: #ffffff;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text);
+            min-height: 100vh;
         }
 
-        /* Header */
-        .header {
-            padding: 16px 20px;
-            text-align: center;
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 4px;
-        }
-
-        .status {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.6);
-            font-weight: 400;
-        }
-
-        /* Center */
-        .center {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Container for both orb and player */
-        .workout-container {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 24px;
-        }
-
-        /* Voice Orb (initial state) */
-        .voice-orb {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #7B68EE 0%, #5B4CBE 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 8px 32px rgba(123, 104, 238, 0.4);
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .voice-orb:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 40px rgba(123, 104, 238, 0.5);
-        }
-
-        .voice-orb.hidden {
-            opacity: 0;
-            transform: scale(0.5);
-            pointer-events: none;
-        }
-
-        .mic-icon {
-            width: 48px;
-            height: 48px;
-            color: white;
-        }
-
-        /* Workout Player */
-        .workout-player {
-            opacity: 0;
-            transform: scale(0.5);
-            pointer-events: none;
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .workout-player.active {
-            opacity: 1;
-            transform: scale(1);
-            pointer-events: all;
-        }
-
-        /* Progress Ring */
-        .progress-ring-container {
-            position: relative;
-            width: 220px;
-            height: 220px;
-        }
-
-        .progress-ring {
-            transform: rotate(-90deg);
-        }
-
-        .progress-ring-bg {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.2);
-            stroke-width: 8;
-        }
-
-        .progress-ring-progress {
-            fill: none;
-            stroke: url(#gradient);
-            stroke-width: 8;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 1s ease;
-        }
-
-        .timer-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .timer-display {
-            font-size: 48px;
-            font-weight: 300;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
-        }
-
-        .timer-status {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: rgba(255, 255, 255, 0.6);
-            font-weight: 500;
-        }
-
-        /* Control Buttons */
-        .controls {
-            display: flex;
-            gap: 40px;
-            align-items: center;
-        }
-
-        .control-btn {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Buttons */
+        .btn-accent {
+            background: linear-gradient(135deg, var(--accent), #5B4CBE);
+            color: #fff; border: none;
+            padding: 14px 32px; border-radius: 50px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
             transition: all 0.3s ease;
-            position: relative;
+            box-shadow: 0 8px 24px rgba(123,104,238,0.35);
+            text-decoration: none; display: inline-block;
+        }
+        .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(123,104,238,0.5); }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            color: #fff; border: 1px solid rgba(255,255,255,0.15);
+            padding: 14px 32px; border-radius: 50px;
+            font-size: 16px; font-weight: 500; cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none; display: inline-block;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+
+        /* Glass card */
+        .glass-card {
+            background: rgba(30,42,58,0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(123,104,238,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
         }
 
-        .play-pause-btn {
-            background: linear-gradient(135deg, #7B68EE 0%, #5B4CBE 100%);
-            box-shadow: 0 8px 24px rgba(123, 104, 238, 0.4);
+        /* Section alt bg */
+        .section-alt { background: rgba(0,0,0,0.15); }
+
+        /* Nav link underline */
+        .nav-link { position: relative; transition: color 0.2s; }
+        .nav-link::after {
+            content: ''; position: absolute; bottom: -4px; left: 0;
+            width: 0; height: 2px; background: var(--accent);
+            transition: width 0.3s;
+        }
+        .nav-link:hover::after { width: 100%; }
+
+        /* Language toggle */
+        .lang-toggle {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px; padding: 4px; display: flex; gap: 2px;
+        }
+        .lang-btn {
+            padding: 4px 10px; border-radius: 6px; border: none;
+            background: transparent; color: rgba(255,255,255,0.5);
+            cursor: pointer; font-size: 13px; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .lang-btn.active { background: var(--accent); color: #fff; }
+
+        /* Step connector */
+        .step-connector { width: 60px; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent-cyan)); opacity: 0.4; }
+
+        /* Waitlist input */
+        .waitlist-input {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; padding: 14px 18px;
+            color: #fff; font-size: 16px; width: 100%; outline: none;
+            transition: border-color 0.2s;
+        }
+        .waitlist-input:focus { border-color: var(--accent); }
+        .waitlist-input::placeholder { color: rgba(255,255,255,0.35); }
+
+        /* FAQ accordion */
+        .faq-item { border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s; }
+        .faq-item.open .faq-answer { max-height: 200px; padding-bottom: 16px; }
+        .faq-item.open .faq-chevron { transform: rotate(180deg); }
+        .faq-chevron { transition: transform 0.3s; }
+
+        /* Demo collapsed */
+        .demo-container { max-height: 0; overflow: hidden; transition: max-height 0.6s ease; }
+        .demo-container.open { max-height: 600px; }
+
+        /* Voice Orb */
+        .voice-orb {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: linear-gradient(135deg, #7B68EE, #5B4CBE);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 8px 32px rgba(123,104,238,0.4);
+        }
+        .voice-orb:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(123,104,238,0.5); }
+        .voice-orb.hidden { opacity: 0; transform: scale(0.5); pointer-events: none; }
+        .voice-orb.pulsing { animation: orbPulse 2s ease-in-out infinite; }
+        @keyframes orbPulse {
+            0%,100% { box-shadow: 0 8px 32px rgba(123,104,238,0.4); }
+            50% { box-shadow: 0 8px 48px rgba(123,104,238,0.7); transform: scale(1.03); }
         }
 
-        .play-pause-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 32px rgba(123, 104, 238, 0.5);
-        }
+        /* Workout player */
+        .workout-player { opacity: 0; transform: scale(0.5); pointer-events: none; transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+        .workout-player.active { opacity: 1; transform: scale(1); pointer-events: all; }
 
-        .play-pause-btn.pulsing {
-            animation: btnPulse 1.5s ease-in-out infinite;
-        }
+        .progress-ring { transform: rotate(-90deg); }
+        .progress-ring-bg { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 6; }
+        .progress-ring-progress { fill: none; stroke: url(#gradient); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
 
-        @keyframes btnPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.08); }
-        }
+        .control-btn { width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .play-pause-btn { background: linear-gradient(135deg, #7B68EE, #5B4CBE); box-shadow: 0 6px 20px rgba(123,104,238,0.4); }
+        .play-pause-btn:hover { transform: scale(1.05); }
+        .play-pause-btn.pulsing { animation: btnPulse 1.5s ease-in-out infinite; }
+        @keyframes btnPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        .stop-btn { width: 56px; height: 56px; background: rgba(255,59,48,0.15); }
+        .stop-btn:hover { background: rgba(255,59,48,0.25); transform: scale(1.05); }
 
-        .stop-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 59, 48, 0.2);
-        }
-
-        .stop-btn:hover {
-            background: rgba(255, 59, 48, 0.3);
-            transform: scale(1.05);
-        }
-
-        .control-icon {
-            width: 28px;
-            height: 28px;
-            color: white;
-        }
-
-        .stop-icon {
-            width: 24px;
-            height: 24px;
-            color: #FF3B30;
-        }
-
-        /* Info text */
-        .info {
-            text-align: center;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: 16px;
-        }
-
-        /* Footer */
-        .footer {
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.4);
-        }
-
-        .footer a {
-            color: #7B68EE;
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
+        @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="title">Treningscoach</div>
-        <div class="status" id="statusText">Ready</div>
-    </div>
 
-    <!-- Center -->
-    <div class="center">
-        <div class="workout-container">
-            <!-- Voice Orb (initial state) -->
-            <div class="voice-orb" id="voiceOrb" onclick="startWorkout()">
-                <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="23"></line>
-                    <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
+    <!-- ====== SECTION 1: NAV ====== -->
+    <nav class="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-ember-bg/80 border-b border-white/5">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="#" class="text-xl font-bold gradient-text tracking-tight">Coachi</a>
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#how-it-works" class="nav-link text-sm text-white/60 hover:text-white" data-i18n="nav_how">Slik funker det</a>
+                <a href="#features" class="nav-link text-sm text-white/60 hover:text-white" data-i18n="nav_features">Funksjoner</a>
+                <a href="#faq" class="nav-link text-sm text-white/60 hover:text-white" data-i18n="nav_faq">FAQ</a>
             </div>
+            <div class="flex items-center gap-4">
+                <div class="lang-toggle">
+                    <button class="lang-btn active" id="langNo" onclick="setLanguage('no')">NO</button>
+                    <button class="lang-btn" id="langEn" onclick="setLanguage('en')">EN</button>
+                </div>
+                <a href="#waitlist" class="btn-accent text-sm !py-2 !px-5 hidden sm:inline-block" data-i18n="nav_cta">Få tilgang</a>
+            </div>
+        </div>
+    </nav>
 
-            <!-- Workout Player -->
-            <div class="workout-player" id="workoutPlayer">
-                <!-- Progress Ring -->
-                <div class="progress-ring-container">
-                    <svg class="progress-ring" width="220" height="220">
-                        <defs>
-                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#7B68EE"/>
-                                <stop offset="100%" stop-color="#00D9FF"/>
-                            </linearGradient>
-                        </defs>
-                        <circle class="progress-ring-bg" cx="110" cy="110" r="106"/>
-                        <circle class="progress-ring-progress" id="progressCircle" cx="110" cy="110" r="106"/>
-                    </svg>
-                    <div class="timer-content">
-                        <div class="timer-display" id="timerDisplay">00:00</div>
-                        <div class="timer-status" id="timerStatus">Recording</div>
+    <!-- ====== SECTION 2: HERO ====== -->
+    <section class="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-16 relative">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white/60 mb-8">
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            <span data-i18n="hero_badge">Sanntids AI-coaching koblet til pulsen din</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight max-w-4xl mb-6">
+            <span data-i18n="hero_h1">Din personlige</span><br>
+            <span class="gradient-text" data-i18n="hero_h1_accent">AI-treningscoach</span>
+        </h1>
+        <p class="text-lg sm:text-xl text-white/60 max-w-2xl mb-10 leading-relaxed" data-i18n="hero_subtitle">
+            Kobler seg til smartklokken din, leser pulsen i sanntid, og coacher deg med naturlig stemme — på norsk og engelsk.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <a href="#waitlist" class="btn-accent" data-i18n="hero_cta">Få tidlig tilgang</a>
+        </div>
+        <a href="#demo" class="text-sm text-white/40 hover:text-white/60 transition-colors" data-i18n="hero_demo_link">Eller prøv en demo ↓</a>
+
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2" style="animation: bounce 2s infinite;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 3: COMPATIBILITY STRIP (Pulse Focus) ====== -->
+    <section class="py-12 border-y border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+            <p class="text-center text-sm text-white/40 mb-3 uppercase tracking-widest" data-i18n="compat_title">Kobler til pulsen din via</p>
+            <div class="flex flex-wrap items-center justify-center gap-8 sm:gap-12 mb-3">
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Apple Watch</span>
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Garmin</span>
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Polar</span>
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Fitbit</span>
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Samsung</span>
+                <span class="text-white/40 text-sm font-medium tracking-wide hover:text-white/70 transition-colors">Suunto</span>
+            </div>
+            <p class="text-center text-xs text-white/25" data-i18n="compat_sub">Automatisk synkronisering av pulsdata</p>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 4: HOW IT WORKS (Pulse-Centric) ====== -->
+    <section id="how-it-works" class="py-24 section-alt">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center mb-4" data-i18n="how_title">Slik funker det</h2>
+            <p class="text-white/60 text-center mb-16 max-w-xl mx-auto" data-i18n="how_subtitle">Tre enkle steg til smartere trening</p>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-4">
+                <!-- Step 1 -->
+                <div class="glass-card p-8 text-center max-w-xs flex-1">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-ember-accent to-purple-600 flex items-center justify-center text-2xl mx-auto mb-5">⌚</div>
+                    <div class="text-xs uppercase tracking-widest text-ember-accent mb-3 font-semibold" data-i18n="how_s1_label">Steg 1</div>
+                    <h3 class="text-lg font-semibold mb-2" data-i18n="how_s1_title">Koble smartklokken</h3>
+                    <p class="text-sm text-white/60 leading-relaxed" data-i18n="how_s1_desc">Koble til Apple Watch, Garmin eller annen klokke. Coachi leser pulsen din automatisk.</p>
+                </div>
+                <div class="step-connector hidden md:block"></div>
+                <!-- Step 2 -->
+                <div class="glass-card p-8 text-center max-w-xs flex-1">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-2xl mx-auto mb-5">💓</div>
+                    <div class="text-xs uppercase tracking-widest text-red-400 mb-3 font-semibold" data-i18n="how_s2_label">Steg 2</div>
+                    <h3 class="text-lg font-semibold mb-2" data-i18n="how_s2_title">AI leser pulsen din</h3>
+                    <p class="text-sm text-white/60 leading-relaxed" data-i18n="how_s2_desc">Coachi analyserer puls og intensitet i sanntid. Vet når du pusher og når du hviler.</p>
+                </div>
+                <div class="step-connector hidden md:block"></div>
+                <!-- Step 3 -->
+                <div class="glass-card p-8 text-center max-w-xs flex-1">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-2xl mx-auto mb-5">🗣️</div>
+                    <div class="text-xs uppercase tracking-widest text-green-400 mb-3 font-semibold" data-i18n="how_s3_label">Steg 3</div>
+                    <h3 class="text-lg font-semibold mb-2" data-i18n="how_s3_title">Personlig stemmecoaching</h3>
+                    <p class="text-sm text-white/60 leading-relaxed" data-i18n="how_s3_desc">Få motivasjon med naturlig stemme basert på pulsen din — på norsk eller engelsk.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 5: FEATURES ====== -->
+    <section id="features" class="py-24">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center mb-4" data-i18n="feat_title">Smarte funksjoner for bedre trening</h2>
+            <p class="text-white/60 text-center mb-16 max-w-xl mx-auto" data-i18n="feat_subtitle">Alt du trenger for å holde motivasjonen oppe</p>
+
+            <!-- Two big cards -->
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <!-- Pulse coaching (PRIMARY) -->
+                <div class="glass-card p-8">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500/20 to-rose-600/20 border border-red-500/20 flex items-center justify-center text-2xl mb-4">💓</div>
+                    <h3 class="text-xl font-semibold mb-3" data-i18n="feat1_title">Sanntids pulscoaching</h3>
+                    <p class="text-white/60 text-sm leading-relaxed mb-4" data-i18n="feat1_desc">Coachi leser pulsen din i sanntid og tilpasser coachingen automatisk. Når pulsen stiger, pusher coachen deg. Når den synker, minner den deg på å holde tempoet.</p>
+                    <div class="flex gap-2">
+                        <span class="text-xs px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">💓 Pulsstyrt</span>
+                        <span class="text-xs px-3 py-1 rounded-full bg-ember-cyan/10 text-ember-cyan border border-ember-cyan/20">⚡ Sanntid</span>
                     </div>
                 </div>
 
-                <!-- Control Buttons -->
-                <div class="controls">
-                    <button class="control-btn play-pause-btn pulsing" id="playPauseBtn" onclick="togglePause()">
-                        <svg class="control-icon" id="playPauseIcon" viewBox="0 0 24 24" fill="white">
-                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                        </svg>
-                    </button>
-                    <button class="control-btn stop-btn" onclick="stopWorkout()">
-                        <svg class="stop-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <rect x="6" y="6" width="12" height="12" rx="2"/>
-                        </svg>
-                    </button>
+                <!-- AI Personality -->
+                <div class="glass-card p-8">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-ember-accent/20 to-purple-600/20 border border-ember-accent/20 flex items-center justify-center text-2xl mb-4">🧠</div>
+                    <h3 class="text-xl font-semibold mb-3" data-i18n="feat2_title">AI-coach med personlighet</h3>
+                    <p class="text-white/60 text-sm leading-relaxed mb-4" data-i18n="feat2_desc">Velg mellom støttende personlig trener eller tøff drill sergeant. Coachi tilpasser tonen etter intensiteten din — oppmuntrende når du trenger det, krevende når du er klar.</p>
+                    <div class="flex gap-2">
+                        <span class="text-xs px-3 py-1 rounded-full bg-ember-accent/10 text-ember-accent border border-ember-accent/20" data-i18n="feat2_tag1">Personlig trener</span>
+                        <span class="text-xs px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20" data-i18n="feat2_tag2">Toxic mode</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="info" id="infoText">Tap to start workout</div>
+            <!-- Three small cards -->
+            <div class="grid sm:grid-cols-3 gap-6">
+                <div class="glass-card p-6">
+                    <div class="text-2xl mb-3">🗣️</div>
+                    <h3 class="text-base font-semibold mb-2" data-i18n="feat3_title">Naturlig stemme</h3>
+                    <p class="text-white/60 text-sm leading-relaxed" data-i18n="feat3_desc">Norsk og engelsk med ElevenLabs AI-stemmer. Høres ekte ut — ikke robotlyd.</p>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="text-2xl mb-3">📊</div>
+                    <h3 class="text-base font-semibold mb-2" data-i18n="feat4_title">Smarte treningsfaser</h3>
+                    <p class="text-white/60 text-sm leading-relaxed" data-i18n="feat4_desc">Automatisk oppvarming, intensitet og nedkjøling. Coachi guider deg gjennom hele økten.</p>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="text-2xl mb-3">🛡️</div>
+                    <h3 class="text-base font-semibold mb-2" data-i18n="feat5_title">Sikkerhet først</h3>
+                    <p class="text-white/60 text-sm leading-relaxed" data-i18n="feat5_desc">Overvåker pulsen og sier fra når du bør roe ned. Trygge treningsøkter, alltid.</p>
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Footer -->
-    <div class="footer">
-        <a href="/health">API Status</a> •
-        <a href="https://github.com/98Mvg/treningscoach-backend">Documentation</a>
-    </div>
+    <!-- ====== SECTION 6: DEMO (Collapsed) ====== -->
+    <section id="demo" class="py-24 section-alt">
+        <div class="max-w-3xl mx-auto px-6 text-center">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="demo_title">Prøv Coachi nå</h2>
+            <p class="text-white/60 mb-8 max-w-lg mx-auto" data-i18n="demo_subtitle">Test stemmecoachingen direkte i nettleseren.</p>
 
+            <!-- Expand button -->
+            <button id="demoExpandBtn" class="btn-secondary mb-8" onclick="expandDemo()" data-i18n="demo_expand_btn">Start demo</button>
+
+            <!-- Collapsed demo player -->
+            <div class="demo-container" id="demoContainer">
+                <div class="flex flex-col items-center gap-6 pt-4">
+                    <div class="voice-orb pulsing" id="voiceOrb" onclick="startWorkout()">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </div>
+
+                    <div class="workout-player" id="workoutPlayer">
+                        <div class="relative" style="width:200px;height:200px;">
+                            <svg class="progress-ring" width="200" height="200">
+                                <defs><linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7B68EE"/><stop offset="100%" stop-color="#00D9FF"/></linearGradient></defs>
+                                <circle class="progress-ring-bg" cx="100" cy="100" r="94"/>
+                                <circle class="progress-ring-progress" id="progressCircle" cx="100" cy="100" r="94"/>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <div class="text-4xl font-light tabular-nums tracking-wider mb-1" id="timerDisplay">00:00</div>
+                                <div class="text-xs uppercase tracking-widest text-white/60 font-medium" id="timerStatus">Recording</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-8 items-center mt-6 justify-center">
+                            <button class="control-btn play-pause-btn pulsing" id="playPauseBtn" onclick="togglePause()">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" id="playPauseIcon"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                            </button>
+                            <button class="control-btn stop-btn" onclick="stopWorkout()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="#FF3B30"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-white/60" id="demoInfoText" data-i18n="demo_info">Klikk på orben for å starte</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 7: WAITLIST ====== -->
+    <section id="waitlist" class="py-28">
+        <div class="max-w-xl mx-auto px-6 text-center">
+            <h2 class="text-3xl sm:text-4xl font-bold mb-4" data-i18n="wait_title">Få tidlig tilgang</h2>
+            <p class="text-white/60 mb-10" data-i18n="wait_subtitle">Coachi-appen kommer snart til App Store. Legg igjen e-posten din, så varsler vi deg først.</p>
+            <form id="waitlistForm" class="flex flex-col sm:flex-row gap-3 mb-4" onsubmit="submitWaitlist(event)">
+                <input type="email" class="waitlist-input flex-1" placeholder="din@epost.no" id="waitlistEmail" data-i18n-placeholder="wait_placeholder" required>
+                <button type="submit" class="btn-accent whitespace-nowrap" id="waitlistBtn" data-i18n="wait_btn">Registrer meg</button>
+            </form>
+            <p class="text-xs text-white/40" id="waitlistMsg" data-i18n="wait_note">Ingen spam. Bare én melding når appen er klar.</p>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 8: FAQ ====== -->
+    <section id="faq" class="py-24 section-alt">
+        <div class="max-w-2xl mx-auto px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center mb-12" data-i18n="faq_title">Ofte stilte spørsmål</h2>
+            <div id="faqContainer"></div>
+        </div>
+    </section>
+
+    <!-- ====== SECTION 9: FOOTER ====== -->
+    <footer class="py-12 border-t border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div><span class="text-lg font-bold gradient-text">Coachi</span><span class="text-sm text-white/40 ml-2">v3.0</span></div>
+                <div class="flex items-center gap-6 text-sm text-white/40">
+                    <a href="/health" class="hover:text-white transition-colors">API Status</a>
+                    <a href="#" class="hover:text-white transition-colors" data-i18n="footer_privacy">Personvern</a>
+                    <a href="#" class="hover:text-white transition-colors" data-i18n="footer_terms">Vilkår</a>
+                </div>
+            </div>
+            <p class="text-center text-xs text-white/40 mt-8" data-i18n="footer_copy">© 2026 Coachi. Laget i Norge.</p>
+        </div>
+    </footer>
+
+    <!-- ====== SCRIPTS ====== -->
     <script>
-        let isWorkoutActive = false;
-        let isPaused = false;
-        let startTime = null;
-        let elapsedTime = 0;
-        let pausedDuration = 0;
-        let pauseStartTime = null;
-        let timerInterval = null;
-        let coachingInterval = null;
-        let sessionId = null;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let stream = null;
-        const MAX_DURATION = 2700; // 45 minutes
-        const COACHING_INTERVAL = 8000; // 8 seconds
+    /* ======================== i18n ======================== */
+    const i18n = {
+      no: {
+        nav_how:"Slik funker det", nav_features:"Funksjoner", nav_faq:"FAQ", nav_cta:"Få tilgang",
+        hero_badge:"Sanntids AI-coaching koblet til pulsen din",
+        hero_h1:"Din personlige", hero_h1_accent:"AI-treningscoach",
+        hero_subtitle:"Kobler seg til smartklokken din, leser pulsen i sanntid, og coacher deg med naturlig stemme — på norsk og engelsk.",
+        hero_cta:"Få tidlig tilgang", hero_demo_link:"Eller prøv en demo ↓",
+        compat_title:"Kobler til pulsen din via", compat_sub:"Automatisk synkronisering av pulsdata",
+        how_title:"Slik funker det", how_subtitle:"Tre enkle steg til smartere trening",
+        how_s1_label:"Steg 1", how_s1_title:"Koble smartklokken", how_s1_desc:"Koble til Apple Watch, Garmin eller annen klokke. Coachi leser pulsen din automatisk.",
+        how_s2_label:"Steg 2", how_s2_title:"AI leser pulsen din", how_s2_desc:"Coachi analyserer puls og intensitet i sanntid. Vet når du pusher og når du hviler.",
+        how_s3_label:"Steg 3", how_s3_title:"Personlig stemmecoaching", how_s3_desc:"Få motivasjon med naturlig stemme basert på pulsen din — på norsk eller engelsk.",
+        feat_title:"Smarte funksjoner for bedre trening", feat_subtitle:"Alt du trenger for å holde motivasjonen oppe",
+        feat1_title:"Sanntids pulscoaching", feat1_desc:"Coachi leser pulsen din i sanntid og tilpasser coachingen automatisk. Når pulsen stiger, pusher coachen deg. Når den synker, minner den deg på å holde tempoet.",
+        feat2_title:"AI-coach med personlighet", feat2_desc:"Velg mellom støttende personlig trener eller tøff drill sergeant. Coachi tilpasser tonen etter intensiteten din — oppmuntrende når du trenger det, krevende når du er klar.",
+        feat2_tag1:"Personlig trener", feat2_tag2:"Toxic mode",
+        feat3_title:"Naturlig stemme", feat3_desc:"Norsk og engelsk med ElevenLabs AI-stemmer. Høres ekte ut — ikke robotlyd.",
+        feat4_title:"Smarte treningsfaser", feat4_desc:"Automatisk oppvarming, intensitet og nedkjøling. Coachi guider deg gjennom hele økten.",
+        feat5_title:"Sikkerhet først", feat5_desc:"Overvåker pulsen og sier fra når du bør roe ned. Trygge treningsøkter, alltid.",
+        demo_title:"Prøv Coachi nå", demo_subtitle:"Test stemmecoachingen direkte i nettleseren.", demo_expand_btn:"Start demo", demo_info:"Klikk på orben for å starte",
+        wait_title:"Få tidlig tilgang", wait_subtitle:"Coachi-appen kommer snart til App Store. Legg igjen e-posten din, så varsler vi deg først.",
+        wait_placeholder:"din@epost.no", wait_btn:"Registrer meg", wait_note:"Ingen spam. Bare én melding når appen er klar.",
+        wait_success:"Du er registrert! Vi gir deg beskjed når appen er klar.", wait_error:"Noe gikk galt. Prøv igjen.",
+        faq_title:"Ofte stilte spørsmål",
+        footer_privacy:"Personvern", footer_terms:"Vilkår", footer_copy:"© 2026 Coachi. Laget i Norge.",
+        demo_listening:"Lytter til treningen din...", demo_tap_start:"Klikk på orben for å starte",
+        demo_paused:"Pauset", demo_recording:"Lytter...",
+      },
+      en: {
+        nav_how:"How it works", nav_features:"Features", nav_faq:"FAQ", nav_cta:"Get access",
+        hero_badge:"Real-time AI coaching connected to your pulse",
+        hero_h1:"Your personal", hero_h1_accent:"AI workout coach",
+        hero_subtitle:"Connects to your smartwatch, reads your pulse in real-time, and coaches you with a natural voice — in Norwegian and English.",
+        hero_cta:"Get early access", hero_demo_link:"Or try a demo ↓",
+        compat_title:"Connects to your pulse via", compat_sub:"Automatic heart rate sync",
+        how_title:"How it works", how_subtitle:"Three simple steps to smarter training",
+        how_s1_label:"Step 1", how_s1_title:"Connect your watch", how_s1_desc:"Connect your Apple Watch, Garmin, or other watch. Coachi reads your pulse automatically.",
+        how_s2_label:"Step 2", how_s2_title:"AI reads your pulse", how_s2_desc:"Coachi analyzes your pulse and intensity in real-time. Knows when you push and when you rest.",
+        how_s3_label:"Step 3", how_s3_title:"Personal voice coaching", how_s3_desc:"Get motivation with a natural voice based on your pulse — in Norwegian or English.",
+        feat_title:"Smart features for better workouts", feat_subtitle:"Everything you need to stay motivated",
+        feat1_title:"Real-time pulse coaching", feat1_desc:"Coachi reads your pulse in real-time and adapts coaching automatically. When your heart rate rises, the coach pushes you. When it drops, it reminds you to keep the pace.",
+        feat2_title:"AI coach with personality", feat2_desc:"Choose between a supportive personal trainer or a tough drill sergeant. Coachi adapts its tone to your intensity — encouraging when you need it, demanding when you're ready.",
+        feat2_tag1:"Personal trainer", feat2_tag2:"Toxic mode",
+        feat3_title:"Natural voice", feat3_desc:"Norwegian and English with ElevenLabs AI voices. Sounds real — not robotic.",
+        feat4_title:"Smart workout phases", feat4_desc:"Automatic warmup, intensity, and cooldown. Coachi guides you through the entire session.",
+        feat5_title:"Safety first", feat5_desc:"Monitors your pulse and tells you when to ease off. Safe workout sessions, always.",
+        demo_title:"Try Coachi now", demo_subtitle:"Test the voice coaching directly in your browser.", demo_expand_btn:"Start demo", demo_info:"Click the orb to start",
+        wait_title:"Get early access", wait_subtitle:"The Coachi app is coming soon to the App Store. Leave your email and we'll notify you first.",
+        wait_placeholder:"your@email.com", wait_btn:"Sign me up", wait_note:"No spam. Just one message when the app is ready.",
+        wait_success:"You're signed up! We'll let you know when the app is ready.", wait_error:"Something went wrong. Please try again.",
+        faq_title:"Frequently asked questions",
+        footer_privacy:"Privacy", footer_terms:"Terms", footer_copy:"© 2026 Coachi. Made in Norway.",
+        demo_listening:"Listening to your workout...", demo_tap_start:"Click the orb to start",
+        demo_paused:"Paused", demo_recording:"Listening...",
+      }
+    };
 
-        const orb = document.getElementById('voiceOrb');
-        const player = document.getElementById('workoutPlayer');
-        const statusText = document.getElementById('statusText');
-        const infoText = document.getElementById('infoText');
-        const timerDisplay = document.getElementById('timerDisplay');
-        const timerStatus = document.getElementById('timerStatus');
-        const playPauseBtn = document.getElementById('playPauseBtn');
-        const playPauseIcon = document.getElementById('playPauseIcon');
-        const progressCircle = document.getElementById('progressCircle');
+    /* ======================== FAQ Data ======================== */
+    const faqData = [
+      { q:{no:"Er Coachi gratis?",en:"Is Coachi free?"}, a:{no:"Ja, webdemoen er helt gratis — du kan prøve den rett i nettleseren. iOS-appen vil ha en gratis prøveperiode når den lanseres.",en:"Yes, the web demo is completely free — try it right in your browser. The iOS app will have a free trial at launch."} },
+      { q:{no:"Hvordan fungerer pulscoachingen?",en:"How does the pulse coaching work?"}, a:{no:"Coachi kobler seg til smartklokken din og leser pulsen i sanntid. AI-en analyserer intensiteten og gir deg personlig stemmecoaching tilpasset pulssonen din.",en:"Coachi connects to your smartwatch and reads your heart rate in real-time. The AI analyzes intensity and gives you personal voice coaching adapted to your heart rate zone."} },
+      { q:{no:"Fungerer Coachi med norsk?",en:"Does Coachi work in Norwegian?"}, a:{no:"Ja! Naturlige AI-stemmer på norsk (bokmål) og engelsk. Norsk coaching som høres ekte ut — ikke oversatt engelsk.",en:"Yes! Natural AI voices in Norwegian (Bokmål) and English. Norwegian coaching that sounds authentic — not translated English."} },
+      { q:{no:"Hvilke klokker støttes?",en:"Which watches are supported?"}, a:{no:"Vi planlegger støtte for Apple Watch, Garmin, Polar, Fitbit, Samsung og Suunto. Webdemoen fungerer med mikrofon i alle moderne nettlesere.",en:"We're planning support for Apple Watch, Garmin, Polar, Fitbit, Samsung, and Suunto. The web demo works with a microphone in any modern browser."} },
+      { q:{no:"Hva er 'Toxic mode'?",en:"What is 'Toxic mode'?"}, a:{no:"Toxic mode er for de som liker tøff kjærlighet! Coachen blir en krevende drill sergeant. Sikkerhetsfunksjoner er alltid på, selv i toxic mode.",en:"Toxic mode is for those who like tough love! The coach becomes a demanding drill sergeant. Safety features are always on, even in toxic mode."} },
+    ];
 
-        const circumference = 2 * Math.PI * 106;
-        progressCircle.style.strokeDasharray = circumference;
-        progressCircle.style.strokeDashoffset = circumference;
+    /* ======================== Language ======================== */
+    let currentLang = localStorage.getItem('coachi-lang') || 'no';
 
-        async function startWorkout() {
-            if (isWorkoutActive) return;
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('coachi-lang', lang);
+      document.documentElement.lang = lang;
+      document.getElementById('langNo').classList.toggle('active', lang==='no');
+      document.getElementById('langEn').classList.toggle('active', lang==='en');
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (i18n[lang] && i18n[lang][k]) el.textContent = i18n[lang][k];
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const k = el.getAttribute('data-i18n-placeholder');
+        if (i18n[lang] && i18n[lang][k]) el.placeholder = i18n[lang][k];
+      });
+      renderFAQ();
+      document.title = lang==='en' ? 'Coachi — AI Workout Coach | Your personal voice coach' : 'Coachi — AI Treningscoach | Din personlige stemmecoach';
+    }
 
-            try {
-                // Request microphone access
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    /* ======================== FAQ ======================== */
+    function renderFAQ() {
+      const c = document.getElementById('faqContainer'); c.innerHTML = '';
+      faqData.forEach((item, i) => {
+        const d = document.createElement('div'); d.className = 'faq-item';
+        d.innerHTML = `<button class="w-full flex items-center justify-between py-5 text-left" onclick="toggleFAQ(${i})"><span class="text-base font-medium pr-4">${item.q[currentLang]}</span><svg class="faq-chevron flex-shrink-0 w-5 h-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><p class="text-sm text-white/60 leading-relaxed">${item.a[currentLang]}</p></div>`;
+        c.appendChild(d);
+      });
+    }
+    function toggleFAQ(i) {
+      document.querySelectorAll('.faq-item').forEach((el, j) => { j===i ? el.classList.toggle('open') : el.classList.remove('open'); });
+    }
 
-                isWorkoutActive = true;
-                isPaused = false;
-                startTime = Date.now();
-                sessionId = 'session_' + Date.now();
+    /* ======================== Waitlist ======================== */
+    async function submitWaitlist(e) {
+      e.preventDefault();
+      const email = document.getElementById('waitlistEmail').value;
+      const btn = document.getElementById('waitlistBtn');
+      const msg = document.getElementById('waitlistMsg');
+      btn.disabled = true; btn.textContent = '...';
+      try {
+        const r = await fetch('/waitlist', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, language:currentLang}) });
+        if (r.ok) { msg.textContent = i18n[currentLang].wait_success; msg.style.color = '#34D399'; document.getElementById('waitlistEmail').value = ''; trackEvent('waitlist_signup'); }
+        else { msg.textContent = i18n[currentLang].wait_error; msg.style.color = '#FF6B6B'; }
+      } catch(err) { msg.textContent = i18n[currentLang].wait_error; msg.style.color = '#FF6B6B'; }
+      btn.disabled = false; btn.textContent = i18n[currentLang].wait_btn;
+    }
 
-                // Hide orb, show player
-                orb.classList.add('hidden');
-                player.classList.add('active');
+    /* ======================== Analytics ======================== */
+    function trackEvent(event, meta={}) {
+      try { navigator.sendBeacon('/analytics/event', JSON.stringify({event, metadata:{...meta, language:currentLang}})); } catch(e) {}
+    }
 
-                statusText.textContent = 'Workout Active';
-                infoText.textContent = 'Listening to your breath...';
+    /* ======================== Demo Expand ======================== */
+    function expandDemo() {
+      document.getElementById('demoContainer').classList.add('open');
+      document.getElementById('demoExpandBtn').style.display = 'none';
+      trackEvent('demo_started');
+    }
 
-                // Start audio recording
-                startRecording();
+    /* ======================== Workout Player ======================== */
+    let isWorkoutActive=false, isPaused=false, startTime=null, elapsedTime=0, pausedDuration=0, pauseStartTime=null;
+    let timerInterval=null, coachingInterval=null, sessionId=null, mediaRecorder=null, audioChunks=[], stream=null;
+    const MAX_DURATION=2700, COACHING_INTERVAL=8000;
+    const orb=document.getElementById('voiceOrb'), player=document.getElementById('workoutPlayer');
+    const demoInfoText=document.getElementById('demoInfoText'), timerDisplay=document.getElementById('timerDisplay');
+    const timerStatus=document.getElementById('timerStatus'), playPauseBtn=document.getElementById('playPauseBtn');
+    const playPauseIcon=document.getElementById('playPauseIcon'), progressCircle=document.getElementById('progressCircle');
+    const circumference=2*Math.PI*94;
+    progressCircle.style.strokeDasharray=circumference;
+    progressCircle.style.strokeDashoffset=circumference;
 
-                // Start timer
-                timerInterval = setInterval(updateTimer, 1000);
-                updateTimer();
+    async function startWorkout() {
+      if (isWorkoutActive) return;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        trackEvent('demo_mic_granted');
+        isWorkoutActive=true; isPaused=false; startTime=Date.now(); sessionId='session_'+Date.now();
+        orb.classList.add('hidden'); orb.classList.remove('pulsing'); player.classList.add('active');
+        demoInfoText.textContent=i18n[currentLang].demo_listening; timerStatus.textContent=i18n[currentLang].demo_recording;
+        startRecording(); timerInterval=setInterval(updateTimer,1000); updateTimer();
+        await playWelcomeMessage(); coachingInterval=setInterval(sendAudioForCoaching,COACHING_INTERVAL);
+      } catch(err) {
+        alert(currentLang==='no'?'Mikrofontilgang kreves.':'Microphone access required.');
+      }
+    }
+    function startRecording() {
+      if (!stream) return; mediaRecorder=new MediaRecorder(stream); audioChunks=[];
+      mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) audioChunks.push(e.data); };
+      mediaRecorder.start(100);
+    }
+    async function playWelcomeMessage() {
+      try { const r=await fetch(`/welcome?language=${currentLang}`); const d=await r.json();
+        if(d.audio_url){ const a=new Audio(d.audio_url); await a.play(); trackEvent('demo_coaching_received'); }
+      } catch(e){}
+    }
+    async function sendAudioForCoaching() {
+      if(!isWorkoutActive||isPaused||audioChunks.length===0) return;
+      try {
+        const blob=new Blob(audioChunks,{type:'audio/webm'}); audioChunks=[];
+        const fd=new FormData(); fd.append('audio',blob,'workout.webm'); fd.append('session_id',sessionId);
+        fd.append('phase',getWorkoutPhase()); fd.append('language',currentLang); fd.append('training_level','intermediate');
+        const r=await fetch('/coach/continuous',{method:'POST',body:fd}); const d=await r.json();
+        if(d.should_speak&&d.audio_url){ const a=new Audio(d.audio_url); await a.play(); }
+      } catch(e){}
+    }
+    function getWorkoutPhase() { const m=elapsedTime/60; return m<2?'warmup':m<15?'intense':'cooldown'; }
+    function togglePause() {
+      if(!isWorkoutActive) return; isPaused=!isPaused;
+      if(isPaused){ pauseStartTime=Date.now(); timerStatus.textContent=i18n[currentLang].demo_paused; playPauseIcon.innerHTML='<path d="M8 5v14l11-7z"/>'; playPauseBtn.classList.remove('pulsing'); if(mediaRecorder&&mediaRecorder.state==='recording') mediaRecorder.pause(); }
+      else { if(pauseStartTime) pausedDuration+=Date.now()-pauseStartTime; pauseStartTime=null; timerStatus.textContent=i18n[currentLang].demo_recording; playPauseIcon.innerHTML='<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>'; playPauseBtn.classList.add('pulsing'); if(mediaRecorder&&mediaRecorder.state==='paused') mediaRecorder.resume(); }
+    }
+    function stopWorkout() {
+      if(!isWorkoutActive) return;
+      isWorkoutActive=false; isPaused=false; clearInterval(timerInterval); clearInterval(coachingInterval);
+      elapsedTime=0; pausedDuration=0; pauseStartTime=null; sessionId=null;
+      if(mediaRecorder&&mediaRecorder.state!=='inactive') mediaRecorder.stop();
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      player.classList.remove('active'); orb.classList.remove('hidden'); orb.classList.add('pulsing');
+      demoInfoText.textContent=i18n[currentLang].demo_tap_start; timerDisplay.textContent='00:00';
+      timerStatus.textContent=i18n[currentLang].demo_recording; progressCircle.style.strokeDashoffset=circumference;
+      playPauseIcon.innerHTML='<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>'; playPauseBtn.classList.add('pulsing');
+    }
+    function updateTimer() {
+      if(!isWorkoutActive||isPaused) return;
+      const now=Date.now(), ap=pauseStartTime?(now-pauseStartTime):0;
+      elapsedTime=(now-startTime-pausedDuration-ap)/1000;
+      const m=Math.floor(elapsedTime/60), s=Math.floor(elapsedTime%60);
+      timerDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      progressCircle.style.strokeDashoffset=circumference*(1-Math.min(elapsedTime/MAX_DURATION,1));
+    }
 
-                // Play welcome message
-                await playWelcomeMessage();
-
-                // Start coaching loop (every 8 seconds)
-                coachingInterval = setInterval(sendAudioForCoaching, COACHING_INTERVAL);
-            } catch (error) {
-                console.error('Failed to start workout:', error);
-                alert('Failed to access microphone. Please allow microphone access.');
-            }
-        }
-
-        function startRecording() {
-            if (!stream) return;
-
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
-            };
-
-            // Collect 8 seconds of audio chunks
-            mediaRecorder.start(100); // Collect in 100ms chunks
-        }
-
-        async function playWelcomeMessage() {
-            try {
-                const response = await fetch('/welcome?language=en');
-                const data = await response.json();
-
-                if (data.audio_url) {
-                    const audio = new Audio(data.audio_url);
-                    await audio.play();
-                }
-
-                console.log('Welcome:', data.text);
-            } catch (error) {
-                console.error('Failed to play welcome:', error);
-            }
-        }
-
-        async function sendAudioForCoaching() {
-            if (!isWorkoutActive || isPaused || audioChunks.length === 0) return;
-
-            try {
-                // Create audio blob from last 8 seconds
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                audioChunks = []; // Clear for next interval
-
-                const formData = new FormData();
-                formData.append('audio', audioBlob, 'workout.webm');
-                formData.append('session_id', sessionId);
-                formData.append('phase', getWorkoutPhase());
-                formData.append('language', 'en');
-                formData.append('training_level', 'intermediate');
-
-                const response = await fetch('/coach/continuous', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                console.log('Coach response:', data.text);
-                console.log('Should speak:', data.should_speak);
-
-                // Play coach audio if available
-                if (data.should_speak && data.audio_url) {
-                    const audio = new Audio(data.audio_url);
-                    await audio.play();
-                }
-            } catch (error) {
-                console.error('Coaching failed:', error);
-            }
-        }
-
-        function getWorkoutPhase() {
-            const elapsedMinutes = elapsedTime / 60;
-            if (elapsedMinutes < 2) return 'warmup';
-            if (elapsedMinutes < 15) return 'intense';
-            return 'cooldown';
-        }
-
-        function togglePause() {
-            if (!isWorkoutActive) return;
-
-            isPaused = !isPaused;
-
-            if (isPaused) {
-                pauseStartTime = Date.now();
-                timerStatus.textContent = 'Paused';
-                playPauseIcon.innerHTML = '<path d="M8 5v14l11-7z"/>'; // Play icon
-                playPauseBtn.classList.remove('pulsing');
-
-                // Pause recording
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.pause();
-                }
-            } else {
-                if (pauseStartTime) {
-                    pausedDuration += Date.now() - pauseStartTime;
-                }
-                pauseStartTime = null;
-                timerStatus.textContent = 'Recording';
-                playPauseIcon.innerHTML = '<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>'; // Pause icon
-                playPauseBtn.classList.add('pulsing');
-
-                // Resume recording
-                if (mediaRecorder && mediaRecorder.state === 'paused') {
-                    mediaRecorder.resume();
-                }
-            }
-        }
-
-        function stopWorkout() {
-            if (!isWorkoutActive) return;
-
-            isWorkoutActive = false;
-            isPaused = false;
-            clearInterval(timerInterval);
-            clearInterval(coachingInterval);
-            elapsedTime = 0;
-            pausedDuration = 0;
-            pauseStartTime = null;
-            sessionId = null;
-
-            // Stop recording
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-
-            // Stop microphone stream
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-
-            // Show orb, hide player
-            player.classList.remove('active');
-            orb.classList.remove('hidden');
-
-            statusText.textContent = 'Ready';
-            infoText.textContent = 'Tap to start workout';
-            timerDisplay.textContent = '00:00';
-            progressCircle.style.strokeDashoffset = circumference;
-            playPauseIcon.innerHTML = '<path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>';
-            playPauseBtn.classList.add('pulsing');
-        }
-
-        function updateTimer() {
-            if (!isWorkoutActive) return;
-
-            if (isPaused) return;
-
-            const now = Date.now();
-            const totalElapsed = now - startTime;
-            const activePausedTime = pauseStartTime ? (now - pauseStartTime) : 0;
-            elapsedTime = (totalElapsed - pausedDuration - activePausedTime) / 1000;
-
-            // Update timer display
-            const mins = Math.floor(elapsedTime / 60);
-            const secs = Math.floor(elapsedTime % 60);
-            timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-            // Update progress ring
-            const progress = Math.min(elapsedTime / MAX_DURATION, 1);
-            const offset = circumference * (1 - progress);
-            progressCircle.style.strokeDashoffset = offset;
-        }
+    /* ======================== Init ======================== */
+    document.addEventListener('DOMContentLoaded', () => setLanguage(currentLang));
     </script>
 </body>
 </html>

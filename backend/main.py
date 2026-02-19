@@ -1550,6 +1550,88 @@ def coach_talk():
 
 
 # ============================================
+# WAITLIST (Route 20)
+# ============================================
+
+# In-memory waitlist storage (sufficient for pre-launch)
+_waitlist_emails = []
+_waitlist_rate_limit = {}  # IP -> (count, first_request_time)
+
+@app.route('/waitlist', methods=['POST'])
+def waitlist_signup():
+    """
+    Capture email for early access waitlist.
+    Rate limited: 5 submissions per IP per hour.
+    """
+    import re
+    import hashlib
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    language = data.get('language', 'no')
+
+    # Validate email
+    if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({"error": "Invalid email"}), 400
+
+    # Rate limiting (5 per IP per hour)
+    ip_hash = hashlib.sha256(request.remote_addr.encode()).hexdigest()[:16]
+    now = datetime.now()
+    limit_info = _waitlist_rate_limit.get(ip_hash)
+
+    if limit_info:
+        count, first_time = limit_info
+        hours_elapsed = (now - first_time).total_seconds() / 3600
+        if hours_elapsed >= 1:
+            _waitlist_rate_limit[ip_hash] = (1, now)
+        elif count >= 5:
+            return jsonify({"error": "Rate limit exceeded"}), 429
+        else:
+            _waitlist_rate_limit[ip_hash] = (count + 1, first_time)
+    else:
+        _waitlist_rate_limit[ip_hash] = (1, now)
+
+    # Store signup
+    _waitlist_emails.append({
+        "email": email,
+        "language": language,
+        "timestamp": now.isoformat(),
+        "ip_hash": ip_hash
+    })
+
+    logger.info(f"📧 Waitlist signup: {email} (lang={language})")
+    return jsonify({"success": True})
+
+
+# ============================================
+# ANALYTICS (Route 21)
+# ============================================
+
+_VALID_EVENTS = {"demo_started", "demo_mic_granted", "demo_coaching_received", "waitlist_signup"}
+
+@app.route('/analytics/event', methods=['POST'])
+def analytics_event():
+    """
+    Lightweight event logging. No external SDKs.
+    """
+    # sendBeacon sends as text/plain, so handle both JSON content types
+    raw = request.get_data(as_text=True)
+    try:
+        data = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+
+    event = data.get('event', '')
+    metadata = data.get('metadata', {})
+
+    if event not in _VALID_EVENTS:
+        return jsonify({"error": "Invalid event"}), 400
+
+    logger.info(f"📊 Analytics: {event} | {json.dumps(metadata)}")
+    return jsonify({"success": True})
+
+
+# ============================================
 # ERROR HANDLERS
 # ============================================
 
