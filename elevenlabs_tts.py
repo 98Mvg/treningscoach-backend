@@ -190,7 +190,21 @@ class ElevenLabsTTS:
             convert_kwargs["language_code"] = language_code
 
         # Generate audio using text_to_speech method
-        audio = self.client.text_to_speech.convert(**convert_kwargs)
+        try:
+            audio = self.client.text_to_speech.convert(**convert_kwargs)
+        except Exception as e:
+            status_code = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None)
+            logger.error(
+                "ElevenLabs convert failed (lang=%s persona=%s voice=%s status=%s model=%s): %s",
+                language or "auto",
+                persona or "none",
+                (voice_id[:8] + "...") if voice_id else "missing",
+                status_code,
+                TTS_MODEL,
+                e,
+                exc_info=True,
+            )
+            raise
 
         # Save to file
         with open(output_path, "wb") as f:

@@ -605,8 +605,17 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
             print(f"[TTS] MOCK (ElevenLabs disabled) lang={normalized_language}")
             return synthesize_speech_mock(tts_text)
     except Exception as e:
-        logger.error(f"TTS failed, using mock: {e}")
-        print(f"[TTS] FAILED lang={language} persona={persona} error={type(e).__name__}: {e}")
+        status_code = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None)
+        logger.error(
+            "TTS failed, using mock (lang=%s persona=%s type=%s status=%s): %s",
+            language,
+            persona,
+            type(e).__name__,
+            status_code,
+            e,
+            exc_info=True,
+        )
+        print(f"[TTS] FAILED lang={language} persona={persona} type={type(e).__name__} status={status_code} error={e}")
         # Fallback to mock for development/testing
         return synthesize_speech_mock(text)
 
