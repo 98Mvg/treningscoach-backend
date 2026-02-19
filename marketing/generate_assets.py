@@ -34,9 +34,13 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 
 # --- Base style prefix ---
 BASE_PREFIX = (
-    "Cinematic, dark atmosphere, Midnight Ember palette (#1a1a2e background), "
-    "neon purple (#7B68EE) and cyan (#00D9FF) accent lighting, dramatic shadows, "
-    "futuristic athletic aesthetic, no text overlays, photorealistic."
+    "Professional photograph taken with a DSLR camera in a real gym. "
+    "Real person, natural skin texture, real sweat. Moody low-key lighting, "
+    "dark environment. Shot looks like it was taken by a professional fitness "
+    "photographer for a magazine editorial. No CGI, no holograms, no digital "
+    "effects, no glowing outlines. Natural colors with subtle warm and cool "
+    "tones from ambient gym lighting. No text overlays. High resolution, "
+    "sharp focus on subject, shallow depth of field."
 )
 
 # --- Templates ---
@@ -44,61 +48,61 @@ TEMPLATES = [
     {
         "id": "hero-workout",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} An athlete mid-sprint on a dark indoor track, smartwatch glowing on their wrist with a cyan pulse line. Subtle holographic heart rate data floats near the watch. Purple rim lighting on the athlete's silhouette, deep shadows, shallow depth of field. Wide 16:9 composition with space on the left for text overlay.",
+        "prompt": f"{BASE_PREFIX} A real person sprinting on an indoor track in a dimly lit gym. They are wearing a smartwatch and athletic clothes. The gym has moody overhead lighting casting pools of warm light. Sweat on their skin. Shot from a low angle, dramatic perspective. Wide 16:9 composition with negative space on the left side for text overlay. Looks like a Nike or Adidas campaign photo.",
         "aspect_ratio": "16:9",
     },
     {
         "id": "hero-coach-pocket",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} Close-up of a person holding an iPhone during a gym workout. The phone screen shows a dark fitness app with a large glowing orange-amber pulsing orb in the center, surrounded by a circular purple gradient progress arc, a timer showing workout time, and a warm-up phase label. The app UI is minimal with dark background. Dark gym with equipment in background, neon purple and cyan highlights on metal surfaces. Wide 16:9 composition, phone centered-right.",
+        "prompt": f"{BASE_PREFIX} A real person in a gym checking their iPhone between sets. The phone screen shows a dark fitness app with a glowing orange orb and circular progress ring. They are sweaty, wearing workout clothes, gym equipment visible in the blurred background. Natural gym lighting, slightly warm tones. The phone screen is the brightest element in the image. Wide 16:9 composition, candid feel like someone snapped the photo during a real workout.",
         "aspect_ratio": "16:9",
     },
     {
         "id": "ig-pulse-push",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} An athlete pushing through an intense dumbbell set, sweat visible, smartwatch prominent on wrist glowing cyan. Neon purple rim lighting defining their muscular form against the dark background. Square 1:1 composition, tight crop, high energy.",
+        "prompt": f"{BASE_PREFIX} A real person doing an intense dumbbell curl in a gym. Close-up showing their arm, the dumbbell, and their smartwatch on the wrist. Veins visible, real sweat on skin. Dark gym background with soft overhead lights creating rim lighting on their shoulder. Raw, gritty, authentic. Square 1:1 composition, tight crop.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-coach-voice",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} A runner mid-stride outdoors at night, wireless earbuds visible, subtle sound wave visualization emanating from their ear in cyan. Phone in armband glowing softly. Purple streetlight glow in background, motion blur on surroundings. Square 1:1 composition.",
+        "prompt": f"{BASE_PREFIX} A real person running on a city street at dusk, wearing wireless earbuds and a phone armband. Natural street lighting, slightly orange from streetlights. They look focused and determined, mid-stride. You can see earbuds in their ear clearly. Background is a real urban environment slightly blurred from motion. Square 1:1 composition, editorial running photography style.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-watch-connect",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} Extreme close-up of a wrist wearing a smartwatch during exercise, screen showing a glowing cyan heart rate line. Sweat droplets on the watch face catching purple and cyan light. Dark background, shallow depth of field. Square 1:1 composition.",
+        "prompt": f"{BASE_PREFIX} Close-up of a real person's wrist wearing an Apple Watch during a workout. The watch screen shows heart rate data. Small sweat droplets on the watch band and skin. Background is a dark gym, blurred with bokeh from gym lights. Natural lighting, no special effects. The watch face is glowing softly as the brightest element. Square 1:1 composition, macro photography style.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-story-effort",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} Full-body shot of an athlete in explosive motion, box jump or burpee, captured mid-air. Purple and cyan rim lighting creating a dramatic silhouette. Dark gym environment, vertical 9:16 composition, dynamic angle from slightly below.",
+        "prompt": f"{BASE_PREFIX} A real person doing a box jump in a CrossFit-style gym, captured mid-air. Full body visible, athletic build, real gym environment with plyo boxes, barbells, and rubber flooring. Dramatic overhead lighting creating strong shadows. Raw, powerful, authentic moment. Vertical 9:16 composition, shot from slightly below looking up.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "tiktok-cover-push",
         "dir": "tiktok",
-        "prompt": f"{BASE_PREFIX} Intense workout moment: person gripping a barbell, phone visible in their pocket or nearby showing coaching interface. Dramatic overhead neon lighting in purple. Vertical 9:16 composition, moody, cinematic grain, coach-in-pocket concept.",
+        "prompt": f"{BASE_PREFIX} A real person gripping a loaded barbell, about to deadlift. Their phone is on the floor nearby, screen showing a dark fitness app with an orange glow. Chalk dust in the air, real gym floor, plates on the bar. Dramatic top-down gym lighting. Gritty, authentic, powerful. Vertical 9:16 composition, moody.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "tiktok-cover-tech",
         "dir": "tiktok",
-        "prompt": f"{BASE_PREFIX} Flat lay of workout gear on dark surface: smartwatch showing pulse data, phone with coaching app interface, wireless earbuds, towel. Cyan and purple lighting from above casting dramatic shadows. Vertical 9:16 composition, tech-focused.",
+        "prompt": f"{BASE_PREFIX} Flat lay on a dark gym bench: a real smartwatch showing heart rate, an iPhone with a dark fitness app on screen, wireless earbuds in their case, a gym towel, and a water bottle. Natural overhead gym light illuminating the objects. Looks like someone placed their gear down between sets and took a photo. Vertical 9:16 composition, authentic lifestyle flat lay.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "mockup-watch",
         "dir": "mockups",
-        "prompt": f"{BASE_PREFIX} Apple Watch on a person's wrist during exercise, screen clearly showing a heart rate of 142 BPM with a glowing cyan pulse wave. Wrist slightly sweaty, gym equipment blurred in dark background. Purple accent light from the left. Square 1:1 composition, product photography style.",
+        "prompt": f"{BASE_PREFIX} Close-up of a real person's wrist wearing an Apple Watch while gripping a pull-up bar. The watch screen shows 142 BPM heart rate. Their hand is chalked, forearm veins visible, real gym pull-up bar with worn rubber grip. Dark gym background. Natural lighting from above. Authentic, not posed. Square 1:1 composition.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "mockup-phone",
         "dir": "mockups",
-        "prompt": f"{BASE_PREFIX} An iPhone held at a slight angle by a person mid-workout. The phone screen shows a dark fitness coaching app: a large glowing orange-amber orb in the center that pulses like a heartbeat, surrounded by a circular progress arc with purple gradient, a workout timer, small audio waveform bars below the orb, and phase labels. The app background is very dark almost black. Person's hand gripping the phone, dark gym environment out of focus behind. 4:3 landscape composition, product photography style.",
+        "prompt": f"{BASE_PREFIX} A real person sitting on a gym bench between sets, holding their iPhone. The phone screen shows a dark fitness coaching app with a glowing orange-amber orb in the center, a circular purple progress ring around it, a workout timer, and small audio waveform bars. They are sweaty in workout clothes, gym equipment in the blurred background. Natural gym lighting. Candid, real moment. 4:3 landscape composition.",
         "aspect_ratio": "4:3",
     },
 ]
