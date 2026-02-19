@@ -6,6 +6,17 @@
     <title>Coachi | Slik fungerer det</title>
     <meta name="description" content="Coachi er en AI-coach som kobler pust, puls og treningsfase til live stemmecoaching. Prøv den direkte i nettleseren.">
     <meta name="theme-color" content="#2b1a8a">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Coachi | Live AI Coaching for Workouts">
+    <meta property="og:description" content="Pust + puls + treningsfase i én coach-opplevelse. Bygg vaner og få smartere live coaching.">
+    <meta property="og:url" content="https://treningscoach-backend.onrender.com">
+    <meta property="og:image" content="https://treningscoach-backend.onrender.com/static/site/images/v2-hero-ui.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Coachi | Live AI Coaching for Workouts">
+    <meta name="twitter:description" content="Pust + puls + treningsfase i én coach-opplevelse.">
+    <meta name="twitter:image" content="https://treningscoach-backend.onrender.com/static/site/images/v2-hero-ui.png">
+    <link rel="canonical" href="https://treningscoach-backend.onrender.com/">
+    <link rel="preload" as="image" href="/static/site/images/v2-hero-ui.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -430,6 +441,31 @@
             border: 1px solid var(--line);
             box-shadow: var(--shadow-soft);
             padding: 26px;
+        }
+
+        .partner-strip {
+            background: linear-gradient(145deg, #ffffff, #f2f0ff);
+        }
+
+        .partner-row {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .partner-pill {
+            border-radius: 12px;
+            border: 1px solid rgba(42, 46, 95, 0.16);
+            background: rgba(255, 255, 255, 0.95);
+            min-height: 54px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 8px;
+            font-weight: 800;
+            color: #303a69;
+            letter-spacing: 0.02em;
+            font-size: 0.86rem;
         }
 
         .section-head {
@@ -1220,6 +1256,11 @@
             font-size: 1rem;
         }
 
+        .store-badge:focus-visible {
+            outline: 3px solid rgba(104, 214, 183, 0.6);
+            outline-offset: 2px;
+        }
+
         .wait-form {
             display: grid;
             gap: 8px;
@@ -1328,6 +1369,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .partner-row {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
             .numbers-grid {
                 grid-template-columns: 1fr;
             }
@@ -1373,6 +1418,7 @@
             }
 
             .hero-badges,
+            .partner-row,
             .features-grid,
             .control-grid,
             .button-grid,
@@ -1400,6 +1446,23 @@
 
             .hero-copy h1 {
                 font-size: clamp(1.7rem, 8vw, 2.45rem);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+                animation: none;
+            }
+
+            .orb.live::before,
+            .orb.live::after {
+                animation: none;
             }
         }
     </style>
@@ -1453,7 +1516,7 @@
 
                 <aside class="hero-panel">
                     <figure class="hero-device-shot">
-                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app preview med trenerdashbord, økter og fremgang">
+                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app preview med trenerdashbord, økter og fremgang" data-i18n-alt="hero_image_alt">
                     </figure>
 
                     <article class="status-card">
@@ -1520,7 +1583,7 @@
                 </div>
 
                 <div class="visual-card" aria-hidden="true">
-                    <img class="visual-img" src="/static/site/images/v2-metrics-ui.png" alt="">
+                    <img class="visual-img" src="/static/site/images/v2-metrics-ui.png" alt="" data-i18n-alt="metrics_image_alt">
                     <div class="stat-overlay">
                         <h5 data-i18n="how_chart_title">Puls</h5>
                         <div class="chart-line"></div>
@@ -1530,6 +1593,27 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section class="section reveal partner-strip" id="partners">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="partners_eyebrow">Tillit</span>
+                    <h2 data-i18n="partners_title">Bygget med forskning, testet i praksis</h2>
+                </div>
+                <p data-i18n="partners_intro">
+                    Produktretningen er inspirert av forskningsnær helseteknologi og praktisk coaching.
+                    Denne strukturen gjør tilbudet enklere å stole på for både brukere og samarbeidspartnere.
+                </p>
+            </div>
+            <div class="partner-row" data-i18n-aria-label="partners_row_aria">
+                <span class="partner-pill">CERG</span>
+                <span class="partner-pill">NTNU</span>
+                <span class="partner-pill">SINTEF</span>
+                <span class="partner-pill">GARMIN</span>
+                <span class="partner-pill">POLAR</span>
+                <span class="partner-pill">FITBIT</span>
             </div>
         </section>
 
@@ -1800,13 +1884,14 @@
                     <h3 data-i18n="wait_download_title">Last ned app</h3>
                     <p data-i18n="wait_download_body">Mobilopplevelse med samme coachingmotor som demoen over.</p>
                     <div class="cta-preview">
-                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app oversikt med trening og profil" loading="lazy">
+                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app oversikt med trening og profil" data-i18n-alt="cta_image_alt" loading="lazy">
                     </div>
                     <div class="store-row">
-                        <a class="store-badge" href="#" aria-label="App Store coming soon"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
-                        <a class="store-badge" href="#" aria-label="Google Play coming soon"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
+                        <a class="store-badge" href="#waitForm" data-i18n-aria-label="store_app_aria"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
+                        <a class="store-badge" href="#waitForm" data-i18n-aria-label="store_google_aria"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
                     </div>
-                    <p class="small-note" data-i18n="wait_trusted_note">Trusted by 100,000+ users in Norway style positioning.</p>
+                    <p class="small-note" data-i18n="wait_trusted_note">Brukt av over 100 000 i Norge-lignende markedsposisjonering.</p>
+                    <p class="small-note" data-i18n="store_soon_note">App-butikker åpner snart. Registrer deg for tidlig tilgang.</p>
                 </article>
 
                 <article class="cta-panel">
@@ -1828,8 +1913,8 @@
                 <h3>coachi</h3>
                 <p data-i18n="footer_brand_body">Forstå aktiviteten din. Få tydelig coaching. Bygg vaner som varer.</p>
                 <div class="store-row" style="margin-top:10px;">
-                    <a class="store-badge" href="#"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
-                    <a class="store-badge" href="#"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
+                    <a class="store-badge" href="#waitForm" data-i18n-aria-label="store_app_aria"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
+                    <a class="store-badge" href="#waitForm" data-i18n-aria-label="store_google_aria"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
                 </div>
             </div>
 
@@ -1962,9 +2047,16 @@
                 how_chart_title: "Puls",
                 how_chart_left: "Tjener AQ",
                 how_chart_right: "Stabil trend",
+                hero_image_alt: "Coachi app-visning med økter, progresjon og profil",
+                metrics_image_alt: "",
+                cta_image_alt: "Coachi mobilvisning med coachingoversikt",
                 numbers_eyebrow: "AQ og kondisjonsalder",
                 numbers_title: "To tall som forteller alt",
                 numbers_intro: "Coachi forenkler signalene til to tydelige utfall: dagens innsatskvalitet og langsiktig utvikling. Det gjør oppfølging enklere for brukeren og sterkere forretningsmessig verdi for deg.",
+                partners_eyebrow: "Tillit",
+                partners_title: "Bygget med forskning, testet i praksis",
+                partners_intro: "Produktretningen er inspirert av forskningsnær helseteknologi og praktisk coaching. Denne strukturen gjør tilbudet enklere å stole på for både brukere og samarbeidspartnere.",
+                partners_row_aria: "Partnerorganisasjoner og integrasjoner",
                 numbers_card_1_title: "Bygg gode vaner med AQ",
                 numbers_card_1_body: "AQ gir et daglig svar på om aktivitetsnivået er høyt nok for målsetningen. Enkelt å forstå, lett å følge, og sterkt for retention.",
                 numbers_phone_title: "Din AQ",
@@ -2046,7 +2138,10 @@
                 wait_download_title: "Last ned app",
                 wait_download_body: "Mobilopplevelse med samme coachingmotor som demoen over.",
                 store_download_on: "LAST NED PÅ",
-                wait_trusted_note: "Trusted by 100,000+ users in Norway style positioning.",
+                wait_trusted_note: "Bygd for samme markedsdynamikk som produkter med 100 000+ brukere i Norge.",
+                store_soon_note: "App-butikker åpner snart. Registrer deg for tidlig tilgang.",
+                store_app_aria: "App Store - venteliste og tidlig tilgang",
+                store_google_aria: "Google Play - venteliste og tidlig tilgang",
                 wait_list_title: "Venteliste",
                 wait_list_body: "Få invitasjon til beta, priser og lanseringsoppdateringer.",
                 wait_email_placeholder: "deg@epost.no",
@@ -2134,9 +2229,16 @@
                 how_chart_title: "Heart rate",
                 how_chart_left: "Contributes to AQ",
                 how_chart_right: "Stable trend",
+                hero_image_alt: "Coachi app view with workouts, progress, and profile",
+                metrics_image_alt: "",
+                cta_image_alt: "Coachi mobile preview with coaching overview",
                 numbers_eyebrow: "AQ and fitness age",
                 numbers_title: "Two numbers that tell the story",
                 numbers_intro: "Coachi simplifies signal complexity into two clear outcomes: today’s effort quality and long-term development. That makes follow-up easier for users and stronger business value for you.",
+                partners_eyebrow: "Trust",
+                partners_title: "Built with research, tested in practice",
+                partners_intro: "The product direction is inspired by research-driven health tech and practical coaching. This structure makes the offer easier to trust for users and partners.",
+                partners_row_aria: "Partner organizations and integrations",
                 numbers_card_1_title: "Build strong habits with AQ",
                 numbers_card_1_body: "AQ gives a daily answer to whether activity level is high enough for the goal. Easy to understand, easy to follow, and strong for retention.",
                 numbers_phone_title: "Your AQ",
@@ -2218,7 +2320,10 @@
                 wait_download_title: "Download app",
                 wait_download_body: "Mobile experience using the same coaching engine as the demo above.",
                 store_download_on: "DOWNLOAD ON",
-                wait_trusted_note: "Trusted positioning for 100,000+ users in Norway.",
+                wait_trusted_note: "Designed for the same market dynamics as products used by 100,000+ people in Norway.",
+                store_soon_note: "App stores open soon. Join the waitlist for early access.",
+                store_app_aria: "App Store - waitlist and early access",
+                store_google_aria: "Google Play - waitlist and early access",
                 wait_list_title: "Waitlist",
                 wait_list_body: "Get invited to beta, pricing, and launch updates.",
                 wait_email_placeholder: "you@email.com",
@@ -2325,6 +2430,20 @@
                 const key = node.dataset.i18nPlaceholder;
                 if (key && I18N[nextLang][key]) {
                     node.setAttribute("placeholder", I18N[nextLang][key]);
+                }
+            });
+
+            document.querySelectorAll("[data-i18n-alt]").forEach((node) => {
+                const key = node.dataset.i18nAlt;
+                if (key && Object.prototype.hasOwnProperty.call(I18N[nextLang], key)) {
+                    node.setAttribute("alt", I18N[nextLang][key]);
+                }
+            });
+
+            document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+                const key = node.dataset.i18nAriaLabel;
+                if (key && I18N[nextLang][key]) {
+                    node.setAttribute("aria-label", I18N[nextLang][key]);
                 }
             });
 
