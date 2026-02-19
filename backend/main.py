@@ -143,6 +143,7 @@ else:
     logger.warning("⚠️ ElevenLabs voice ID not found in env/config, using mock TTS")
     USE_ELEVENLABS = False
 logger.info("TTS service initialized")
+VOICE_TEXT_PACING_COMPAT_WARNED = False
 
 # ============================================
 # HELPER FUNCTIONS
@@ -541,15 +542,24 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
             )
 
         if getattr(config, "VOICE_TEXT_PACING_ENABLED", True) and voice_pacing:
-            paced_text = voice_intelligence.apply_text_rhythm(
-                message=text,
-                language=normalized_language,
-                emotional_mode=selected_mode,
-                pacing=voice_pacing,
-            )
-            if paced_text != text:
-                logger.info("Voice text pacing applied: %r -> %r", text, paced_text)
-            tts_text = paced_text
+            rhythm_fn = getattr(voice_intelligence, "apply_text_rhythm", None)
+            if callable(rhythm_fn):
+                paced_text = rhythm_fn(
+                    message=text,
+                    language=normalized_language,
+                    emotional_mode=selected_mode,
+                    pacing=voice_pacing,
+                )
+                if paced_text != text:
+                    logger.info("Voice text pacing applied: %r -> %r", text, paced_text)
+                tts_text = paced_text
+            else:
+                global VOICE_TEXT_PACING_COMPAT_WARNED
+                if not VOICE_TEXT_PACING_COMPAT_WARNED:
+                    logger.warning(
+                        "VOICE_TEXT_PACING_ENABLED is true but VoiceIntelligence.apply_text_rhythm is unavailable; skipping text rhythm shaping."
+                    )
+                    VOICE_TEXT_PACING_COMPAT_WARNED = True
 
         if USE_ELEVENLABS:
             # Use ElevenLabs with persona-specific voice settings

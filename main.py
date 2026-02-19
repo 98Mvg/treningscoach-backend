@@ -143,6 +143,16 @@ else:
     logger.warning("⚠️ ElevenLabs voice ID not found in env/config, using mock TTS")
     USE_ELEVENLABS = False
 logger.info("TTS service initialized")
+TTS_RUNTIME_DIAGNOSTICS = {
+    "boot": {
+        "use_elevenlabs": bool(USE_ELEVENLABS),
+        "voice_source": elevenlabs_voice_source,
+        "voice_prefix": (elevenlabs_voice_id[:8] + "...") if elevenlabs_voice_id else "",
+    },
+    "last_success": None,
+    "last_error": None,
+}
+VOICE_TEXT_PACING_COMPAT_WARNED = False
 
 # ============================================
 # HELPER FUNCTIONS
@@ -198,6 +208,28 @@ def _coach_score_line(score: int, language: str) -> str:
     if normalize_language_code(language) == "no":
         return f"CoachScore: {clamped} — Solid jobb. Du traff intensiteten som forbedrer helsa di."
     return f"CoachScore: {clamped} — Solid work. You hit the intensity that improves your health."
+
+
+def _record_tts_success(provider: str, language: str, persona: str, file_path: str):
+    TTS_RUNTIME_DIAGNOSTICS["last_success"] = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "provider": provider,
+        "language": normalize_language_code(language or "en"),
+        "persona": persona or "personal_trainer",
+        "filename": os.path.basename(file_path or ""),
+    }
+
+
+def _record_tts_error(stage: str, language: str, persona: str, error_type: str, status_code, message: str):
+    TTS_RUNTIME_DIAGNOSTICS["last_error"] = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "stage": stage,
+        "language": normalize_language_code(language or "en"),
+        "persona": persona or "personal_trainer",
+        "error_type": error_type,
+        "status_code": status_code,
+        "message": str(message)[:500],
+    }
 
 # Common English words that should never appear in Norwegian coaching output
 _ENGLISH_COACHING_WORDS = {
@@ -541,15 +573,24 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
             )
 
         if getattr(config, "VOICE_TEXT_PACING_ENABLED", True) and voice_pacing:
-            paced_text = voice_intelligence.apply_text_rhythm(
-                message=text,
-                language=normalized_language,
-                emotional_mode=selected_mode,
-                pacing=voice_pacing,
-            )
-            if paced_text != text:
-                logger.info("Voice text pacing applied: %r -> %r", text, paced_text)
-            tts_text = paced_text
+            rhythm_fn = getattr(voice_intelligence, "apply_text_rhythm", None)
+            if callable(rhythm_fn):
+                paced_text = rhythm_fn(
+                    message=text,
+                    language=normalized_language,
+                    emotional_mode=selected_mode,
+                    pacing=voice_pacing,
+                )
+                if paced_text != text:
+                    logger.info("Voice text pacing applied: %r -> %r", text, paced_text)
+                tts_text = paced_text
+            else:
+                global VOICE_TEXT_PACING_COMPAT_WARNED
+                if not VOICE_TEXT_PACING_COMPAT_WARNED:
+                    logger.warning(
+                        "VOICE_TEXT_PACING_ENABLED is true but VoiceIntelligence.apply_text_rhythm is unavailable; skipping text rhythm shaping."
+                    )
+                    VOICE_TEXT_PACING_COMPAT_WARNED = True
 
         if USE_ELEVENLABS:
             # Use ElevenLabs with persona-specific voice settings
