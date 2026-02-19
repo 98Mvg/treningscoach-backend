@@ -1,0 +1,6 @@
+marketing/assets/**/*.png filter=lfs diff=lfs merge=lfs -text
+marketing/assets/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+marketing/assets/**/*.webp filter=lfs diff=lfs merge=lfs -text
+static/**/*.png filter=lfs diff=lfs merge=lfs -text
+static/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+static/**/*.webp filter=lfs diff=lfs merge=lfs -text
