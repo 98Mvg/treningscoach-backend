@@ -58,6 +58,7 @@ def _env_json_dict(name: str, default: dict) -> dict:
 # ============================================
 APP_NAME = "Coachi"
 APP_VERSION = "3.0.0"
+WEB_UI_VARIANT = (os.getenv("WEB_UI_VARIANT", "codex") or "codex").strip().lower()
 
 # ============================================
 # LANGUAGE SETTINGS

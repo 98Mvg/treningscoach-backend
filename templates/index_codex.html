@@ -1,0 +1,2900 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coachi | Slik fungerer det</title>
+    <meta name="description" content="Coachi er en AI-coach som kobler pust, puls og treningsfase til live stemmecoaching. Prøv den direkte i nettleseren.">
+    <meta name="theme-color" content="#2b1a8a">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #efeff4;
+            --paper: #f8f8fc;
+            --ink: #1f2440;
+            --muted: #5f688a;
+            --primary: #2b1a8a;
+            --primary-2: #5f3bf0;
+            --teal: #20b9a7;
+            --mint: #68d6b7;
+            --orange: #ff8a5a;
+            --line: rgba(41, 32, 86, 0.14);
+            --shadow-soft: 0 16px 40px rgba(37, 34, 69, 0.12);
+            --shadow-hard: 0 26px 60px rgba(31, 24, 90, 0.25);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --max: 1200px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Manrope", "Segoe UI", sans-serif;
+            color: var(--ink);
+            background: radial-gradient(1000px 420px at 15% -10%, rgba(95, 59, 240, 0.15), transparent 65%),
+                        radial-gradient(900px 420px at 100% 0%, rgba(255, 138, 90, 0.14), transparent 58%),
+                        var(--bg);
+            line-height: 1.45;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: "Poppins", "Trebuchet MS", sans-serif;
+            letter-spacing: -0.02em;
+            line-height: 1.12;
+            color: var(--primary);
+        }
+
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        .container {
+            width: min(var(--max), calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .top-nav-wrap {
+            position: sticky;
+            top: 12px;
+            z-index: 80;
+            margin-top: 10px;
+        }
+
+        .top-nav {
+            min-height: 74px;
+            border-radius: 999px;
+            padding: 10px 12px 10px 18px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(43, 26, 138, 0.12);
+            box-shadow: 0 10px 24px rgba(35, 29, 90, 0.14);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(145deg, var(--primary), var(--primary-2));
+            box-shadow: 0 8px 16px rgba(49, 35, 140, 0.3);
+            position: relative;
+        }
+
+        .brand-mark::before,
+        .brand-mark::after {
+            content: "";
+            position: absolute;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .brand-mark::before {
+            width: 9px;
+            height: 9px;
+            top: 7px;
+            left: 8px;
+        }
+
+        .brand-mark::after {
+            width: 14px;
+            height: 5px;
+            right: 7px;
+            bottom: 8px;
+        }
+
+        .brand-text {
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: -0.03em;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-left: auto;
+            margin-right: 10px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            color: #3f4580;
+            text-decoration: none;
+            font-size: 0.93rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            transition: color 0.16s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lang-switch {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px;
+            border: 1px solid rgba(43, 26, 138, 0.2);
+            background: rgba(95, 59, 240, 0.08);
+            gap: 4px;
+        }
+
+        .lang-btn {
+            border: 0;
+            border-radius: 999px;
+            min-width: 42px;
+            min-height: 34px;
+            padding: 0 10px;
+            background: transparent;
+            color: #3f4580;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .lang-btn.active {
+            background: linear-gradient(130deg, var(--primary-2), var(--primary));
+            color: #fff;
+            box-shadow: 0 7px 16px rgba(74, 51, 190, 0.3);
+        }
+
+        .pill {
+            border: 0;
+            border-radius: 999px;
+            min-height: 44px;
+            padding: 0 16px;
+            font-size: 0.86rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .pill:hover {
+            transform: translateY(-1px);
+        }
+
+        .pill-primary {
+            background: linear-gradient(130deg, var(--primary-2), var(--primary));
+            color: #fff;
+            box-shadow: 0 9px 18px rgba(74, 51, 190, 0.34);
+        }
+
+        .pill-ghost {
+            background: rgba(94, 71, 194, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(43, 26, 138, 0.18);
+        }
+
+        .hero {
+            margin-top: 16px;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            background: linear-gradient(160deg, rgba(38, 30, 103, 0.9), rgba(66, 48, 173, 0.88) 46%, rgba(95, 59, 240, 0.82));
+            box-shadow: var(--shadow-hard);
+            position: relative;
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(520px 300px at 20% 10%, rgba(180, 168, 255, 0.32), transparent 66%),
+                radial-gradient(720px 360px at 80% 40%, rgba(104, 214, 183, 0.2), transparent 65%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(25, 18, 86, 0.45) 70%, rgba(27, 15, 96, 0.92) 100%);
+            pointer-events: none;
+        }
+
+        .hero-grid {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1.08fr 0.92fr;
+            gap: 18px;
+            padding: 40px 38px;
+            color: #f6f4ff;
+        }
+
+        .hero-copy h1 {
+            color: #fff;
+            font-size: clamp(2rem, 5vw, 4rem);
+            max-width: 12ch;
+            margin-bottom: 14px;
+        }
+
+        .hero-copy p {
+            color: rgba(243, 241, 255, 0.9);
+            font-size: 1.06rem;
+            max-width: 56ch;
+            margin-bottom: 24px;
+        }
+
+        .hero-ctas {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .hero-badges {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .hero-badge {
+            border-radius: 12px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+            font-size: 0.8rem;
+            color: rgba(250, 250, 255, 0.95);
+        }
+
+        .hero-badge strong {
+            display: block;
+            font-family: "Poppins", sans-serif;
+            font-size: 1.02rem;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+
+        .hero-panel {
+            border-radius: 18px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            backdrop-filter: blur(8px);
+            display: grid;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .hero-device-shot {
+            position: relative;
+            margin: 0;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            box-shadow: 0 16px 28px rgba(12, 8, 52, 0.32);
+            min-height: 180px;
+            background: rgba(22, 15, 76, 0.42);
+        }
+
+        .hero-device-shot img {
+            width: 100%;
+            height: 100%;
+            min-height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .hero-device-shot::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(17, 9, 64, 0.05), rgba(17, 10, 58, 0.38));
+            pointer-events: none;
+        }
+
+        .status-card {
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(15, 8, 62, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+
+        .status-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .status-title {
+            color: #ddd7ff;
+            font-size: 0.78rem;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .status-pill {
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f3f0ff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .status-pill.up {
+            color: #b9ffe5;
+            border-color: rgba(117, 245, 197, 0.45);
+        }
+
+        .status-pill.warn {
+            color: #ffe8b5;
+            border-color: rgba(255, 205, 99, 0.45);
+        }
+
+        .status-pill.down {
+            color: #ffd5cf;
+            border-color: rgba(255, 138, 107, 0.5);
+        }
+
+        .status-note {
+            font-size: 0.88rem;
+            color: rgba(248, 246, 255, 0.92);
+        }
+
+        .flow-list {
+            list-style: none;
+            display: grid;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .flow-list li {
+            font-size: 0.9rem;
+            color: rgba(240, 238, 255, 0.9);
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .flow-list li::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 7px;
+            flex-shrink: 0;
+            background: linear-gradient(120deg, var(--mint), var(--orange));
+            box-shadow: 0 0 0 5px rgba(104, 214, 183, 0.2);
+        }
+
+        .section {
+            margin-top: 18px;
+            border-radius: var(--radius-lg);
+            background: var(--paper);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow-soft);
+            padding: 26px;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 7px 12px;
+            background: rgba(95, 59, 240, 0.12);
+            color: #4b36b8;
+            font-size: 0.74rem;
+            font-weight: 800;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            margin-bottom: 7px;
+        }
+
+        .section-head h2 {
+            font-size: clamp(1.6rem, 3vw, 2.8rem);
+            max-width: 16ch;
+        }
+
+        .section-head p {
+            max-width: 64ch;
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .measure-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .copy-block {
+            display: grid;
+            gap: 12px;
+            align-content: start;
+        }
+
+        .copy-block h3 {
+            font-size: 2rem;
+            max-width: 11ch;
+        }
+
+        .copy-block p {
+            color: var(--muted);
+            font-size: 1.06rem;
+            max-width: 46ch;
+        }
+
+        .copy-sub h4 {
+            color: var(--primary);
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .wearable-row {
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            padding: 12px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .logo-pill {
+            border-radius: 999px;
+            border: 1px solid rgba(47, 55, 101, 0.2);
+            background: #fff;
+            color: #29305c;
+            padding: 7px 11px;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+        }
+
+        .visual-card {
+            border-radius: 18px;
+            min-height: 360px;
+            background: linear-gradient(140deg, #2b1a8a, #5a3ff0 48%, #ff8a5a 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+        }
+
+        .visual-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(320px 210px at 35% 30%, rgba(255, 255, 255, 0.3), transparent 70%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(21, 12, 75, 0.68));
+        }
+
+        .visual-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.9;
+            filter: saturate(1.08) contrast(1.03);
+        }
+
+        .stat-overlay {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(245, 243, 252, 0.92);
+            border: 1px solid rgba(46, 51, 95, 0.16);
+            z-index: 1;
+        }
+
+        .stat-overlay h5 {
+            color: #2f3262;
+            font-size: 0.98rem;
+            margin-bottom: 8px;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .chart-line {
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(95, 59, 240, 0.25), rgba(95, 59, 240, 0.85));
+            position: relative;
+        }
+
+        .chart-line::before {
+            content: "";
+            position: absolute;
+            left: 58%;
+            top: -3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #5f3bf0;
+        }
+
+        .chart-meta {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #4d5385;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .numbers-head {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .numbers-head h2 {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            max-width: 14ch;
+            margin: 0 auto 12px;
+        }
+
+        .numbers-head p {
+            max-width: 64ch;
+            margin: 0 auto;
+            color: var(--muted);
+            font-size: 1.06rem;
+        }
+
+        .numbers-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .number-card {
+            border-radius: 16px;
+            background: #fff;
+            border: 1px solid var(--line);
+            padding: 16px;
+            min-height: 228px;
+        }
+
+        .number-card h3 {
+            font-size: 1.7rem;
+            margin-bottom: 8px;
+        }
+
+        .number-card p {
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .phone {
+            width: 300px;
+            max-width: 100%;
+            border-radius: 34px;
+            background: #111;
+            padding: 11px;
+            box-shadow: 0 24px 46px rgba(34, 27, 99, 0.25);
+        }
+
+        .phone-screen {
+            border-radius: 24px;
+            overflow: hidden;
+            background: linear-gradient(180deg, #fff, #f4f3f9);
+            min-height: 520px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .phone-notch {
+            width: 92px;
+            height: 20px;
+            border-radius: 999px;
+            background: #111;
+            margin: 0 auto 14px;
+        }
+
+        .aq-ring {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            margin: 12px auto 16px;
+            border: 11px solid #5dc67f;
+            position: relative;
+            display: grid;
+            place-items: center;
+            color: #26a765;
+            font-family: "Poppins", sans-serif;
+            font-size: 2.4rem;
+            font-weight: 800;
+        }
+
+        .aq-ring span {
+            position: absolute;
+            bottom: 28px;
+            font-size: 0.9rem;
+            color: #4b5178;
+            font-weight: 700;
+        }
+
+        .mini-chart {
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid var(--line);
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .mini-chart h4 {
+            font-size: 0.95rem;
+            color: #3a4272;
+            margin-bottom: 8px;
+        }
+
+        .mini-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            min-height: 62px;
+        }
+
+        .mini-bars span {
+            flex: 1;
+            border-radius: 4px 4px 0 0;
+            background: linear-gradient(180deg, #5f3bf0, #a18dff);
+        }
+
+        .mini-bars span:nth-child(1) { height: 24%; }
+        .mini-bars span:nth-child(2) { height: 40%; }
+        .mini-bars span:nth-child(3) { height: 62%; }
+        .mini-bars span:nth-child(4) { height: 45%; }
+        .mini-bars span:nth-child(5) { height: 70%; }
+        .mini-bars span:nth-child(6) { height: 55%; }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .feature-card {
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: #fff;
+            padding: 16px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(95, 59, 240, 0.12);
+            color: #4f3ad2;
+            display: grid;
+            place-items: center;
+            font-size: 1.12rem;
+            font-weight: 900;
+            font-family: "Poppins", sans-serif;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+        }
+
+        .feature-card p {
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            display: grid;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .feature-card li {
+            font-size: 0.9rem;
+            color: #3d4475;
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .feature-card li::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--teal);
+            position: absolute;
+            left: 0;
+            top: 0.45em;
+        }
+
+        .live-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .card {
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: #fff;
+            padding: 15px;
+        }
+
+        .card h3 {
+            font-size: 1.45rem;
+            margin-bottom: 8px;
+        }
+
+        .card p {
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 5px;
+        }
+
+        .field label {
+            font-size: 0.74rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #4b5384;
+            font-weight: 700;
+        }
+
+        select,
+        input {
+            border-radius: 10px;
+            border: 1px solid rgba(53, 61, 110, 0.22);
+            background: #fff;
+            color: #232a52;
+            min-height: 40px;
+            padding: 0 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+        }
+
+        select:focus,
+        input:focus {
+            border-color: #5f3bf0;
+            box-shadow: 0 0 0 3px rgba(95, 59, 240, 0.16);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 10px;
+            min-height: 40px;
+            padding: 0 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            font-weight: 800;
+            transition: transform 0.15s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .btn-start {
+            background: linear-gradient(130deg, #2b1a8a, #5f3bf0);
+            color: #fff;
+        }
+
+        .btn-pause {
+            background: #f0ebff;
+            color: #3f2db4;
+            border: 1px solid rgba(95, 59, 240, 0.3);
+        }
+
+        .btn-stop {
+            background: #ffe8e3;
+            color: #b54c37;
+            border: 1px solid rgba(255, 138, 90, 0.5);
+        }
+
+        .talk-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 7px;
+            margin-bottom: 6px;
+        }
+
+        .btn-talk {
+            border-radius: 10px;
+            border: 1px solid rgba(53, 61, 110, 0.25);
+            background: #f6f5fb;
+            color: #2f3a68;
+            min-height: 40px;
+            padding: 0 12px;
+            font-size: 0.78rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .small-note {
+            font-size: 0.82rem;
+            color: #4e5786;
+        }
+
+        .surface {
+            border-radius: 18px;
+            min-height: 540px;
+            background: linear-gradient(158deg, #2d1b91 0%, #5f3bf0 54%, #2bb6a2 100%);
+            color: #f7f5ff;
+            padding: 16px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.23);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 11px;
+        }
+
+        .surface-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .surface-pill {
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            background: rgba(255, 255, 255, 0.11);
+            color: #f6f4ff;
+            padding: 5px 10px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .surface-pill.live {
+            color: #d3ffe8;
+            border-color: rgba(122, 255, 206, 0.55);
+            background: rgba(83, 225, 181, 0.19);
+        }
+
+        .orb-wrap {
+            display: grid;
+            justify-items: center;
+            text-align: center;
+            gap: 8px;
+        }
+
+        .orb {
+            width: 176px;
+            height: 176px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 34% 28%, #ffd089 0%, #ff8a5a 45%, #2b1a8a 100%);
+            position: relative;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 18px 30px rgba(25, 19, 81, 0.36);
+        }
+
+        .orb::before,
+        .orb::after {
+            content: "";
+            position: absolute;
+            inset: -8px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
+        .orb.live::before,
+        .orb.live::after {
+            animation: ping 2.2s ease-out infinite;
+        }
+
+        .orb.live::after {
+            animation-delay: 1.1s;
+        }
+
+        @keyframes ping {
+            0% { opacity: 0.6; transform: scale(0.95); }
+            100% { opacity: 0; transform: scale(1.24); }
+        }
+
+        .live-time {
+            font-family: "Poppins", sans-serif;
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+
+        .live-phase {
+            margin-top: 5px;
+            letter-spacing: 0.09em;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: rgba(251, 249, 255, 0.88);
+            font-weight: 700;
+        }
+
+        .live-intensity {
+            color: #f8f6ff;
+            font-size: 0.94rem;
+            font-weight: 700;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 7px;
+            margin-bottom: 7px;
+        }
+
+        .analysis-box {
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            padding: 7px;
+        }
+
+        .analysis-label {
+            font-size: 0.66rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(241, 248, 255, 0.87);
+        }
+
+        .analysis-value {
+            font-size: 0.98rem;
+            font-weight: 800;
+        }
+
+        .feed {
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            background: rgba(20, 13, 70, 0.34);
+            max-height: 170px;
+            overflow: auto;
+            padding: 8px;
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        .feed-line {
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+            padding: 5px 0;
+        }
+
+        .feed-line:last-child {
+            border-bottom: 0;
+        }
+
+        .meta-note {
+            margin-top: 7px;
+            font-size: 0.76rem;
+            color: rgba(239, 250, 255, 0.85);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .price-card {
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: #fff;
+            padding: 18px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .price-card h3 {
+            font-size: 2rem;
+        }
+
+        .price-sub {
+            color: var(--muted);
+            font-size: 0.98rem;
+        }
+
+        .price-value {
+            font-family: "Poppins", sans-serif;
+            color: var(--primary);
+            font-size: 2.5rem;
+            line-height: 1;
+            margin-top: 5px;
+        }
+
+        .price-value small {
+            font-size: 1.05rem;
+            color: #555f8b;
+        }
+
+        .price-btn {
+            border: 0;
+            border-radius: 999px;
+            min-height: 48px;
+            padding: 0 18px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .price-btn.primary {
+            background: linear-gradient(130deg, #5f3bf0, #2b1a8a);
+            color: #fff;
+        }
+
+        .price-btn.ghost {
+            background: #f5f3ff;
+            color: #3f30b5;
+            border: 1px solid rgba(95, 59, 240, 0.32);
+        }
+
+        .price-list {
+            list-style: none;
+            display: grid;
+            gap: 7px;
+            margin-top: 4px;
+        }
+
+        .price-list li {
+            color: #384172;
+            font-size: 0.92rem;
+            position: relative;
+            padding-left: 18px;
+        }
+
+        .price-list li::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: linear-gradient(140deg, var(--teal), var(--mint));
+            position: absolute;
+            left: 0;
+            top: 0.42em;
+        }
+
+        .cta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .cta-panel {
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: #fff;
+            padding: 16px;
+            display: grid;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .cta-panel h3 {
+            font-size: 2rem;
+        }
+
+        .cta-panel p {
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        .cta-preview {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(47, 54, 99, 0.18);
+            background: linear-gradient(155deg, #1d125f, #5437e6);
+            box-shadow: 0 12px 24px rgba(33, 25, 90, 0.2);
+        }
+
+        .cta-preview img {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            display: block;
+            opacity: 0.95;
+        }
+
+        .store-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .store-badge {
+            border-radius: 12px;
+            padding: 11px 14px;
+            background: #111;
+            color: #fff;
+            text-decoration: none;
+            min-width: 160px;
+            font-size: 0.82rem;
+            line-height: 1.2;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .store-badge strong {
+            font-size: 1rem;
+        }
+
+        .wait-form {
+            display: grid;
+            gap: 8px;
+        }
+
+        .wait-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+        }
+
+        .wait-btn {
+            border: 0;
+            border-radius: 10px;
+            min-height: 42px;
+            background: linear-gradient(130deg, #2b1a8a, #5f3bf0);
+            color: #fff;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            font-weight: 800;
+            padding: 0 14px;
+            cursor: pointer;
+        }
+
+        .wait-msg {
+            min-height: 1.2em;
+            font-size: 0.84rem;
+            color: #495383;
+        }
+
+        .footer {
+            margin-top: 18px;
+            margin-bottom: 26px;
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            background: linear-gradient(140deg, #251180, #2f1699 60%, #381cb4);
+            color: #ece9ff;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 1fr;
+            gap: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .footer-brand h3 {
+            color: #fff;
+            font-size: 2.4rem;
+            margin-bottom: 8px;
+        }
+
+        .footer-brand p {
+            color: rgba(233, 230, 255, 0.86);
+            font-size: 1.02rem;
+            max-width: 28ch;
+        }
+
+        .footer-group h4 {
+            color: #fff;
+            font-size: 1.35rem;
+            margin-bottom: 10px;
+        }
+
+        .footer-links {
+            list-style: none;
+            display: grid;
+            gap: 8px;
+        }
+
+        .footer-links a {
+            color: rgba(236, 232, 255, 0.88);
+            text-decoration: none;
+            font-size: 0.96rem;
+            font-weight: 600;
+        }
+
+        .footer-links a:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(14px);
+            animation: rise 0.56s ease forwards;
+        }
+
+        .reveal:nth-child(2) { animation-delay: 0.06s; }
+        .reveal:nth-child(3) { animation-delay: 0.12s; }
+        .reveal:nth-child(4) { animation-delay: 0.18s; }
+        .reveal:nth-child(5) { animation-delay: 0.24s; }
+
+        @keyframes rise {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1120px) {
+            .hero-grid,
+            .measure-grid,
+            .live-layout,
+            .pricing-grid,
+            .cta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .numbers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .phone {
+                margin: 0 auto;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .container {
+                width: calc(100% - 18px);
+            }
+
+            .top-nav-wrap {
+                top: 8px;
+            }
+
+            .top-nav {
+                min-height: 64px;
+                border-radius: 18px;
+                flex-wrap: wrap;
+                padding: 10px;
+            }
+
+            .nav-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .lang-switch {
+                order: -1;
+            }
+
+            .hero-grid,
+            .section,
+            .footer {
+                padding: 16px;
+            }
+
+            .hero-badges,
+            .features-grid,
+            .control-grid,
+            .button-grid,
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .talk-row,
+            .wait-row {
+                grid-template-columns: 1fr;
+            }
+
+            .orb {
+                width: 152px;
+                height: 152px;
+            }
+
+            .live-time {
+                font-size: 2.15rem;
+            }
+
+            .footer {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-copy h1 {
+                font-size: clamp(1.7rem, 8vw, 2.45rem);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container top-nav-wrap">
+        <nav class="top-nav" aria-label="Main navigation">
+            <a href="#top" class="brand">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-text">coachi</span>
+            </a>
+
+            <div class="nav-links">
+                <a href="#top" data-i18n="nav_home">Hjem</a>
+                <a href="#how" data-i18n="nav_how">Slik fungerer det</a>
+                <a href="#features" data-i18n="nav_features">Funksjoner</a>
+                <a href="#pricing" data-i18n="nav_pricing">Priser</a>
+                <a href="#waitlist" data-i18n="nav_get_started">Kom i gang</a>
+            </div>
+
+            <div class="nav-actions">
+                <div class="lang-switch" role="group" aria-label="Language selector">
+                    <button type="button" class="lang-btn active" data-lang-btn="no">NO</button>
+                    <button type="button" class="lang-btn" data-lang-btn="en">EN</button>
+                </div>
+                <a class="pill pill-ghost" href="https://treningscoach-backend.onrender.com/preview" target="_blank" rel="noopener noreferrer" data-i18n="nav_compare">A/B compare</a>
+                <a class="pill pill-primary" href="#waitlist" data-i18n="nav_download">Last ned app</a>
+            </div>
+        </nav>
+    </div>
+
+    <main class="container">
+        <section class="hero reveal" id="top">
+            <div class="hero-grid">
+                <div class="hero-copy">
+                    <h1 data-i18n="hero_title">Ta kontroll over treningshelsa di</h1>
+                    <p data-i18n="hero_body">
+                        Coachi gir deg tydelig, personlig stemmecoaching i sanntid. Vi kombinerer pust, puls og
+                        treningsfase for å gi deg riktig cue akkurat når du trenger det.
+                    </p>
+                    <div class="hero-ctas">
+                        <a class="pill pill-primary" href="#live" data-i18n="hero_cta_primary">Start live demo</a>
+                        <a class="pill pill-ghost" href="#how" data-i18n="hero_cta_secondary">Se hvordan det virker</a>
+                    </div>
+                    <div class="hero-badges">
+                        <div class="hero-badge"><strong>120k+</strong><span data-i18n="hero_badge_users">Brukere av lignende helseopplevelse i Norge</span></div>
+                        <div class="hero-badge"><strong>6-10s</strong><span data-i18n="hero_badge_latency">Kontinuerlig lydchunk og respons</span></div>
+                        <div class="hero-badge"><strong>Garmin / Polar</strong><span data-i18n="hero_badge_wearables">Fitbit og Apple Watch kompatibilitet</span></div>
+                    </div>
+                </div>
+
+                <aside class="hero-panel">
+                    <figure class="hero-device-shot">
+                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app preview med trenerdashbord, økter og fremgang">
+                    </figure>
+
+                    <article class="status-card">
+                        <div class="status-top">
+                            <span class="status-title" data-i18n="status_api_title">API status</span>
+                            <span id="apiStatus" class="status-pill warn">SJEKKER</span>
+                        </div>
+                        <p class="status-note" id="apiNote">Laster backend health...</p>
+                    </article>
+
+                    <article class="status-card">
+                        <div class="status-top">
+                            <span class="status-title" data-i18n="status_brain_title">Brain router</span>
+                            <span id="brainStatus" class="status-pill warn">SJEKKER</span>
+                        </div>
+                        <p class="status-note" id="brainNote">Laster aktiv provider...</p>
+                    </article>
+
+                    <ul class="flow-list">
+                        <li data-i18n="flow_item_1">Warmup med trygg progresjon og pusterytme.</li>
+                        <li data-i18n="flow_item_2">Intensiv fase med skarpere cues når belastningen øker.</li>
+                        <li data-i18n="flow_item_3">Cooldown med kontrollert nedtrapping.</li>
+                    </ul>
+                </aside>
+            </div>
+        </section>
+
+        <section class="section reveal" id="how">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="how_eyebrow">Måling</span>
+                    <h2 data-i18n="how_title">Slik måler vi aktiviteten din</h2>
+                </div>
+                <p data-i18n="how_intro">
+                    Som Mia-inspirert struktur, men laget for Coachi: mål innsats tydelig, forklar hva signalene betyr,
+                    og gjør det lett å ta handling i samme skjermbilde.
+                </p>
+            </div>
+
+            <div class="measure-grid">
+                <div class="copy-block">
+                    <h3 data-i18n="how_block_title">Puls + pust gir bedre coaching</h3>
+                    <p data-i18n="how_block_body">
+                        Pulsen viser hvor hardt kroppen jobber. Pusten viser hvordan belastningen kjennes i kroppen.
+                        Sammen gir de bedre beslutninger enn ett signal alene.
+                    </p>
+
+                    <div class="copy-sub">
+                        <h4 data-i18n="how_watch_title">Fungerer med smartklokka di</h4>
+                        <p data-i18n="how_watch_body">
+                            Oppsettet er laget for brukere med Garmin, Polar, Fitbit og Apple Watch, og kan også
+                            utvides til Samsung og Suunto etter behov.
+                        </p>
+                    </div>
+
+                    <div class="wearable-row" aria-label="Wearable compatibility list">
+                        <span class="logo-pill">APPLE WATCH</span>
+                        <span class="logo-pill">GARMIN</span>
+                        <span class="logo-pill">FITBIT</span>
+                        <span class="logo-pill">POLAR</span>
+                        <span class="logo-pill">SAMSUNG</span>
+                        <span class="logo-pill">SUUNTO</span>
+                    </div>
+                </div>
+
+                <div class="visual-card" aria-hidden="true">
+                    <img class="visual-img" src="/static/site/images/v2-metrics-ui.png" alt="">
+                    <div class="stat-overlay">
+                        <h5 data-i18n="how_chart_title">Puls</h5>
+                        <div class="chart-line"></div>
+                        <div class="chart-meta">
+                            <span data-i18n="how_chart_left">Tjener AQ</span>
+                            <span data-i18n="how_chart_right">Stabil trend</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section reveal" id="numbers">
+            <div class="numbers-head">
+                <span class="eyebrow" data-i18n="numbers_eyebrow">AQ og kondisjonsalder</span>
+                <h2 data-i18n="numbers_title">To tall som forteller alt</h2>
+                <p data-i18n="numbers_intro">
+                    Coachi forenkler signalene til to tydelige utfall: dagens innsatskvalitet og langsiktig utvikling.
+                    Det gjør oppfølging enklere for brukeren og sterkere forretningsmessig verdi for deg.
+                </p>
+            </div>
+
+            <div class="numbers-grid">
+                <article class="number-card">
+                    <h3 data-i18n="numbers_card_1_title">Bygg gode vaner med AQ</h3>
+                    <p data-i18n="numbers_card_1_body">
+                        AQ gir et daglig svar på om aktivitetsnivået er høyt nok for målsetningen. Enkelt å forstå,
+                        lett å følge, og sterkt for retention.
+                    </p>
+                </article>
+
+                <div class="phone" aria-hidden="true">
+                    <div class="phone-screen">
+                        <div class="phone-notch"></div>
+                        <h4 style="color:#3c4573; font-size:1rem;" data-i18n="numbers_phone_title">Din AQ</h4>
+                        <div class="aq-ring">100<span data-i18n="numbers_phone_total">Total</span></div>
+                        <div class="mini-chart">
+                            <h4 data-i18n="numbers_phone_trend">Kondisjonsalder trend</h4>
+                            <div class="mini-bars">
+                                <span></span><span></span><span></span><span></span><span></span><span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <article class="number-card">
+                    <h3 data-i18n="numbers_card_2_title">Motiver med kondisjonsalder</h3>
+                    <p data-i18n="numbers_card_2_body">
+                        Kondisjonsalder gjør langsiktig framgang konkret. Brukeren ser hvorfor dagens innsats betyr
+                        noe over tid, ikke bare i øyeblikket.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section class="section reveal" id="features">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="features_eyebrow">Funksjoner</span>
+                    <h2 data-i18n="features_title">Smarte funksjoner for å holde deg i gang</h2>
+                </div>
+                <p data-i18n="features_intro">
+                    Markedsmessig sterke funksjoner med tydelig forretningsverdi: høyere engagement, bedre retention,
+                    og tydeligere differensiering mot generiske treningsapper.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <article class="feature-card">
+                    <span class="feature-icon">01</span>
+                    <h3 data-i18n="feature_1_title">Prediksjoner</h3>
+                    <p data-i18n="feature_1_body">Vis hva som skjer om brukeren fortsetter dagens mønster. Sterkt for aha-opplevelse.</p>
+                    <ul>
+                        <li data-i18n="feature_1_item_1">Framtidsvisning basert på trend</li>
+                        <li data-i18n="feature_1_item_2">Daglig feedback-loop</li>
+                        <li data-i18n="feature_1_item_3">Bedre beslutninger uten støy</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
+                    <span class="feature-icon">02</span>
+                    <h3 data-i18n="feature_2_title">Utfordringer</h3>
+                    <p data-i18n="feature_2_body">Skaper retning, konkurranse og mestring med målbare steg.</p>
+                    <ul>
+                        <li data-i18n="feature_2_item_1">Ukentlige mål og progresjon</li>
+                        <li data-i18n="feature_2_item_2">Segmentert nivå: beginner til advanced</li>
+                        <li data-i18n="feature_2_item_3">Kobles direkte mot coachingfrekvens</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
+                    <span class="feature-icon">03</span>
+                    <h3 data-i18n="feature_3_title">Aktiv vennegjeng</h3>
+                    <p data-i18n="feature_3_body">Sosial forankring øker sannsynligheten for at brukeren holder vanen.</p>
+                    <ul>
+                        <li data-i18n="feature_3_item_1">Deling av fremgang</li>
+                        <li data-i18n="feature_3_item_2">Motivasjon gjennom sammenligning</li>
+                        <li data-i18n="feature_3_item_3">Bygger organisk vekst</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
+                    <span class="feature-icon">04</span>
+                    <h3 data-i18n="feature_4_title">Pulsbasert coaching</h3>
+                    <p data-i18n="feature_4_body">Kombinerer pustecoaching med pulskontekst fra populære pulsmålere.</p>
+                    <ul>
+                        <li data-i18n="feature_4_item_1">Garmin, Polar, Fitbit, Apple Watch</li>
+                        <li data-i18n="feature_4_item_2">Tydeligere innsatsvurdering per fase</li>
+                        <li data-i18n="feature_4_item_3">Klar roadmap for wearable-integrasjoner</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="section reveal" id="live">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="live_eyebrow">Live demo</span>
+                    <h2 data-i18n="live_title">Prøv Coachi direkte i nettleseren</h2>
+                </div>
+                <p data-i18n="live_intro">
+                    Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for welcome, continuous
+                    coaching, talk-to-coach, waitlist og analytics.
+                </p>
+            </div>
+
+            <div class="live-layout">
+                <article class="card">
+                    <h3 data-i18n="live_controls_title">Kontroller</h3>
+                    <p data-i18n="live_controls_body">Sett språk, persona og treningsnivå før du starter.</p>
+
+                    <div class="control-grid">
+                        <div class="field">
+                            <label for="demoLanguage" data-i18n="live_label_language">Språk</label>
+                            <select id="demoLanguage">
+                                <option value="no" selected data-i18n="option_lang_no">Norsk</option>
+                                <option value="en" data-i18n="option_lang_en">English</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="demoPersona" data-i18n="live_label_persona">Persona</label>
+                            <select id="demoPersona">
+                                <option value="personal_trainer">Personal Trainer</option>
+                                <option value="toxic_mode">Toxic Mode</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="demoTraining" data-i18n="live_label_level">Nivå</label>
+                            <select id="demoTraining">
+                                <option value="beginner" data-i18n="option_training_beginner">Beginner</option>
+                                <option value="intermediate" selected data-i18n="option_training_intermediate">Intermediate</option>
+                                <option value="advanced" data-i18n="option_training_advanced">Advanced</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="demoMode" data-i18n="live_label_mode">Workout-modus</label>
+                            <select id="demoMode">
+                                <option value="standard" selected data-i18n="option_mode_standard">Standard</option>
+                                <option value="interval" data-i18n="option_mode_interval">Interval</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="button-grid">
+                        <button class="btn btn-start" id="btnStart" data-i18n="btn_start">Start</button>
+                        <button class="btn btn-pause" id="btnPause" disabled data-i18n="btn_pause">Pause</button>
+                        <button class="btn btn-stop" id="btnStop" disabled data-i18n="btn_stop">Stopp</button>
+                    </div>
+
+                    <div class="talk-row">
+                        <input id="talkInput" type="text" placeholder="Hvordan bør jeg pace dette intervallet?" data-i18n-placeholder="talk_placeholder">
+                        <button class="btn-talk" id="btnTalk" data-i18n="btn_talk">Spør coach</button>
+                    </div>
+                    <p class="small-note" id="talkMsg">Ingen aktiv samtale enda.</p>
+
+                    <p class="small-note" id="opsMeta">Ingen aktiv session.</p>
+                </article>
+
+                <article class="surface" aria-live="polite">
+                    <div class="surface-top">
+                        <span class="surface-pill" id="liveState">IDLE</span>
+                        <span class="surface-pill" id="liveReason">reason: none</span>
+                        <span class="surface-pill live" id="liveNext">next: 8.0s</span>
+                    </div>
+
+                    <div class="orb-wrap">
+                        <div class="orb" id="liveOrb">
+                            <div>
+                                <div class="live-time" id="liveTime">00:00</div>
+                                <div class="live-phase" id="livePhase">WARMUP</div>
+                            </div>
+                        </div>
+                        <div class="live-intensity" id="liveIntensity">Intensity: moderate</div>
+                    </div>
+
+                    <div>
+                        <div class="analysis-grid">
+                            <div class="analysis-box">
+                                <div class="analysis-label" data-i18n="analysis_resp_rate">Resp rate</div>
+                                <div class="analysis-value" id="aRate">--</div>
+                            </div>
+                            <div class="analysis-box">
+                                <div class="analysis-label" data-i18n="analysis_regularity">Regularity</div>
+                                <div class="analysis-value" id="aRegularity">--</div>
+                            </div>
+                            <div class="analysis-box">
+                                <div class="analysis-label" data-i18n="analysis_signal">Signal</div>
+                                <div class="analysis-value" id="aSignal">--</div>
+                            </div>
+                        </div>
+
+                        <div class="feed" id="coachFeed"></div>
+                        <p class="meta-note" id="coachMeta">Venter på første coaching-tick.</p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="section reveal" id="pricing">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="pricing_eyebrow">Priser</span>
+                    <h2 data-i18n="pricing_title">Få hele app-opplevelsen</h2>
+                </div>
+                <p data-i18n="pricing_intro">
+                    Freemium-struktur som konverterer: gratis inngang for volum, premium for dybdeinnsikt,
+                    historikk og personaliserte coaching-oppsett.
+                </p>
+            </div>
+
+            <div class="pricing-grid">
+                <article class="price-card">
+                    <h3 data-i18n="pricing_free_title">Coachi Gratis</h3>
+                    <p class="price-sub" data-i18n="pricing_free_sub">Perfekt for å komme i gang med pust, fase og grunnleggende innsikt.</p>
+                    <div class="price-value" data-i18n="pricing_free_value">0 kr</div>
+                    <a href="#waitlist" class="price-btn ghost" data-i18n="pricing_free_cta">Start gratis</a>
+                    <ul class="price-list">
+                        <li data-i18n="pricing_free_item_1">Live coaching i basismodus</li>
+                        <li data-i18n="pricing_free_item_2">Grunnleggende AQ-lignende dagsscore</li>
+                        <li data-i18n="pricing_free_item_3">Utfordringer og progresjonssporing</li>
+                        <li data-i18n="pricing_free_item_4">Kunnskapsinnhold og tips</li>
+                    </ul>
+                </article>
+
+                <article class="price-card" style="background: linear-gradient(140deg, #f6f4ff, #ffffff);">
+                    <h3 data-i18n="pricing_premium_title">Coachi Premium</h3>
+                    <p class="price-sub" data-i18n="pricing_premium_sub">For deg som vil ha full historikk, dypere innsikt og sterkere personalisering.</p>
+                    <div class="price-value"><span data-i18n="pricing_premium_value">Fra 25 kr</span> <small data-i18n="pricing_premium_period">/måned</small></div>
+                    <a href="#waitlist" class="price-btn primary" data-i18n="pricing_premium_cta">Kom i gang</a>
+                    <ul class="price-list">
+                        <li data-i18n="pricing_premium_item_1">Full historikk for AQ og kondisjonsutvikling</li>
+                        <li data-i18n="pricing_premium_item_2">Prediksjoner basert på treningsmønster</li>
+                        <li data-i18n="pricing_premium_item_3">Utvidet pulsbasert coaching og anbefalinger</li>
+                        <li data-i18n="pricing_premium_item_4">Prioritert tilgang til nye funksjoner</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="section reveal" id="waitlist">
+            <div class="section-head">
+                <div>
+                    <span class="eyebrow" data-i18n="wait_eyebrow">Kom i gang</span>
+                    <h2 data-i18n="wait_title">Bli med før lansering</h2>
+                </div>
+                <p data-i18n="wait_intro">
+                    Registrer deg for tidlig tilgang. Denne ventelista er koblet til backend-endepunkt med
+                    rate-limiting og eventsporing.
+                </p>
+            </div>
+
+            <div class="cta-grid">
+                <article class="cta-panel">
+                    <h3 data-i18n="wait_download_title">Last ned app</h3>
+                    <p data-i18n="wait_download_body">Mobilopplevelse med samme coachingmotor som demoen over.</p>
+                    <div class="cta-preview">
+                        <img src="/static/site/images/v2-hero-ui.png" alt="Coachi app oversikt med trening og profil" loading="lazy">
+                    </div>
+                    <div class="store-row">
+                        <a class="store-badge" href="#" aria-label="App Store coming soon"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
+                        <a class="store-badge" href="#" aria-label="Google Play coming soon"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
+                    </div>
+                    <p class="small-note" data-i18n="wait_trusted_note">Trusted by 100,000+ users in Norway style positioning.</p>
+                </article>
+
+                <article class="cta-panel">
+                    <h3 data-i18n="wait_list_title">Venteliste</h3>
+                    <p data-i18n="wait_list_body">Få invitasjon til beta, priser og lanseringsoppdateringer.</p>
+                    <form class="wait-form" id="waitForm">
+                        <div class="wait-row">
+                            <input id="waitEmail" type="email" placeholder="deg@epost.no" required data-i18n-placeholder="wait_email_placeholder">
+                            <button class="wait-btn" type="submit" data-i18n="wait_join_cta">Bli med</button>
+                        </div>
+                        <p class="wait-msg" id="waitMsg">Ingen spam. Én melding når vi åpner.</p>
+                    </form>
+                </article>
+            </div>
+        </section>
+
+        <footer class="footer reveal">
+            <div class="footer-brand">
+                <h3>coachi</h3>
+                <p data-i18n="footer_brand_body">Forstå aktiviteten din. Få tydelig coaching. Bygg vaner som varer.</p>
+                <div class="store-row" style="margin-top:10px;">
+                    <a class="store-badge" href="#"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>App Store</strong></a>
+                    <a class="store-badge" href="#"><span data-i18n="store_download_on">LAST NED PÅ</span><strong>Google Play</strong></a>
+                </div>
+            </div>
+
+            <div class="footer-group">
+                <h4 data-i18n="footer_group_start">Kom i gang</h4>
+                <ul class="footer-links">
+                    <li><a href="#top" data-i18n="footer_home">Hjem</a></li>
+                    <li><a href="#how" data-i18n="footer_how">Slik fungerer det</a></li>
+                    <li><a href="#live" data-i18n="footer_live">Live demo</a></li>
+                    <li><a href="#pricing" data-i18n="footer_pricing">Priser</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-group">
+                <h4 data-i18n="footer_group_more">Mer</h4>
+                <ul class="footer-links">
+                    <li><a href="https://treningscoach-backend.onrender.com/health" target="_blank" rel="noopener noreferrer" data-i18n="footer_api_status">API status</a></li>
+                    <li><a href="https://treningscoach-backend.onrender.com/brain/health" target="_blank" rel="noopener noreferrer" data-i18n="footer_brain_status">Brain status</a></li>
+                    <li><a href="https://treningscoach-backend.onrender.com/preview" target="_blank" rel="noopener noreferrer" data-i18n="footer_compare">A/B compare</a></li>
+                    <li><a href="https://treningscoach-backend.onrender.com/?variant=claude" target="_blank" rel="noopener noreferrer" data-i18n="footer_claude">Åpne Claude-variant</a></li>
+                </ul>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const state = {
+            active: false,
+            paused: false,
+            startAt: null,
+            elapsedSeconds: 0,
+            sessionId: null,
+            stream: null,
+            recorder: null,
+            chunks: [],
+            timerHandle: null,
+            tickHandle: null,
+            pendingTick: false,
+            tickMs: 8000,
+            phase: "warmup",
+            reason: "none",
+            nextSeconds: 8,
+            liveStateKey: "idle",
+            currentLang: "no",
+            lastIntensity: "moderate",
+            lastCoachingText: "",
+            mimeType: "audio/webm"
+        };
+
+        const dom = {
+            apiStatus: document.getElementById("apiStatus"),
+            brainStatus: document.getElementById("brainStatus"),
+            apiNote: document.getElementById("apiNote"),
+            brainNote: document.getElementById("brainNote"),
+            demoLanguage: document.getElementById("demoLanguage"),
+            demoPersona: document.getElementById("demoPersona"),
+            demoTraining: document.getElementById("demoTraining"),
+            demoMode: document.getElementById("demoMode"),
+            btnStart: document.getElementById("btnStart"),
+            btnPause: document.getElementById("btnPause"),
+            btnStop: document.getElementById("btnStop"),
+            btnTalk: document.getElementById("btnTalk"),
+            talkInput: document.getElementById("talkInput"),
+            talkMsg: document.getElementById("talkMsg"),
+            liveState: document.getElementById("liveState"),
+            liveReason: document.getElementById("liveReason"),
+            liveNext: document.getElementById("liveNext"),
+            liveOrb: document.getElementById("liveOrb"),
+            liveTime: document.getElementById("liveTime"),
+            livePhase: document.getElementById("livePhase"),
+            liveIntensity: document.getElementById("liveIntensity"),
+            aRate: document.getElementById("aRate"),
+            aRegularity: document.getElementById("aRegularity"),
+            aSignal: document.getElementById("aSignal"),
+            coachFeed: document.getElementById("coachFeed"),
+            coachMeta: document.getElementById("coachMeta"),
+            opsMeta: document.getElementById("opsMeta"),
+            waitForm: document.getElementById("waitForm"),
+            waitEmail: document.getElementById("waitEmail"),
+            waitMsg: document.getElementById("waitMsg"),
+            langButtons: Array.from(document.querySelectorAll("[data-lang-btn]"))
+        };
+
+        const RENDER_BASE_URL = "https://treningscoach-backend.onrender.com";
+        const API_BASE_URL = (() => {
+            try {
+                if (window.location && window.location.origin && window.location.origin.includes("treningscoach-backend.onrender.com")) {
+                    return window.location.origin;
+                }
+            } catch (error) {
+                // Ignore access issues and fall back to Render URL.
+            }
+            return RENDER_BASE_URL;
+        })();
+
+        function apiUrl(path) {
+            return `${API_BASE_URL}${path}`;
+        }
+
+        const I18N = {
+            no: {
+                meta_title: "Coachi | Slik fungerer det",
+                meta_description: "Coachi er en AI-coach som kobler pust, puls og treningsfase til live stemmecoaching. Prøv den direkte i nettleseren.",
+                nav_home: "Hjem",
+                nav_how: "Slik fungerer det",
+                nav_features: "Funksjoner",
+                nav_pricing: "Priser",
+                nav_get_started: "Kom i gang",
+                nav_compare: "A/B compare",
+                nav_download: "Last ned app",
+                hero_title: "Ta kontroll over treningshelsa di",
+                hero_body: "Coachi gir deg tydelig, personlig stemmecoaching i sanntid. Vi kombinerer pust, puls og treningsfase for å gi deg riktig cue akkurat når du trenger det.",
+                hero_cta_primary: "Start live demo",
+                hero_cta_secondary: "Se hvordan det virker",
+                hero_badge_users: "Brukere av lignende helseopplevelse i Norge",
+                hero_badge_latency: "Kontinuerlig lydchunk og respons",
+                hero_badge_wearables: "Fitbit og Apple Watch kompatibilitet",
+                status_api_title: "API status",
+                status_brain_title: "Brain router",
+                flow_item_1: "Warmup med trygg progresjon og pusterytme.",
+                flow_item_2: "Intensiv fase med skarpere cues når belastningen øker.",
+                flow_item_3: "Cooldown med kontrollert nedtrapping.",
+                how_eyebrow: "Måling",
+                how_title: "Slik måler vi aktiviteten din",
+                how_intro: "Som Mia-inspirert struktur, men laget for Coachi: mål innsats tydelig, forklar hva signalene betyr, og gjør det lett å ta handling i samme skjermbilde.",
+                how_block_title: "Puls + pust gir bedre coaching",
+                how_block_body: "Pulsen viser hvor hardt kroppen jobber. Pusten viser hvordan belastningen kjennes i kroppen. Sammen gir de bedre beslutninger enn ett signal alene.",
+                how_watch_title: "Fungerer med smartklokka di",
+                how_watch_body: "Oppsettet er laget for brukere med Garmin, Polar, Fitbit og Apple Watch, og kan også utvides til Samsung og Suunto etter behov.",
+                how_chart_title: "Puls",
+                how_chart_left: "Tjener AQ",
+                how_chart_right: "Stabil trend",
+                numbers_eyebrow: "AQ og kondisjonsalder",
+                numbers_title: "To tall som forteller alt",
+                numbers_intro: "Coachi forenkler signalene til to tydelige utfall: dagens innsatskvalitet og langsiktig utvikling. Det gjør oppfølging enklere for brukeren og sterkere forretningsmessig verdi for deg.",
+                numbers_card_1_title: "Bygg gode vaner med AQ",
+                numbers_card_1_body: "AQ gir et daglig svar på om aktivitetsnivået er høyt nok for målsetningen. Enkelt å forstå, lett å følge, og sterkt for retention.",
+                numbers_phone_title: "Din AQ",
+                numbers_phone_total: "Total",
+                numbers_phone_trend: "Kondisjonsalder trend",
+                numbers_card_2_title: "Motiver med kondisjonsalder",
+                numbers_card_2_body: "Kondisjonsalder gjør langsiktig framgang konkret. Brukeren ser hvorfor dagens innsats betyr noe over tid, ikke bare i øyeblikket.",
+                features_eyebrow: "Funksjoner",
+                features_title: "Smarte funksjoner for å holde deg i gang",
+                features_intro: "Markedsmessig sterke funksjoner med tydelig forretningsverdi: høyere engagement, bedre retention, og tydeligere differensiering mot generiske treningsapper.",
+                feature_1_title: "Prediksjoner",
+                feature_1_body: "Vis hva som skjer om brukeren fortsetter dagens mønster. Sterkt for aha-opplevelse.",
+                feature_1_item_1: "Framtidsvisning basert på trend",
+                feature_1_item_2: "Daglig feedback-loop",
+                feature_1_item_3: "Bedre beslutninger uten støy",
+                feature_2_title: "Utfordringer",
+                feature_2_body: "Skaper retning, konkurranse og mestring med målbare steg.",
+                feature_2_item_1: "Ukentlige mål og progresjon",
+                feature_2_item_2: "Segmentert nivå: beginner til advanced",
+                feature_2_item_3: "Kobles direkte mot coachingfrekvens",
+                feature_3_title: "Aktiv vennegjeng",
+                feature_3_body: "Sosial forankring øker sannsynligheten for at brukeren holder vanen.",
+                feature_3_item_1: "Deling av fremgang",
+                feature_3_item_2: "Motivasjon gjennom sammenligning",
+                feature_3_item_3: "Bygger organisk vekst",
+                feature_4_title: "Pulsbasert coaching",
+                feature_4_body: "Kombinerer pustecoaching med pulskontekst fra populære pulsmålere.",
+                feature_4_item_1: "Garmin, Polar, Fitbit, Apple Watch",
+                feature_4_item_2: "Tydeligere innsatsvurdering per fase",
+                feature_4_item_3: "Klar roadmap for wearable-integrasjoner",
+                live_eyebrow: "Live demo",
+                live_title: "Prøv Coachi direkte i nettleseren",
+                live_intro: "Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for welcome, continuous coaching, talk-to-coach, waitlist og analytics.",
+                live_controls_title: "Kontroller",
+                live_controls_body: "Sett språk, persona og treningsnivå før du starter.",
+                live_label_language: "Språk",
+                live_label_persona: "Persona",
+                live_label_level: "Nivå",
+                live_label_mode: "Workout-modus",
+                option_lang_no: "Norsk",
+                option_lang_en: "English",
+                option_training_beginner: "Beginner",
+                option_training_intermediate: "Intermediate",
+                option_training_advanced: "Advanced",
+                option_mode_standard: "Standard",
+                option_mode_interval: "Interval",
+                btn_start: "Start",
+                btn_pause: "Pause",
+                btn_resume: "Fortsett",
+                btn_stop: "Stopp",
+                btn_talk: "Spør coach",
+                talk_placeholder: "Hvordan bør jeg pace dette intervallet?",
+                analysis_resp_rate: "Resp rate",
+                analysis_regularity: "Regularity",
+                analysis_signal: "Signal",
+                pricing_eyebrow: "Priser",
+                pricing_title: "Få hele app-opplevelsen",
+                pricing_intro: "Freemium-struktur som konverterer: gratis inngang for volum, premium for dybdeinnsikt, historikk og personaliserte coaching-oppsett.",
+                pricing_free_title: "Coachi Gratis",
+                pricing_free_sub: "Perfekt for å komme i gang med pust, fase og grunnleggende innsikt.",
+                pricing_free_value: "0 kr",
+                pricing_free_cta: "Start gratis",
+                pricing_free_item_1: "Live coaching i basismodus",
+                pricing_free_item_2: "Grunnleggende AQ-lignende dagsscore",
+                pricing_free_item_3: "Utfordringer og progresjonssporing",
+                pricing_free_item_4: "Kunnskapsinnhold og tips",
+                pricing_premium_title: "Coachi Premium",
+                pricing_premium_sub: "For deg som vil ha full historikk, dypere innsikt og sterkere personalisering.",
+                pricing_premium_value: "Fra 25 kr",
+                pricing_premium_period: "/måned",
+                pricing_premium_cta: "Kom i gang",
+                pricing_premium_item_1: "Full historikk for AQ og kondisjonsutvikling",
+                pricing_premium_item_2: "Prediksjoner basert på treningsmønster",
+                pricing_premium_item_3: "Utvidet pulsbasert coaching og anbefalinger",
+                pricing_premium_item_4: "Prioritert tilgang til nye funksjoner",
+                wait_eyebrow: "Kom i gang",
+                wait_title: "Bli med før lansering",
+                wait_intro: "Registrer deg for tidlig tilgang. Denne ventelista er koblet til backend-endepunkt med rate-limiting og eventsporing.",
+                wait_download_title: "Last ned app",
+                wait_download_body: "Mobilopplevelse med samme coachingmotor som demoen over.",
+                store_download_on: "LAST NED PÅ",
+                wait_trusted_note: "Trusted by 100,000+ users in Norway style positioning.",
+                wait_list_title: "Venteliste",
+                wait_list_body: "Få invitasjon til beta, priser og lanseringsoppdateringer.",
+                wait_email_placeholder: "deg@epost.no",
+                wait_join_cta: "Bli med",
+                footer_brand_body: "Forstå aktiviteten din. Få tydelig coaching. Bygg vaner som varer.",
+                footer_group_start: "Kom i gang",
+                footer_home: "Hjem",
+                footer_how: "Slik fungerer det",
+                footer_live: "Live demo",
+                footer_pricing: "Priser",
+                footer_group_more: "Mer",
+                footer_api_status: "API status",
+                footer_brain_status: "Brain status",
+                footer_compare: "A/B compare",
+                footer_claude: "Åpne Claude-variant",
+                status_checking: "SJEKKER",
+                status_up: "OPPE",
+                status_down: "NEDE",
+                status_warn: "VARSEL",
+                status_loading_api: "Laster backend health...",
+                status_loading_brain: "Laster aktiv provider...",
+                status_fetch_health_failed: "Kunne ikke hente /health.",
+                status_fetch_brain_failed: "Kunne ikke hente /brain/health.",
+                status_check_failed: "Statussjekk feilet.",
+                live_state_idle: "IDLE",
+                live_state_live: "LIVE",
+                live_state_paused: "PAUSET",
+                live_state_stopped: "STOPPET",
+                live_reason_prefix: "reason:",
+                live_next_prefix: "next:",
+                live_intensity_prefix: "Intensity:",
+                phase_warmup: "Warmup",
+                phase_intense: "Intense",
+                phase_cooldown: "Cooldown",
+                coach_meta_waiting_tick: "Venter på første coaching-tick.",
+                coach_meta_session_started: "Session startet. Venter på første tick.",
+                coach_meta_mic_denied: "Mikrofontilgang ble avvist eller feilet.",
+                ops_meta_no_session: "Ingen aktiv session.",
+                ops_meta_session: "session={sessionId}",
+                ops_meta_tick: "session={sessionId} | chunk={chunkBytes} bytes | latency={latency}ms | brain={provider}",
+                coach_meta_tick: "phase={phase} | should_speak={shouldSpeak} | next={next}s",
+                coach_meta_tick_failed: "Tick feilet: {error}",
+                talk_no_active: "Ingen aktiv samtale enda.",
+                talk_sending: "Sender...",
+                talk_success: "Coach svarte. Lyd spilles hvis tilgjengelig.",
+                talk_failed: "Kunne ikke kontakte coach akkurat nå.",
+                wait_default: "Ingen spam. Én melding når vi åpner.",
+                wait_invalid_email: "Skriv inn en gyldig e-postadresse.",
+                wait_sending: "Sender...",
+                wait_success: "Du er registrert. Vi sender invitasjon snart.",
+                wait_failed: "Kunne ikke registrere nå. Prøv igjen om litt.",
+                feed_audio_blocked: "Audio autoplay blocked by browser policy.",
+                feed_welcome_failed: "Welcome request failed.",
+                feed_coach_response: "Coach response"
+            },
+            en: {
+                meta_title: "Coachi | How it works",
+                meta_description: "Coachi is an AI coach that combines breathing, heart-rate and workout phase into live voice coaching. Try it directly in your browser.",
+                nav_home: "Home",
+                nav_how: "How it works",
+                nav_features: "Features",
+                nav_pricing: "Pricing",
+                nav_get_started: "Get started",
+                nav_compare: "A/B compare",
+                nav_download: "Download app",
+                hero_title: "Take control of your training health",
+                hero_body: "Coachi gives you clear, personal voice coaching in real time. We combine breathing, heart rate, and workout phase to deliver the right cue exactly when you need it.",
+                hero_cta_primary: "Start live demo",
+                hero_cta_secondary: "See how it works",
+                hero_badge_users: "Users of similar health experiences in Norway",
+                hero_badge_latency: "Continuous audio chunks and response",
+                hero_badge_wearables: "Fitbit and Apple Watch compatibility",
+                status_api_title: "API status",
+                status_brain_title: "Brain router",
+                flow_item_1: "Warmup with safe progression and breathing rhythm.",
+                flow_item_2: "Intense phase with sharper cues as load increases.",
+                flow_item_3: "Cooldown with controlled downshift.",
+                how_eyebrow: "Measurement",
+                how_title: "How we measure your activity",
+                how_intro: "Mia-inspired structure adapted for Coachi: measure effort clearly, explain what the signals mean, and make action easy in the same view.",
+                how_block_title: "Heart rate + breathing gives better coaching",
+                how_block_body: "Heart rate shows how hard your body is working. Breathing shows how that load feels in your body. Together they support better decisions than one signal alone.",
+                how_watch_title: "Works with your smartwatch",
+                how_watch_body: "The setup is built for Garmin, Polar, Fitbit, and Apple Watch users, and can also extend to Samsung and Suunto when needed.",
+                how_chart_title: "Heart rate",
+                how_chart_left: "Contributes to AQ",
+                how_chart_right: "Stable trend",
+                numbers_eyebrow: "AQ and fitness age",
+                numbers_title: "Two numbers that tell the story",
+                numbers_intro: "Coachi simplifies signal complexity into two clear outcomes: today’s effort quality and long-term development. That makes follow-up easier for users and stronger business value for you.",
+                numbers_card_1_title: "Build strong habits with AQ",
+                numbers_card_1_body: "AQ gives a daily answer to whether activity level is high enough for the goal. Easy to understand, easy to follow, and strong for retention.",
+                numbers_phone_title: "Your AQ",
+                numbers_phone_total: "Total",
+                numbers_phone_trend: "Fitness age trend",
+                numbers_card_2_title: "Motivate with fitness age",
+                numbers_card_2_body: "Fitness age makes long-term progress concrete. Users see why today’s effort matters over time, not just in the moment.",
+                features_eyebrow: "Features",
+                features_title: "Smart features to keep you moving",
+                features_intro: "High-impact, marketable features with clear business value: more engagement, better retention, and stronger differentiation vs generic fitness apps.",
+                feature_1_title: "Predictions",
+                feature_1_body: "Show what happens if the user keeps today’s pattern. Strong for aha moments.",
+                feature_1_item_1: "Future view based on trend",
+                feature_1_item_2: "Daily feedback loop",
+                feature_1_item_3: "Better decisions with less noise",
+                feature_2_title: "Challenges",
+                feature_2_body: "Creates direction, competition, and mastery through measurable steps.",
+                feature_2_item_1: "Weekly goals and progression",
+                feature_2_item_2: "Segmented levels: beginner to advanced",
+                feature_2_item_3: "Connected directly to coaching cadence",
+                feature_3_title: "Active friend group",
+                feature_3_body: "Social support increases the chance users keep the habit.",
+                feature_3_item_1: "Share progress",
+                feature_3_item_2: "Motivation through comparison",
+                feature_3_item_3: "Builds organic growth",
+                feature_4_title: "Heart-rate based coaching",
+                feature_4_body: "Combines breathing coaching with heart-rate context from popular wearables.",
+                feature_4_item_1: "Garmin, Polar, Fitbit, Apple Watch",
+                feature_4_item_2: "Clearer effort assessment per phase",
+                feature_4_item_3: "Clear roadmap for wearable integrations",
+                live_eyebrow: "Live demo",
+                live_title: "Try Coachi directly in your browser",
+                live_intro: "This section is not mock content. It calls real backend endpoints for welcome, continuous coaching, talk-to-coach, waitlist, and analytics.",
+                live_controls_title: "Controls",
+                live_controls_body: "Set language, persona, and training level before you start.",
+                live_label_language: "Language",
+                live_label_persona: "Persona",
+                live_label_level: "Level",
+                live_label_mode: "Workout mode",
+                option_lang_no: "Norwegian",
+                option_lang_en: "English",
+                option_training_beginner: "Beginner",
+                option_training_intermediate: "Intermediate",
+                option_training_advanced: "Advanced",
+                option_mode_standard: "Standard",
+                option_mode_interval: "Interval",
+                btn_start: "Start",
+                btn_pause: "Pause",
+                btn_resume: "Resume",
+                btn_stop: "Stop",
+                btn_talk: "Ask coach",
+                talk_placeholder: "How should I pace this interval?",
+                analysis_resp_rate: "Resp rate",
+                analysis_regularity: "Regularity",
+                analysis_signal: "Signal",
+                pricing_eyebrow: "Pricing",
+                pricing_title: "Get the full app experience",
+                pricing_intro: "Freemium model that converts: free entry for scale, premium for deeper insights, history, and personalized coaching setup.",
+                pricing_free_title: "Coachi Free",
+                pricing_free_sub: "Perfect for starting with breathing, phase awareness, and core insights.",
+                pricing_free_value: "0 NOK",
+                pricing_free_cta: "Start free",
+                pricing_free_item_1: "Live coaching in core mode",
+                pricing_free_item_2: "Basic AQ-like daily score",
+                pricing_free_item_3: "Challenges and progress tracking",
+                pricing_free_item_4: "Knowledge content and tips",
+                pricing_premium_title: "Coachi Premium",
+                pricing_premium_sub: "For users who want full history, deeper insight, and stronger personalization.",
+                pricing_premium_value: "From 25 NOK",
+                pricing_premium_period: "/month",
+                pricing_premium_cta: "Get started",
+                pricing_premium_item_1: "Full AQ and fitness-development history",
+                pricing_premium_item_2: "Predictions based on training pattern",
+                pricing_premium_item_3: "Extended heart-rate coaching and recommendations",
+                pricing_premium_item_4: "Priority access to new features",
+                wait_eyebrow: "Get started",
+                wait_title: "Join before launch",
+                wait_intro: "Sign up for early access. This waitlist is wired to a backend endpoint with rate limiting and event tracking.",
+                wait_download_title: "Download app",
+                wait_download_body: "Mobile experience using the same coaching engine as the demo above.",
+                store_download_on: "DOWNLOAD ON",
+                wait_trusted_note: "Trusted positioning for 100,000+ users in Norway.",
+                wait_list_title: "Waitlist",
+                wait_list_body: "Get invited to beta, pricing, and launch updates.",
+                wait_email_placeholder: "you@email.com",
+                wait_join_cta: "Join",
+                footer_brand_body: "Understand your activity. Get clear coaching. Build habits that last.",
+                footer_group_start: "Get started",
+                footer_home: "Home",
+                footer_how: "How it works",
+                footer_live: "Live demo",
+                footer_pricing: "Pricing",
+                footer_group_more: "More",
+                footer_api_status: "API status",
+                footer_brain_status: "Brain status",
+                footer_compare: "A/B compare",
+                footer_claude: "Open Claude variant",
+                status_checking: "CHECKING",
+                status_up: "UP",
+                status_down: "DOWN",
+                status_warn: "WARN",
+                status_loading_api: "Loading backend health...",
+                status_loading_brain: "Loading active provider...",
+                status_fetch_health_failed: "Could not fetch /health.",
+                status_fetch_brain_failed: "Could not fetch /brain/health.",
+                status_check_failed: "Status check failed.",
+                live_state_idle: "IDLE",
+                live_state_live: "LIVE",
+                live_state_paused: "PAUSED",
+                live_state_stopped: "STOPPED",
+                live_reason_prefix: "reason:",
+                live_next_prefix: "next:",
+                live_intensity_prefix: "Intensity:",
+                phase_warmup: "Warmup",
+                phase_intense: "Intense",
+                phase_cooldown: "Cooldown",
+                coach_meta_waiting_tick: "Waiting for first coaching tick.",
+                coach_meta_session_started: "Session started. Waiting for first tick.",
+                coach_meta_mic_denied: "Microphone access was denied or failed.",
+                ops_meta_no_session: "No active session.",
+                ops_meta_session: "session={sessionId}",
+                ops_meta_tick: "session={sessionId} | chunk={chunkBytes} bytes | latency={latency}ms | brain={provider}",
+                coach_meta_tick: "phase={phase} | should_speak={shouldSpeak} | next={next}s",
+                coach_meta_tick_failed: "Tick failed: {error}",
+                talk_no_active: "No active conversation yet.",
+                talk_sending: "Sending...",
+                talk_success: "Coach replied. Audio will play if available.",
+                talk_failed: "Could not reach coach right now.",
+                wait_default: "No spam. One message when we open.",
+                wait_invalid_email: "Enter a valid email address.",
+                wait_sending: "Sending...",
+                wait_success: "You are registered. We will send your invite soon.",
+                wait_failed: "Could not register right now. Please try again shortly.",
+                feed_audio_blocked: "Audio autoplay blocked by browser policy.",
+                feed_welcome_failed: "Welcome request failed.",
+                feed_coach_response: "Coach response"
+            }
+        };
+
+        function t(key, fallback = "") {
+            const current = I18N[state.currentLang] || I18N.no;
+            return current[key] || I18N.no[key] || fallback || key;
+        }
+
+        function interpolate(template, params = {}) {
+            return String(template || "").replace(/\{(\w+)\}/g, (_, token) => {
+                return Object.prototype.hasOwnProperty.call(params, token) ? String(params[token]) : "";
+            });
+        }
+
+        function tf(key, params = {}, fallback = "") {
+            return interpolate(t(key, fallback), params);
+        }
+
+        function setActiveLanguageButton(lang) {
+            dom.langButtons.forEach((button) => {
+                const isActive = button.dataset.langBtn === lang;
+                button.classList.toggle("active", isActive);
+                button.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+        }
+
+        function applyLanguage(lang, persist = true) {
+            const nextLang = lang === "en" ? "en" : "no";
+            state.currentLang = nextLang;
+            document.documentElement.setAttribute("lang", nextLang);
+
+            if (persist) {
+                try {
+                    localStorage.setItem("coachi_site_lang", nextLang);
+                } catch (error) {
+                    // Ignore storage failure.
+                }
+            }
+
+            setActiveLanguageButton(nextLang);
+
+            document.querySelectorAll("[data-i18n]").forEach((node) => {
+                const key = node.dataset.i18n;
+                if (key && I18N[nextLang][key]) {
+                    node.textContent = I18N[nextLang][key];
+                }
+            });
+
+            document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+                const key = node.dataset.i18nPlaceholder;
+                if (key && I18N[nextLang][key]) {
+                    node.setAttribute("placeholder", I18N[nextLang][key]);
+                }
+            });
+
+            document.title = t("meta_title", document.title);
+            const metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc) {
+                metaDesc.setAttribute("content", t("meta_description", metaDesc.getAttribute("content") || ""));
+            }
+
+            if (dom.demoLanguage.value !== nextLang) {
+                dom.demoLanguage.value = nextLang;
+            }
+
+            if (!state.active) {
+                dom.talkMsg.textContent = t("talk_no_active");
+                dom.coachMeta.textContent = t("coach_meta_waiting_tick");
+                dom.opsMeta.textContent = t("ops_meta_no_session");
+                dom.liveIntensity.textContent = `${t("live_intensity_prefix")} ${state.lastIntensity}`;
+            }
+
+            setLiveStateByKey(state.liveStateKey);
+            setLiveReason(state.reason);
+            setLiveNext(state.nextSeconds);
+            refreshStatusPills();
+            updateButtons();
+        }
+
+        function setLiveReason(reason) {
+            state.reason = reason || "none";
+            dom.liveReason.textContent = `${t("live_reason_prefix")} ${state.reason}`;
+        }
+
+        function setLiveNext(seconds) {
+            state.nextSeconds = Number(seconds || 8);
+            dom.liveNext.textContent = `${t("live_next_prefix")} ${state.nextSeconds.toFixed(1)}s`;
+        }
+
+        function refreshStatusPills() {
+            const updatePill = (pill) => {
+                if (!pill) return;
+                if (pill.classList.contains("up")) {
+                    pill.textContent = t("status_up");
+                    return;
+                }
+                if (pill.classList.contains("down")) {
+                    pill.textContent = t("status_down");
+                    return;
+                }
+                if (pill.classList.contains("warn")) {
+                    pill.textContent = t("status_warn");
+                    return;
+                }
+                pill.textContent = t("status_checking");
+            };
+            updatePill(dom.apiStatus);
+            updatePill(dom.brainStatus);
+        }
+
+        function setPill(el, mode, text) {
+            el.classList.remove("up", "warn", "down");
+            if (mode) el.classList.add(mode);
+            el.textContent = text;
+        }
+
+        function trackEvent(event, metadata = {}) {
+            const payload = JSON.stringify({ event, metadata });
+            const endpoint = apiUrl("/analytics/event");
+            try {
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(endpoint, payload);
+                    return;
+                }
+            } catch (error) {
+                // Fall through to fetch.
+            }
+            fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: payload
+            }).catch(() => {});
+        }
+
+        async function loadSystemStatus() {
+            try {
+                const [healthRes, brainRes] = await Promise.allSettled([
+                    fetch(apiUrl("/health"), { cache: "no-store" }),
+                    fetch(apiUrl("/brain/health"), { cache: "no-store" })
+                ]);
+
+                if (healthRes.status === "fulfilled" && healthRes.value.ok) {
+                    const data = await healthRes.value.json();
+                    setPill(dom.apiStatus, "up", t("status_up"));
+                    dom.apiNote.textContent = `v${data.version || "?"} | ${data.status || "healthy"}`;
+                } else {
+                    setPill(dom.apiStatus, "down", t("status_down"));
+                    dom.apiNote.textContent = t("status_fetch_health_failed");
+                }
+
+                if (brainRes.status === "fulfilled" && brainRes.value.ok) {
+                    const data = await brainRes.value.json();
+                    const healthy = Boolean(data.healthy);
+                    setPill(dom.brainStatus, healthy ? "up" : "warn", healthy ? t("status_up") : t("status_warn"));
+                    dom.brainNote.textContent = `active: ${data.active_brain || "unknown"}`;
+                } else {
+                    setPill(dom.brainStatus, "warn", t("status_warn"));
+                    dom.brainNote.textContent = t("status_fetch_brain_failed");
+                }
+            } catch (error) {
+                setPill(dom.apiStatus, "down", t("status_down"));
+                setPill(dom.brainStatus, "warn", t("status_warn"));
+                dom.apiNote.textContent = t("status_check_failed");
+                dom.brainNote.textContent = t("status_check_failed");
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+        }
+
+        function detectPhase(seconds) {
+            if (seconds < 120) return "warmup";
+            if (seconds < 1020) return "intense";
+            return "cooldown";
+        }
+
+        function phaseLabel(phase) {
+            const normalized = String(phase || "warmup").toLowerCase();
+            return String(t(`phase_${normalized}`, normalized)).toUpperCase();
+        }
+
+        function pushFeed(text, tag = "") {
+            const line = document.createElement("div");
+            line.className = "feed-line";
+            line.textContent = tag ? `[${tag}] ${text}` : text;
+            dom.coachFeed.prepend(line);
+            while (dom.coachFeed.children.length > 32) {
+                dom.coachFeed.removeChild(dom.coachFeed.lastChild);
+            }
+        }
+
+        function updateButtons() {
+            dom.btnStart.disabled = state.active;
+            dom.btnPause.disabled = !state.active;
+            dom.btnStop.disabled = !state.active;
+            dom.btnPause.textContent = state.paused ? t("btn_resume") : t("btn_pause");
+        }
+
+        function setLiveStateByKey(key) {
+            state.liveStateKey = key || "idle";
+            dom.liveState.textContent = t(`live_state_${state.liveStateKey}`, String(state.liveStateKey || "idle").toUpperCase());
+        }
+
+        function startTimer() {
+            stopTimer();
+            state.timerHandle = setInterval(() => {
+                if (!state.active || state.paused) return;
+                state.elapsedSeconds = (Date.now() - state.startAt) / 1000;
+                state.phase = detectPhase(state.elapsedSeconds);
+                dom.liveTime.textContent = formatTime(state.elapsedSeconds);
+                dom.livePhase.textContent = phaseLabel(state.phase);
+            }, 330);
+        }
+
+        function stopTimer() {
+            if (state.timerHandle) {
+                clearInterval(state.timerHandle);
+                state.timerHandle = null;
+            }
+        }
+
+        function scheduleTick(delayMs) {
+            if (state.tickHandle) {
+                clearTimeout(state.tickHandle);
+                state.tickHandle = null;
+            }
+            if (!state.active || state.paused) return;
+            const ms = Math.max(1200, Number(delayMs || state.tickMs || 8000));
+            state.tickMs = ms;
+            setLiveNext(ms / 1000);
+            state.tickHandle = setTimeout(runContinuousTick, ms);
+        }
+
+        function stopTickLoop() {
+            if (state.tickHandle) {
+                clearTimeout(state.tickHandle);
+                state.tickHandle = null;
+            }
+        }
+
+        async function configureRecorder(stream) {
+            if (typeof MediaRecorder === "undefined") {
+                throw new Error("MediaRecorder is not available.");
+            }
+
+            const preferred = "audio/webm;codecs=opus";
+            const options = MediaRecorder.isTypeSupported(preferred) ? { mimeType: preferred } : {};
+            state.mimeType = options.mimeType || "audio/webm";
+
+            state.recorder = new MediaRecorder(stream, options);
+            state.recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    state.chunks.push(event.data);
+                }
+            };
+            state.recorder.start(250);
+        }
+
+        async function playAudio(url) {
+            if (!url) return;
+            const audio = new Audio(url);
+            try {
+                await audio.play();
+            } catch (error) {
+                pushFeed(t("feed_audio_blocked"), "audio");
+            }
+        }
+
+        async function playWelcome() {
+            try {
+                const language = dom.demoLanguage.value;
+                const persona = dom.demoPersona.value;
+                const url = new URL(apiUrl("/welcome"));
+                url.searchParams.set("language", language);
+                url.searchParams.set("persona", persona);
+                const response = await fetch(url.toString());
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.text) {
+                    pushFeed(data.text, "welcome");
+                }
+                if (data.audio_url) {
+                    await playAudio(data.audio_url);
+                }
+            } catch (error) {
+                pushFeed(t("feed_welcome_failed"), "warn");
+            }
+        }
+
+        async function startSession() {
+            if (state.active) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                state.stream = stream;
+                await configureRecorder(stream);
+
+                state.active = true;
+                state.paused = false;
+                state.startAt = Date.now();
+                state.elapsedSeconds = 0;
+                state.sessionId = `coachi_web_${Date.now()}`;
+                state.chunks = [];
+                state.pendingTick = false;
+                state.lastCoachingText = "";
+                state.phase = "warmup";
+                state.tickMs = 8000;
+                state.lastIntensity = "moderate";
+
+                setLiveStateByKey("live");
+                setLiveReason("startup");
+                dom.liveOrb.classList.add("live");
+                dom.coachMeta.textContent = t("coach_meta_session_started");
+                dom.opsMeta.textContent = tf("ops_meta_session", { sessionId: state.sessionId });
+
+                updateButtons();
+                startTimer();
+                trackEvent("demo_started", { session_id: state.sessionId });
+                await playWelcome();
+                scheduleTick(1700);
+            } catch (error) {
+                setLiveStateByKey("idle");
+                setLiveReason("mic_denied");
+                dom.coachMeta.textContent = t("coach_meta_mic_denied");
+                dom.opsMeta.textContent = t("ops_meta_no_session");
+                updateButtons();
+            }
+        }
+
+        async function runContinuousTick() {
+            if (!state.active || state.paused || state.pendingTick) {
+                scheduleTick();
+                return;
+            }
+
+            if (!state.chunks.length) {
+                scheduleTick(1300);
+                return;
+            }
+
+            state.pendingTick = true;
+            const started = performance.now();
+
+            try {
+                const chunk = new Blob(state.chunks.splice(0), { type: state.mimeType });
+                const chunkBytes = chunk.size;
+
+                if (chunkBytes < 5500) {
+                    state.pendingTick = false;
+                    scheduleTick(1500);
+                    return;
+                }
+
+                const form = new FormData();
+                form.append("audio", chunk, "workout.webm");
+                form.append("session_id", state.sessionId || "");
+                form.append("phase", state.phase);
+                form.append("elapsed_seconds", String(Math.floor(state.elapsedSeconds)));
+                form.append("last_coaching", state.lastCoachingText || "");
+                form.append("language", dom.demoLanguage.value);
+                form.append("training_level", dom.demoTraining.value);
+                form.append("persona", dom.demoPersona.value);
+                form.append("workout_mode", dom.demoMode.value);
+
+                const response = await fetch(apiUrl("/coach/continuous"), {
+                    method: "POST",
+                    body: form
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                const analysis = data.breath_analysis || {};
+
+                const rate = analysis.respiratory_rate;
+                const regularity = analysis.breath_regularity;
+                const signal = analysis.signal_quality;
+                const intensity = analysis.intensity || "moderate";
+                state.lastIntensity = intensity;
+
+                dom.aRate.textContent = Number.isFinite(Number(rate)) ? Number(rate).toFixed(1) : "--";
+                dom.aRegularity.textContent = Number.isFinite(Number(regularity)) ? Number(regularity).toFixed(2) : "--";
+                dom.aSignal.textContent = Number.isFinite(Number(signal)) ? Number(signal).toFixed(2) : "--";
+                dom.liveIntensity.textContent = `${t("live_intensity_prefix")} ${intensity}`;
+
+                const reason = data.reason || "none";
+                setLiveReason(reason);
+
+                const latency = Math.round(performance.now() - started);
+                dom.opsMeta.textContent = tf("ops_meta_tick", {
+                    sessionId: state.sessionId,
+                    chunkBytes,
+                    latency,
+                    provider: data.brain_provider || "system"
+                });
+                dom.coachMeta.textContent = tf("coach_meta_tick", {
+                    phase: data.phase || state.phase,
+                    shouldSpeak: Boolean(data.should_speak),
+                    next: Number(data.wait_seconds || 8).toFixed(1)
+                });
+
+                if (data.should_speak && data.audio_url) {
+                    const text = data.text || t("feed_coach_response");
+                    pushFeed(text, data.brain_provider || "coach");
+                    state.lastCoachingText = text;
+                    await playAudio(data.audio_url);
+                    trackEvent("demo_coaching_received", {
+                        reason,
+                        intensity,
+                        provider: data.brain_provider || "unknown"
+                    });
+                }
+
+                state.phase = data.phase || state.phase;
+                const nextMs = Math.max(5000, Math.min(20000, Number(data.wait_seconds || 8) * 1000));
+                state.pendingTick = false;
+                scheduleTick(nextMs);
+            } catch (error) {
+                state.pendingTick = false;
+                setLiveReason("tick_error");
+                dom.coachMeta.textContent = tf("coach_meta_tick_failed", { error: error.message });
+                scheduleTick(9000);
+            }
+        }
+
+        function togglePause() {
+            if (!state.active) return;
+            state.paused = !state.paused;
+
+            if (state.paused) {
+                if (state.recorder && state.recorder.state === "recording") {
+                    state.recorder.pause();
+                }
+                setLiveStateByKey("paused");
+                dom.liveOrb.classList.remove("live");
+                stopTickLoop();
+                stopTimer();
+            } else {
+                if (state.recorder && state.recorder.state === "paused") {
+                    state.recorder.resume();
+                }
+                setLiveStateByKey("live");
+                dom.liveOrb.classList.add("live");
+                startTimer();
+                scheduleTick(800);
+            }
+
+            updateButtons();
+        }
+
+        function stopSession() {
+            state.active = false;
+            state.paused = false;
+            state.pendingTick = false;
+            state.tickMs = 8000;
+            state.chunks = [];
+            state.lastCoachingText = "";
+            state.lastIntensity = "moderate";
+
+            stopTickLoop();
+            stopTimer();
+
+            if (state.recorder && state.recorder.state !== "inactive") {
+                state.recorder.stop();
+            }
+            state.recorder = null;
+
+            if (state.stream) {
+                state.stream.getTracks().forEach((track) => track.stop());
+            }
+            state.stream = null;
+
+            dom.liveOrb.classList.remove("live");
+            dom.liveTime.textContent = "00:00";
+            dom.livePhase.textContent = phaseLabel("warmup");
+            dom.liveIntensity.textContent = `${t("live_intensity_prefix")} moderate`;
+            setLiveStateByKey("stopped");
+            setLiveReason("none");
+            setLiveNext(8);
+            dom.coachMeta.textContent = t("coach_meta_waiting_tick");
+            dom.opsMeta.textContent = t("ops_meta_no_session");
+
+            updateButtons();
+        }
+
+        async function talkToCoach() {
+            const message = (dom.talkInput.value || "").trim();
+            if (!message) return;
+
+            dom.btnTalk.disabled = true;
+            dom.talkMsg.textContent = t("talk_sending");
+
+            try {
+                const payload = {
+                    message,
+                    session_id: state.sessionId || "",
+                    phase: state.phase || "warmup",
+                    intensity: state.lastIntensity || "moderate",
+                    persona: dom.demoPersona.value,
+                    language: dom.demoLanguage.value,
+                    context: state.active ? "workout" : "chat"
+                };
+
+                const response = await fetch(apiUrl("/coach/talk"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.text) {
+                    pushFeed(data.text, "talk");
+                }
+                if (data.audio_url) {
+                    await playAudio(data.audio_url);
+                }
+
+                dom.talkMsg.textContent = t("talk_success");
+                dom.talkInput.value = "";
+            } catch (error) {
+                dom.talkMsg.textContent = t("talk_failed");
+            } finally {
+                dom.btnTalk.disabled = false;
+            }
+        }
+
+        function validEmail(value) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        }
+
+        async function submitWaitlist(event) {
+            event.preventDefault();
+            const email = (dom.waitEmail.value || "").trim().toLowerCase();
+
+            if (!validEmail(email)) {
+                dom.waitMsg.textContent = t("wait_invalid_email");
+                dom.waitMsg.style.color = "#a64237";
+                return;
+            }
+
+            dom.waitMsg.textContent = t("wait_sending");
+            dom.waitMsg.style.color = "#495383";
+
+            try {
+                const response = await fetch(apiUrl("/waitlist"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, language: dom.demoLanguage.value || "no" })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                dom.waitMsg.textContent = t("wait_success");
+                dom.waitMsg.style.color = "#1f7b5f";
+                dom.waitEmail.value = "";
+                trackEvent("waitlist_signup", { page: "codex_variant" });
+            } catch (error) {
+                dom.waitMsg.textContent = t("wait_failed");
+                dom.waitMsg.style.color = "#a64237";
+            }
+        }
+
+        function init() {
+            const storedLang = (() => {
+                try {
+                    return localStorage.getItem("coachi_site_lang");
+                } catch (error) {
+                    return null;
+                }
+            })();
+            const browserLang = (navigator.language || "").toLowerCase().startsWith("en") ? "en" : "no";
+            const initialLang = storedLang === "en" || storedLang === "no" ? storedLang : browserLang;
+
+            applyLanguage(initialLang, false);
+
+            setPill(dom.apiStatus, "warn", t("status_checking"));
+            setPill(dom.brainStatus, "warn", t("status_checking"));
+            dom.apiNote.textContent = t("status_loading_api");
+            dom.brainNote.textContent = t("status_loading_brain");
+            dom.talkMsg.textContent = t("talk_no_active");
+            dom.waitMsg.textContent = t("wait_default");
+
+            loadSystemStatus();
+            trackEvent("demo_mic_granted", { status: "page_loaded" });
+
+            dom.btnStart.addEventListener("click", startSession);
+            dom.btnPause.addEventListener("click", togglePause);
+            dom.btnStop.addEventListener("click", stopSession);
+            dom.btnTalk.addEventListener("click", talkToCoach);
+            dom.waitForm.addEventListener("submit", submitWaitlist);
+            dom.demoLanguage.addEventListener("change", () => {
+                const selected = dom.demoLanguage.value === "en" ? "en" : "no";
+                if (selected !== state.currentLang) {
+                    applyLanguage(selected);
+                }
+            });
+            dom.langButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    applyLanguage(button.dataset.langBtn === "en" ? "en" : "no");
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
 
-from flask import Flask, request, send_file, jsonify, Response, stream_with_context, render_template
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context, render_template, make_response
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -522,10 +522,43 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
 # API ENDPOINTS
 # ============================================
 
+WEB_VARIANT_TEMPLATES = {
+    "claude": "index_claude.html",
+    "codex": "index_codex.html",
+}
+DEFAULT_WEB_VARIANT = getattr(config, "WEB_UI_VARIANT", "codex")
+
+
+def _resolve_web_variant(raw_variant: str = None):
+    """Resolve requested web variant to a known template with safe fallback."""
+    candidate = (raw_variant or DEFAULT_WEB_VARIANT or "codex").strip().lower()
+    if candidate not in WEB_VARIANT_TEMPLATES:
+        candidate = "codex"
+    return candidate, WEB_VARIANT_TEMPLATES[candidate]
+
+
 @app.route('/')
 def home():
     """Homepage - Workout UI with player controls"""
-    return render_template('index.html')
+    variant, template = _resolve_web_variant(request.args.get("variant"))
+    response = make_response(render_template(template))
+    response.headers["X-Web-Variant"] = variant
+    return response
+
+
+@app.route('/preview')
+def preview_compare():
+    """Side-by-side compare page for claude vs codex web variants."""
+    return render_template('site_compare.html')
+
+
+@app.route('/preview/<variant>')
+def preview_variant(variant):
+    """Preview a specific web variant without changing deploy defaults."""
+    resolved_variant, template = _resolve_web_variant(variant)
+    response = make_response(render_template(template))
+    response.headers["X-Web-Variant"] = resolved_variant
+    return response
 
 @app.route('/health')
 def health():
@@ -2071,6 +2104,82 @@ def coach_talk():
     except Exception as e:
         logger.error(f"Coach talk error: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+# ============================================
+# WAITLIST + LANDING ANALYTICS
+# ============================================
+
+# In-memory waitlist storage (sufficient for pre-launch capture)
+_waitlist_emails = []
+_waitlist_rate_limit = {}  # ip_hash -> (count, first_request_time)
+_VALID_LANDING_EVENTS = {"demo_started", "demo_mic_granted", "demo_coaching_received", "waitlist_signup"}
+
+
+@app.route('/waitlist', methods=['POST'])
+def waitlist_signup():
+    """
+    Capture landing-page waitlist emails.
+    Rate limited to 5 submissions per IP hash per hour.
+    """
+    import re
+    import hashlib
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    language = normalize_language_code(data.get("language", "en"))
+
+    if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({"error": "Invalid email"}), 400
+
+    remote_addr = request.remote_addr or "unknown"
+    ip_hash = hashlib.sha256(remote_addr.encode()).hexdigest()[:16]
+    now = datetime.now()
+    limit_info = _waitlist_rate_limit.get(ip_hash)
+
+    if limit_info:
+        count, first_time = limit_info
+        elapsed_hours = (now - first_time).total_seconds() / 3600
+        if elapsed_hours >= 1:
+            _waitlist_rate_limit[ip_hash] = (1, now)
+        elif count >= 5:
+            return jsonify({"error": "Rate limit exceeded"}), 429
+        else:
+            _waitlist_rate_limit[ip_hash] = (count + 1, first_time)
+    else:
+        _waitlist_rate_limit[ip_hash] = (1, now)
+
+    _waitlist_emails.append({
+        "email": email,
+        "language": language,
+        "timestamp": now.isoformat(),
+        "ip_hash": ip_hash,
+    })
+
+    logger.info(f"Waitlist signup captured: {email} (lang={language})")
+    return jsonify({"success": True}), 200
+
+
+@app.route('/analytics/event', methods=['POST'])
+def analytics_event():
+    """
+    Lightweight landing analytics endpoint.
+    Accepts JSON or sendBeacon text payloads.
+    """
+    raw = request.get_data(as_text=True)
+    try:
+        data = json.loads(raw) if raw else (request.get_json(silent=True) or {})
+    except (json.JSONDecodeError, ValueError):
+        data = request.get_json(silent=True) or {}
+
+    event = (data.get("event") or "").strip()
+    metadata = data.get("metadata", {})
+
+    if event not in _VALID_LANDING_EVENTS:
+        return jsonify({"error": "Invalid event"}), 400
+
+    logger.info(f"Landing analytics event: {event} | {json.dumps(metadata)}")
+    return jsonify({"success": True}), 200
 
 
 # ============================================
