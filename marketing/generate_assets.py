@@ -34,13 +34,14 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 
 # --- Base style prefix ---
 BASE_PREFIX = (
-    "Professional photograph taken with a DSLR camera in a real gym. "
-    "Real person, natural skin texture, real sweat. Moody low-key lighting, "
-    "dark environment. Shot looks like it was taken by a professional fitness "
-    "photographer for a magazine editorial. No CGI, no holograms, no digital "
-    "effects, no glowing outlines. Natural colors with subtle warm and cool "
-    "tones from ambient gym lighting. No text overlays. High resolution, "
-    "sharp focus on subject, shallow depth of field."
+    "iPhone 15 Pro photo posted on Instagram by a gym member. "
+    "Taken casually with a phone camera, not a professional shoot. "
+    "Slightly imperfect framing, natural phone camera look with some noise and grain. "
+    "Real gym with scuff marks on floors, used equipment, fluorescent and LED overhead lights. "
+    "Real everyday person, not a fitness model. Normal body, wearing worn gym clothes. "
+    "Visible imperfections: messy hair, flushed skin, real sweat stains on shirt. "
+    "No filters, no special effects, no CGI, no holograms, no glowing outlines. "
+    "Looks like a friend took this photo of you at the gym. No text overlays."
 )
 
 # --- Templates ---
@@ -48,61 +49,61 @@ TEMPLATES = [
     {
         "id": "hero-workout",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} A real person sprinting on an indoor track in a dimly lit gym. They are wearing a smartwatch and athletic clothes. The gym has moody overhead lighting casting pools of warm light. Sweat on their skin. Shot from a low angle, dramatic perspective. Wide 16:9 composition with negative space on the left side for text overlay. Looks like a Nike or Adidas campaign photo.",
+        "prompt": f"{BASE_PREFIX} Someone running hard on a treadmill in a normal commercial gym. They are mid-stride, wearing a smartwatch and a faded t-shirt that is soaked with sweat around the neck. Other gym members visible in the far background, slightly out of focus. Overhead fluorescent lights, a wall mirror reflecting part of the gym. The photo was taken by a friend standing to the side. Wide 16:9, empty space on the left where the gym floor continues.",
         "aspect_ratio": "16:9",
     },
     {
         "id": "hero-coach-pocket",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} A real person in a gym checking their iPhone between sets. The phone screen shows a dark fitness app with a glowing orange orb and circular progress ring. They are sweaty, wearing workout clothes, gym equipment visible in the blurred background. Natural gym lighting, slightly warm tones. The phone screen is the brightest element in the image. Wide 16:9 composition, candid feel like someone snapped the photo during a real workout.",
+        "prompt": f"{BASE_PREFIX} Someone sitting on a weight bench in a gym, catching their breath between sets, looking at their iPhone. The phone screen shows a dark app with an orange glowing circle. They are sweaty, hair messy, a towel draped over one shoulder. A half-empty water bottle on the floor next to them. Dumbbells scattered nearby. The photo is taken from across the gym floor, slightly off-center. Wide 16:9, candid and unposed.",
         "aspect_ratio": "16:9",
     },
     {
         "id": "ig-pulse-push",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} A real person doing an intense dumbbell curl in a gym. Close-up showing their arm, the dumbbell, and their smartwatch on the wrist. Veins visible, real sweat on skin. Dark gym background with soft overhead lights creating rim lighting on their shoulder. Raw, gritty, authentic. Square 1:1 composition, tight crop.",
+        "prompt": f"{BASE_PREFIX} Someone mid-rep doing a heavy bicep curl with a dumbbell. Shot from close up, you can see their forearm, the veins popping, a black sports watch on their wrist. Their t-shirt sleeve is pushed up. Sweat dripping down their arm. The background is blurry gym equipment and rubber mats. Taken quickly between reps by a gym buddy. Square 1:1 composition.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-coach-voice",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} A real person running on a city street at dusk, wearing wireless earbuds and a phone armband. Natural street lighting, slightly orange from streetlights. They look focused and determined, mid-stride. You can see earbuds in their ear clearly. Background is a real urban environment slightly blurred from motion. Square 1:1 composition, editorial running photography style.",
+        "prompt": f"{BASE_PREFIX} Someone jogging on a residential street in the evening, wearing AirPods and a phone strapped to their arm with a running armband. They are wearing basic running shorts and a slightly wrinkled shirt. Streetlights casting orange light, parked cars along the road, a crosswalk in the background. Their face shows effort and focus. Looks like a photo taken by a running partner. Square 1:1 composition.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-watch-connect",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} Close-up of a real person's wrist wearing an Apple Watch during a workout. The watch screen shows heart rate data. Small sweat droplets on the watch band and skin. Background is a dark gym, blurred with bokeh from gym lights. Natural lighting, no special effects. The watch face is glowing softly as the brightest element. Square 1:1 composition, macro photography style.",
+        "prompt": f"{BASE_PREFIX} A quick selfie-style photo of someone's wrist with an Apple Watch showing a heart rate screen. Their wrist is slightly sweaty, the watch band is a basic black sport band. The background is a gym floor with rubber tiles and a dumbbell rack slightly out of focus. The person took this photo themselves, pointing their phone at their wrist. Slightly shaky, natural phone camera quality. Square 1:1 composition.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "ig-story-effort",
         "dir": "instagram",
-        "prompt": f"{BASE_PREFIX} A real person doing a box jump in a CrossFit-style gym, captured mid-air. Full body visible, athletic build, real gym environment with plyo boxes, barbells, and rubber flooring. Dramatic overhead lighting creating strong shadows. Raw, powerful, authentic moment. Vertical 9:16 composition, shot from slightly below looking up.",
+        "prompt": f"{BASE_PREFIX} Someone doing a box jump in a gym, caught mid-air by a friend filming on their phone. The gym has rubber flooring, a wooden plyo box, barbells on the floor nearby. Fluorescent lights overhead. The person is wearing normal gym shorts and a tank top, sneakers. Other gym equipment visible in the background. Slightly blurry from the fast motion. Vertical 9:16 composition, feels like an Instagram Story.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "tiktok-cover-push",
         "dir": "tiktok",
-        "prompt": f"{BASE_PREFIX} A real person gripping a loaded barbell, about to deadlift. Their phone is on the floor nearby, screen showing a dark fitness app with an orange glow. Chalk dust in the air, real gym floor, plates on the bar. Dramatic top-down gym lighting. Gritty, authentic, powerful. Vertical 9:16 composition, moody.",
+        "prompt": f"{BASE_PREFIX} Someone setting up for a deadlift in a basic gym. They are bending down gripping the barbell, chalk on their hands. Their phone is propped against a weight plate on the floor nearby, screen lit up with an app. Scuffed gym floor, iron plates loaded on the bar. The photo is taken from ground level by the phone timer or a friend squatting down. Gritty and real. Vertical 9:16 composition.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "tiktok-cover-tech",
         "dir": "tiktok",
-        "prompt": f"{BASE_PREFIX} Flat lay on a dark gym bench: a real smartwatch showing heart rate, an iPhone with a dark fitness app on screen, wireless earbuds in their case, a gym towel, and a water bottle. Natural overhead gym light illuminating the objects. Looks like someone placed their gear down between sets and took a photo. Vertical 9:16 composition, authentic lifestyle flat lay.",
+        "prompt": f"{BASE_PREFIX} Gym gear spread out on a worn wooden bench in a locker room. An Apple Watch with a sweaty band, an iPhone with a cracked screen protector showing a dark fitness app, wireless earbuds in an open case, a wrinkled gym towel, and a dented metal water bottle. Overhead locker room lighting, slightly yellowish. The items look used and real, not arranged perfectly. Vertical 9:16 composition.",
         "aspect_ratio": "9:16",
     },
     {
         "id": "mockup-watch",
         "dir": "mockups",
-        "prompt": f"{BASE_PREFIX} Close-up of a real person's wrist wearing an Apple Watch while gripping a pull-up bar. The watch screen shows 142 BPM heart rate. Their hand is chalked, forearm veins visible, real gym pull-up bar with worn rubber grip. Dark gym background. Natural lighting from above. Authentic, not posed. Square 1:1 composition.",
+        "prompt": f"{BASE_PREFIX} Someone took a photo of their wrist while hanging from a pull-up bar. You can see their hand gripping the bar with chalk residue, their forearm, and an Apple Watch showing 142 BPM on the screen. The gym ceiling with industrial lights is visible above. Their grip is tight, knuckles white. Taken one-handed with a phone, slightly tilted framing. Square 1:1 composition.",
         "aspect_ratio": "1:1",
     },
     {
         "id": "mockup-phone",
         "dir": "mockups",
-        "prompt": f"{BASE_PREFIX} A real person sitting on a gym bench between sets, holding their iPhone. The phone screen shows a dark fitness coaching app with a glowing orange-amber orb in the center, a circular purple progress ring around it, a workout timer, and small audio waveform bars. They are sweaty in workout clothes, gym equipment in the blurred background. Natural gym lighting. Candid, real moment. 4:3 landscape composition.",
+        "prompt": f"{BASE_PREFIX} Someone resting on a gym bench after a set, holding their iPhone in one hand, towel in the other. The phone screen shows a dark fitness app with a glowing orange circle in the middle and a timer. They are breathing heavily, shirt damp with sweat, face slightly flushed. The gym behind them has cable machines and a mirror wall. Taken by a workout partner from the next bench over. 4:3 landscape composition, casual and unposed.",
         "aspect_ratio": "4:3",
     },
 ]
