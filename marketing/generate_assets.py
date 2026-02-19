@@ -50,7 +50,7 @@ TEMPLATES = [
     {
         "id": "hero-coach-pocket",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} Close-up of a person's hand holding a phone during a gym workout, screen glowing with a coaching interface showing a pulsing orb and heart rate. Phone partially in an armband. Dark gym with equipment in background, neon purple and cyan highlights on metal surfaces. Wide 16:9 composition, phone centered-right.",
+        "prompt": f"{BASE_PREFIX} Close-up of a person holding an iPhone during a gym workout. The phone screen shows a dark fitness app with a large glowing orange-amber pulsing orb in the center, surrounded by a circular purple gradient progress arc, a timer showing workout time, and a warm-up phase label. The app UI is minimal with dark background. Dark gym with equipment in background, neon purple and cyan highlights on metal surfaces. Wide 16:9 composition, phone centered-right.",
         "aspect_ratio": "16:9",
     },
     {
@@ -98,7 +98,7 @@ TEMPLATES = [
     {
         "id": "mockup-phone",
         "dir": "mockups",
-        "prompt": f"{BASE_PREFIX} iPhone held at slight angle showing a dark fitness coaching screen with a glowing purple orb and real-time heart rate display. Person's hand gripping the phone mid-workout, gym background dark and out of focus. 4:3 landscape composition, product photography style.",
+        "prompt": f"{BASE_PREFIX} An iPhone held at a slight angle by a person mid-workout. The phone screen shows a dark fitness coaching app: a large glowing orange-amber orb in the center that pulses like a heartbeat, surrounded by a circular progress arc with purple gradient, a workout timer, small audio waveform bars below the orb, and phase labels. The app background is very dark almost black. Person's hand gripping the phone, dark gym environment out of focus behind. 4:3 landscape composition, product photography style.",
         "aspect_ratio": "4:3",
     },
 ]
