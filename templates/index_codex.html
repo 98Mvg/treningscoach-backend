@@ -1508,9 +1508,9 @@
                         <a class="pill pill-ghost" href="#how" data-i18n="hero_cta_secondary">Se hvordan det virker</a>
                     </div>
                     <div class="hero-badges">
-                        <div class="hero-badge"><strong>120k+</strong><span data-i18n="hero_badge_users">Brukere av lignende helseopplevelse i Norge</span></div>
-                        <div class="hero-badge"><strong>6-10s</strong><span data-i18n="hero_badge_latency">Kontinuerlig lydchunk og respons</span></div>
-                        <div class="hero-badge"><strong>Garmin / Polar</strong><span data-i18n="hero_badge_wearables">Fitbit og Apple Watch kompatibilitet</span></div>
+                        <div class="hero-badge"><strong data-i18n="hero_badge_1_title">Hold deg i gang</strong><span data-i18n="hero_badge_1_body">Små grep som gjør det lettere å holde gode vaner.</span></div>
+                        <div class="hero-badge"><strong data-i18n="hero_badge_2_title">Få tydelig retning</strong><span data-i18n="hero_badge_2_body">Du får enkle råd som passer nivået ditt akkurat nå.</span></div>
+                        <div class="hero-badge"><strong data-i18n="hero_badge_3_title">Passer hverdagen din</strong><span data-i18n="hero_badge_3_body">Fungerer med Garmin, Polar, Fitbit og Apple Watch.</span></div>
                     </div>
                 </div>
 
@@ -1821,6 +1821,7 @@
 
                         <div class="feed" id="coachFeed"></div>
                         <p class="meta-note" id="coachMeta">Venter på første coaching-tick.</p>
+                        <p class="meta-note" id="coachScoreLine" data-i18n="coach_score_template">CoachScore: 82 — Solid work. You hit the intensity that improves your health.</p>
                     </div>
                 </article>
             </div>
@@ -1960,6 +1961,7 @@
             liveStateKey: "idle",
             currentLang: "no",
             lastIntensity: "moderate",
+            coachScore: 82,
             lastCoachingText: "",
             mimeType: "audio/webm"
         };
@@ -1991,6 +1993,7 @@
             aSignal: document.getElementById("aSignal"),
             coachFeed: document.getElementById("coachFeed"),
             coachMeta: document.getElementById("coachMeta"),
+            coachScoreLine: document.getElementById("coachScoreLine"),
             opsMeta: document.getElementById("opsMeta"),
             waitForm: document.getElementById("waitForm"),
             waitEmail: document.getElementById("waitEmail"),
@@ -2029,9 +2032,12 @@
                 hero_body: "Coachi gir deg tydelig, personlig stemmecoaching i sanntid. Vi kombinerer pust, puls og treningsfase for å gi deg riktig cue akkurat når du trenger det.",
                 hero_cta_primary: "Start live demo",
                 hero_cta_secondary: "Se hvordan det virker",
-                hero_badge_users: "Brukere av lignende helseopplevelse i Norge",
-                hero_badge_latency: "Kontinuerlig lydchunk og respons",
-                hero_badge_wearables: "Fitbit og Apple Watch kompatibilitet",
+                hero_badge_1_title: "Hold deg i gang",
+                hero_badge_1_body: "Små grep som gjør det lettere å holde gode vaner.",
+                hero_badge_2_title: "Få tydelig retning",
+                hero_badge_2_body: "Du får enkle råd som passer nivået ditt akkurat nå.",
+                hero_badge_3_title: "Passer hverdagen din",
+                hero_badge_3_body: "Fungerer med Garmin, Polar, Fitbit og Apple Watch.",
                 status_api_title: "API status",
                 status_brain_title: "Brain router",
                 flow_item_1: "Warmup med trygg progresjon og pusterytme.",
@@ -2173,6 +2179,7 @@
                 live_reason_prefix: "reason:",
                 live_next_prefix: "next:",
                 live_intensity_prefix: "Intensity:",
+                coach_score_template: "CoachScore: {score} — Solid jobb. Du traff intensiteten som forbedrer helsa di.",
                 phase_warmup: "Warmup",
                 phase_intense: "Intense",
                 phase_cooldown: "Cooldown",
@@ -2211,9 +2218,12 @@
                 hero_body: "Coachi gives you clear, personal voice coaching in real time. We combine breathing, heart rate, and workout phase to deliver the right cue exactly when you need it.",
                 hero_cta_primary: "Start live demo",
                 hero_cta_secondary: "See how it works",
-                hero_badge_users: "Users of similar health experiences in Norway",
-                hero_badge_latency: "Continuous audio chunks and response",
-                hero_badge_wearables: "Fitbit and Apple Watch compatibility",
+                hero_badge_1_title: "Stay consistent",
+                hero_badge_1_body: "Small steps that make healthy habits easier to keep.",
+                hero_badge_2_title: "Get clear direction",
+                hero_badge_2_body: "Simple coaching guidance that matches your level right now.",
+                hero_badge_3_title: "Fits your everyday life",
+                hero_badge_3_body: "Works with Garmin, Polar, Fitbit, and Apple Watch.",
                 status_api_title: "API status",
                 status_brain_title: "Brain router",
                 flow_item_1: "Warmup with safe progression and breathing rhythm.",
@@ -2355,6 +2365,7 @@
                 live_reason_prefix: "reason:",
                 live_next_prefix: "next:",
                 live_intensity_prefix: "Intensity:",
+                coach_score_template: "CoachScore: {score} — Solid work. You hit the intensity that improves your health.",
                 phase_warmup: "Warmup",
                 phase_intense: "Intense",
                 phase_cooldown: "Cooldown",
@@ -2467,6 +2478,7 @@
             setLiveStateByKey(state.liveStateKey);
             setLiveReason(state.reason);
             setLiveNext(state.nextSeconds);
+            renderCoachScoreLine();
             refreshStatusPills();
             updateButtons();
         }
@@ -2479,6 +2491,20 @@
         function setLiveNext(seconds) {
             state.nextSeconds = Number(seconds || 8);
             dom.liveNext.textContent = `${t("live_next_prefix")} ${state.nextSeconds.toFixed(1)}s`;
+        }
+
+        function scoreFromIntensity(intensity) {
+            const key = String(intensity || "moderate").toLowerCase();
+            if (key === "calm" || key === "rolig") return 74;
+            if (key === "intense" || key === "intens") return 88;
+            if (key === "critical" || key === "kritisk") return 68;
+            return 82;
+        }
+
+        function renderCoachScoreLine() {
+            const score = Number.isFinite(Number(state.coachScore)) ? Math.round(Number(state.coachScore)) : 82;
+            state.coachScore = Math.max(0, Math.min(100, score));
+            dom.coachScoreLine.textContent = tf("coach_score_template", { score: state.coachScore });
         }
 
         function refreshStatusPills() {
@@ -2710,12 +2736,14 @@
                 state.phase = "warmup";
                 state.tickMs = 8000;
                 state.lastIntensity = "moderate";
+                state.coachScore = 82;
 
                 setLiveStateByKey("live");
                 setLiveReason("startup");
                 dom.liveOrb.classList.add("live");
                 dom.coachMeta.textContent = t("coach_meta_session_started");
                 dom.opsMeta.textContent = tf("ops_meta_session", { sessionId: state.sessionId });
+                renderCoachScoreLine();
 
                 updateButtons();
                 startTimer();
@@ -2783,11 +2811,14 @@
                 const signal = analysis.signal_quality;
                 const intensity = analysis.intensity || "moderate";
                 state.lastIntensity = intensity;
+                const backendScore = Number(data.coach_score);
+                state.coachScore = Number.isFinite(backendScore) ? backendScore : scoreFromIntensity(intensity);
 
                 dom.aRate.textContent = Number.isFinite(Number(rate)) ? Number(rate).toFixed(1) : "--";
                 dom.aRegularity.textContent = Number.isFinite(Number(regularity)) ? Number(regularity).toFixed(2) : "--";
                 dom.aSignal.textContent = Number.isFinite(Number(signal)) ? Number(signal).toFixed(2) : "--";
                 dom.liveIntensity.textContent = `${t("live_intensity_prefix")} ${intensity}`;
+                renderCoachScoreLine();
 
                 const reason = data.reason || "none";
                 setLiveReason(reason);
@@ -2862,6 +2893,7 @@
             state.chunks = [];
             state.lastCoachingText = "";
             state.lastIntensity = "moderate";
+            state.coachScore = 82;
 
             stopTickLoop();
             stopTimer();
@@ -2885,6 +2917,7 @@
             setLiveNext(8);
             dom.coachMeta.textContent = t("coach_meta_waiting_tick");
             dom.opsMeta.textContent = t("ops_meta_no_session");
+            renderCoachScoreLine();
 
             updateButtons();
         }

@@ -150,3 +150,7 @@ def test_coach_continuous_contract(monkeypatch, tmp_path):
     assert "wait_seconds" in payload
     assert "phase" in payload
     assert "reason" in payload
+    assert "coach_score" in payload
+    assert "coach_score_line" in payload
+    assert isinstance(payload["coach_score"], int)
+    assert isinstance(payload["coach_score_line"], str)

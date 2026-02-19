@@ -95,16 +95,52 @@ else:
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 
 # Initialize TTS service (ElevenLabs for production)
-elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
-elevenlabs_voice_id = os.getenv("ELEVENLABS_VOICE_ID")
+def _resolve_default_elevenlabs_voice_id():
+    """
+    Pick a default ElevenLabs voice ID from explicit env vars first,
+    then config-level voice maps.
+    """
+    persona_config = getattr(config, "PERSONA_VOICE_CONFIG", {}) or {}
+    voice_config = getattr(config, "VOICE_CONFIG", {}) or {}
+    personal_ids = (persona_config.get("personal_trainer", {}) or {}).get("voice_ids", {}) or {}
+    toxic_ids = (persona_config.get("toxic_mode", {}) or {}).get("voice_ids", {}) or {}
+    voice_config_en = (voice_config.get("en", {}) or {}).get("voice_id", "")
+    voice_config_no = (voice_config.get("no", {}) or {}).get("voice_id", "")
+
+    candidates = [
+        ("ELEVENLABS_VOICE_ID", os.getenv("ELEVENLABS_VOICE_ID", "")),
+        ("ELEVENLABS_VOICE_ID_EN", os.getenv("ELEVENLABS_VOICE_ID_EN", "")),
+        ("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "")),
+        ("config.PERSONA_VOICE_CONFIG.personal_trainer.en", personal_ids.get("en", "")),
+        ("config.VOICE_CONFIG.en", voice_config_en),
+        ("ELEVENLABS_VOICE_ID_NO", os.getenv("ELEVENLABS_VOICE_ID_NO", "")),
+        ("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "")),
+        ("config.PERSONA_VOICE_CONFIG.personal_trainer.no", personal_ids.get("no", "")),
+        ("config.VOICE_CONFIG.no", voice_config_no),
+        ("config.PERSONA_VOICE_CONFIG.toxic_mode.en", toxic_ids.get("en", "")),
+    ]
+
+    for source, raw_value in candidates:
+        value = str(raw_value or "").strip()
+        if value:
+            return value, source
+
+    return "", "not_found"
+
+
+elevenlabs_api_key = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
+elevenlabs_voice_id, elevenlabs_voice_source = _resolve_default_elevenlabs_voice_id()
 
 if elevenlabs_api_key and elevenlabs_voice_id:
-    logger.info("🎙️ Initializing ElevenLabs TTS...")
+    logger.info(f"🎙️ Initializing ElevenLabs TTS (voice source: {elevenlabs_voice_source})...")
     elevenlabs_tts = ElevenLabsTTS(api_key=elevenlabs_api_key, voice_id=elevenlabs_voice_id)
     USE_ELEVENLABS = True
     logger.info("✅ ElevenLabs TTS ready")
+elif not elevenlabs_api_key:
+    logger.warning("⚠️ ELEVENLABS_API_KEY missing, using mock TTS")
+    USE_ELEVENLABS = False
 else:
-    logger.warning("⚠️ ElevenLabs credentials not found, using mock TTS")
+    logger.warning("⚠️ ElevenLabs voice ID not found in env/config, using mock TTS")
     USE_ELEVENLABS = False
 logger.info("TTS service initialized")
 
@@ -144,6 +180,24 @@ def normalize_intensity_value(intensity: str) -> str:
         "rolig": "calm",
     }
     return mapping.get(value, "moderate")
+
+
+def _coach_score_from_intensity(intensity: str) -> int:
+    normalized = normalize_intensity_value(intensity)
+    if normalized == "calm":
+        return 74
+    if normalized == "intense":
+        return 88
+    if normalized == "critical":
+        return 68
+    return 82
+
+
+def _coach_score_line(score: int, language: str) -> str:
+    clamped = max(0, min(100, int(score)))
+    if normalize_language_code(language) == "no":
+        return f"CoachScore: {clamped} — Solid jobb. Du traff intensiteten som forbedrer helsa di."
+    return f"CoachScore: {clamped} — Solid work. You hit the intensity that improves your health."
 
 # Common English words that should never appear in Norwegian coaching output
 _ENGLISH_COACHING_WORDS = {
@@ -924,6 +978,8 @@ def coach_continuous():
                 intensity=breath_data.get("intensity", "moderate"),
                 coaching_frequency=0
             )
+            coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
+            coach_score_line = _coach_score_line(coach_score, language)
 
             return jsonify({
                 "text": "",
@@ -933,7 +989,9 @@ def coach_continuous():
                 "wait_seconds": wait_seconds,
                 "phase": phase,
                 "workout_mode": workout_mode,
-                "reason": "audio_too_small"
+                "reason": "audio_too_small",
+                "coach_score": coach_score,
+                "coach_score_line": coach_score_line,
             })
 
         # Analyze breath
@@ -1379,6 +1437,9 @@ def coach_continuous():
         except Exception as e:
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
+        coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
+        coach_score_line = _coach_score_line(coach_score, language)
+
         # Response
         response_data = {
             "text": coach_text,
@@ -1389,6 +1450,8 @@ def coach_continuous():
             "phase": phase,
             "workout_mode": workout_mode,
             "reason": reason,  # For debugging
+            "coach_score": coach_score,
+            "coach_score_line": coach_score_line,
             "brain_provider": brain_meta.get("provider"),
             "brain_source": brain_meta.get("source"),
             "brain_status": brain_meta.get("status"),

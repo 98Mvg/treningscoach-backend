@@ -215,6 +215,8 @@ struct ContinuousCoachResponse: Codable {
     let waitSeconds: Double
     let phase: String
     let reason: String?
+    let coachScore: Int?
+    let coachScoreLine: String?
     let brainProvider: String?
     let brainSource: String?
     let brainStatus: String?
@@ -228,6 +230,8 @@ struct ContinuousCoachResponse: Codable {
         case waitSeconds = "wait_seconds"
         case phase
         case reason
+        case coachScore = "coach_score"
+        case coachScoreLine = "coach_score_line"
         case brainProvider = "brain_provider"
         case brainSource = "brain_source"
         case brainStatus = "brain_status"

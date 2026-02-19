@@ -65,6 +65,8 @@ class WorkoutViewModel: ObservableObject {
     @Published var workoutState: WorkoutState = .idle
     @Published var showComplete: Bool = false
     @Published var selectedWarmupMinutes: Int = 2  // User picks: 0, 1, 2, 3, 5
+    @Published var coachScore: Int = 82
+    @Published var coachScoreLine: String = ""
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -112,11 +114,18 @@ class WorkoutViewModel: ObservableObject {
         return String(format: "%02d:%02d", mins, secs)
     }
 
+    var coachScoreSummaryLine: String {
+        if !coachScoreLine.isEmpty { return coachScoreLine }
+        return formattedCoachScoreLine(score: coachScore)
+    }
+
     // MARK: - Coachi Convenience Methods
 
     func startWorkout() {
         workoutState = .active
         showComplete = false
+        coachScore = 82
+        coachScoreLine = ""
         // If no warmup selected, start directly in intense phase
         if selectedWarmupMinutes == 0 {
             hasSkippedWarmup = true
@@ -146,6 +155,8 @@ class WorkoutViewModel: ObservableObject {
         elapsedTime = 0
         coachMessage = nil
         breathAnalysis = nil
+        coachScore = 82
+        coachScoreLine = ""
     }
 
     func selectPersonality(_ persona: CoachPersonality) {
@@ -444,6 +455,27 @@ class WorkoutViewModel: ObservableObject {
         } else {
             currentPhase = .cooldown
         }
+    }
+
+    private func estimatedCoachScore(for intensity: IntensityLevel) -> Int {
+        switch intensity {
+        case .calm:
+            return 74
+        case .moderate:
+            return 82
+        case .intense:
+            return 88
+        case .critical:
+            return 68
+        }
+    }
+
+    private func formattedCoachScoreLine(score: Int) -> String {
+        let clampedScore = max(0, min(100, score))
+        if currentLanguage == "no" {
+            return "CoachScore: \(clampedScore) — Solid jobb. Du traff intensiteten som forbedrer helsa di."
+        }
+        return "CoachScore: \(clampedScore) — Solid work. You hit the intensity that improves your health."
     }
 
     // MARK: - API Communication
@@ -760,6 +792,11 @@ class WorkoutViewModel: ObservableObject {
             userStats.workoutsThisWeek += 1
         }
 
+        if coachScoreLine.isEmpty {
+            coachScore = estimatedCoachScore(for: breathAnalysis?.intensityLevel ?? .moderate)
+            coachScoreLine = formattedCoachScoreLine(score: coachScore)
+        }
+
         elapsedTime = 0
         print("✅ Continuous workout stopped")
     }
@@ -829,6 +866,16 @@ class WorkoutViewModel: ObservableObject {
                 // 3. Update metrics silently (NO UI state change)
                 breathAnalysis = response.breathAnalysis
                 coachMessage = response.text
+                if let score = response.coachScore {
+                    coachScore = max(0, min(100, score))
+                } else {
+                    coachScore = estimatedCoachScore(for: response.breathAnalysis.intensityLevel)
+                }
+                if let line = response.coachScoreLine, !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    coachScoreLine = line
+                } else {
+                    coachScoreLine = formattedCoachScoreLine(score: coachScore)
+                }
 
                 // Feed breath analysis + coach decision to diagnostics panel
                 AudioPipelineDiagnostics.shared.updateBreathAnalysis(

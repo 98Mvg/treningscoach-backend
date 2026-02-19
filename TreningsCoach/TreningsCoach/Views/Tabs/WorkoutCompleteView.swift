@@ -39,6 +39,12 @@ struct WorkoutCompleteView: View {
                             SummaryStatItem(label: viewModel.currentPhase.displayName, value: viewModel.currentPhase.displayName)
                             SummaryStatItem(label: L10n.selectCoach, value: viewModel.activePersonality.displayName)
                         }
+                        Divider().overlay(CoachiTheme.textTertiary.opacity(0.3))
+                        Text(viewModel.coachScoreSummaryLine)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(.horizontal, 30).padding(.top, 28).opacity(contentVisible ? 1 : 0).offset(y: contentVisible ? 0 : 20)
