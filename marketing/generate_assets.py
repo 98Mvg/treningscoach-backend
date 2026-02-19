@@ -55,7 +55,7 @@ TEMPLATES = [
     {
         "id": "hero-coach-pocket",
         "dir": "website",
-        "prompt": f"{BASE_PREFIX} Someone sitting on a weight bench in a gym, catching their breath between sets, looking at their iPhone. The phone screen shows a dark app with an orange glowing circle. They are sweaty, hair messy, a towel draped over one shoulder. A half-empty water bottle on the floor next to them. Dumbbells scattered nearby. The photo is taken from across the gym floor, slightly off-center. Wide 16:9, candid and unposed.",
+        "prompt": f"{BASE_PREFIX} Photo taken from behind and slightly above someone sitting on a weight bench in a gym between sets. You are looking over their shoulder and can see them holding their iPhone in front of them, the phone screen visible showing a dark fitness app with an orange glowing circle. The back of their head, their sweaty neck, a towel on one shoulder. A half-empty water bottle on the floor, dumbbells scattered nearby. The gym stretches out in front of them with other equipment. Wide 16:9, over-the-shoulder perspective, candid and unposed.",
         "aspect_ratio": "16:9",
     },
     {
