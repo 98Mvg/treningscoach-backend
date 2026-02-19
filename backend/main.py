@@ -143,6 +143,15 @@ else:
     logger.warning("⚠️ ElevenLabs voice ID not found in env/config, using mock TTS")
     USE_ELEVENLABS = False
 logger.info("TTS service initialized")
+TTS_RUNTIME_DIAGNOSTICS = {
+    "boot": {
+        "use_elevenlabs": bool(USE_ELEVENLABS),
+        "voice_source": elevenlabs_voice_source,
+        "voice_prefix": (elevenlabs_voice_id[:8] + "...") if elevenlabs_voice_id else "",
+    },
+    "last_success": None,
+    "last_error": None,
+}
 VOICE_TEXT_PACING_COMPAT_WARNED = False
 
 # ============================================
@@ -200,6 +209,28 @@ def _coach_score_line(score: int, language: str) -> str:
         return f"CoachScore: {clamped} — Solid jobb. Du traff intensiteten som forbedrer helsa di."
     return f"CoachScore: {clamped} — Solid work. You hit the intensity that improves your health."
 
+
+def _record_tts_success(provider: str, language: str, persona: str, file_path: str):
+    TTS_RUNTIME_DIAGNOSTICS["last_success"] = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "provider": provider,
+        "language": normalize_language_code(language or "en"),
+        "persona": persona or "personal_trainer",
+        "filename": os.path.basename(file_path or ""),
+    }
+
+
+def _record_tts_error(stage: str, language: str, persona: str, error_type: str, status_code, message: str):
+    TTS_RUNTIME_DIAGNOSTICS["last_error"] = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "stage": stage,
+        "language": normalize_language_code(language or "en"),
+        "persona": persona or "personal_trainer",
+        "error_type": error_type,
+        "status_code": status_code,
+        "message": str(message)[:500],
+    }
+
 # Common English words that should never appear in Norwegian coaching output
 _ENGLISH_COACHING_WORDS = {
     "keep going", "good job", "push harder", "well done", "hold on",
@@ -208,6 +239,52 @@ _ENGLISH_COACHING_WORDS = {
     "slow down", "speed up", "perfect", "excellent", "amazing",
     "fantastic", "steady", "hold it", "more effort", "pick up",
 }
+_ENGLISH_TOKEN_MARKERS = {
+    "keep", "going", "good", "job", "push", "harder", "focused",
+    "great", "excellent", "amazing", "fantastic", "steady", "breathe",
+    "faster", "move", "you", "your", "this", "that", "don't", "lets",
+}
+_NORWEGIAN_TOKEN_MARKERS = {
+    "fortsett", "kjør", "jobba", "pust", "rolig", "rytmen", "tempoet",
+    "hardere", "innsats", "press", "klarer", "beveg", "farten", "senk",
+    "oppvarming", "bestemora", "bestemor", "nå", "økt", "sterkt",
+}
+_NORWEGIAN_COACHING_PHRASES = {
+    "fortsett", "kjør på", "bra jobba", "hold rytmen", "ta det rolig",
+    "senk tempoet", "du klarer det", "mer innsats", "behold tempoet",
+}
+_ENGLISH_FUNCTION_MARKERS = {
+    "the", "is", "are", "you", "your", "this", "that", "it", "do", "don't",
+}
+
+
+def _tokenize_language_markers(text: str) -> list:
+    punctuation = ".,!?;:\"'()[]{}"
+    return [
+        token.strip(punctuation).lower()
+        for token in (text or "").split()
+        if token.strip(punctuation)
+    ]
+
+
+def _looks_norwegian(text: str) -> bool:
+    """Heuristic: returns True if text appears to be Norwegian rather than English."""
+    lowered = text.lower().strip().rstrip("!.")
+    if any(c in text for c in "æøåÆØÅ"):
+        return True
+    for phrase in _NORWEGIAN_COACHING_PHRASES:
+        if phrase in lowered:
+            return True
+    words = _tokenize_language_markers(text)
+    if not words:
+        return False
+    norwegian_hits = sum(1 for w in words if w in _NORWEGIAN_TOKEN_MARKERS)
+    english_hits = sum(1 for w in words if w in _ENGLISH_TOKEN_MARKERS)
+    if norwegian_hits >= 2:
+        return True
+    if norwegian_hits >= 1 and english_hits == 0 and len(words) <= 5:
+        return True
+    return False
 
 def _looks_english(text: str) -> bool:
     """Heuristic: returns True if text appears to be English rather than Norwegian."""
@@ -219,16 +296,35 @@ def _looks_english(text: str) -> bool:
     for phrase in _ENGLISH_COACHING_WORDS:
         if phrase in lowered:
             return True
-    # No Norwegian characters AND only ASCII letters = likely English
+    words = _tokenize_language_markers(text)
+    if words:
+        english_hits = sum(1 for w in words if w in _ENGLISH_TOKEN_MARKERS)
+        norwegian_hits = sum(1 for w in words if w in _NORWEGIAN_TOKEN_MARKERS)
+        if english_hits >= 2:
+            return True
+        # Treat mixed short cues as drift when English tokens are present.
+        if english_hits >= 1 and norwegian_hits >= 1:
+            return True
+        if english_hits >= 1 and norwegian_hits == 0 and len(words) <= 5:
+            return True
+
+    # No Norwegian characters AND common English markers = likely English
     has_norwegian = any(c in text for c in "æøåÆØÅ")
     if not has_norwegian:
         words = text.split()
         if len(words) >= 2:
-            # Common English function words that don't exist in Norwegian
-            english_markers = {"the", "is", "are", "you", "your", "this", "that", "it", "do", "don't"}
-            if any(w.lower().rstrip(".,!?") in english_markers for w in words):
+            if any(w.lower().rstrip(".,!?") in _ENGLISH_FUNCTION_MARKERS for w in words):
                 return True
     return False
+
+
+def _pick_deterministic_fallback(pool, seed_text: str) -> str:
+    """Stable pool selection for guardrail replacements."""
+    if not pool:
+        return "Fortsett!"
+    seed = (seed_text or "").strip().lower()
+    index = sum(ord(ch) for ch in seed) % len(pool)
+    return pool[index]
 
 
 def enforce_language_consistency(text: str, language: str, phase: str = None) -> str:
@@ -246,7 +342,7 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
     lowered = stripped.lower()
 
     if normalized_language == "en":
-        if lowered.startswith("fortsett") or "æ" in lowered or "ø" in lowered or "å" in lowered:
+        if _looks_norwegian(stripped):
             logger.warning(f"Language guard corrected NO->EN drift: '{stripped}'")
             return "Keep going!"
     elif normalized_language == "no":
@@ -255,7 +351,6 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
             return "Fortsett!"
         # Broader detection: English-dominant output when Norwegian expected
         if _looks_english(stripped):
-            import random
             fallback_messages = getattr(config, "CONTINUOUS_COACH_MESSAGES_NO", {})
             if phase == "intense":
                 intense = fallback_messages.get("intense", {})
@@ -264,7 +359,7 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
                 pool = fallback_messages.get("cooldown", ["Rolige pust.", "Senk tempoet rolig."])
             else:
                 pool = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
-            replacement = random.choice(pool)
+            replacement = _pick_deterministic_fallback(pool, f"{phase}:{stripped}")
             logger.warning(f"Language guard replaced English text in NO mode: '{stripped}' -> '{replacement}'")
             return rewrite_norwegian_phrase(replacement, phase=phase)
 

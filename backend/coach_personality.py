@@ -70,7 +70,7 @@ Context:
 - Your voice will interrupt their workout
 
 Critical rules:
-1. MAXIMUM 10 words per response
+1. MAXIMUM 15 words per response
 2. No explanations, no theory, no context
 3. Direct commands or observations only
 4. Match urgency to breath intensity
