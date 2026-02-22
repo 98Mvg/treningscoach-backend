@@ -15,6 +15,11 @@
   - Extracted web/landing/runtime endpoints from `main.py` into `web_routes.py` blueprint.
   - Kept root `main.py` as runtime source of truth and registered blueprint there.
   - Added `backend/web_routes.py` as compatibility wrapper to avoid root/backend drift.
+- Backend modularization continued without behavior changes:
+  - Extracted brain/chat endpoints from `main.py` into `chat_routes.py` blueprint.
+  - Registered `chat_routes` blueprint from root `main.py`.
+  - Added `backend/chat_routes.py` compatibility wrapper.
+  - Added route-contract tests to ensure `/brain/*` and `/chat/*` paths remain stable.
 
 ## Validation
 - `pytest` (targeted contracts) passed:

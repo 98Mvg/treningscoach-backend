@@ -32,6 +32,7 @@ def test_backend_runtime_modules_are_wrappers():
         "breath_analyzer.py",
         "breathing_timeline.py",
         "coach_personality.py",
+        "chat_routes.py",
         "coaching_engine.py",
         "coaching_intelligence.py",
         "config.py",
