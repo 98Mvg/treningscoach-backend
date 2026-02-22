@@ -463,12 +463,12 @@
         .faq-item.open .faq-a { max-height: 200px; }
         .faq-a p { padding-top: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
 
-        /* ── CTA BLOCK ── */
+        /* ── CTA BLOCK (Mia Health style — phone mockups + badges) ── */
         .cta-block {
             margin-top: 18px; border-radius: var(--radius-xl); overflow: hidden;
             background: linear-gradient(160deg, rgba(38,30,103,0.94), rgba(66,48,173,0.92) 46%, rgba(95,59,240,0.88));
             box-shadow: var(--shadow-hard); position: relative;
-            padding: 56px 36px; text-align: center;
+            padding: 72px 36px 56px; text-align: center;
         }
         .cta-block::before {
             content: ""; position: absolute; inset: 0;
@@ -476,10 +476,62 @@
             pointer-events: none;
         }
         .cta-block > * { position: relative; z-index: 1; }
-        .cta-block h2 { color: #fff; font-size: clamp(1.6rem, 3.2vw, 2.4rem); margin-bottom: 10px; }
-        .cta-block p { color: rgba(243,241,255,0.85); margin-bottom: 28px; font-size: 0.98rem; }
-        .cta-block .store-row { justify-content: center; margin-bottom: 24px; }
-        .wait-form { max-width: 420px; margin: 0 auto; }
+        .cta-inner {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 40px; align-items: center; max-width: 960px; margin: 0 auto;
+        }
+        .cta-copy { text-align: left; }
+        .cta-copy h2 { color: #fff; font-size: clamp(1.6rem, 3.2vw, 2.4rem); margin-bottom: 10px; }
+        .cta-copy > p { color: rgba(243,241,255,0.85); margin-bottom: 28px; font-size: 0.98rem; line-height: 1.6; }
+        .cta-trust-line {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 24px;
+        }
+        .cta-trust-line .check-icon {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--teal); display: inline-flex;
+            align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .cta-trust-line .check-icon svg { width: 12px; height: 12px; }
+        .cta-trust-line span {
+            font-size: 0.88rem; font-weight: 700;
+            color: rgba(243,241,255,0.9);
+        }
+        .store-row-black { display: flex; flex-wrap: wrap; gap: 12px; }
+        .store-badge-black {
+            display: inline-flex; align-items: center; gap: 10px;
+            border-radius: 12px; padding: 10px 20px;
+            background: #000; color: #fff; text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .store-badge-black:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+        .store-badge-black .badge-icon { font-size: 1.5rem; line-height: 1; }
+        .store-badge-black .badge-text { text-align: left; }
+        .store-badge-black .badge-text .prefix { font-size: 0.62rem; opacity: 0.8; display: block; line-height: 1.1; letter-spacing: 0.02em; }
+        .store-badge-black .badge-text .name { font-size: 1.05rem; font-weight: 700; display: block; line-height: 1.2; letter-spacing: -0.01em; }
+
+        /* Two phone mockups (overlapping like Mia) */
+        .cta-phones { display: flex; justify-content: center; align-items: flex-end; position: relative; }
+        .cta-phone {
+            width: 200px; border-radius: 28px;
+            background: #0a0a0f; padding: 8px;
+            box-shadow: 0 24px 56px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3);
+            border: 1.5px solid rgba(255,255,255,0.10);
+            position: relative;
+        }
+        .cta-phone::before {
+            content: ""; position: absolute;
+            top: 8px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 18px;
+            background: #0a0a0f; border-radius: 0 0 10px 10px;
+            z-index: 3;
+        }
+        .cta-phone img { width: 100%; border-radius: 20px; display: block; }
+        .cta-phone-back { transform: translateX(20px) translateY(-16px); z-index: 1; }
+        .cta-phone-front { transform: translateX(-20px); z-index: 2; }
+
+        .wait-form { max-width: 420px; margin: 24px auto 0; }
         .wait-row { display: flex; gap: 8px; }
         .wait-row input {
             flex: 1; border-radius: 12px; padding: 12px 16px;
@@ -499,38 +551,67 @@
         .wait-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(32,185,167,0.4); }
         .wait-msg { margin-top: 8px; font-size: 0.8rem; color: rgba(243,241,255,0.7); text-align: center; }
         .android-early-link {
-            display: inline-flex; margin-bottom: 12px;
+            display: inline-flex; margin-top: 12px;
             font-size: 0.82rem; color: rgba(243,241,255,0.9);
             text-decoration: underline; text-decoration-color: rgba(243,241,255,0.45);
             text-underline-offset: 2px;
         }
         .android-early-link:hover { color: #fff; text-decoration-color: rgba(243,241,255,0.8); }
 
-        /* ── FOOTER ── */
+        /* ── FOOTER (enhanced dark footer like Mia Health) ── */
         .footer {
             margin-top: 18px; border-radius: var(--radius-xl) var(--radius-xl) 0 0;
             background: linear-gradient(160deg, #1a1154, #120d3e);
-            padding: 40px 32px 28px; color: rgba(230,225,255,0.85);
-            display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px;
+            padding: 48px 36px 28px; color: rgba(230,225,255,0.85);
+        }
+        .footer-top {
+            display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px;
+            padding-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.08);
         }
         .footer h3 { color: #fff; font-size: 1.4rem; margin-bottom: 6px; letter-spacing: -0.03em; }
         .footer p { font-size: 0.85rem; line-height: 1.5; margin-bottom: 12px; }
         .footer-links { list-style: none; display: grid; gap: 8px; }
         .footer-links a {
-            color: rgba(230,225,255,0.75); text-decoration: none;
+            color: rgba(230,225,255,0.70); text-decoration: none;
             font-size: 0.85rem; transition: color 0.15s;
         }
         .footer-links a:hover { color: #fff; }
         .footer h4 {
-            color: rgba(230,225,255,0.95); font-size: 0.82rem;
-            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+            color: rgba(230,225,255,0.95); font-size: 0.78rem;
+            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
         }
+        .footer-brand-tagline {
+            color: rgba(230,225,255,0.60); font-size: 0.85rem;
+            line-height: 1.5; margin-bottom: 16px;
+        }
+        .footer .store-row-black { margin-bottom: 20px; }
+        .footer .store-badge-black {
+            padding: 8px 14px; font-size: 0.85rem;
+        }
+        .footer .store-badge-black .badge-icon { font-size: 1.2rem; }
+        .footer .store-badge-black .badge-text .name { font-size: 0.88rem; }
+        .social-icons { display: flex; gap: 12px; margin-top: 4px; }
+        .social-icon {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10);
+            display: inline-flex; align-items: center; justify-content: center;
+            color: rgba(230,225,255,0.75); text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+            font-size: 0.9rem;
+        }
+        .social-icon:hover { background: rgba(255,255,255,0.16); color: #fff; }
+        .social-icon svg { width: 16px; height: 16px; fill: currentColor; }
         .footer-bottom {
-            grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 16px; margin-top: 8px;
-            font-size: 0.75rem; color: rgba(230,225,255,0.5);
+            padding-top: 20px; margin-top: 0;
+            font-size: 0.75rem; color: rgba(230,225,255,0.45);
             display: flex; justify-content: space-between; align-items: center;
         }
+        .footer-legal-links { display: flex; gap: 16px; }
+        .footer-legal-links a {
+            color: rgba(230,225,255,0.45); text-decoration: none;
+            font-size: 0.75rem; transition: color 0.15s;
+        }
+        .footer-legal-links a:hover { color: rgba(230,225,255,0.8); }
 
         /* ── REVEAL ANIMATION ── */
         .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
@@ -554,8 +635,14 @@
             .steps-grid { grid-template-columns: 1fr; }
             .benefits-grid { grid-template-columns: 1fr; }
             .proof-grid { grid-template-columns: 1fr; }
-            .footer { grid-template-columns: 1fr; gap: 24px; }
-            .footer-bottom { flex-direction: column; gap: 6px; text-align: center; }
+            .cta-inner { grid-template-columns: 1fr; text-align: center; gap: 28px; }
+            .cta-copy { text-align: center; }
+            .cta-trust-line { justify-content: center; }
+            .store-row-black { justify-content: center; }
+            .cta-phone { width: 160px; }
+            .footer-top { grid-template-columns: 1fr; gap: 28px; }
+            .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
+            .footer-legal-links { justify-content: center; }
         }
         @media (max-width: 480px) {
             .section { padding: 32px 18px; }
@@ -780,32 +867,33 @@
             </div>
         </section>
 
-        <!-- SOCIAL PROOF -->
+        <!-- WHY COACHI (honest value props — no fake testimonials) -->
         <section class="section reveal" id="proof">
             <div class="section-head">
-                <span class="eyebrow" data-i18n="proof_eyebrow">Det folk sier</span>
-                <h2 data-i18n="proof_title">Testet av ekte løpere</h2>
+                <span class="eyebrow" data-i18n="proof_eyebrow">Hvorfor Coachi</span>
+                <h2 data-i18n="proof_title">Bygget for norske løpere</h2>
             </div>
             <div class="proof-grid">
                 <div class="proof-card">
-                    <p class="proof-quote" data-i18n="proof_1_quote">"Jeg pleide å starte alt for hardt. Nå sier coachen fra, og jeg har energi igjen på slutten."</p>
-                    <p class="proof-author" data-i18n="proof_1_author">Kristine M.</p>
-                    <p class="proof-role" data-i18n="proof_1_role">Mosjonist, Oslo</p>
+                    <div style="font-size: 1.8rem; margin-bottom: 12px;">🇳🇴</div>
+                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_1_quote">Ekte norsk stemme — ikke oversatt fra engelsk. Coachen snakker som en treningskompis.</p>
+                    <p class="proof-author" data-i18n="proof_1_author">Norsk først</p>
                 </div>
                 <div class="proof-card">
-                    <p class="proof-quote" data-i18n="proof_2_quote">"Endelig en treningsapp som snakker ordentlig norsk. Føles som en ekte treningskompis."</p>
-                    <p class="proof-author" data-i18n="proof_2_author">Erik H.</p>
-                    <p class="proof-role" data-i18n="proof_2_role">Hobbyløper, Trondheim</p>
+                    <div style="font-size: 1.8rem; margin-bottom: 12px;">⚡</div>
+                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_2_quote">Korte, tydelige råd i sanntid. Ingen lange forklaringer midt i løpeturen.</p>
+                    <p class="proof-author" data-i18n="proof_2_author">Rask respons</p>
                 </div>
                 <div class="proof-card">
-                    <p class="proof-quote" data-i18n="proof_3_quote">"Jeg trenger ikke lenger å sjekke klokka hele tiden. Coachen sier fra når jeg skal roe ned."</p>
-                    <p class="proof-author" data-i18n="proof_3_author">Marte L.</p>
-                    <p class="proof-role" data-i18n="proof_3_role">Intervalltrener, Bergen</p>
+                    <div style="font-size: 1.8rem; margin-bottom: 12px;">🎯</div>
+                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_3_quote">AI-coachen tilpasser seg ditt nivå og dine mål. Blir bedre jo mer du løper.</p>
+                    <p class="proof-author" data-i18n="proof_3_author">Personlig tilpasning</p>
                 </div>
             </div>
             <div class="trust-strip">
-                <span class="trust-badge">CERG / NTNU</span>
-                <span class="trust-badge" data-i18n="trust_research">Forskningsbasert coaching</span>
+                <span class="trust-badge" data-i18n="trust_ai">AI-drevet coaching</span>
+                <span class="trust-badge" data-i18n="trust_free">Gratis i beta</span>
+                <span class="trust-badge" data-i18n="trust_privacy">Dine data, din kontroll</span>
             </div>
         </section>
 
@@ -835,21 +923,37 @@
             </div>
         </section>
 
-        <!-- CTA BLOCK -->
+        <!-- CTA BLOCK (Mia Health style — phone mockups + badges) -->
         <section class="cta-block reveal" id="download">
-            <h2 data-i18n="cta_title">Klar for en smartere løpetur?</h2>
-            <p data-i18n="cta_body">Last ned Coachi og løp med en coach som tilpasser seg deg.</p>
-            <div class="store-row">
-                <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" data-i18n-aria-label="store_app_aria"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                    <span class="store-icon">&#63743;</span>
-                    <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
-                </a>
-                <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" data-i18n-aria-label="store_google_aria"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                    <span class="store-icon">&#9654;</span>
-                    <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
-                </a>
+            <div class="cta-inner">
+                <div class="cta-copy">
+                    <h2 data-i18n="cta_title">Klar for en smartere løpetur?</h2>
+                    <p data-i18n="cta_body">Last ned Coachi og løp med en coach som tilpasser seg deg.</p>
+                    <div class="cta-trust-line">
+                        <span class="check-icon"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
+                    </div>
+                    <div class="store-row-black">
+                        <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#63743;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">App Store</span></span>
+                        </a>
+                        <a class="store-badge-black" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#9654;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">Google Play</span></span>
+                        </a>
+                    </div>
+                    <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
+                </div>
+                <div class="cta-phones">
+                    <div class="cta-phone cta-phone-back">
+                        <img src="{{ url_for('static', filename='site/images/watch-hr.png') }}" alt="" loading="lazy">
+                    </div>
+                    <div class="cta-phone cta-phone-front">
+                        <img src="{{ url_for('static', filename='site/images/v2-hero-ui.png') }}" alt="Coachi app skjerm" data-i18n-alt="cta_phone_alt" loading="lazy">
+                    </div>
+                </div>
             </div>
-            <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
             <form class="wait-form" id="waitForm">
                 <p style="color: rgba(243,241,255,0.7); font-size: 0.82rem; margin-bottom: 8px;" data-i18n="wait_or">Ikke klar ennå? Få beskjed når vi lanserer:</p>
                 <div class="wait-row">
@@ -860,34 +964,61 @@
             </form>
         </section>
 
-        <!-- FOOTER -->
+        <!-- FOOTER (enhanced — brand + badges + two nav cols + social + legal) -->
         <footer class="footer reveal">
-            <div>
-                <h3>coachi</h3>
-                <p data-i18n="footer_tagline">Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.</p>
-                <div class="store-row">
-                    <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                        <span class="store-icon">&#63743;</span>
-                        <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
-                    </a>
-                    <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                        <span class="store-icon">&#9654;</span>
-                        <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
-                    </a>
+            <div class="footer-top">
+                <div>
+                    <h3>coachi</h3>
+                    <p class="footer-brand-tagline" data-i18n="footer_tagline">Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.</p>
+                    <div class="store-row-black">
+                        <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#63743;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">App Store</span></span>
+                        </a>
+                        <a class="store-badge-black" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#9654;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">Google Play</span></span>
+                        </a>
+                    </div>
+                    <div class="social-icons">
+                        <a class="social-icon" href="https://instagram.com/coachi.app" target="_blank" rel="noopener" aria-label="Instagram">
+                            <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                        </a>
+                        <a class="social-icon" href="https://tiktok.com/@coachi.app" target="_blank" rel="noopener" aria-label="TikTok">
+                            <svg viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.88-2.88A2.89 2.89 0 019.5 12.4a2.73 2.73 0 01.79.12V9.01a6.46 6.46 0 00-1-.05A6.28 6.28 0 003 15.24a6.28 6.28 0 006.28 6.28 6.28 6.28 0 006.28-6.28V9.44a8.18 8.18 0 004.8 1.54V7.55a4.84 4.84 0 01-.77-.86z"/></svg>
+                        </a>
+                        <a class="social-icon" href="https://facebook.com/coachi.app" target="_blank" rel="noopener" aria-label="Facebook">
+                            <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <h4 data-i18n="footer_nav_title">Navigasjon</h4>
+                    <ul class="footer-links">
+                        <li><a href="#top" data-i18n="nav_home">Hjem</a></li>
+                        <li><a href="#how" data-i18n="nav_how">Slik fungerer det</a></li>
+                        <li><a href="#benefits" data-i18n="nav_benefits">Fordeler</a></li>
+                        <li><a href="#faq" data-i18n="nav_faq">Spørsmål</a></li>
+                        <li><a href="#download" data-i18n="nav_download">Last ned app</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 data-i18n="footer_support_title">Støtte</h4>
+                    <ul class="footer-links">
+                        <li><a href="#faq" data-i18n="nav_faq">Spørsmål</a></li>
+                        <li><a href="mailto:kontakt@coachi.no" data-i18n="footer_contact">Kontakt oss</a></li>
+                        <li><a href="#" data-i18n="footer_privacy">Personvern</a></li>
+                        <li><a href="#" data-i18n="footer_terms">Vilkår</a></li>
+                    </ul>
                 </div>
             </div>
-            <div>
-                <h4 data-i18n="footer_nav_title">Navigasjon</h4>
-                <ul class="footer-links">
-                    <li><a href="#top" data-i18n="nav_home">Hjem</a></li>
-                    <li><a href="#how" data-i18n="nav_how">Slik fungerer det</a></li>
-                    <li><a href="#faq" data-i18n="nav_faq">Spørsmål</a></li>
-                    <li><a href="#download" data-i18n="footer_privacy">Personvern</a></li>
-                </ul>
-            </div>
             <div class="footer-bottom">
-                <span>&copy; 2026 Coachi</span>
-                <span data-i18n="footer_made">Laget i Norge</span>
+                <span>&copy; 2026 Coachi. <span data-i18n="footer_made">Laget i Norge</span></span>
+                <div class="footer-legal-links">
+                    <a href="#" data-i18n="footer_privacy">Personvern</a>
+                    <a href="#" data-i18n="footer_terms">Vilkår</a>
+                    <a href="#" data-i18n="footer_cookies">Informasjonskapsler</a>
+                </div>
             </div>
         </footer>
     </main>
@@ -942,18 +1073,17 @@
                 benefit_2_body: "Hold deg i riktig pulssone uten å stirre på klokka. Coachen gjør jobben for deg.",
                 benefit_3_title: "Mindre overtenking",
                 benefit_3_body: "Ingen kompliserte treningsprogram. Bare løp, lytt, og bli bedre litt etter litt.",
-                proof_eyebrow: "Det folk sier",
-                proof_title: "Testet av ekte løpere",
-                proof_1_quote: "\u00ABJeg pleide å starte alt for hardt. Nå sier coachen fra, og jeg har energi igjen på slutten.\u00BB",
-                proof_1_author: "Kristine M.",
-                proof_1_role: "Mosjonist, Oslo",
-                proof_2_quote: "\u00ABEndelig en treningsapp som snakker ordentlig norsk. Føles som en ekte treningskompis.\u00BB",
-                proof_2_author: "Erik H.",
-                proof_2_role: "Hobbyløper, Trondheim",
-                proof_3_quote: "\u00ABJeg trenger ikke lenger å sjekke klokka hele tiden. Coachen sier fra når jeg skal roe ned.\u00BB",
-                proof_3_author: "Marte L.",
-                proof_3_role: "Intervalltrener, Bergen",
-                trust_research: "Forskningsbasert coaching",
+                proof_eyebrow: "Hvorfor Coachi",
+                proof_title: "Bygget for norske løpere",
+                proof_1_quote: "Ekte norsk stemme — ikke oversatt fra engelsk. Coachen snakker som en treningskompis.",
+                proof_1_author: "Norsk først",
+                proof_2_quote: "Korte, tydelige råd i sanntid. Ingen lange forklaringer midt i løpeturen.",
+                proof_2_author: "Rask respons",
+                proof_3_quote: "AI-coachen tilpasser seg ditt nivå og dine mål. Blir bedre jo mer du løper.",
+                proof_3_author: "Personlig tilpasning",
+                trust_ai: "AI-drevet coaching",
+                trust_free: "Gratis i beta",
+                trust_privacy: "Dine data, din kontroll",
                 faq_eyebrow: "Vanlige spørsmål",
                 faq_title: "Lurer du på noe?",
                 faq_1_q: "Må jeg ha smartklokke?",
@@ -975,9 +1105,15 @@
                 wait_sending: "Sender...",
                 wait_success: "Du er registrert! Vi sender invitasjon snart.",
                 wait_failed: "Kunne ikke registrere nå. Prøv igjen.",
+                cta_trust: "Gratis mens vi er i beta",
+                cta_phone_alt: "Coachi app skjerm",
                 footer_tagline: "Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.",
                 footer_nav_title: "Navigasjon",
+                footer_support_title: "Støtte",
+                footer_contact: "Kontakt oss",
                 footer_privacy: "Personvern",
+                footer_terms: "Vilkår",
+                footer_cookies: "Informasjonskapsler",
                 footer_made: "Laget i Norge"
             },
             en: {
@@ -1027,18 +1163,17 @@
                 benefit_2_body: "Stay in the right pulse zone without staring at your watch. The coach does it for you.",
                 benefit_3_title: "Less overthinking",
                 benefit_3_body: "No complicated training plans. Just run, listen, and improve bit by bit.",
-                proof_eyebrow: "What people say",
-                proof_title: "Tested by real runners",
-                proof_1_quote: "\u201CI used to start way too hard. Now the coach tells me, and I have energy left at the end.\u201D",
-                proof_1_author: "Kristine M.",
-                proof_1_role: "Recreational runner, Oslo",
-                proof_2_quote: "\u201CFinally a fitness app that speaks proper Norwegian. Feels like a real training buddy.\u201D",
-                proof_2_author: "Erik H.",
-                proof_2_role: "Hobby runner, Trondheim",
-                proof_3_quote: "\u201CI don\u2019t need to check my watch all the time anymore. The coach tells me when to ease up.\u201D",
-                proof_3_author: "Marte L.",
-                proof_3_role: "Interval trainer, Bergen",
-                trust_research: "Research-based coaching",
+                proof_eyebrow: "Why Coachi",
+                proof_title: "Built for Norwegian runners",
+                proof_1_quote: "Real Norwegian voice — not translated from English. The coach talks like a training buddy.",
+                proof_1_author: "Norwegian first",
+                proof_2_quote: "Short, clear cues in real time. No long explanations in the middle of your run.",
+                proof_2_author: "Fast response",
+                proof_3_quote: "The AI coach adapts to your level and goals. Gets better the more you run.",
+                proof_3_author: "Personalized",
+                trust_ai: "AI-powered coaching",
+                trust_free: "Free in beta",
+                trust_privacy: "Your data, your control",
                 faq_eyebrow: "FAQ",
                 faq_title: "Got questions?",
                 faq_1_q: "Do I need a smartwatch?",
@@ -1060,9 +1195,15 @@
                 wait_sending: "Sending...",
                 wait_success: "You're registered! We'll send your invite soon.",
                 wait_failed: "Could not register right now. Try again.",
+                cta_trust: "Free while in beta",
+                cta_phone_alt: "Coachi app screen",
                 footer_tagline: "Your personal running coach. Short voice cues that help you run smarter.",
                 footer_nav_title: "Navigation",
+                footer_support_title: "Support",
+                footer_contact: "Contact us",
                 footer_privacy: "Privacy",
+                footer_terms: "Terms",
+                footer_cookies: "Cookies",
                 footer_made: "Made in Norway"
             }
         };
