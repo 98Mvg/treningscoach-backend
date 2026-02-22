@@ -16,7 +16,8 @@ import random
 import logging
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
@@ -28,7 +29,7 @@ from tts_service import synthesize_speech_mock  # Import mock TTS (Qwen disabled
 from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
 from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # Import coach personality
-from database import init_db  # Import database initialization
+from database import init_db, db, WaitlistSignup  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from norwegian_phrase_quality import rewrite_norwegian_phrase
@@ -2669,16 +2670,13 @@ def coach_talk():
 # WAITLIST + LANDING ANALYTICS
 # ============================================
 
-# In-memory waitlist storage (sufficient for pre-launch capture)
-_waitlist_emails = []
-_waitlist_rate_limit = {}  # ip_hash -> (count, first_request_time)
 _VALID_LANDING_EVENTS = {"demo_started", "demo_mic_granted", "demo_coaching_received", "waitlist_signup"}
 
 
 @app.route('/waitlist', methods=['POST'])
 def waitlist_signup():
     """
-    Capture landing-page waitlist emails.
+    Capture landing-page waitlist emails in database.
     Rate limited to 5 submissions per IP hash per hour.
     """
     import re
@@ -2687,35 +2685,47 @@ def waitlist_signup():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     language = normalize_language_code(data.get("language", "en"))
+    source = (data.get("source") or "website").strip().lower()[:50] or "website"
 
     if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
         return jsonify({"error": "Invalid email"}), 400
 
     remote_addr = request.remote_addr or "unknown"
-    ip_hash = hashlib.sha256(remote_addr.encode()).hexdigest()[:16]
-    now = datetime.now()
-    limit_info = _waitlist_rate_limit.get(ip_hash)
+    ip_hash = hashlib.sha256(remote_addr.encode()).hexdigest()
+    now = datetime.utcnow()
+    window_start = now - timedelta(hours=1)
 
-    if limit_info:
-        count, first_time = limit_info
-        elapsed_hours = (now - first_time).total_seconds() / 3600
-        if elapsed_hours >= 1:
-            _waitlist_rate_limit[ip_hash] = (1, now)
-        elif count >= 5:
-            return jsonify({"error": "Rate limit exceeded"}), 429
-        else:
-            _waitlist_rate_limit[ip_hash] = (count + 1, first_time)
-    else:
-        _waitlist_rate_limit[ip_hash] = (1, now)
+    recent_count = WaitlistSignup.query.filter(
+        WaitlistSignup.ip_hash == ip_hash,
+        WaitlistSignup.created_at >= window_start,
+    ).count()
+    if recent_count >= 5:
+        return jsonify({"error": "Rate limit exceeded"}), 429
 
-    _waitlist_emails.append({
-        "email": email,
-        "language": language,
-        "timestamp": now.isoformat(),
-        "ip_hash": ip_hash,
-    })
+    existing = WaitlistSignup.query.filter_by(email=email).first()
+    if existing:
+        logger.info(f"Waitlist signup duplicate ignored: {email} (lang={language})")
+        return jsonify({"success": True, "duplicate": True}), 200
 
-    logger.info(f"Waitlist signup captured: {email} (lang={language})")
+    signup = WaitlistSignup(
+        email=email,
+        language=language,
+        source=source,
+        ip_hash=ip_hash,
+    )
+    db.session.add(signup)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        logger.info(f"Waitlist signup duplicate raced: {email} (lang={language})")
+        return jsonify({"success": True, "duplicate": True}), 200
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f"Waitlist signup failed: {exc}")
+        return jsonify({"error": "Failed to capture waitlist signup"}), 500
+
+    logger.info(f"Waitlist signup persisted: {email} (lang={language}, source={source})")
     return jsonify({"success": True}), 200
 
 

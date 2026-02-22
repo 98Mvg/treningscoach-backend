@@ -132,3 +132,28 @@ class WorkoutHistory(db.Model):
             "language": self.language,
             "created_at": self.created_at.isoformat()
         }
+
+
+# ============================================
+# WAITLIST SIGNUP MODEL
+# ============================================
+
+class WaitlistSignup(db.Model):
+    __tablename__ = "waitlist_signups"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    language = db.Column(db.String(10), nullable=False, default="en")
+    source = db.Column(db.String(50), nullable=False, default="website")
+    ip_hash = db.Column(db.String(64), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "language": self.language,
+            "source": self.source,
+            "ip_hash": self.ip_hash,
+            "created_at": self.created_at.isoformat(),
+        }
