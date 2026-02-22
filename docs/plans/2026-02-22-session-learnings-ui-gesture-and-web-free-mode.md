@@ -24,6 +24,10 @@
   - New account step in onboarding sequence (Apple/Google quick actions + email registration form UI).
   - Setup profile step now captures first + last name (`Om deg`) and keeps beginner auto-leveling.
   - Onboarding sequence is now: Welcome -> Language -> Features -> Account -> Setup.
+- App inspo onboarding alignment (`nr 3`) added in iOS flow:
+  - New CoachScore intro step after setup for "one-number" explanation.
+  - Uses simple score card with short factors (zone hold, consistency, recovery).
+  - Onboarding sequence is now: Welcome -> Language -> Features -> Account -> Setup -> CoachScore Intro.
 
 ## Validation
 - `pytest` (targeted contracts) passed:

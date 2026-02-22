@@ -114,6 +114,25 @@ struct L10n {
             ? "Du starter som Nybegynner og bygger deg opp med gode oekter."
             : "You start as Beginner and level up with good-quality workouts."
     }
+    static var coachScoreIntroHeadline: String {
+        current == .no ? "Ett tall som viser formen din" : "One score that shows your form"
+    }
+    static var coachScoreIntroSubline: String {
+        current == .no
+            ? "Bra, %@. Etter hver oekt faar du CoachScore som viser hvor godt du holdt riktig puls."
+            : "Great, %@. After each workout you get a CoachScore that shows how well you stayed in the right HR zone."
+    }
+    static var coachScoreLabel: String { "CoachScore" }
+    static var coachScoreSolidLabel: String { current == .no ? "Solid oekt" : "Solid workout" }
+    static var coachScoreReasonZone: String {
+        current == .no ? "Tid i riktig sone" : "Time in target zone"
+    }
+    static var coachScoreReasonConsistency: String {
+        current == .no ? "Jevn innsats i oekten" : "Steady effort through the workout"
+    }
+    static var coachScoreReasonRecovery: String {
+        current == .no ? "God kontroll i recovery" : "Good recovery control"
+    }
     static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
     static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }
     static var startTraining: String { current == .no ? "Start trening" : "Start Training" }
