@@ -37,6 +37,12 @@ struct MainTabView: View {
         .environmentObject(workoutViewModel)
         .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.workoutState)
         .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.showComplete)
+        .onAppear {
+            workoutViewModel.presentSpotifyPromptIfNeeded()
+        }
+        .fullScreenCover(isPresented: $workoutViewModel.showSpotifyConnectSheet) {
+            SpotifyConnectView(viewModel: workoutViewModel)
+        }
     }
 
     @ViewBuilder

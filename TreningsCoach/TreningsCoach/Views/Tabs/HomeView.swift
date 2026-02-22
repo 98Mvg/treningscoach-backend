@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var workoutViewModel: WorkoutViewModel
     @StateObject private var viewModel = HomeViewModel()
     @State private var appeared = false
     let onStartWorkout: () -> Void
@@ -36,9 +37,80 @@ struct HomeView: View {
                 }
                 .padding(.top, 32).opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
 
+                // Experience level progression (gameified via good CoachScore workouts)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(appViewModel.levelBadgeLine)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(CoachiTheme.surface.opacity(0.8))
+                            Capsule()
+                                .fill(CoachiTheme.success)
+                                .frame(width: max(8, geo.size.width * appViewModel.levelProgressFraction))
+                        }
+                    }
+                    .frame(height: 10)
+
+                    Text(appViewModel.levelProgressLine)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                }
+                .padding(14)
+                .cardStyle()
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .opacity(appeared ? 1 : 0)
+
                 // Start button
                 PulseButtonView(title: L10n.startWorkout, icon: "play.fill", size: 140) { onStartWorkout() }
                     .padding(.top, 36).opacity(appeared ? 1 : 0)
+
+                // Spotify quick access + status
+                Button {
+                    workoutViewModel.handleSpotifyButtonTapped()
+                } label: {
+                    HStack(spacing: 12) {
+                        SpotifyLogoBadge(size: 34)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Spotify")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(workoutViewModel.isSpotifyConnected ? CoachiTheme.success : CoachiTheme.textTertiary)
+                                    .frame(width: 8, height: 8)
+                                Text(
+                                    workoutViewModel.isSpotifyConnected
+                                        ? (L10n.current == .no ? "Tilkoblet" : "Connected")
+                                        : (L10n.current == .no ? "Ikke tilkoblet" : "Not connected")
+                                )
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text(
+                            workoutViewModel.isSpotifyConnected
+                                ? (L10n.current == .no ? "Åpne" : "Open")
+                                : (L10n.current == .no ? "Koble til" : "Connect")
+                        )
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(CoachiTheme.primary)
+                    }
+                    .padding(14)
+                    .cardStyle()
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.top, 22)
+                .opacity(appeared ? 1 : 0)
 
                 // Waveform
                 WaveformView(isActive: false, barCount: 14, height: 40)

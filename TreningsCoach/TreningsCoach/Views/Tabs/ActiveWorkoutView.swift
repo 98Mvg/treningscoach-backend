@@ -53,58 +53,22 @@ struct ActiveWorkoutView: View {
                 Text(viewModel.workoutState == .paused ? L10n.paused.uppercased() : viewModel.currentPhase.displayName.uppercased())
                     .font(.system(size: 11, weight: .bold)).foregroundColor(CoachiTheme.textSecondary).tracking(2).padding(.top, 4)
 
-                // Zone status (glanceable)
-                VStack(spacing: 8) {
-                    Text(viewModel.zoneStatusDisplay.uppercased())
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(zoneColor(for: viewModel.zoneStatus))
-                        .padding(.horizontal, 14).padding(.vertical, 6)
-                        .background(Capsule().fill(zoneColor(for: viewModel.zoneStatus).opacity(0.16)))
-
-                    HStack(spacing: 8) {
-                        sensorPill(
-                            title: viewModel.hrQualityDisplay,
-                            color: viewModel.hrIsReliable ? CoachiTheme.secondary : CoachiTheme.accent
-                        )
-                        sensorPill(
-                            title: "Move: \(viewModel.movementStateDisplay)",
-                            color: movementColor(for: viewModel.movementState)
-                        )
-                    }
-
-                    HStack(spacing: 10) {
-                        Text("HR: \(viewModel.heartRate.map(String.init) ?? "--")")
-                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text("Target: \(viewModel.targetRangeText)")
-                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                    }
-
-                    HStack(spacing: 10) {
-                        Text("Cadence: \(viewModel.cadenceDisplayText)")
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                        Text("Source: \(viewModel.movementSourceDisplay)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                    }
-
-                    if !viewModel.hrIsReliable {
-                        Text(viewModel.hrQualityHint)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    if let cue = viewModel.coachMessage, !cue.isEmpty {
-                        Text(cue)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
+                // Minimal HR status only (user-facing)
+                HStack(spacing: 10) {
+                    Circle()
+                        .fill(viewModel.hrIsReliable ? CoachiTheme.success : CoachiTheme.textTertiary)
+                        .frame(width: 10, height: 10)
+                    Text(hrStatusText)
+                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                        .foregroundColor(CoachiTheme.textPrimary)
                 }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(CoachiTheme.surface)
+                        .overlay(Capsule().stroke(Color.white.opacity(0.06), lineWidth: 1))
+                )
                 .padding(.top, 16)
 
                 Spacer()
@@ -134,13 +98,21 @@ struct ActiveWorkoutView: View {
                     }
 
                     // Spotify quick-access (late-phase media UX, does not affect coaching logic)
-                    Button { viewModel.openSpotify() } label: {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(Color(hex: "1DB954"))
-                            .frame(width: 48, height: 48)
-                            .background(Color(hex: "1DB954").opacity(0.15))
-                            .clipShape(Circle())
+                    Button { viewModel.handleSpotifyButtonTapped() } label: {
+                        ZStack(alignment: .bottomTrailing) {
+                            SpotifyLogoBadge(size: 48)
+                            if viewModel.isSpotifyConnected {
+                                Circle()
+                                    .fill(CoachiTheme.success)
+                                    .frame(width: 16, height: 16)
+                                    .overlay(
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundColor(.white)
+                                    )
+                                    .offset(x: 2, y: 2)
+                            }
+                        }
                     }
                 }
                 .padding(.bottom, 10)
@@ -191,39 +163,187 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private func zoneColor(for zone: String) -> Color {
-        switch zone {
-        case "in_zone":
-            return CoachiTheme.secondary
-        case "above_zone":
-            return CoachiTheme.danger
-        case "below_zone":
-            return CoachiTheme.accent
-        case "timing_control":
-            return CoachiTheme.primary
-        default:
-            return CoachiTheme.textSecondary
+    private var hrStatusText: String {
+        if viewModel.hrIsReliable, let heartRate = viewModel.heartRate {
+            return "HR \(heartRate) bpm"
         }
+        return L10n.current == .no ? "HR IKKE TILKOBLET" : "HR NOT CONNECTED"
     }
+}
 
-    private func movementColor(for state: String) -> Color {
-        switch state {
-        case "moving":
-            return CoachiTheme.secondary
-        case "paused":
-            return CoachiTheme.accent
-        default:
-            return CoachiTheme.textSecondary
+struct SpotifyConnectView: View {
+    @ObservedObject var viewModel: WorkoutViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "160019"), Color(hex: "081534"), Color(hex: "06070D")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                HStack {
+                    Spacer()
+                    Button {
+                        viewModel.dismissSpotifyConnectSheet()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(width: 36, height: 36)
+                            .background(CoachiTheme.surface.opacity(0.75))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.top, 8)
+
+                Text(isNorwegian ? "SPOTIFY PREMIUM-\nTILKOBLING" : "SPOTIFY PREMIUM\nCONNECTION")
+                    .font(.system(size: 44, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white)
+                    .minimumScaleFactor(0.65)
+                    .lineLimit(2)
+
+                Text(
+                    isNorwegian
+                        ? "Har du Spotify Premium, kan du koble appen til Spotify og styre musikk i bakgrunnen."
+                        : "If you have Spotify Premium, connect your app to Spotify and control music in the background."
+                )
+                .font(.system(size: 17, weight: .regular))
+                .multilineTextAlignment(.center)
+                .foregroundColor(CoachiTheme.textPrimary.opacity(0.9))
+                .padding(.horizontal, 8)
+
+                Spacer(minLength: 18)
+
+                ZStack {
+                    Circle()
+                        .trim(from: 0.10, to: 1.00)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color(hex: "16B8FF"), Color(hex: "2FD4FF")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            style: StrokeStyle(lineWidth: 5.5, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(132))
+                        .frame(width: 220, height: 220)
+                        .shadow(color: Color(hex: "16B8FF").opacity(0.45), radius: 18, y: 0)
+
+                    Image(systemName: "music.note")
+                        .font(.system(size: 46, weight: .light))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(hex: "FF4EE9"), Color(hex: "A852FF")],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .offset(x: -78, y: -60)
+                }
+
+                Spacer(minLength: 26)
+
+                Button {
+                    viewModel.connectSpotifyFromSheet()
+                    dismiss()
+                } label: {
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(Color.black.opacity(0.2))
+                            .frame(width: 26, height: 26)
+                            .overlay(SpotifyGlyph(size: 14))
+                        Text(isNorwegian ? "KOBLE TIL SPOTIFY" : "CONNECT SPOTIFY")
+                            .font(.system(size: 18, weight: .bold))
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 62)
+                    .background(Color(hex: "1ED760"))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+
+                Button {
+                    viewModel.dismissSpotifyConnectSheet()
+                    dismiss()
+                } label: {
+                    Text(isNorwegian ? "JEG HAR IKKE SPOTIFY PREMIUM" : "I DON'T HAVE SPOTIFY PREMIUM")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white.opacity(0.95))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 62)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                }
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 34)
         }
+        .preferredColorScheme(.dark)
+    }
+}
+
+struct SpotifyLogoBadge: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: "1DB954"))
+                .frame(width: size, height: size)
+                .shadow(color: Color(hex: "1DB954").opacity(0.4), radius: 10, y: 2)
+            SpotifyGlyph(size: size * 0.56)
+        }
+        .overlay(
+            Circle()
+                .stroke(Color.black.opacity(0.12), lineWidth: 0.6)
+        )
+    }
+}
+
+private struct SpotifyGlyph: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            arc(radius: 0.44, yOffset: 0.04, start: 205, end: 333, width: 0.145)
+            arc(radius: 0.34, yOffset: 0.16, start: 210, end: 330, width: 0.125)
+            arc(radius: 0.25, yOffset: 0.28, start: 214, end: 326, width: 0.11)
+        }
+        .frame(width: size, height: size)
     }
 
     @ViewBuilder
-    private func sensorPill(title: String, color: Color) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(color.opacity(0.14)))
+    private func arc(radius: CGFloat, yOffset: CGFloat, start: Double, end: Double, width: CGFloat) -> some View {
+        let center = CGPoint(x: size * 0.5, y: size * (0.5 + yOffset))
+        Path { path in
+            path.addArc(
+                center: center,
+                radius: size * radius,
+                startAngle: .degrees(start),
+                endAngle: .degrees(end),
+                clockwise: false
+            )
+        }
+        .stroke(
+            Color.black,
+            style: StrokeStyle(
+                lineWidth: size * width,
+                lineCap: .round,
+                lineJoin: .round
+            )
+        )
     }
 }

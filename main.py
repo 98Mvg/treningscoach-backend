@@ -853,6 +853,7 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
 WEB_VARIANT_TEMPLATES = {
     "claude": "index_claude.html",
     "codex": "index_codex.html",
+    "launch": "index_launch.html",
 }
 DEFAULT_WEB_VARIANT = getattr(config, "WEB_UI_VARIANT", "codex")
 
@@ -867,10 +868,9 @@ def _resolve_web_variant(raw_variant: str = None):
 
 @app.route('/')
 def home():
-    """Homepage - Workout UI with player controls"""
-    variant, template = _resolve_web_variant(request.args.get("variant"))
-    response = make_response(render_template(template))
-    response.headers["X-Web-Variant"] = variant
+    """Homepage - launch page (app download funnel)."""
+    response = make_response(render_template("index_launch.html"))
+    response.headers["X-Web-Variant"] = "launch"
     return response
 
 

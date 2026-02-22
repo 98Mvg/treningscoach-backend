@@ -10,14 +10,7 @@ import SwiftUI
 struct SetupPageView: View {
     let onComplete: (String, String) -> Void
     @State private var name = ""
-    @State private var selectedLevel = "intermediate"
     @State private var appeared = false
-
-    private let levels = [
-        ("beginner", L10n.current == .no ? "Nybegynner" : "Beginner", "leaf.fill"),
-        ("intermediate", L10n.current == .no ? "Middels" : "Intermediate", "flame.fill"),
-        ("advanced", L10n.current == .no ? "Avansert" : "Advanced", "bolt.fill")
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,45 +38,41 @@ struct SetupPageView: View {
             .padding(.horizontal, 40).padding(.top, 32)
             .opacity(appeared ? 1 : 0)
 
-            // Training level
+            // Auto-progression intro
             VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.trainingLevel)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(CoachiTheme.textSecondary)
 
-                ForEach(levels, id: \.0) { level in
-                    Button {
-                        withAnimation(AppConfig.Anim.buttonSpring) { selectedLevel = level.0 }
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: level.2)
-                                .font(.system(size: 18))
-                                .foregroundColor(selectedLevel == level.0 ? CoachiTheme.primary : CoachiTheme.textTertiary)
-                                .frame(width: 40, height: 40)
-                                .background((selectedLevel == level.0 ? CoachiTheme.primary : CoachiTheme.textTertiary).opacity(0.15))
-                                .clipShape(Circle())
+                HStack(spacing: 14) {
+                    Image(systemName: "leaf.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(CoachiTheme.success)
+                        .frame(width: 40, height: 40)
+                        .background(CoachiTheme.success.opacity(0.15))
+                        .clipShape(Circle())
 
-                            Text(level.1)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(selectedLevel == level.0 ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
-
-                            Spacer()
-
-                            if selectedLevel == level.0 {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(CoachiTheme.primary)
-                            }
-                        }
-                        .padding(14)
-                        .background(selectedLevel == level.0 ? CoachiTheme.primary.opacity(0.1) : CoachiTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(selectedLevel == level.0 ? CoachiTheme.primary.opacity(0.5) : Color.white.opacity(0.06), lineWidth: 1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.current == .no ? "Du starter som Nybegynner" : "You start as Beginner")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(
+                            L10n.current == .no
+                                ? "Nivået ditt går opp når du fullfører gode økter."
+                                : "Your level goes up as you complete high-quality workouts."
                         )
+                        .font(.system(size: 13))
+                        .foregroundColor(CoachiTheme.textSecondary)
                     }
-                    .buttonStyle(.plain)
+                    Spacer()
                 }
+                .padding(14)
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
             }
             .padding(.horizontal, 40).padding(.top, 28)
             .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
@@ -92,7 +81,7 @@ struct SetupPageView: View {
 
             Button {
                 let finalName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                onComplete(finalName.isEmpty ? L10n.athlete : finalName, selectedLevel)
+                onComplete(finalName.isEmpty ? L10n.athlete : finalName, "beginner")
             } label: {
                 Text(L10n.startTraining)
                     .font(.system(size: 17, weight: .bold))

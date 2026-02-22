@@ -222,6 +222,12 @@ class AuthManager: ObservableObject {
         // Sync language
         L10n.set(response.user.language)
 
+        // First-time Spotify prompt after account creation/sign-in (one-time per install)
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: "spotify_prompt_seen") {
+            defaults.set(true, forKey: "spotify_prompt_pending")
+        }
+
         print("Authenticated: \(response.user.email)")
     }
 }

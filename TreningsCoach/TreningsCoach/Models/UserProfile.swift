@@ -94,8 +94,8 @@ struct UserProfile: Codable {
         let langString = try container.decodeIfPresent(String.self, forKey: .language) ?? "en"
         language = AppLanguage(rawValue: langString) ?? .en
 
-        let levelString = try container.decodeIfPresent(String.self, forKey: .trainingLevel) ?? "intermediate"
-        trainingLevel = TrainingLevel(rawValue: levelString) ?? .intermediate
+        let levelString = try container.decodeIfPresent(String.self, forKey: .trainingLevel) ?? "beginner"
+        trainingLevel = TrainingLevel(rawValue: levelString) ?? .beginner
 
         preferredPersona = try container.decodeIfPresent(String.self, forKey: .preferredPersona)
     }

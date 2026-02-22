@@ -242,6 +242,10 @@ private final class MotionCadenceService {
 
 @MainActor
 class WorkoutViewModel: ObservableObject {
+    private let spotifyPromptPendingKey = "spotify_prompt_pending"
+    private let spotifyPromptSeenKey = "spotify_prompt_seen"
+    private let goodCoachWorkoutCountKey = "good_coach_workout_count"
+
     // MARK: - Published Properties
 
     @Published var isRecording = false
@@ -311,6 +315,8 @@ class WorkoutViewModel: ObservableObject {
     @Published var zoneOvershoots: Int = 0
     @Published var personalizationTip: String = ""
     @Published var recoveryLine: String = ""
+    @Published var isSpotifyConnected: Bool = UserDefaults.standard.bool(forKey: "spotify_connected")
+    @Published var showSpotifyConnectSheet: Bool = false
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -559,6 +565,46 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    func handleSpotifyButtonTapped() {
+        if isSpotifyConnected {
+            openSpotify()
+        } else {
+            showSpotifyConnectSheet = true
+        }
+    }
+
+    func presentSpotifyPromptIfNeeded() {
+        let defaults = UserDefaults.standard
+        let pending = defaults.bool(forKey: spotifyPromptPendingKey)
+        let seen = defaults.bool(forKey: spotifyPromptSeenKey)
+        if !pending || seen || isSpotifyConnected {
+            if pending {
+                defaults.set(false, forKey: spotifyPromptPendingKey)
+            }
+            return
+        }
+
+        defaults.set(false, forKey: spotifyPromptPendingKey)
+        showSpotifyConnectSheet = true
+    }
+
+    func connectSpotifyFromSheet() {
+        let defaults = UserDefaults.standard
+        isSpotifyConnected = true
+        defaults.set(true, forKey: "spotify_connected")
+        defaults.set(true, forKey: spotifyPromptSeenKey)
+        defaults.set(false, forKey: spotifyPromptPendingKey)
+        showSpotifyConnectSheet = false
+        openSpotify()
+    }
+
+    func dismissSpotifyConnectSheet() {
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: spotifyPromptSeenKey)
+        defaults.set(false, forKey: spotifyPromptPendingKey)
+        showSpotifyConnectSheet = false
+    }
+
     // Time-of-day greeting for the home screen
     var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -576,7 +622,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private var currentTrainingLevel: String {
-        UserDefaults.standard.string(forKey: "training_level") ?? "intermediate"
+        UserDefaults.standard.string(forKey: "training_level") ?? "beginner"
     }
 
     /// User's display name for personalized coaching (e.g., "Great work, Marius!")
@@ -1014,6 +1060,35 @@ class WorkoutViewModel: ObservableObject {
         return "CoachScore: \(clampedScore) — \(coachWorkPhraseEn(for: band))"
     }
 
+    private func applyExperienceProgression(durationSeconds: Int, finalCoachScore: Int) {
+        guard durationSeconds >= AppConfig.Progression.minWorkoutSecondsForProgression else { return }
+        guard finalCoachScore >= AppConfig.Progression.goodCoachScoreThreshold else { return }
+
+        let defaults = UserDefaults.standard
+        let previousGoodWorkouts = defaults.integer(forKey: goodCoachWorkoutCountKey)
+        let newGoodWorkouts = previousGoodWorkouts + 1
+        defaults.set(newGoodWorkouts, forKey: goodCoachWorkoutCountKey)
+
+        let nextLevel = experienceLevel(forGoodWorkoutCount: newGoodWorkouts)
+        let currentLevel = defaults.string(forKey: "training_level") ?? "beginner"
+        if currentLevel != nextLevel {
+            defaults.set(nextLevel, forKey: "training_level")
+            print("⬆️ Experience level up: \(currentLevel) -> \(nextLevel) (\(newGoodWorkouts) good workouts)")
+        } else {
+            print("✅ Good workout counted (\(newGoodWorkouts) total)")
+        }
+    }
+
+    private func experienceLevel(forGoodWorkoutCount count: Int) -> String {
+        if count >= AppConfig.Progression.advancedAtGoodWorkouts {
+            return "advanced"
+        }
+        if count >= AppConfig.Progression.intermediateAtGoodWorkouts {
+            return "intermediate"
+        }
+        return "beginner"
+    }
+
     // MARK: - API Communication
 
     func sendToBackend(audioURL: URL, phase: WorkoutPhase) async {
@@ -1436,9 +1511,11 @@ class WorkoutViewModel: ObservableObject {
         latestMovementSampleDate = nil
 
         // Update final workout duration and save to history
+        var finalDurationSeconds: Int?
         if let startTime = sessionStartTime {
             workoutDuration = Date().timeIntervalSince(startTime)
             print("📊 Workout completed: \(Int(workoutDuration)) seconds")
+            finalDurationSeconds = Int(workoutDuration)
 
             // Save workout record for dashboard history
             let record = WorkoutRecord(
@@ -1457,6 +1534,10 @@ class WorkoutViewModel: ObservableObject {
         if coachScoreLine.isEmpty {
             coachScore = estimatedCoachScore(for: breathAnalysis?.intensityLevel ?? .moderate)
             coachScoreLine = formattedCoachScoreLine(score: coachScore)
+        }
+
+        if let duration = finalDurationSeconds {
+            applyExperienceProgression(durationSeconds: duration, finalCoachScore: coachScore)
         }
 
         elapsedTime = 0

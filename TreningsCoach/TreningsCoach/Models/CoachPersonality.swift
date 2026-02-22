@@ -3,7 +3,7 @@
 //  TreningsCoach
 //
 //  Coach personality enum for persona selection during workouts
-//  2 personas: Personal Trainer (default), Toxic Mode
+//  2 personas: Personal Trainer (default), Performance Mode
 //
 
 import SwiftUI
@@ -18,12 +18,12 @@ enum CoachPersonality: String, CaseIterable, Identifiable, Codable {
         if L10n.current == .no {
             switch self {
             case .personalTrainer: return "Personlig Trener"
-            case .toxicMode: return "Toxic Mode"
+            case .toxicMode: return "Performance Mode"
             }
         }
         switch self {
         case .personalTrainer: return "Personal Trainer"
-        case .toxicMode: return "Toxic Mode"
+        case .toxicMode: return "Performance Mode"
         }
     }
 
@@ -31,12 +31,12 @@ enum CoachPersonality: String, CaseIterable, Identifiable, Codable {
         if L10n.current == .no {
             switch self {
             case .personalTrainer: return "Rolig, disiplinert og direkte"
-            case .toxicMode: return "Brutal humor. Ingen naade."
+            case .toxicMode: return "Mer trykk, tydelig fokus og høy energi."
             }
         }
         switch self {
         case .personalTrainer: return "Calm, disciplined, and direct"
-        case .toxicMode: return "Dark humor. Zero mercy."
+        case .toxicMode: return "Higher energy with sharper performance focus."
         }
     }
 
