@@ -2,20 +2,29 @@
 //  AudioDiagnosticOverlayView.swift
 //  TreningsCoach
 //
-//  Compact diagnostic overlay for troubleshooting voice pipeline + breath analysis.
-//  Two tabs: Voice (mic/VAD/wake word) and Breath (backend DSP analysis).
-//  Toggle via triple-tap on the workout screen.
+//  Compact diagnostic overlay for troubleshooting voice pipeline, breath analysis,
+//  and pulse/watch sensor signals.
+//  Tabs: Voice (mic/VAD/wake word), Breath (backend DSP analysis), Pulse (HR/watch).
+//  Opened from workout screen via long-press on the mic button.
 //
 
 import SwiftUI
 
 struct AudioDiagnosticOverlayView: View {
+    @ObservedObject var workoutViewModel: WorkoutViewModel
     @ObservedObject var diagnostics: AudioPipelineDiagnostics = .shared
     @Binding var isPresented: Bool
     @State private var showFullLog = false
 
-    init(diagnostics: AudioPipelineDiagnostics = .shared, isPresented: Binding<Bool>? = nil) {
-        self._diagnostics = ObservedObject(wrappedValue: diagnostics)
+    @MainActor
+    init(
+        workoutViewModel: WorkoutViewModel,
+        diagnostics: AudioPipelineDiagnostics? = nil,
+        isPresented: Binding<Bool>? = nil
+    ) {
+        let resolvedDiagnostics = diagnostics ?? .shared
+        self._workoutViewModel = ObservedObject(wrappedValue: workoutViewModel)
+        self._diagnostics = ObservedObject(wrappedValue: resolvedDiagnostics)
         self._isPresented = isPresented ?? .constant(true)
     }
 
@@ -28,8 +37,10 @@ struct AudioDiagnosticOverlayView: View {
             VStack(spacing: 8) {
                 if diagnostics.diagnosticTab == .voice {
                     voiceDiagnosticsContent
-                } else {
+                } else if diagnostics.diagnosticTab == .breath {
                     breathDiagnosticsContent
+                } else {
+                    pulseDiagnosticsContent
                 }
             }
             .padding(.horizontal, 10)
@@ -65,6 +76,7 @@ struct AudioDiagnosticOverlayView: View {
             HStack(spacing: 0) {
                 tabButton("Voice", tab: .voice)
                 tabButton("Breath", tab: .breath)
+                tabButton("Pulse", tab: .pulse)
             }
             .background(Color.white.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -242,7 +254,8 @@ struct AudioDiagnosticOverlayView: View {
     // MARK: - Breath: Signal Quality
 
     private func breathSignalQualityRow(quality: Double) -> some View {
-        HStack(spacing: 8) {
+        let safeQuality = sanitizeUnit(quality)
+        return HStack(spacing: 8) {
             Text("Signal")
                 .font(.system(size: 8, weight: .medium))
                 .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
@@ -254,8 +267,8 @@ struct AudioDiagnosticOverlayView: View {
                         .fill(Color.white.opacity(0.08))
 
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(signalQualityColor(quality))
-                        .frame(width: geo.size.width * CGFloat(min(quality, 1.0)))
+                        .fill(signalQualityColor(safeQuality))
+                        .frame(width: geo.size.width * safeQuality)
 
                     // Threshold marker at 0.03 (below this = near-zero signal, 1 tick silence)
                     Rectangle()
@@ -266,14 +279,15 @@ struct AudioDiagnosticOverlayView: View {
             }
             .frame(height: 10)
 
-            Text(String(format: "%.2f", quality))
+            Text(String(format: "%.2f", Double(safeQuality)))
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundStyle(signalQualityColor(quality))
+                .foregroundStyle(signalQualityColor(Double(safeQuality)))
                 .frame(width: 30, alignment: .trailing)
         }
     }
 
     private func signalQualityColor(_ quality: Double) -> Color {
+        guard quality.isFinite else { return AppTheme.danger }
         if quality < 0.3 { return AppTheme.danger }
         if quality < 0.6 { return AppTheme.warning }
         return AppTheme.success
@@ -494,6 +508,140 @@ struct AudioDiagnosticOverlayView: View {
         .padding(.vertical, 12)
     }
 
+    // MARK: - Pulse/Watch Tab
+
+    private var pulseDiagnosticsContent: some View {
+        VStack(spacing: 8) {
+            pulseConnectionRow
+            pulseCoreMetrics
+            pulseZoneMetrics
+            pulseMovementMetrics
+            pulseProfileMetrics
+            pulseControlsRow
+        }
+    }
+
+    private var pulseConnectionRow: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(workoutViewModel.watchConnected ? AppTheme.success : AppTheme.danger)
+                .frame(width: 6, height: 6)
+
+            Text(workoutViewModel.sensorConnectionLabel)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(AppTheme.textPrimary.opacity(0.9))
+
+            Spacer()
+
+            Text(workoutViewModel.sensorModeDisplayText)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.75))
+        }
+    }
+
+    private var pulseCoreMetrics: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                pulseMetric(
+                    label: "HR",
+                    value: workoutViewModel.heartRate.map { "\($0)" } ?? "--",
+                    accent: hrQualityColor
+                )
+                pulseMetric(label: "Sample", value: workoutViewModel.heartRateSampleAgeText)
+                pulseMetric(label: "Quality", value: workoutViewModel.hrSignalQuality.uppercased(), accent: hrQualityColor)
+            }
+
+            Text(workoutViewModel.hrQualityHint)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2)
+        }
+    }
+
+    private var pulseZoneMetrics: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 0) {
+                pulseMetric(label: "Zone", value: workoutViewModel.targetZoneLabel)
+                pulseMetric(label: "Target", value: workoutViewModel.targetRangeText)
+                pulseMetric(label: "Status", value: workoutViewModel.zoneStatusDisplay.uppercased(), accent: zoneStatusColor)
+            }
+
+            HStack(spacing: 8) {
+                Text("Confidence: \(workoutViewModel.zoneScoreConfidence)")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.75))
+                Spacer()
+                Text("Overshoots: \(workoutViewModel.zoneOvershoots)")
+                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.75))
+            }
+        }
+    }
+
+    private var pulseMovementMetrics: some View {
+        HStack(spacing: 0) {
+            pulseMetric(label: "Move", value: workoutViewModel.movementScoreDisplayText)
+            pulseMetric(label: "Cadence", value: workoutViewModel.cadenceDisplayText)
+            pulseMetric(label: "Source", value: workoutViewModel.movementSourceDisplay.uppercased())
+            pulseMetric(label: "State", value: workoutViewModel.movementStateDisplay.uppercased())
+            pulseMetric(label: "M Age", value: workoutViewModel.movementSampleAgeText)
+        }
+    }
+
+    private var pulseProfileMetrics: some View {
+        HStack(spacing: 0) {
+            pulseMetric(label: "RHR", value: workoutViewModel.restingHeartRateDisplayText)
+            pulseMetric(label: "HRmax", value: workoutViewModel.hrMaxDisplayText)
+            pulseMetric(label: "Mic", value: workoutViewModel.useBreathingMicCues ? "ON" : "OFF")
+        }
+    }
+
+    private var pulseControlsRow: some View {
+        HStack(spacing: 8) {
+            Button {
+                workoutViewModel.refreshHealthSensors()
+            } label: {
+                Label("Refresh Watch", systemImage: "arrow.clockwise")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(AppTheme.secondaryAccent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.secondaryAccent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            Toggle(isOn: $workoutViewModel.useBreathingMicCues) {
+                Text("Mic Fallback")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
+            }
+            .toggleStyle(.switch)
+            .labelsHidden()
+            .scaleEffect(0.82)
+            .frame(width: 72)
+            .overlay(
+                Text("Mic")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                    .offset(y: -14)
+            )
+        }
+    }
+
+    private func pulseMetric(label: String, value: String, accent: Color = AppTheme.textPrimary.opacity(0.9)) -> some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(accent)
+                .lineLimit(1)
+            Text(label)
+                .font(.system(size: 7, weight: .medium))
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.55))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     // MARK: - Voice Tab: Existing Views
 
     private var micTestButton: some View {
@@ -522,7 +670,9 @@ struct AudioDiagnosticOverlayView: View {
     }
 
     private var audioLevelRow: some View {
-        HStack(spacing: 8) {
+        let safeAudioLevel = sanitizeUnit(diagnostics.audioLevel)
+        let safeVadMarker = sanitizeUnit(diagnostics.vadThreshold * 5.0)
+        return HStack(spacing: 8) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3)
@@ -530,13 +680,13 @@ struct AudioDiagnosticOverlayView: View {
 
                     RoundedRectangle(cornerRadius: 3)
                         .fill(levelColor)
-                        .frame(width: geo.size.width * CGFloat(diagnostics.audioLevel))
+                        .frame(width: geo.size.width * safeAudioLevel)
                         .animation(.linear(duration: 0.05), value: diagnostics.audioLevel)
 
                     Rectangle()
                         .fill(AppTheme.warning.opacity(0.5))
                         .frame(width: 1)
-                        .offset(x: geo.size.width * CGFloat(diagnostics.vadThreshold * 5.0))
+                        .offset(x: geo.size.width * safeVadMarker)
                 }
             }
             .frame(height: 14)
@@ -551,6 +701,16 @@ struct AudioDiagnosticOverlayView: View {
                 .foregroundStyle(diagnostics.isVoiceDetected ? AppTheme.success : AppTheme.textSecondary.opacity(0.3))
                 .frame(width: 32)
         }
+    }
+
+    private func sanitizeUnit(_ value: Double) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return CGFloat(max(0, min(1, value)))
+    }
+
+    private func sanitizeUnit(_ value: Float) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return CGFloat(max(0, min(1, value)))
     }
 
     private var signalPathRow: some View {
@@ -678,6 +838,30 @@ struct AudioDiagnosticOverlayView: View {
             startPoint: .leading,
             endPoint: .trailing
         )
+    }
+
+    private var hrQualityColor: Color {
+        switch workoutViewModel.hrSignalQuality {
+        case "good":
+            return AppTheme.success
+        case "poor":
+            return AppTheme.danger
+        default:
+            return AppTheme.warning
+        }
+    }
+
+    private var zoneStatusColor: Color {
+        switch workoutViewModel.zoneStatus {
+        case "in_zone":
+            return AppTheme.success
+        case "below_zone":
+            return AppTheme.warning
+        case "above_zone":
+            return AppTheme.danger
+        default:
+            return AppTheme.textSecondary
+        }
     }
 
     private var wakeWordStatusColor: Color {

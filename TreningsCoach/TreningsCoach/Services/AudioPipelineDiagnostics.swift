@@ -20,6 +20,7 @@ import Speech
 enum DiagnosticTab: String {
     case voice
     case breath
+    case pulse
 }
 
 /// Pipeline stage for tracking signal flow
@@ -183,20 +184,42 @@ class AudioPipelineDiagnostics: ObservableObject {
     /// Update diagnostics from pre-computed audio stats.
     /// Call this on the main actor.
     func updateFromAudio(rms: Float, db: Float, voiceDetected: Bool, frameCount: Int) {
-        self.audioLevel = min(rms * 5.0, 1.0) // Scale for visual (0-1)
-        self.decibelLevel = max(db, -160.0)
-        self.isVoiceDetected = voiceDetected
+        let safeRms = sanitizeRms(rms)
+        let safeDb = sanitizeDb(db)
+        let normalizedLevel = clamp01(safeRms * 5.0) // Scale for visual (0-1)
+
+        self.audioLevel = normalizedLevel
+        self.decibelLevel = safeDb
+        self.isVoiceDetected = voiceDetected && safeRms.isFinite && safeRms > 0
         self.framesReceived += 1
         self.frameCountThisSecond += 1
 
-        if rms > self.peakLevel {
-            self.peakLevel = min(rms * 5.0, 1.0)
+        if !self.peakLevel.isFinite {
+            self.peakLevel = 0
+        }
+        if normalizedLevel > self.peakLevel {
+            self.peakLevel = normalizedLevel
         }
 
         if !self.isMicActive {
             self.isMicActive = true
             self.log(.micActive, detail: "First audio frame received")
         }
+    }
+
+    private func sanitizeRms(_ value: Float) -> Float {
+        guard value.isFinite else { return 0 }
+        return max(0, value)
+    }
+
+    private func sanitizeDb(_ value: Float) -> Float {
+        guard value.isFinite else { return -160.0 }
+        return min(0.0, max(-160.0, value))
+    }
+
+    private func clamp01(_ value: Float) -> Float {
+        guard value.isFinite else { return 0 }
+        return max(0, min(1, value))
     }
 
     // MARK: - Pipeline Event Logging

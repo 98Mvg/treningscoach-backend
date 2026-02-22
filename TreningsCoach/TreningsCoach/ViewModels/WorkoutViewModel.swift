@@ -236,7 +236,8 @@ private final class MotionCadenceService {
     }
 
     private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
-        max(lower, min(upper, value))
+        guard value.isFinite else { return lower }
+        return max(lower, min(upper, value))
     }
 }
 
@@ -421,6 +422,47 @@ class WorkoutViewModel: ObservableObject {
 
     var hrQualityHint: String {
         hrIsReliable ? "Zone cues are using heart rate." : "Using timing and movement fallback until HR stabilizes."
+    }
+
+    var sensorConnectionLabel: String {
+        watchConnected ? "Apple Watch connected" : "Watch not connected"
+    }
+
+    var heartRateSampleAgeText: String {
+        guard let date = latestHeartRateSampleDate else { return "--" }
+        let age = max(0, Date().timeIntervalSince(date))
+        return String(format: "%.1fs", age)
+    }
+
+    var movementSampleAgeText: String {
+        guard let date = latestMovementSampleDate else { return "--" }
+        let age = max(0, Date().timeIntervalSince(date))
+        return String(format: "%.1fs", age)
+    }
+
+    var movementScoreDisplayText: String {
+        guard let movementScore else { return "--" }
+        return String(format: "%.2f", movementScore)
+    }
+
+    var restingHeartRateDisplayText: String {
+        guard let value = storedRestingHR else { return "--" }
+        return "\(value) bpm"
+    }
+
+    var hrMaxDisplayText: String {
+        if let value = storedHRMax {
+            return "\(value) bpm"
+        }
+        if let age = storedAge {
+            let estimated = max(120, 220 - age)
+            return "\(estimated) bpm (est.)"
+        }
+        return "--"
+    }
+
+    var sensorModeDisplayText: String {
+        hrIsReliable ? "HR zone mode" : "Timing + movement fallback"
     }
 
     var movementStateDisplay: String {
@@ -1231,6 +1273,12 @@ class WorkoutViewModel: ObservableObject {
 
         if let snapshot = await healthKitService.fetchLatestHeartRateSnapshot() {
             applyHeartRateUpdate(snapshot)
+        }
+    }
+
+    func refreshHealthSensors() {
+        Task {
+            await setupHealthSignals()
         }
     }
 

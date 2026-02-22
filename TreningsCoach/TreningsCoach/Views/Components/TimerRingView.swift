@@ -12,12 +12,17 @@ struct TimerRingView: View {
     var size: CGFloat = 200
     var lineWidth: CGFloat = 8
 
+    private var safeProgress: Double {
+        guard progress.isFinite else { return 0 }
+        return max(0, min(1, progress))
+    }
+
     var body: some View {
         ZStack {
             Circle().stroke(CoachiTheme.surface, lineWidth: lineWidth).frame(width: size, height: size)
 
             Circle()
-                .trim(from: 0, to: CGFloat(min(progress, 1.0)))
+                .trim(from: 0, to: CGFloat(safeProgress))
                 .stroke(
                     AngularGradient(colors: [CoachiTheme.primary, CoachiTheme.secondary, CoachiTheme.primary],
                                     center: .center, startAngle: .degrees(0), endAngle: .degrees(360)),
@@ -25,14 +30,14 @@ struct TimerRingView: View {
                 )
                 .frame(width: size, height: size)
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 1), value: progress)
+                .animation(.easeInOut(duration: 1), value: safeProgress)
 
-            if progress > 0.01 {
+            if safeProgress > 0.01 {
                 Circle().fill(CoachiTheme.primary).frame(width: lineWidth * 1.5, height: lineWidth * 1.5)
                     .glow(color: CoachiTheme.primary, radius: 8)
                     .offset(y: -size / 2)
-                    .rotationEffect(.degrees(360 * progress - 90))
-                    .animation(.easeInOut(duration: 1), value: progress)
+                    .rotationEffect(.degrees(360 * safeProgress - 90))
+                    .animation(.easeInOut(duration: 1), value: safeProgress)
             }
         }
     }

@@ -10,6 +10,8 @@ import SwiftUI
 struct WorkoutLaunchView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var appeared = false
+    @State private var launchStep = 1
+    @State private var showAdvancedOptions = false
 
     var body: some View {
         ZStack {
@@ -27,153 +29,194 @@ struct WorkoutLaunchView: View {
                     }
                     .padding(.top, 8)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("What are you doing today?")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text("Choose session, inputs, and coaching style.")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Session choice (Step A)
-                    HStack(spacing: 10) {
-                        launchCard(
-                            title: "Easy Run",
-                            subtitle: "Stay easy. Build endurance.",
-                            selected: viewModel.selectedWorkoutMode == .easyRun
-                        ) {
-                            viewModel.selectedWorkoutMode = .easyRun
-                        }
-                        launchCard(
-                            title: "Intervals",
-                            subtitle: "Fast reps + recovery.",
-                            selected: viewModel.selectedWorkoutMode == .intervals
-                        ) {
-                            viewModel.selectedWorkoutMode = .intervals
-                        }
-                    }
-                    launchComingSoonCard(
-                        title: "Strength",
-                        subtitle: "Coming soon."
-                    )
-
-                    if viewModel.selectedWorkoutMode == .easyRun {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Easy Run duration")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                            HStack(spacing: 8) {
-                                durationChip(20)
-                                durationChip(30)
-                                durationChip(45)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if viewModel.selectedWorkoutMode == .intervals {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Interval template")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                            HStack(spacing: 8) {
-                                templateChip(.fourByFour)
-                                templateChip(.eightByOne)
-                                templateChip(.tenByThirtyThirty)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    // Input source status (Step B)
-                    VStack(alignment: .leading, spacing: 10) {
-                        if viewModel.watchConnected {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
-                                    .frame(width: 8, height: 8)
-                                Text("Watch HR")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(CoachiTheme.textSecondary)
-                                Spacer()
-                                Text(viewModel.hrSignalQuality == "good" ? "Good" : "Limited")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
-                            }
-                        }
-                        Toggle(isOn: $viewModel.useBreathingMicCues) {
-                            Text("Use breathing mic cues")
-                                .font(.system(size: 13, weight: .medium))
+                    if launchStep == 1 {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("What are you doing today?")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                            Text("Choose your session first.")
+                                .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(CoachiTheme.textSecondary)
                         }
-                        .tint(CoachiTheme.primary)
-                    }
-                    .padding(14)
-                    .background(CoachiTheme.surface.opacity(0.9))
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Coaching style (Step C)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Coaching style")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                        HStack(spacing: 8) {
-                            styleChip(.minimal)
-                            styleChip(.normal)
-                            styleChip(.motivational)
+                        HStack(spacing: 10) {
+                            launchCard(
+                                title: "Easy Run",
+                                subtitle: "Stay easy. Build endurance.",
+                                selected: viewModel.selectedWorkoutMode == .easyRun
+                            ) {
+                                viewModel.selectedWorkoutMode = .easyRun
+                            }
+                            launchCard(
+                                title: "Intervals",
+                                subtitle: "Fast reps + guided recovery.",
+                                selected: viewModel.selectedWorkoutMode == .intervals
+                            ) {
+                                viewModel.selectedWorkoutMode = .intervals
+                            }
                         }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                        launchComingSoonCard(
+                            title: "Strength",
+                            subtitle: "Coming soon."
+                        )
 
-                    if viewModel.selectedWorkoutMode != .intervals {
-                        VStack(spacing: 4) {
-                            Text(L10n.warmupTime.uppercased())
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                                .tracking(1)
-                            CircularDialPicker(selectedMinutes: $viewModel.selectedWarmupMinutes)
+                        Button {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                                launchStep = 2
+                            }
+                        } label: {
+                            HStack {
+                                Text("Next")
+                                    .font(.system(size: 17, weight: .bold))
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 14, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 18)
+                            .frame(height: 56)
+                            .background(CoachiTheme.primaryGradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .shadow(color: CoachiTheme.primary.opacity(0.3), radius: 12, y: 4)
                         }
-                    }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Quick setup")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                            Text("Session details, inputs, and coaching style.")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Persona selector
-                    VStack(spacing: 12) {
-                        Text(L10n.selectCoach.uppercased())
-                            .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
-                            .tracking(1)
-                        HStack(spacing: 12) {
-                            ForEach(CoachPersonality.allCases) { persona in
-                                PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
-                                    withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                        launchSection(title: "Step A", subtitle: "Session variant") {
+                            if viewModel.selectedWorkoutMode == .easyRun {
+                                HStack(spacing: 8) {
+                                    durationChip(20)
+                                    durationChip(30)
+                                    durationChip(45)
+                                }
+                            } else {
+                                HStack(spacing: 8) {
+                                    templateChip(.fourByFour)
+                                    templateChip(.eightByOne)
+                                    templateChip(.tenByThirtyThirty)
                                 }
                             }
                         }
-                    }
 
-                    // GO button
-                    Button {
-                        UserDefaults.standard.set(viewModel.selectedWarmupMinutes, forKey: "last_warmup_minutes")
-                        withAnimation(AppConfig.Anim.transitionSpring) { viewModel.startWorkout() }
-                    } label: {
-                        ZStack {
-                            Circle().fill(CoachiTheme.primary.opacity(0.06))
-                                .frame(width: 200, height: 200)
-                            Circle().fill(CoachiTheme.primary.opacity(0.12))
-                                .frame(width: 170, height: 170)
-                            Circle()
-                                .fill(CoachiTheme.primaryGradient)
-                                .frame(width: 140, height: 140)
-                                .shadow(color: CoachiTheme.primary.opacity(0.4), radius: 25, y: 8)
-                            Text("Start coaching")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
+                        launchSection(title: "Step B", subtitle: "Input sources") {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(viewModel.watchConnected ? CoachiTheme.success : CoachiTheme.textTertiary)
+                                    .frame(width: 8, height: 8)
+                                Text("Apple Watch")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                Spacer()
+                                if viewModel.watchConnected {
+                                    Text(viewModel.hrSignalQuality == "good" ? "HR good" : "HR limited")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
+                                } else {
+                                    Text("Not connected")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(CoachiTheme.textTertiary)
+                                }
+                            }
+                            Toggle(isOn: $viewModel.useBreathingMicCues) {
+                                Text("Use breathing mic cues")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                            }
+                            .tint(CoachiTheme.primary)
                         }
+
+                        launchSection(title: "Step C", subtitle: "Coaching style") {
+                            HStack(spacing: 8) {
+                                styleChip(.minimal)
+                                styleChip(.normal)
+                                styleChip(.motivational)
+                            }
+                        }
+
+                        DisclosureGroup(
+                            isExpanded: $showAdvancedOptions,
+                            content: {
+                                VStack(spacing: 14) {
+                                    if viewModel.selectedWorkoutMode != .intervals {
+                                        VStack(spacing: 4) {
+                                            Text(L10n.warmupTime.uppercased())
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(CoachiTheme.textTertiary)
+                                                .tracking(1)
+                                            CircularDialPicker(selectedMinutes: $viewModel.selectedWarmupMinutes)
+                                        }
+                                    }
+
+                                    VStack(spacing: 12) {
+                                        Text(L10n.selectCoach.uppercased())
+                                            .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
+                                            .tracking(1)
+                                        HStack(spacing: 12) {
+                                            ForEach(CoachPersonality.allCases) { persona in
+                                                PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
+                                                    withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.top, 8)
+                            },
+                            label: {
+                                Text("Advanced options")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                            }
+                        )
+                        .padding(14)
+                        .background(CoachiTheme.surface.opacity(0.9))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                        HStack(spacing: 10) {
+                            Button {
+                                withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                                    launchStep = 1
+                                }
+                            } label: {
+                                Text("Back")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .background(CoachiTheme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                UserDefaults.standard.set(viewModel.selectedWarmupMinutes, forKey: "last_warmup_minutes")
+                                withAnimation(AppConfig.Anim.transitionSpring) { viewModel.startWorkout() }
+                            } label: {
+                                Text("Start coaching")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .background(CoachiTheme.primaryGradient)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .shadow(color: CoachiTheme.primary.opacity(0.28), radius: 10, y: 3)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.top, 4)
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .padding(.top, 8)
-                    .padding(.bottom, 60)
                 }
                 .padding(.horizontal, 20)
+                .padding(.bottom, 60)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 12)
             }
@@ -184,8 +227,28 @@ struct WorkoutLaunchView: View {
             if saved > 0 {
                 viewModel.selectedWarmupMinutes = saved
             }
+            launchStep = 1
             withAnimation(.easeOut(duration: 0.7).delay(0.15)) { appeared = true }
         }
+    }
+
+    @ViewBuilder
+    private func launchSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text(title.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(CoachiTheme.primary)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+            content()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface.opacity(0.9))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     @ViewBuilder
@@ -310,8 +373,16 @@ struct CircularDialPicker: View {
     @State private var isDragging = false
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
 
-    private var progress: Double { currentAngle / 360.0 }
-    private var displayMinutes: Int { Int(round(currentAngle / 360.0 * maxMinutes)) }
+    private var progress: Double {
+        let raw = currentAngle / 360.0
+        guard raw.isFinite else { return 0 }
+        return max(0, min(1, raw))
+    }
+    private var displayMinutes: Int {
+        let raw = progress * maxMinutes
+        guard raw.isFinite else { return 0 }
+        return Int(round(raw))
+    }
 
     var body: some View {
         ZStack {
@@ -446,15 +517,11 @@ struct CircularDialPicker: View {
 
     private func syncAngleFromMinutes() {
         let clamped = min(max(selectedMinutes, 0), Int(maxMinutes))
-        currentAngle = Double(clamped) / Double(maxMinutes) * 360.0
-    }
-}
-
-// Simple press-down scale effect for the GO button
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+        guard maxMinutes > 0 else {
+            currentAngle = 0
+            return
+        }
+        let nextAngle = Double(clamped) / Double(maxMinutes) * 360.0
+        currentAngle = nextAngle.isFinite ? nextAngle : 0
     }
 }
