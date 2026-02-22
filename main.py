@@ -1,6 +1,6 @@
 # main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
 
-from flask import Flask, request, send_file, jsonify, Response, stream_with_context, render_template, make_response
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -16,8 +16,7 @@ import random
 import logging
 import asyncio
 import time
-from datetime import datetime, timedelta
-from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
@@ -42,6 +41,7 @@ from zone_event_motor import (
     normalize_coaching_style,
     normalize_interval_template,
 )
+from web_routes import create_web_blueprint
 
 # Configure logging
 logging.basicConfig(
@@ -166,6 +166,53 @@ TTS_RUNTIME_DIAGNOSTICS = {
     "last_error": None,
 }
 VOICE_TEXT_PACING_COMPAT_WARNED = False
+QUALITY_GUARD_METRICS = {
+    "continuous_ticks": 0,
+    "spoken_ticks": 0,
+    "validation_checks": 0,
+    "validation_failures": 0,
+    "validation_template_fallbacks": 0,
+    "timeline_cue_candidates": 0,
+    "timeline_overrides": 0,
+    "timeline_zone_priority_skips": 0,
+    "language_guard_rewrites": 0,
+    "language_guard_en_to_no_rewrites": 0,
+    "language_guard_no_to_en_rewrites": 0,
+}
+
+
+def _increment_quality_metric(key: str, amount: int = 1) -> None:
+    """Best-effort in-memory quality counter increment."""
+    if key not in QUALITY_GUARD_METRICS:
+        return
+    try:
+        QUALITY_GUARD_METRICS[key] = int(QUALITY_GUARD_METRICS.get(key, 0)) + int(amount)
+    except Exception:
+        # Non-critical observability path; never fail request flow.
+        pass
+
+
+def _quality_guard_snapshot() -> dict:
+    checks = max(1, int(QUALITY_GUARD_METRICS.get("validation_checks", 0)))
+    failures = int(QUALITY_GUARD_METRICS.get("validation_failures", 0))
+    fallbacks = int(QUALITY_GUARD_METRICS.get("validation_template_fallbacks", 0))
+    snapshot = dict(QUALITY_GUARD_METRICS)
+    snapshot["validation_failure_rate"] = round(failures / checks, 4)
+    snapshot["validation_template_fallback_rate"] = round(fallbacks / checks, 4)
+    return snapshot
+
+
+def _product_flags_snapshot() -> dict:
+    """Expose backend runtime product toggles to keep app behavior explicit."""
+    free_mode = bool(getattr(config, "APP_FREE_MODE", True))
+    billing_enabled = bool(getattr(config, "BILLING_ENABLED", False))
+    premium_surfaces = bool(getattr(config, "PREMIUM_SURFACES_ENABLED", False))
+    return {
+        "app_free_mode": free_mode,
+        "billing_enabled": billing_enabled,
+        "premium_surfaces_enabled": premium_surfaces,
+        "monetization_phase": "free_only" if free_mode else "billing_ready",
+    }
 
 # ============================================
 # HELPER FUNCTIONS
@@ -467,10 +514,14 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
     if normalized_language == "en":
         if _looks_norwegian(stripped):
             logger.warning(f"Language guard corrected NO->EN drift: '{stripped}'")
+            _increment_quality_metric("language_guard_rewrites")
+            _increment_quality_metric("language_guard_no_to_en_rewrites")
             return "Keep going!"
     elif normalized_language == "no":
         if lowered in {"keep going", "keep going!"}:
             logger.warning(f"Language guard corrected EN->NO drift: '{stripped}'")
+            _increment_quality_metric("language_guard_rewrites")
+            _increment_quality_metric("language_guard_en_to_no_rewrites")
             return "Fortsett!"
         # Broader detection: English-dominant output when Norwegian expected
         if _looks_english(stripped):
@@ -484,6 +535,8 @@ def enforce_language_consistency(text: str, language: str, phase: str = None) ->
                 pool = fallback_messages.get("warmup", ["Fortsett!", "Kjør på!", "Bra jobba!"])
             replacement = _pick_deterministic_fallback(pool, f"{phase}:{stripped}")
             logger.warning(f"Language guard replaced English text in NO mode: '{stripped}' -> '{replacement}'")
+            _increment_quality_metric("language_guard_rewrites")
+            _increment_quality_metric("language_guard_en_to_no_rewrites")
             return rewrite_norwegian_phrase(replacement, phase=phase)
 
         return rewrite_norwegian_phrase(stripped, phase=phase)
@@ -857,6 +910,9 @@ WEB_VARIANT_TEMPLATES = {
     "launch": "index_launch.html",
 }
 DEFAULT_WEB_VARIANT = getattr(config, "WEB_UI_VARIANT", "codex")
+APP_STORE_URL = (os.getenv("APP_STORE_URL") or "").strip()
+GOOGLE_PLAY_URL = (os.getenv("GOOGLE_PLAY_URL") or "").strip()
+ANDROID_EARLY_ACCESS_URL = (os.getenv("ANDROID_EARLY_ACCESS_URL") or "").strip()
 
 
 def _resolve_web_variant(raw_variant: str = None):
@@ -867,42 +923,27 @@ def _resolve_web_variant(raw_variant: str = None):
     return candidate, WEB_VARIANT_TEMPLATES[candidate]
 
 
-@app.route('/')
-def home():
-    """Homepage - launch page (app download funnel)."""
-    response = make_response(render_template("index_launch.html"))
-    response.headers["X-Web-Variant"] = "launch"
-    return response
+def _landing_link_context():
+    """Website funnel links (configured via env; safe fallback for local/dev)."""
+    return {
+        "app_store_url": APP_STORE_URL or "#download",
+        "google_play_url": GOOGLE_PLAY_URL or "#download",
+        "android_early_access_url": ANDROID_EARLY_ACCESS_URL or "#waitForm",
+    }
 
 
-@app.route('/preview')
-def preview_compare():
-    """Side-by-side compare page for claude vs codex web variants."""
-    return render_template('site_compare.html')
-
-
-@app.route('/preview/<variant>')
-def preview_variant(variant):
-    """Preview a specific web variant without changing deploy defaults."""
-    resolved_variant, template = _resolve_web_variant(variant)
-    response = make_response(render_template(template))
-    response.headers["X-Web-Variant"] = resolved_variant
-    return response
-
-@app.route('/health')
-def health():
-    """Enkel helse-sjekk for å se at serveren lever"""
-    return jsonify({
-        "status": "healthy",
-        "version": config.APP_VERSION,
-        "timestamp": datetime.now().isoformat(),
-        "endpoints": {
-            "analyze": "/analyze",
-            "coach": "/coach",
-            "download": "/download/<filename>",
-            "welcome": "/welcome"
-        }
-    })
+web_bp = create_web_blueprint(
+    config_module=config,
+    waitlist_model=WaitlistSignup,
+    db=db,
+    normalize_language_code=normalize_language_code,
+    quality_guard_snapshot_fn=_quality_guard_snapshot,
+    product_flags_snapshot_fn=_product_flags_snapshot,
+    landing_link_context_fn=_landing_link_context,
+    resolve_web_variant_fn=_resolve_web_variant,
+    logger=logger,
+)
+app.register_blueprint(web_bp)
 
 @app.route('/tts/cache/stats', methods=['GET'])
 def tts_cache_stats():
@@ -933,7 +974,8 @@ def welcome():
     """
     try:
         experience = request.args.get('experience', 'standard')
-        language = normalize_language_code(request.args.get('language', 'en'))
+        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
+        language = normalize_language_code(request.args.get('language', default_language))
         persona = request.args.get('persona', 'personal_trainer')
         user_name = request.args.get('user_name', '').strip()
 
@@ -1049,7 +1091,8 @@ def coach():
         phase = request.form.get('phase', 'intense')
         mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
         persona = request.form.get('persona', 'personal_trainer')
-        language = normalize_language_code(request.form.get('language', 'en'))
+        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
+        language = normalize_language_code(request.form.get('language', default_language))
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
@@ -1131,6 +1174,7 @@ def coach_continuous():
     - wait_seconds: Optimal time before next tick
     """
     try:
+        _increment_quality_metric("continuous_ticks")
         request_started = time.perf_counter()
         analyze_ms = 0.0
         decision_ms = 0.0
@@ -1146,7 +1190,8 @@ def coach_continuous():
         phase = request.form.get('phase', 'intense')
         last_coaching = request.form.get('last_coaching', '')
         elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
-        language = normalize_language_code(request.form.get('language', 'en'))
+        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
+        language = normalize_language_code(request.form.get('language', default_language))
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
         workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
@@ -1543,6 +1588,9 @@ def coach_continuous():
                         f"elapsed_since_last={elapsed_since_last}, "
                         f"is_first_breath={breath_data.get('is_first_breath', False)}")
 
+        if speak_decision:
+            _increment_quality_metric("spoken_ticks")
+
         # Latency strategy: if previous tick used fast fallback, force one richer follow-up cue.
         if not is_first_breath and latency_state.get("pending_rich_followup") and not zone_mode_active:
             rich_followup_forced = True
@@ -1584,6 +1632,7 @@ def coach_continuous():
                     language=language,
                 )
                 if timeline_cue:
+                    _increment_quality_metric("timeline_cue_candidates")
                     logger.info(
                         "Breathing timeline cue candidate: phase=%s elapsed=%ss cue='%s'",
                         phase,
@@ -1742,17 +1791,26 @@ def coach_continuous():
                     )
 
         if speak_decision and timeline_cue and timeline_enforce and not use_welcome and not fast_fallback_used:
-            coach_text = timeline_cue
-            brain_meta = {
-                "provider": "system",
-                "source": "breathing_timeline",
-                "status": "timeline_override",
-                "mode": "realtime_coach",
-            }
+            zone_priority_active = zone_mode_active and (
+                bool(zone_forced_text) or str(brain_meta.get("source", "")).startswith("zone_event_")
+            )
+            if zone_priority_active:
+                _increment_quality_metric("timeline_zone_priority_skips")
+                logger.info("Breathing timeline override skipped: deterministic zone cue has priority")
+            else:
+                coach_text = timeline_cue
+                brain_meta = {
+                    "provider": "system",
+                    "source": "breathing_timeline",
+                    "status": "timeline_override",
+                    "mode": "realtime_coach",
+                }
+                _increment_quality_metric("timeline_overrides")
 
         validation_shadow = bool(getattr(config, "COACHING_VALIDATION_SHADOW_MODE", True))
         validation_enforce = bool(getattr(config, "COACHING_VALIDATION_ENFORCE", False))
         if speak_decision and not use_welcome and (validation_shadow or validation_enforce):
+            _increment_quality_metric("validation_checks")
             is_valid = validate_coaching_text(
                 text=coach_text,
                 phase=phase,
@@ -1762,6 +1820,7 @@ def coach_continuous():
                 mode="realtime",
             )
             if not is_valid:
+                _increment_quality_metric("validation_failures")
                 logger.warning(
                     "Coaching validation failed (phase=%s intensity=%s persona=%s enforce=%s): %r",
                     phase,
@@ -1771,6 +1830,7 @@ def coach_continuous():
                     coach_text,
                 )
                 if validation_enforce:
+                    _increment_quality_metric("validation_template_fallbacks")
                     coach_text = get_template_message(
                         phase=phase,
                         intensity=breath_data.get("intensity", "moderate"),
@@ -2489,7 +2549,7 @@ def save_workout():
             final_phase=data.get("final_phase"),
             avg_intensity=data.get("avg_intensity"),
             persona_used=data.get("persona_used"),
-            language=data.get("language", "en")
+            language=data.get("language", getattr(config, "DEFAULT_LANGUAGE", "en"))
         )
         db.session.add(workout)
         db.session.commit()
@@ -2578,7 +2638,8 @@ def coach_talk():
         phase = data.get('phase', 'intense')
         intensity = normalize_intensity_value(data.get('intensity', 'moderate'))
         persona = data.get('persona', 'personal_trainer')
-        language = normalize_language_code(data.get('language', 'en'))
+        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
+        language = normalize_language_code(data.get('language', default_language))
         user_name = data.get('user_name', '').strip()
 
         logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
@@ -2664,91 +2725,6 @@ def coach_talk():
     except Exception as e:
         logger.error(f"Coach talk error: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-
-
-# ============================================
-# WAITLIST + LANDING ANALYTICS
-# ============================================
-
-_VALID_LANDING_EVENTS = {"demo_started", "demo_mic_granted", "demo_coaching_received", "waitlist_signup"}
-
-
-@app.route('/waitlist', methods=['POST'])
-def waitlist_signup():
-    """
-    Capture landing-page waitlist emails in database.
-    Rate limited to 5 submissions per IP hash per hour.
-    """
-    import re
-    import hashlib
-
-    data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-    language = normalize_language_code(data.get("language", "en"))
-    source = (data.get("source") or "website").strip().lower()[:50] or "website"
-
-    if not email or not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
-        return jsonify({"error": "Invalid email"}), 400
-
-    remote_addr = request.remote_addr or "unknown"
-    ip_hash = hashlib.sha256(remote_addr.encode()).hexdigest()
-    now = datetime.utcnow()
-    window_start = now - timedelta(hours=1)
-
-    recent_count = WaitlistSignup.query.filter(
-        WaitlistSignup.ip_hash == ip_hash,
-        WaitlistSignup.created_at >= window_start,
-    ).count()
-    if recent_count >= 5:
-        return jsonify({"error": "Rate limit exceeded"}), 429
-
-    existing = WaitlistSignup.query.filter_by(email=email).first()
-    if existing:
-        logger.info(f"Waitlist signup duplicate ignored: {email} (lang={language})")
-        return jsonify({"success": True, "duplicate": True}), 200
-
-    signup = WaitlistSignup(
-        email=email,
-        language=language,
-        source=source,
-        ip_hash=ip_hash,
-    )
-    db.session.add(signup)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        logger.info(f"Waitlist signup duplicate raced: {email} (lang={language})")
-        return jsonify({"success": True, "duplicate": True}), 200
-    except Exception as exc:
-        db.session.rollback()
-        logger.error(f"Waitlist signup failed: {exc}")
-        return jsonify({"error": "Failed to capture waitlist signup"}), 500
-
-    logger.info(f"Waitlist signup persisted: {email} (lang={language}, source={source})")
-    return jsonify({"success": True}), 200
-
-
-@app.route('/analytics/event', methods=['POST'])
-def analytics_event():
-    """
-    Lightweight landing analytics endpoint.
-    Accepts JSON or sendBeacon text payloads.
-    """
-    raw = request.get_data(as_text=True)
-    try:
-        data = json.loads(raw) if raw else (request.get_json(silent=True) or {})
-    except (json.JSONDecodeError, ValueError):
-        data = request.get_json(silent=True) or {}
-
-    event = (data.get("event") or "").strip()
-    metadata = data.get("metadata", {})
-
-    if event not in _VALID_LANDING_EVENTS:
-        return jsonify({"error": "Invalid event"}), 400
-
-    logger.info(f"Landing analytics event: {event} | {json.dumps(metadata)}")
-    return jsonify({"success": True}), 200
 
 
 # ============================================
