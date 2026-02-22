@@ -87,32 +87,19 @@ struct WorkoutLaunchView: View {
 
                     // Input source status (Step B)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Inputs")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                        HStack {
-                            Label(viewModel.watchConnected ? "Apple Watch connected" : "Apple Watch not connected", systemImage: viewModel.watchConnected ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(viewModel.watchConnected ? CoachiTheme.secondary : CoachiTheme.textSecondary)
-                            Spacer()
-                        }
-                        HStack {
-                            Text("HR signal quality: \(viewModel.hrSignalQuality.capitalized)")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.secondary : CoachiTheme.textSecondary)
-                            Spacer()
-                        }
-                        HStack {
-                            Text("Movement source: \(viewModel.movementSourceDisplay)")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(viewModel.movementSource == "none" ? CoachiTheme.textSecondary : CoachiTheme.secondary)
-                            Spacer()
-                        }
-                        HStack {
-                            Text("Cadence: \(viewModel.cadenceDisplayText)")
-                                .font(.system(size: 13, weight: .medium, design: .monospaced))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                            Spacer()
+                        if viewModel.watchConnected {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
+                                    .frame(width: 8, height: 8)
+                                Text("Watch HR")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                Spacer()
+                                Text(viewModel.hrSignalQuality == "good" ? "Good" : "Limited")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
+                            }
                         }
                         Toggle(isOn: $viewModel.useBreathingMicCues) {
                             Text("Use breathing mic cues")
