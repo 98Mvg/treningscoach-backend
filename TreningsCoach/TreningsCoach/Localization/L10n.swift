@@ -63,6 +63,19 @@ struct L10n {
     static var languageSubtitle: String { current == .no ? "Dette styrer bade appen og coachen" : "This controls both the app and the coach" }
     static var signIn: String { current == .no ? "Logg inn" : "Sign In" }
     static var signInSubtitle: String { current == .no ? "Opprett kontoen din for aa komme i gang" : "Create your account to get started" }
+    static var registerWithApple: String { current == .no ? "Registrer deg med Apple" : "Register with Apple" }
+    static var registerWithGoogle: String { current == .no ? "Registrer deg med Google" : "Register with Google" }
+    static var or: String { current == .no ? "Eller" : "Or" }
+    static var emailAddress: String { current == .no ? "E-postadresse" : "Email address" }
+    static var passwordLabel: String { current == .no ? "Passord" : "Password" }
+    static var repeatPasswordLabel: String { current == .no ? "Gjenta passordet" : "Repeat password" }
+    static var acceptTerms: String {
+        current == .no
+            ? "Ved aa hake av godtar du vilkar for bruk og personvern."
+            : "By checking this box, you accept terms and privacy policy."
+    }
+    static var register: String { current == .no ? "Registrer deg" : "Register" }
+    static var alreadyHaveUser: String { current == .no ? "Jeg har allerede en bruker" : "I already have an account" }
     static var signInWithGoogle: String { current == .no ? "Logg inn med Google" : "Sign in with Google" }
     static var signInWithFacebook: String { current == .no ? "Logg inn med Facebook" : "Sign in with Facebook" }
     static var signInWithVipps: String { current == .no ? "Logg inn med Vipps" : "Sign in with Vipps" }
@@ -91,6 +104,16 @@ struct L10n {
     static var recording: String { current == .no ? "Opptaker" : "Recording" }
 
     // MARK: - Onboarding (Coachi flow)
+    static var aboutYou: String { current == .no ? "Om deg" : "About You" }
+    static var firstNameLabel: String { current == .no ? "Hva er fornavnet ditt?" : "What is your first name?" }
+    static var firstNamePlaceholder: String { current == .no ? "Fornavn" : "First name" }
+    static var lastNameLabel: String { current == .no ? "Hva er etternavnet ditt?" : "What is your last name?" }
+    static var lastNamePlaceholder: String { current == .no ? "Etternavn" : "Last name" }
+    static var beginnerAutoLevelLine: String {
+        current == .no
+            ? "Du starter som Nybegynner og bygger deg opp med gode oekter."
+            : "You start as Beginner and level up with good-quality workouts."
+    }
     static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
     static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }
     static var startTraining: String { current == .no ? "Start trening" : "Start Training" }

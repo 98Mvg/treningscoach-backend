@@ -2,93 +2,213 @@
 //  AuthView.swift
 //  TreningsCoach
 //
-//  Sign-in screen: Google, Facebook, Vipps — Coachi theme
+//  Onboarding account step inspired by launch UX:
+//  Apple/Google quick actions + email registration form.
 //
 
 import SwiftUI
+import UIKit
 
 struct AuthView: View {
-    @ObservedObject var authManager: AuthManager
-    var onSkip: (() -> Void)? = nil
+    let onContinue: () -> Void
     @State private var appeared = false
+    @State private var email = ""
+    @State private var password = ""
+    @State private var repeatPassword = ""
+    @State private var acceptedTerms = false
+
+    private var canRegisterWithEmail: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && password.count >= 6 && password == repeatPassword && acceptedTerms
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                Spacer().frame(height: 24)
 
-            Image(systemName: "person.crop.circle.badge.plus")
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(CoachiTheme.primaryGradient)
-                .opacity(appeared ? 1 : 0)
+                Text(L10n.signIn)
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .opacity(appeared ? 1 : 0)
 
-            Text(L10n.signIn)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .padding(.top, 20)
-                .opacity(appeared ? 1 : 0)
-
-            Text(L10n.signInSubtitle)
-                .font(.system(size: 15))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
-                .opacity(appeared ? 1 : 0)
-
-            VStack(spacing: 12) {
-                signInButton(title: L10n.signInWithGoogle, icon: "g.circle.fill", backgroundColor: .white, textColor: .black) {
-                    Task { await authManager.signInWithGoogle() }
+                VStack(spacing: 12) {
+                    socialButton(title: L10n.registerWithApple, icon: "applelogo") {
+                        onContinue()
+                    }
+                    socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
+                        onContinue()
+                    }
                 }
-                signInButton(title: L10n.signInWithFacebook, icon: "f.circle.fill", backgroundColor: Color(hex: "1877F2"), textColor: .white) {
-                    Task { await authManager.signInWithFacebook() }
-                }
-                signInButton(title: L10n.signInWithVipps, icon: "v.circle.fill", backgroundColor: Color(hex: "FF5B24"), textColor: .white) {
-                    Task { await authManager.signInWithVipps() }
-                }
-            }
-            .padding(.horizontal, 40).padding(.top, 32)
-            .disabled(authManager.isLoading)
-            .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 16)
 
-            if authManager.isLoading {
-                ProgressView().tint(CoachiTheme.primary).padding(.top, 16)
-            }
-
-            if let error = authManager.errorMessage {
-                Text(error)
-                    .font(.system(size: 13))
-                    .foregroundColor(CoachiTheme.danger)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40).padding(.top, 12)
-            }
-
-            Spacer()
-
-            if let onSkip = onSkip {
-                Button(action: onSkip) {
-                    Text(L10n.continueWithoutAccount)
-                        .font(.system(size: 15, weight: .medium))
+                HStack(spacing: 12) {
+                    Rectangle()
+                        .fill(CoachiTheme.textTertiary.opacity(0.35))
+                        .frame(height: 1)
+                    Text(L10n.or)
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(CoachiTheme.textSecondary)
+                    Rectangle()
+                        .fill(CoachiTheme.textTertiary.opacity(0.35))
+                        .frame(height: 1)
                 }
-                .opacity(appeared ? 1 : 0)
-            }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
 
-            Spacer().frame(height: 60)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L10n.signInSubtitle)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .padding(.bottom, 4)
+
+                    onboardingInputField(
+                        placeholder: L10n.emailAddress,
+                        text: $email,
+                        keyboard: .emailAddress,
+                        contentType: .emailAddress
+                    )
+
+                    onboardingSecureInputField(
+                        placeholder: L10n.passwordLabel,
+                        text: $password,
+                        contentType: .password
+                    )
+
+                    onboardingSecureInputField(
+                        placeholder: L10n.repeatPasswordLabel,
+                        text: $repeatPassword,
+                        contentType: .newPassword
+                    )
+
+                    Button {
+                        acceptedTerms.toggle()
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(acceptedTerms ? CoachiTheme.primary : CoachiTheme.textSecondary)
+                                .padding(.top, 1)
+                            Text(L10n.acceptTerms)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+
+                    Button(action: onContinue) {
+                        Text(L10n.register)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(canRegisterWithEmail ? .white : CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                canRegisterWithEmail
+                                    ? AnyView(CoachiTheme.primaryGradient)
+                                    : AnyView(Color.white.opacity(0.08))
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .disabled(!canRegisterWithEmail)
+                    .padding(.top, 4)
+
+                    Button(action: onContinue) {
+                        Text(L10n.alreadyHaveUser)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                    }
+                }
+                .padding(20)
+                .background(CoachiTheme.surface.opacity(0.95))
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 18)
+
+                Spacer().frame(height: 30)
+            }
         }
+        .onTapGesture { hideKeyboard() }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
     }
 
-    private func signInButton(title: String, icon: String, backgroundColor: Color, textColor: Color, action: @escaping () -> Void) -> some View {
+    private func socialButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: icon).font(.title2).foregroundColor(textColor)
-                Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(textColor)
+                Image(systemName: icon)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(width: 22)
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.black)
                 Spacer()
             }
-            .padding(16)
-            .background(backgroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 18)
+            .frame(height: 54)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+    }
+
+    private func onboardingInputField(
+        placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType = .default,
+        contentType: UITextContentType?
+    ) -> some View {
+        TextField("", text: text, prompt: Text(placeholder).foregroundColor(CoachiTheme.textTertiary))
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(CoachiTheme.textPrimary)
+            .keyboardType(keyboard)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .textContentType(contentType)
+            .padding(.horizontal, 14)
+            .frame(height: 50)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+    }
+
+    private func onboardingSecureInputField(
+        placeholder: String,
+        text: Binding<String>,
+        contentType: UITextContentType?
+    ) -> some View {
+        SecureField("", text: text, prompt: Text(placeholder).foregroundColor(CoachiTheme.textTertiary))
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(CoachiTheme.textPrimary)
+            .textContentType(contentType)
+            .padding(.horizontal, 14)
+            .frame(height: 50)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

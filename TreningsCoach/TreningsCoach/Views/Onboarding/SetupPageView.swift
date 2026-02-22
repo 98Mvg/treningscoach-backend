@@ -2,71 +2,88 @@
 //  SetupPageView.swift
 //  TreningsCoach
 //
-//  Onboarding step 4: Name + training level setup
+//  Onboarding profile step: first/last name + beginner auto-leveling
 //
 
 import SwiftUI
 
 struct SetupPageView: View {
     let onComplete: (String, String) -> Void
-    @State private var name = ""
+    @State private var firstName = ""
+    @State private var lastName = ""
     @State private var appeared = false
+
+    private var canContinue: Bool {
+        !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer().frame(height: 60)
 
-            Text(L10n.setupProfile)
+            Text(L10n.aboutYou)
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
                 .opacity(appeared ? 1 : 0)
 
-            // Name field
             VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.whatToCallYou)
+                Text(L10n.firstNameLabel)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(CoachiTheme.textSecondary)
 
-                TextField("", text: $name, prompt: Text(L10n.current == .no ? "Ditt navn" : "Your name").foregroundColor(CoachiTheme.textTertiary))
+                TextField("", text: $firstName, prompt: Text(L10n.firstNamePlaceholder).foregroundColor(CoachiTheme.textTertiary))
                     .font(.system(size: 17))
                     .foregroundColor(CoachiTheme.textPrimary)
+                    .textInputAutocapitalization(.words)
                     .padding(16)
                     .background(CoachiTheme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    )
+
+                Text(L10n.lastNameLabel)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .padding(.top, 6)
+
+                TextField("", text: $lastName, prompt: Text(L10n.lastNamePlaceholder).foregroundColor(CoachiTheme.textTertiary))
+                    .font(.system(size: 17))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .textInputAutocapitalization(.words)
+                    .padding(16)
+                    .background(CoachiTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    )
             }
-            .padding(.horizontal, 40).padding(.top, 32)
+            .padding(.horizontal, 40)
+            .padding(.top, 28)
             .opacity(appeared ? 1 : 0)
 
-            // Auto-progression intro
             VStack(alignment: .leading, spacing: 12) {
                 Text(L10n.trainingLevel)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(CoachiTheme.textSecondary)
 
-                HStack(spacing: 14) {
+                HStack(spacing: 12) {
                     Image(systemName: "leaf.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 16))
                         .foregroundColor(CoachiTheme.success)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 34, height: 34)
                         .background(CoachiTheme.success.opacity(0.15))
                         .clipShape(Circle())
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.current == .no ? "Du starter som Nybegynner" : "You start as Beginner")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text(
-                            L10n.current == .no
-                                ? "Nivået ditt går opp når du fullfører gode økter."
-                                : "Your level goes up as you complete high-quality workouts."
-                        )
-                        .font(.system(size: 13))
+                    Text(L10n.beginnerAutoLevelLine)
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(CoachiTheme.textSecondary)
-                    }
-                    Spacer()
+                        .multilineTextAlignment(.leading)
                 }
-                .padding(14)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
                 .background(CoachiTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
@@ -74,24 +91,35 @@ struct SetupPageView: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
             }
-            .padding(.horizontal, 40).padding(.top, 28)
-            .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
+            .padding(.horizontal, 40)
+            .padding(.top, 24)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
 
             Spacer()
 
             Button {
-                let finalName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                onComplete(finalName.isEmpty ? L10n.athlete : finalName, "beginner")
+                let finalFirst = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let finalLast = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let combinedName = [finalFirst, finalLast]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+                onComplete(combinedName.isEmpty ? L10n.athlete : combinedName, "beginner")
             } label: {
-                Text(L10n.startTraining)
+                Text(L10n.continueButton)
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(canContinue ? .white : CoachiTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(CoachiTheme.primaryGradient)
+                    .background(
+                        canContinue
+                            ? AnyView(CoachiTheme.primaryGradient)
+                            : AnyView(Color.white.opacity(0.08))
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .padding(.horizontal, 40)
+            .disabled(!canContinue)
             .opacity(appeared ? 1 : 0)
 
             Spacer().frame(height: 60)

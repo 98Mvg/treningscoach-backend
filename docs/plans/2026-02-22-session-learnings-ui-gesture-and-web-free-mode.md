@@ -20,6 +20,10 @@
   - Registered `chat_routes` blueprint from root `main.py`.
   - Added `backend/chat_routes.py` compatibility wrapper.
   - Added route-contract tests to ensure `/brain/*` and `/chat/*` paths remain stable.
+- App inspo onboarding alignment (`nr 1` + `nr 2`) added in iOS flow:
+  - New account step in onboarding sequence (Apple/Google quick actions + email registration form UI).
+  - Setup profile step now captures first + last name (`Om deg`) and keeps beginner auto-leveling.
+  - Onboarding sequence is now: Welcome -> Language -> Features -> Account -> Setup.
 
 ## Validation
 - `pytest` (targeted contracts) passed:

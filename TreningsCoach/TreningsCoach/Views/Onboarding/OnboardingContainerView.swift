@@ -2,7 +2,7 @@
 //  OnboardingContainerView.swift
 //  TreningsCoach
 //
-//  4-step onboarding: Welcome → Language → Features → Setup
+//  5-step onboarding: Welcome → Language → Features → Account → Setup
 //
 
 import SwiftUI
@@ -11,12 +11,12 @@ enum OnboardingStep: Int {
     case welcome = 0
     case language = 1
     case features = 2
-    case setup = 3
+    case auth = 3
+    case setup = 4
 }
 
 struct OnboardingContainerView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var authManager: AuthManager
     @State private var currentStep: OnboardingStep = .welcome
 
     var body: some View {
@@ -40,6 +40,12 @@ struct OnboardingContainerView: View {
 
                 case .features:
                     FeaturesPageView {
+                        withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .auth }
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+
+                case .auth:
+                    AuthView {
                         withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .setup }
                     }
                     .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
