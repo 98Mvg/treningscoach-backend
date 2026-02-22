@@ -52,6 +52,11 @@ Map each inspiration screen to Coachi implementation choices while keeping:
   - added a dedicated CoachScore intro screen after profile setup
   - shows one sample score + 3 short reasons (zone hold, consistency, recovery)
   - flow updated to: Welcome -> Language -> Features -> Account -> Setup -> CoachScore Intro
+- Onboarding now includes explicit sensor fallback choice:
+  - added watch-connect step with two clear actions:
+    - `Connect now` (opens app settings for Health/Watch setup)
+    - `I do not have a watch` (continues with fallback path)
+  - flow updated to: Welcome -> Language -> Features -> Account -> Setup -> CoachScore Intro -> Sensor Connect
 
 ## Deferred intentionally
 

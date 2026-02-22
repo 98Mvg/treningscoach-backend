@@ -2,10 +2,11 @@
 //  OnboardingContainerView.swift
 //  TreningsCoach
 //
-//  6-step onboarding: Welcome → Language → Features → Account → Setup → CoachScore Intro
+//  7-step onboarding: Welcome → Language → Features → Account → Setup → CoachScore Intro → Sensor Connect
 //
 
 import SwiftUI
+import UIKit
 
 enum OnboardingStep: Int {
     case welcome = 0
@@ -14,6 +15,7 @@ enum OnboardingStep: Int {
     case auth = 3
     case setup = 4
     case coachScoreIntro = 5
+    case sensorConnect = 6
 }
 
 struct OnboardingContainerView: View {
@@ -63,13 +65,95 @@ struct OnboardingContainerView: View {
 
                 case .coachScoreIntro:
                     CoachScoreIntroView(name: pendingUserName) {
-                        appViewModel.completeOnboarding(name: pendingUserName, level: pendingTrainingLevel)
+                        withAnimation(AppConfig.Anim.transitionSpring) { currentStep = .sensorConnect }
                     }
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+
+                case .sensorConnect:
+                    SensorConnectOnboardingView(
+                        onConnectNow: {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                            appViewModel.completeOnboarding(name: pendingUserName, level: pendingTrainingLevel)
+                        },
+                        onContinueWithoutSensor: {
+                            appViewModel.completeOnboarding(name: pendingUserName, level: pendingTrainingLevel)
+                        }
+                    )
                     .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
                 }
             }
         }
         .animation(AppConfig.Anim.transitionSpring, value: currentStep.rawValue)
+    }
+}
+
+struct SensorConnectOnboardingView: View {
+    let onConnectNow: () -> Void
+    let onContinueWithoutSensor: () -> Void
+    @State private var appeared = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: 70)
+
+            Image(systemName: "applewatch.radiowaves.left.and.right")
+                .font(.system(size: 52, weight: .medium))
+                .foregroundStyle(CoachiTheme.tealGradient)
+                .opacity(appeared ? 1 : 0)
+
+            Text(L10n.sensorConnectTitle)
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .opacity(appeared ? 1 : 0)
+
+            Text(L10n.sensorConnectBody)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 26)
+                .padding(.top, 10)
+                .opacity(appeared ? 1 : 0)
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                Button(action: onConnectNow) {
+                    Text(L10n.sensorConnectPrimary)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(CoachiTheme.primaryGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+
+                Button(action: onContinueWithoutSensor) {
+                    Text(L10n.sensorConnectSecondary)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(CoachiTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 56)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 20)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.55)) { appeared = true }
+        }
     }
 }
 

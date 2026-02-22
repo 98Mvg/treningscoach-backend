@@ -133,6 +133,20 @@ struct L10n {
     static var coachScoreReasonRecovery: String {
         current == .no ? "God kontroll i recovery" : "Good recovery control"
     }
+    static var sensorConnectTitle: String {
+        current == .no ? "Koble til pulsklokke" : "Connect your watch"
+    }
+    static var sensorConnectBody: String {
+        current == .no
+            ? "Med klokke blir sonecoaching mer presis. Du kan fortsatt bruke appen uten klokke."
+            : "With a watch, zone coaching becomes more precise. You can still use the app without one."
+    }
+    static var sensorConnectPrimary: String {
+        current == .no ? "Koble til na" : "Connect now"
+    }
+    static var sensorConnectSecondary: String {
+        current == .no ? "Jeg har ingen pulsklokke" : "I do not have a watch"
+    }
     static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
     static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }
     static var startTraining: String { current == .no ? "Start trening" : "Start Training" }

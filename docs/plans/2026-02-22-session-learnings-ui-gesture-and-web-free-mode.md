@@ -28,6 +28,10 @@
   - New CoachScore intro step after setup for "one-number" explanation.
   - Uses simple score card with short factors (zone hold, consistency, recovery).
   - Onboarding sequence is now: Welcome -> Language -> Features -> Account -> Setup -> CoachScore Intro.
+- App inspo onboarding alignment (`nr 4`) added in iOS flow:
+  - New sensor connection step after CoachScore intro.
+  - User gets explicit choice: connect watch now or continue without watch.
+  - Onboarding sequence is now: Welcome -> Language -> Features -> Account -> Setup -> CoachScore Intro -> Sensor Connect.
 
 ## Validation
 - `pytest` (targeted contracts) passed:
