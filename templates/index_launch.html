@@ -10,11 +10,11 @@
     <meta property="og:title" content="Coachi | Din personlige løpecoach">
     <meta property="og:description" content="Løp med en coach som hjelper deg å holde riktig puls. Korte stemmeråd i sanntid.">
     <meta property="og:url" content="https://treningscoach-backend.onrender.com">
-    <meta property="og:image" content="https://treningscoach-backend.onrender.com/static/site/images/hero-runner.png">
+    <meta property="og:image" content="{{ url_for('static', filename='site/images/hero-runner.png', _external=True) }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Coachi | Din personlige løpecoach">
     <meta name="twitter:description" content="Løp med en coach som hjelper deg å holde riktig puls.">
-    <meta name="twitter:image" content="https://treningscoach-backend.onrender.com/static/site/images/hero-runner.png">
+    <meta name="twitter:image" content="{{ url_for('static', filename='site/images/hero-runner.png', _external=True) }}">
     <link rel="canonical" href="https://treningscoach-backend.onrender.com/">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -188,32 +188,55 @@
             margin-top: 16px;
             border-radius: var(--radius-xl);
             overflow: hidden;
-            background: linear-gradient(160deg, rgba(38,30,103,0.92), rgba(66,48,173,0.9) 46%, rgba(95,59,240,0.85));
-            box-shadow: var(--shadow-hard);
             position: relative;
+            min-height: 520px;
         }
+
+        .hero-bg {
+            position: absolute; inset: 0;
+            z-index: 0;
+        }
+        .hero-bg img {
+            width: 100%; height: 100%;
+            object-fit: cover; object-position: center 30%;
+        }
+
+        /* Dark gradient overlay so text reads on photo */
         .hero::before {
-            content: ""; position: absolute; inset: 0;
+            content: ""; position: absolute; inset: 0; z-index: 1;
             background:
-                radial-gradient(520px 300px at 20% 10%, rgba(180,168,255,0.28), transparent 66%),
-                radial-gradient(720px 360px at 80% 40%, rgba(104,214,183,0.16), transparent 65%),
-                linear-gradient(180deg, rgba(255,255,255,0.08), rgba(25,18,86,0.4) 70%);
+                linear-gradient(105deg,
+                    rgba(20,12,60,0.92) 0%,
+                    rgba(30,20,80,0.82) 38%,
+                    rgba(43,26,138,0.55) 62%,
+                    rgba(43,26,138,0.25) 100%);
+            pointer-events: none;
+        }
+        /* Subtle light accents */
+        .hero::after {
+            content: ""; position: absolute; inset: 0; z-index: 1;
+            background:
+                radial-gradient(600px 300px at 15% 20%, rgba(104,214,183,0.12), transparent 60%),
+                radial-gradient(400px 250px at 80% 80%, rgba(255,138,90,0.08), transparent 55%);
             pointer-events: none;
         }
 
         .hero-inner {
-            position: relative; z-index: 1;
-            display: grid; grid-template-columns: 1.1fr 0.9fr;
-            gap: 24px; padding: 48px 40px; align-items: center;
+            position: relative; z-index: 2;
+            display: grid; grid-template-columns: 1.15fr 0.85fr;
+            gap: 32px; padding: 56px 44px; align-items: center;
+            min-height: 520px;
         }
 
         .hero-copy h1 {
-            color: #fff; font-size: clamp(2rem, 4.5vw, 3.4rem);
-            max-width: 14ch; margin-bottom: 16px;
+            color: #fff; font-size: clamp(2.1rem, 4.8vw, 3.6rem);
+            max-width: 15ch; margin-bottom: 18px;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.25);
         }
         .hero-copy p {
-            color: rgba(243,241,255,0.88); font-size: 1.05rem;
-            max-width: 44ch; margin-bottom: 28px; line-height: 1.55;
+            color: rgba(243,241,255,0.92); font-size: 1.08rem;
+            max-width: 44ch; margin-bottom: 30px; line-height: 1.6;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.2);
         }
 
         .store-row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -221,21 +244,43 @@
         .store-badge {
             display: inline-flex; align-items: center; gap: 6px;
             border-radius: 12px; padding: 10px 18px;
-            background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.32);
             color: #fff; text-decoration: none; font-size: 0.78rem;
-            letter-spacing: 0.04em; transition: background 0.15s;
+            letter-spacing: 0.04em; transition: background 0.2s, transform 0.2s;
+            backdrop-filter: blur(6px);
         }
-        .store-badge:hover { background: rgba(255,255,255,0.22); }
+        .store-badge:hover { background: rgba(255,255,255,0.28); transform: translateY(-1px); }
         .store-badge strong { font-size: 1rem; letter-spacing: -0.01em; }
         .store-badge .store-icon { font-size: 1.3rem; }
 
         .hero-visual {
             display: flex; justify-content: center; align-items: center;
         }
+
+        /* Phone mockup frame */
+        .hero-phone-wrap {
+            position: relative;
+            width: 260px;
+            border-radius: 36px;
+            background: #111;
+            padding: 10px;
+            box-shadow:
+                0 24px 60px rgba(0,0,0,0.45),
+                0 8px 20px rgba(0,0,0,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1.5px solid rgba(255,255,255,0.12);
+        }
+        .hero-phone-wrap::before {
+            /* Notch */
+            content: ""; position: absolute;
+            top: 10px; left: 50%; transform: translateX(-50%);
+            width: 80px; height: 22px;
+            background: #111; border-radius: 0 0 14px 14px;
+            z-index: 3;
+        }
         .hero-phone {
-            width: 280px; border-radius: 24px; overflow: hidden;
-            box-shadow: 0 20px 50px rgba(12,8,52,0.4);
-            border: 2px solid rgba(255,255,255,0.2);
+            width: 100%; border-radius: 26px; overflow: hidden;
+            display: block;
         }
 
         /* ── SECTIONS ── */
@@ -443,6 +488,19 @@
             margin-top: 8px; font-size: 0.8rem; color: rgba(243,241,255,0.7);
             text-align: center;
         }
+        .android-early-link {
+            display: inline-flex;
+            margin-bottom: 12px;
+            font-size: 0.82rem;
+            color: rgba(243,241,255,0.9);
+            text-decoration: underline;
+            text-decoration-color: rgba(243,241,255,0.45);
+            text-underline-offset: 2px;
+        }
+        .android-early-link:hover {
+            color: #fff;
+            text-decoration-color: rgba(243,241,255,0.8);
+        }
 
         /* ── FOOTER ── */
         .footer {
@@ -487,11 +545,13 @@
             .nav-links { display: none; }
             .hamburger { display: flex; }
 
-            .hero-inner { grid-template-columns: 1fr; padding: 32px 24px; text-align: center; }
+            .hero { min-height: 420px; }
+            .hero-inner { grid-template-columns: 1fr; padding: 40px 24px 32px; text-align: center; min-height: 420px; }
+            .hero-copy h1 { max-width: 100%; margin-left: auto; margin-right: auto; }
             .hero-copy p { margin-left: auto; margin-right: auto; }
             .store-row { justify-content: center; }
-            .hero-visual { margin-top: 8px; }
-            .hero-phone { width: 220px; }
+            .hero-visual { margin-top: 12px; }
+            .hero-phone-wrap { width: 200px; }
 
             .steps-grid { grid-template-columns: 1fr; }
             .benefits-grid { grid-template-columns: 1fr; }
@@ -511,6 +571,9 @@
 </head>
 <body>
     <main class="container" id="top">
+        {% set app_store_external = app_store_url and app_store_url.startswith('http') %}
+        {% set google_play_external = google_play_url and google_play_url.startswith('http') %}
+        {% set android_early_external = android_early_access_url and android_early_access_url.startswith('http') %}
 
         <!-- NAV -->
         <div class="nav-wrap">
@@ -550,23 +613,28 @@
 
         <!-- HERO -->
         <section class="hero">
+            <div class="hero-bg">
+                <img src="{{ url_for('static', filename='site/images/hero-bg.png') }}" alt="" aria-hidden="true">
+            </div>
             <div class="hero-inner">
                 <div class="hero-copy">
                     <h1 data-i18n="hero_title">Løp med en coach som holder deg i riktig puls</h1>
                     <p data-i18n="hero_body">Coachi gir deg korte, tydelige stemmeråd mens du løper. Du slipper å tenke på puls og tempo — coachen tar seg av det.</p>
                     <div class="store-row">
-                        <a class="store-badge" href="#download" data-i18n-aria-label="store_app_aria">
+                        <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" data-i18n-aria-label="store_app_aria"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
                             <span class="store-icon">&#63743;</span>
                             <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
                         </a>
-                        <a class="store-badge" href="#download" data-i18n-aria-label="store_google_aria">
+                        <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" data-i18n-aria-label="store_google_aria"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
                             <span class="store-icon">&#9654;</span>
                             <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
                         </a>
                     </div>
                 </div>
                 <div class="hero-visual">
-                    <img class="hero-phone" src="/static/site/images/hero-runner.png" alt="Løper på sti med Coachi som sier 'Perfect pulse'" data-i18n-alt="hero_image_alt">
+                    <div class="hero-phone-wrap">
+                        <img class="hero-phone" src="{{ url_for('static', filename='site/images/hero-runner.png') }}" alt="Løper på sti med Coachi som sier 'Perfect pulse'" data-i18n-alt="hero_image_alt">
+                    </div>
                 </div>
             </div>
         </section>
@@ -585,15 +653,15 @@
                     <h3 data-i18n="step_1_title">Velg økt</h3>
                     <p data-i18n="step_1_body">Rolig tur, intervaller eller fri løping. Du bestemmer, coachen tilpasser seg.</p>
                     <div class="step-img">
-                        <img src="/static/site/images/v2-hero-ui.png" alt="App-bilde: velg treningstype" data-i18n-alt="step_1_img_alt" loading="lazy">
+                        <img src="{{ url_for('static', filename='site/images/step-choose-workout.png') }}" alt="App-bilde: velg treningstype" data-i18n-alt="step_1_img_alt" loading="lazy">
                     </div>
                 </div>
                 <div class="step-card">
                     <div class="step-number">2</div>
                     <h3 data-i18n="step_2_title">Få korte råd underveis</h3>
-                    <p data-i18n="step_2_body">Coachen følger pulsen din og gir deg stemmecues: «Rolig ned», «Fint tempo», «Trøkk til!»</p>
+                    <p data-i18n="step_2_body">Coachen følger pulsen din og gir deg korte råd: «Rolig ned», «Fint tempo», «Trøkk til!»</p>
                     <div class="step-img">
-                        <img src="/static/site/images/step-coaching.png" alt="Løper med stemmecoaching" data-i18n-alt="step_2_img_alt" loading="lazy">
+                        <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="Løper med stemmecoaching" data-i18n-alt="step_2_img_alt" loading="lazy">
                     </div>
                 </div>
                 <div class="step-card">
@@ -601,7 +669,7 @@
                     <h3 data-i18n="step_3_title">Se score og neste steg</h3>
                     <p data-i18n="step_3_body">Etter økten ser du CoachScore og hva du kan gjøre bedre neste gang.</p>
                     <div class="step-img">
-                        <img src="/static/site/images/watch-hr.png" alt="Smartklokke som viser puls under trening" data-i18n-alt="step_3_img_alt" loading="lazy">
+                        <img src="{{ url_for('static', filename='site/images/watch-hr.png') }}" alt="Smartklokke som viser puls under trening" data-i18n-alt="step_3_img_alt" loading="lazy">
                     </div>
                 </div>
             </div>
@@ -652,7 +720,7 @@
                 </div>
                 <div class="ba-card after">
                     <span class="ba-label" data-i18n="ba_after_label">Med Coachi</span>
-                    <img class="ba-photo" src="/static/site/images/coach-push.png" alt="Trener med Coachi som sier Push it!" loading="lazy">
+                    <img class="ba-photo" src="{{ url_for('static', filename='site/images/coach-push.png') }}" alt="Trener med Coachi som sier Push it!" loading="lazy">
                     <h3 data-i18n="ba_after_title">Jevn puls, bedre flyt, overskudd</h3>
                     <ul class="ba-items">
                         <li data-i18n="ba_after_1">Jevn start med riktig intensitet fra første minutt</li>
@@ -712,11 +780,11 @@
                 </div>
                 <div class="faq-item">
                     <button class="faq-q" data-i18n="faq_3_q">Hvor raskt kan jeg komme i gang?</button>
-                    <div class="faq-a"><p data-i18n="faq_3_a">Last ned, velg økt, og løp. Under 2 minutter fra installasjon til første coaching-cue.</p></div>
+                    <div class="faq-a"><p data-i18n="faq_3_a">Last ned, velg økt, og løp. Under 2 minutter fra installasjon til første råd fra coachen.</p></div>
                 </div>
                 <div class="faq-item">
                     <button class="faq-q" data-i18n="faq_4_q">Hva koster det?</button>
-                    <div class="faq-a"><p data-i18n="faq_4_a">Gratis å starte. Premium med full historikk og personalisert coaching fra 25 kr/måned.</p></div>
+                    <div class="faq-a"><p data-i18n="faq_4_a">Appen er gratis mens vi finjusterer coachen. Betalte planer kan komme senere.</p></div>
                 </div>
             </div>
         </section>
@@ -727,15 +795,16 @@
             <p data-i18n="cta_body">Last ned Coachi og løp med en coach som tilpasser seg deg.</p>
 
             <div class="store-row">
-                <a class="store-badge" href="#" data-i18n-aria-label="store_app_aria">
+                <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" data-i18n-aria-label="store_app_aria"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
                     <span class="store-icon">&#63743;</span>
                     <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
                 </a>
-                <a class="store-badge" href="#" data-i18n-aria-label="store_google_aria">
+                <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" data-i18n-aria-label="store_google_aria"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
                     <span class="store-icon">&#9654;</span>
                     <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
                 </a>
             </div>
+            <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
 
             <form class="wait-form" id="waitForm">
                 <p style="color: rgba(243,241,255,0.7); font-size: 0.82rem; margin-bottom: 8px;" data-i18n="wait_or">Ikke klar ennå? Få beskjed når vi lanserer:</p>
@@ -753,11 +822,11 @@
                 <h3>coachi</h3>
                 <p data-i18n="footer_tagline">Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.</p>
                 <div class="store-row">
-                    <a class="store-badge" href="#download" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);">
+                    <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
                         <span class="store-icon">&#63743;</span>
                         <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
                     </a>
-                    <a class="store-badge" href="#download" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);">
+                    <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
                         <span class="store-icon">&#9654;</span>
                         <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
                     </a>
@@ -804,7 +873,7 @@
                 step_1_body: "Rolig tur, intervaller eller fri løping. Du bestemmer, coachen tilpasser seg.",
                 step_1_img_alt: "App-bilde: velg treningstype",
                 step_2_title: "Få korte råd underveis",
-                step_2_body: "Coachen følger pulsen din og gir deg stemmecues: «Rolig ned», «Fint tempo», «Trøkk til!»",
+                step_2_body: "Coachen følger pulsen din og gir deg korte råd: «Rolig ned», «Fint tempo», «Trøkk til!»",
                 step_2_img_alt: "App-bilde: coaching underveis",
                 step_3_title: "Se score og neste steg",
                 step_3_body: "Etter økten ser du CoachScore og hva du kan gjøre bedre neste gang.",
@@ -848,11 +917,12 @@
                 faq_2_q: "Funker det på norsk?",
                 faq_2_a: "Ja. Coachi snakker naturlig norsk — ingen robotstemme, ingen klønete oversettelser.",
                 faq_3_q: "Hvor raskt kan jeg komme i gang?",
-                faq_3_a: "Last ned, velg økt, og løp. Under 2 minutter fra installasjon til første coaching-cue.",
+                faq_3_a: "Last ned, velg økt, og løp. Under 2 minutter fra installasjon til første råd fra coachen.",
                 faq_4_q: "Hva koster det?",
-                faq_4_a: "Gratis å starte. Premium med full historikk og personalisert coaching fra 25 kr/måned.",
+                faq_4_a: "Appen er gratis mens vi finjusterer coachen. Betalte planer kan komme senere.",
                 cta_title: "Klar for en smartere løpetur?",
                 cta_body: "Last ned Coachi og løp med en coach som tilpasser seg deg.",
+                android_early_access: "Android tidlig tilgang",
                 wait_or: "Ikke klar ennå? Få beskjed når vi lanserer:",
                 wait_placeholder: "deg@epost.no",
                 wait_cta: "Bli med",
@@ -887,7 +957,7 @@
                 step_1_body: "Easy run, intervals, or free running. You choose, the coach adapts.",
                 step_1_img_alt: "App screenshot: choose workout type",
                 step_2_title: "Get short cues while you run",
-                step_2_body: "The coach tracks your pulse and gives voice cues: 'Easy now', 'Nice pace', 'Push it!'",
+                step_2_body: "The coach tracks your pulse and gives short cues: 'Easy now', 'Nice pace', 'Push it!'",
                 step_2_img_alt: "App screenshot: coaching in progress",
                 step_3_title: "See your score and next steps",
                 step_3_body: "After the run, see your CoachScore and what to improve next time.",
@@ -931,11 +1001,12 @@
                 faq_2_q: "Does it work in Norwegian?",
                 faq_2_a: "Yes. Coachi speaks natural Norwegian — no robot voice, no awkward translations.",
                 faq_3_q: "How fast can I get started?",
-                faq_3_a: "Download, pick a run, and go. Under 2 minutes from install to first coaching cue.",
+                faq_3_a: "Download, pick a run, and go. Under 2 minutes from install to your first coach message.",
                 faq_4_q: "What does it cost?",
-                faq_4_a: "Free to start. Premium with full history and personalized coaching from 25 NOK/month.",
+                faq_4_a: "The app is free while we keep improving the coach. Paid plans may come later.",
                 cta_title: "Ready for a smarter run?",
                 cta_body: "Download Coachi and run with a coach that adapts to you.",
+                android_early_access: "Android early access",
                 wait_or: "Not ready yet? Get notified when we launch:",
                 wait_placeholder: "you@email.com",
                 wait_cta: "Join",
@@ -1028,6 +1099,32 @@
             return RENDER_BASE;
         })();
 
+        const trackLandingEvent = (eventName, metadata = {}) => {
+            if (!eventName) return;
+            try {
+                fetch(`${API_BASE}/analytics/event`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        event: eventName,
+                        metadata: {
+                            language: currentLang,
+                            ...metadata
+                        }
+                    })
+                });
+            } catch (e) {}
+        };
+
+        document.querySelectorAll("[data-landing-event]").forEach((node) => {
+            node.addEventListener("click", () => {
+                trackLandingEvent(node.dataset.landingEvent, {
+                    href: node.getAttribute("href") || "",
+                    source: "launch_page"
+                });
+            });
+        });
+
         document.getElementById("waitForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const emailInput = document.getElementById("waitEmail");
@@ -1053,13 +1150,7 @@
                     msg.textContent = t("wait_success");
                     msg.style.color = "#68d6b7";
                     emailInput.value = "";
-                    try {
-                        fetch(`${API_BASE}/analytics/event`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ event: "waitlist_signup", language: currentLang })
-                        });
-                    } catch(e) {}
+                    trackLandingEvent("waitlist_signup", { source: "launch_waitlist_form" });
                 } else {
                     msg.textContent = t("wait_failed");
                     msg.style.color = "#ff8a5a";

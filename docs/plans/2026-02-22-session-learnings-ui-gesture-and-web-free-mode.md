@@ -1,0 +1,34 @@
+# Session Learnings (2026-02-22): UI Gesture Stability + Web Free-Mode
+
+## What changed
+- Workout screen gesture contract tightened:
+  - Main circle long-press to end workout now requires 2.0s hold (lower accidental stop risk).
+  - Mic long-press now uses a high-priority 1.5s gesture and reliably opens diagnostics.
+  - Mic long-press opens directly on `Pulse` tab to expose HR/Watch sensor controls faster.
+- Workout center icon readability improved with a darker circular backing.
+- Launch page image references moved to Flask `url_for('static', ...)` for robust asset resolution.
+- Launch page copy updated to match product policy:
+  - Free now while quality is being perfected.
+  - Paid plans can come later.
+  - Removed explicit premium price language from FAQ.
+- Backend modularization started without behavior changes:
+  - Extracted web/landing/runtime endpoints from `main.py` into `web_routes.py` blueprint.
+  - Kept root `main.py` as runtime source of truth and registered blueprint there.
+  - Added `backend/web_routes.py` as compatibility wrapper to avoid root/backend drift.
+
+## Validation
+- `pytest` (targeted contracts) passed:
+  - `tests_phaseb/test_workout_ui_gesture_contract.py`
+  - `tests_phaseb/test_launch_page_assets.py`
+  - `tests_phaseb/test_launch_page_copy_contract.py`
+  - `tests_phaseb/test_config_env_overrides.py`
+  - `tests_phaseb/test_api_contracts.py`
+- iOS build passed with `xcodebuild` (Debug, generic iOS destination).
+
+## Roadmap status snapshot
+- Phase 1 (Voice + NO/EN experience): in progress, stable enough to continue UI/onboarding polish.
+- Phase 2 (Event motor deterministic behavior): core in place, keep hardening guardrails and tests.
+- Phase 3 (Sensor layer Watch HR/cadence + fallback): in progress, diagnostics/pulse panel path now clearer.
+- Phase 4 (LLM as language layer only): pending hard boundary reinforcement in runtime contracts.
+- Phase 5 (Personalization): baseline started, needs iterative tuning from real sessions.
+- Phase 6 (Workout mode expansion): deferred until running/interval loop is consistently stable.
