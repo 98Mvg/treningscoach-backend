@@ -188,18 +188,18 @@
         }
         .hero-inner {
             position: relative; z-index: 2;
-            display: grid; grid-template-columns: 1.15fr 0.85fr;
-            gap: 32px; padding: 72px 48px; align-items: center;
-            min-height: 620px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+            padding: 100px 48px; min-height: 620px;
         }
         .hero-copy h1 {
-            color: #fff; font-size: clamp(2.4rem, 5.5vw, 4.2rem);
-            max-width: 14ch; margin-bottom: 16px;
+            color: #fff; font-size: clamp(2.6rem, 6vw, 4.8rem);
+            max-width: 18ch; margin: 0 auto 16px;
             text-shadow: 0 2px 24px rgba(0,0,0,0.3);
         }
         .hero-copy p {
-            color: rgba(243,241,255,0.90); font-size: 1.05rem;
-            max-width: 36ch; margin-bottom: 32px; line-height: 1.6;
+            color: rgba(243,241,255,0.90); font-size: 1.15rem;
+            max-width: 36ch; margin: 0 auto 36px; line-height: 1.6;
         }
         .store-row { display: flex; flex-wrap: wrap; gap: 10px; }
         .store-badge {
@@ -222,15 +222,6 @@
             transition: transform 0.16s, box-shadow 0.16s;
         }
         .pill-hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
-        .hero-visual { display: flex; justify-content: center; align-items: center; }
-
-        .hero-single-img {
-            width: 100%; max-width: 440px;
-            border-radius: var(--radius-lg);
-            box-shadow: 0 28px 64px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
-            object-fit: cover;
-        }
-
         /* ── WORKS-WITH TRUST STRIP (like Mia Health) ── */
         .works-with {
             margin-top: 18px; border-radius: var(--radius-lg);
@@ -636,12 +627,7 @@
             .nav-links { display: none; }
             .hamburger { display: flex; }
             .hero { min-height: 480px; }
-            .hero-inner { grid-template-columns: 1fr; padding: 44px 24px 36px; text-align: center; min-height: 480px; }
-            .hero-copy h1 { max-width: 100%; margin-left: auto; margin-right: auto; }
-            .hero-copy p { margin-left: auto; margin-right: auto; }
-            .store-row { justify-content: center; }
-            .hero-visual { margin-top: 12px; }
-            .hero-single-img { max-width: 280px; }
+            .hero-inner { padding: 60px 24px; min-height: 480px; }
             .pill-hero-cta { font-size: 0.95rem; padding: 12px 28px; }
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
@@ -720,9 +706,6 @@
                     <h1 data-i18n="hero_title">Din personlige AI coach</h1>
                     <p data-i18n="hero_body">Bli coachet mens du trener.</p>
                     <a class="pill pill-hero-cta" href="#download" data-i18n="hero_cta">Kom i gang</a>
-                </div>
-                <div class="hero-visual">
-                    <img class="hero-single-img" src="{{ url_for('static', filename='site/images/hero-coach-pocket.png') }}" alt="Person som bruker Coachi-appen på trening" data-i18n-alt="hero_image_alt">
                 </div>
             </div>
         </section>
@@ -873,7 +856,7 @@
             </div>
             <div class="benefits-grid">
                 <div class="benefit-card">
-                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/trail-run.png') }}" alt="" loading="lazy">
+                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/treadmill-run.png') }}" alt="" loading="lazy">
                     <div class="benefit-body">
                         <h3 data-i18n="benefit_1_title">Enklere løpeturer</h3>
                         <p data-i18n="benefit_1_body">Coachen sier fra. Du bare løper.</p>
@@ -929,7 +912,7 @@
         <!-- FULL-WIDTH PHOTO BREAK -->
         <div class="feature-photo reveal" style="min-height: 480px; margin-top: 18px;">
             <div class="feature-photo-bg">
-                <img src="{{ url_for('static', filename='site/images/action-sled.png') }}" alt="" aria-hidden="true" loading="lazy">
+                <img src="{{ url_for('static', filename='site/images/kettlebell-swing.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
         </div>
 
