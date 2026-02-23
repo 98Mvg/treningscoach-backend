@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last ned Coachi | Din personlige AI coach</title>
+    <meta name="description" content="Last ned Coachi og bli coachet mens du trener. Tilgjengelig for iPhone og Android.">
+    <meta name="theme-color" content="#2b1a8a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f2f1f6;
+            --paper: #ffffff;
+            --ink: #1f2440;
+            --muted: #5f688a;
+            --primary: #2b1a8a;
+            --primary-2: #5f3bf0;
+            --teal: #20b9a7;
+            --mint: #68d6b7;
+            --line: rgba(41, 32, 86, 0.10);
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: "Manrope", "Segoe UI", sans-serif;
+            color: var(--ink); background: var(--bg);
+            line-height: 1.6; -webkit-font-smoothing: antialiased;
+        }
+        h1, h2, h3 {
+            font-family: "Poppins", sans-serif;
+            letter-spacing: -0.025em; line-height: 1.12;
+            color: var(--primary);
+        }
+        img { max-width: 100%; display: block; }
+
+        /* ── NAV (minimal) ── */
+        .nav-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            max-width: 1320px; margin: 0 auto; padding: 20px 24px;
+        }
+        .brand {
+            display: inline-flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--primary);
+        }
+        .brand-mark {
+            width: 32px; height: 32px; border-radius: 10px;
+            background: linear-gradient(145deg, var(--primary), var(--primary-2));
+            box-shadow: 0 4px 12px rgba(49,35,140,0.25);
+            position: relative;
+        }
+        .brand-mark::before, .brand-mark::after {
+            content: ""; position: absolute; border-radius: 99px;
+            background: rgba(255,255,255,0.96);
+        }
+        .brand-mark::before { width: 8px; height: 8px; top: 7px; left: 7px; }
+        .brand-mark::after { width: 12px; height: 4px; right: 6px; bottom: 7px; }
+        .brand-text { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.03em; }
+        .nav-back {
+            color: var(--muted); text-decoration: none; font-size: 0.88rem;
+            font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+            transition: color 0.15s;
+        }
+        .nav-back:hover { color: var(--primary); }
+
+        /* ── LANG SWITCH ── */
+        .lang-switch {
+            display: inline-flex; align-items: center; border-radius: 999px;
+            padding: 3px; border: 1px solid rgba(43,26,138,0.15);
+            background: rgba(95,59,240,0.06); gap: 3px;
+        }
+        .lang-btn {
+            border: 0; border-radius: 999px; min-width: 36px; min-height: 28px;
+            padding: 0 8px; background: transparent; color: #3f4580;
+            font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em;
+            cursor: pointer; transition: background 0.15s, color 0.15s;
+        }
+        .lang-btn.active {
+            background: linear-gradient(130deg, var(--primary-2), var(--primary));
+            color: #fff; box-shadow: 0 3px 10px rgba(74,51,190,0.25);
+        }
+
+        /* ── HERO ── */
+        .dl-hero {
+            max-width: 1320px; margin: 0 auto; padding: 40px 24px 60px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+            align-items: center;
+        }
+        .dl-hero-copy { max-width: 520px; }
+        .dl-eyebrow {
+            display: inline-flex; align-items: center; border-radius: 999px;
+            padding: 6px 16px; background: rgba(95,59,240,0.10);
+            color: var(--primary); font-size: 0.74rem; font-weight: 800;
+            letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 20px;
+        }
+        .dl-hero-copy h1 {
+            font-size: clamp(2.2rem, 5vw, 3.6rem); margin-bottom: 18px;
+        }
+        .dl-hero-copy p {
+            color: var(--muted); font-size: 1.05rem; line-height: 1.6;
+            margin-bottom: 36px; max-width: 42ch;
+        }
+        .dl-hero-visual {
+            display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+        .dl-hero-visual img {
+            width: 100%; max-width: 520px; border-radius: var(--radius-xl);
+            box-shadow: 0 24px 56px rgba(31,24,90,0.12);
+        }
+
+        /* ── STORE BADGES ── */
+        .store-badges { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+        .store-badge-dl {
+            display: inline-flex; align-items: center; gap: 12px;
+            border-radius: 14px; padding: 14px 24px;
+            background: #000; color: #fff; text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .store-badge-dl:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.2); }
+        .store-badge-dl .badge-icon { font-size: 1.6rem; line-height: 1; }
+        .store-badge-dl .prefix { font-size: 0.64rem; opacity: 0.8; display: block; line-height: 1.1; }
+        .store-badge-dl .name { font-size: 1.1rem; font-weight: 700; display: block; line-height: 1.2; }
+        .android-link {
+            display: inline-flex; font-size: 0.85rem; color: var(--primary);
+            text-decoration: underline; text-decoration-color: rgba(43,26,138,0.3);
+            text-underline-offset: 3px; font-weight: 600;
+        }
+        .android-link:hover { text-decoration-color: var(--primary); }
+
+        /* ── CTA SECTION ── */
+        .dl-cta {
+            max-width: 1320px; margin: 0 auto; padding: 60px 24px 80px;
+            text-align: center;
+        }
+        .dl-cta h2 {
+            font-size: clamp(1.6rem, 3.5vw, 2.6rem); margin-bottom: 14px;
+        }
+        .dl-cta > p {
+            color: var(--muted); font-size: 1rem; max-width: 48ch;
+            margin: 0 auto 16px; line-height: 1.6;
+        }
+        .dl-trust {
+            display: inline-flex; align-items: center; gap: 8px;
+            margin-bottom: 28px; color: var(--teal); font-weight: 700; font-size: 0.9rem;
+        }
+        .dl-trust svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .dl-cta .store-badges { justify-content: center; }
+
+        /* ── FOOTER ── */
+        .dl-footer {
+            border-top: 1px solid var(--line); padding: 28px 24px;
+            text-align: center; color: var(--muted); font-size: 0.8rem;
+            max-width: 1320px; margin: 0 auto;
+        }
+        .dl-footer a { color: var(--muted); text-decoration: none; }
+        .dl-footer a:hover { color: var(--primary); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 900px) {
+            .dl-hero {
+                grid-template-columns: 1fr; text-align: center;
+                padding: 28px 24px 40px; gap: 36px;
+            }
+            .dl-hero-copy { max-width: 100%; margin: 0 auto; }
+            .dl-hero-copy p { margin-left: auto; margin-right: auto; }
+            .store-badges { justify-content: center; }
+            .dl-hero-visual img { max-width: 360px; }
+        }
+        @media (max-width: 480px) {
+            .dl-hero { padding: 20px 16px 32px; }
+            .store-badge-dl { padding: 12px 18px; }
+            .store-badge-dl .name { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- NAV -->
+    <nav class="nav-bar">
+        <a href="/" class="brand">
+            <div class="brand-mark"></div>
+            <span class="brand-text">coachi</span>
+        </a>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="lang-switch">
+                <button class="lang-btn active" data-lang-btn="no" aria-pressed="true">NO</button>
+                <button class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
+            </div>
+            <a href="/" class="nav-back" data-i18n="nav_back">&larr; Hjem</a>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="dl-hero">
+        <div class="dl-hero-copy">
+            <span class="dl-eyebrow" data-i18n="dl_eyebrow">Kom i gang</span>
+            <h1 data-i18n="dl_title">Last ned Coachi</h1>
+            <p data-i18n="dl_body">Bli coachet mens du trener. Coachi gir deg korte, tydelige stemmeråd i sanntid — tilpasset din puls og ditt tempo.</p>
+            <div class="store-badges">
+                <a class="store-badge-dl" href="{{ app_store_url }}"{% if app_store_url and app_store_url.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+                    <span class="badge-icon">&#63743;</span>
+                    <span><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">App Store</span></span>
+                </a>
+                <a class="store-badge-dl" href="{{ google_play_url }}"{% if google_play_url and google_play_url.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+                    <span class="badge-icon">&#9654;</span>
+                    <span><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">Google Play</span></span>
+                </a>
+            </div>
+            <a class="android-link" href="{{ android_early_access_url }}"{% if android_early_access_url and android_early_access_url.startswith('http') %} target="_blank" rel="noopener"{% endif %} data-i18n="android_early">Android tidlig tilgang</a>
+        </div>
+        <div class="dl-hero-visual">
+            <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="Coachi i bruk under trening" data-i18n-alt="dl_image_alt">
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="dl-cta">
+        <h2 data-i18n="dl_cta_title">Begynn å trene smartere i dag</h2>
+        <p data-i18n="dl_cta_body">Last ned appen og få din personlige AI coach. Gratis mens vi er i beta.</p>
+        <div class="dl-trust">
+            <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="10" fill="currentColor"/><path d="M6 10l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-i18n="dl_trust">Gratis i beta. Ingen skjulte kostnader.</span>
+        </div>
+        <div class="store-badges">
+            <a class="store-badge-dl" href="{{ app_store_url }}"{% if app_store_url and app_store_url.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+                <span class="badge-icon">&#63743;</span>
+                <span><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">App Store</span></span>
+            </a>
+            <a class="store-badge-dl" href="{{ google_play_url }}"{% if google_play_url and google_play_url.startswith('http') %} target="_blank" rel="noopener"{% endif %}>
+                <span class="badge-icon">&#9654;</span>
+                <span><span class="prefix" data-i18n="store_prefix">Last ned på</span><span class="name">Google Play</span></span>
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="dl-footer">
+        <span>&copy; 2026 Coachi. <span data-i18n="footer_made">Laget i Norge</span></span>
+        &nbsp;&middot;&nbsp;
+        <a href="#" data-i18n="footer_privacy">Personvern</a>
+        &nbsp;&middot;&nbsp;
+        <a href="#" data-i18n="footer_terms">Vilkår</a>
+    </footer>
+
+    <script>
+        const I18N = {
+            no: {
+                nav_back: "\u2190 Hjem",
+                dl_eyebrow: "Kom i gang",
+                dl_title: "Last ned Coachi",
+                dl_body: "Bli coachet mens du trener. Coachi gir deg korte, tydelige stemmer\u00e5d i sanntid \u2014 tilpasset din puls og ditt tempo.",
+                dl_image_alt: "Coachi i bruk under trening",
+                store_prefix: "Last ned p\u00e5",
+                android_early: "Android tidlig tilgang",
+                dl_cta_title: "Begynn \u00e5 trene smartere i dag",
+                dl_cta_body: "Last ned appen og f\u00e5 din personlige AI coach. Gratis mens vi er i beta.",
+                dl_trust: "Gratis i beta. Ingen skjulte kostnader.",
+                footer_made: "Laget i Norge",
+                footer_privacy: "Personvern",
+                footer_terms: "Vilk\u00e5r"
+            },
+            en: {
+                nav_back: "\u2190 Home",
+                dl_eyebrow: "Get started",
+                dl_title: "Download Coachi",
+                dl_body: "Get coached while you train. Coachi gives you short, clear voice cues in real time \u2014 adapted to your pulse and pace.",
+                dl_image_alt: "Coachi in use during a workout",
+                store_prefix: "Download on",
+                android_early: "Android early access",
+                dl_cta_title: "Start training smarter today",
+                dl_cta_body: "Download the app and get your personal AI coach. Free while in beta.",
+                dl_trust: "Free in beta. No hidden costs.",
+                footer_made: "Made in Norway",
+                footer_privacy: "Privacy",
+                footer_terms: "Terms"
+            }
+        };
+
+        let currentLang = "no";
+
+        function applyLanguage(lang) {
+            currentLang = lang === "en" ? "en" : "no";
+            document.documentElement.setAttribute("lang", currentLang);
+            try { localStorage.setItem("coachi_site_lang", currentLang); } catch(e) {}
+
+            document.querySelectorAll("[data-lang-btn]").forEach(btn => {
+                const active = btn.dataset.langBtn === currentLang;
+                btn.classList.toggle("active", active);
+                btn.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const key = el.dataset.i18n;
+                if (key && I18N[currentLang][key]) el.textContent = I18N[currentLang][key];
+            });
+            document.querySelectorAll("[data-i18n-alt]").forEach(el => {
+                const key = el.dataset.i18nAlt;
+                if (key && I18N[currentLang][key]) el.setAttribute("alt", I18N[currentLang][key]);
+            });
+        }
+
+        document.querySelectorAll("[data-lang-btn]").forEach(btn => {
+            btn.addEventListener("click", () => applyLanguage(btn.dataset.langBtn));
+        });
+
+        try {
+            const saved = localStorage.getItem("coachi_site_lang");
+            if (saved === "en") applyLanguage("en");
+        } catch(e) {}
+    </script>
+</body>
+</html>

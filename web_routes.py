@@ -44,6 +44,11 @@ def create_web_blueprint(
         response.headers["X-Web-Variant"] = "launch"
         return response
 
+    @web_bp.route("/download")
+    def download_page():
+        """Dedicated download page (like Mia Health /download)."""
+        return render_template("download.html", **landing_link_context_fn())
+
     @web_bp.route("/preview")
     def preview_compare():
         """Side-by-side compare page for claude vs codex web variants."""

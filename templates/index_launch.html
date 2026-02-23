@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coachi | Din personlige løpecoach</title>
     <meta name="description" content="Coachi gir deg korte, tydelige råd mens du løper. Hold riktig puls, bygg bedre vaner, og få mer ut av hver løpetur.">
-    <meta name="theme-color" content="#2b1a8a">
+    <meta name="theme-color" content="#f7f9ff">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Coachi | Din personlige løpecoach">
     <meta property="og:description" content="Løp med en coach som hjelper deg å holde riktig puls. Korte stemmeråd i sanntid.">
@@ -23,16 +23,23 @@
 
     <style>
         :root {
-            --bg: #f2f1f6;
+            --bg: #f7f9ff;
+            --bg-accent: #ebf0ff;
+            --bg-rgb: 247, 249, 255;
             --paper: #ffffff;
-            --ink: #1f2440;
-            --muted: #5f688a;
-            --primary: #2b1a8a;
-            --primary-2: #5f3bf0;
+            --ink: #1b2242;
+            --muted: #5d6794;
+            --primary: #2f35b1;
+            --primary-2: #4f62f0;
             --teal: #20b9a7;
             --mint: #68d6b7;
             --orange: #ff8a5a;
-            --line: rgba(41, 32, 86, 0.10);
+            --line: rgba(46, 57, 135, 0.14);
+            --nav-bg: rgba(255, 255, 255, 0.85);
+            --nav-line: rgba(46, 57, 135, 0.16);
+            --hero-overlay-a: rgba(21, 28, 90, 0.78);
+            --hero-overlay-b: rgba(38, 62, 173, 0.52);
+            --hero-overlay-c: rgba(46, 57, 135, 0.12);
             --shadow-soft: 0 8px 32px rgba(37, 34, 69, 0.08);
             --shadow-hard: 0 20px 48px rgba(31, 24, 90, 0.18);
             --radius-xl: 28px;
@@ -41,15 +48,35 @@
             --max: 1320px;
         }
 
+        :root[data-theme="dark"] {
+            --bg: #0c1020;
+            --bg-accent: #131933;
+            --bg-rgb: 12, 16, 32;
+            --paper: #141b35;
+            --ink: #edf1ff;
+            --muted: #b6bedf;
+            --primary: #8f97ff;
+            --primary-2: #6f7cff;
+            --line: rgba(159, 173, 255, 0.24);
+            --nav-bg: rgba(18, 24, 48, 0.86);
+            --nav-line: rgba(148, 162, 255, 0.28);
+            --hero-overlay-a: rgba(8, 11, 27, 0.84);
+            --hero-overlay-b: rgba(27, 38, 96, 0.62);
+            --hero-overlay-c: rgba(28, 40, 93, 0.18);
+            --shadow-soft: 0 10px 32px rgba(3, 5, 12, 0.45);
+            --shadow-hard: 0 24px 56px rgba(2, 3, 9, 0.56);
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
 
         body {
             font-family: "Manrope", "Segoe UI", sans-serif;
             color: var(--ink);
-            background: var(--bg);
+            background: linear-gradient(180deg, var(--bg-accent) 0%, var(--bg) 38%, var(--bg) 100%);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            transition: background 0.25s ease, color 0.25s ease;
         }
 
         h1, h2, h3, h4 {
@@ -78,8 +105,8 @@
         .nav {
             min-height: 60px; border-radius: 999px;
             padding: 6px 10px 6px 18px;
-            background: rgba(255,255,255,0.95);
-            border: 1px solid rgba(43,26,138,0.08);
+            background: var(--nav-bg);
+            border: 1px solid var(--nav-line);
             box-shadow: 0 4px 20px rgba(35,29,90,0.10);
             backdrop-filter: blur(12px);
             display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -106,19 +133,19 @@
             margin-left: auto; margin-right: 10px;
         }
         .nav-links a {
-            color: #3f4580; text-decoration: none; font-size: 0.86rem;
+            color: var(--muted); text-decoration: none; font-size: 0.86rem;
             font-weight: 700; transition: color 0.16s;
         }
         .nav-links a:hover { color: var(--primary); }
         .nav-actions { display: flex; align-items: center; gap: 8px; }
         .lang-switch {
             display: inline-flex; align-items: center; border-radius: 999px;
-            padding: 3px; border: 1px solid rgba(43,26,138,0.15);
-            background: rgba(95,59,240,0.06); gap: 3px;
+            padding: 3px; border: 1px solid var(--line);
+            background: color-mix(in srgb, var(--paper) 72%, var(--primary-2) 28%); gap: 3px;
         }
         .lang-btn {
             border: 0; border-radius: 999px; min-width: 36px; min-height: 28px;
-            padding: 0 8px; background: transparent; color: #3f4580;
+            padding: 0 8px; background: transparent; color: var(--muted);
             font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em;
             cursor: pointer; transition: background 0.15s, color 0.15s;
         }
@@ -139,6 +166,18 @@
             color: #fff; box-shadow: 0 6px 16px rgba(74,51,190,0.3);
         }
 
+        .theme-toggle {
+            width: 36px; height: 36px; border-radius: 50%;
+            border: 1px solid var(--line);
+            background: color-mix(in srgb, var(--paper) 88%, var(--primary-2) 12%);
+            color: var(--primary);
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.16s, border-color 0.16s, background 0.16s;
+        }
+        .theme-toggle:hover { transform: translateY(-1px); border-color: var(--primary-2); }
+        .theme-toggle:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
+        .theme-toggle-icon { font-size: 1rem; line-height: 1; }
+
         /* ── HAMBURGER ── */
         .hamburger {
             display: none; border: 0; background: none; cursor: pointer;
@@ -154,7 +193,7 @@
         .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
         .mobile-menu {
             display: none; position: fixed; top: 78px; left: 16px; right: 16px;
-            background: #fff; border-radius: var(--radius-lg); padding: 24px;
+            background: var(--paper); border-radius: var(--radius-lg); padding: 24px;
             box-shadow: var(--shadow-hard); z-index: 79;
             flex-direction: column; gap: 16px;
         }
@@ -176,15 +215,17 @@
         }
         .hero-bg img {
             width: 100%; height: 100%;
-            object-fit: cover; object-position: center 10%;
+            object-fit: cover; object-position: center 16%;
+            filter: blur(1.2px) saturate(1.08) brightness(0.88);
+            transform: scale(1.04);
         }
         /* Left overlay for text readability */
         .hero::before {
             content: ""; position: absolute; inset: 0; z-index: 1;
             background: linear-gradient(100deg,
-                rgba(18,10,55,0.88) 0%,
-                rgba(28,18,75,0.72) 28%,
-                rgba(43,26,138,0.25) 50%,
+                var(--hero-overlay-a) 0%,
+                var(--hero-overlay-b) 34%,
+                var(--hero-overlay-c) 62%,
                 rgba(43,26,138,0.02) 100%);
             pointer-events: none;
         }
@@ -210,6 +251,24 @@
         .hero-copy p {
             color: rgba(243,241,255,0.90); font-size: 1.25rem;
             max-width: 36ch; margin-bottom: 44px; line-height: 1.6;
+        }
+        .hero-runner-card {
+            position: absolute;
+            right: 56px;
+            bottom: 34px;
+            width: min(30vw, 360px);
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 22px 46px rgba(8, 9, 24, 0.42);
+            z-index: 3;
+            backdrop-filter: blur(4px);
+        }
+        .hero-runner-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
         }
         .hero-scroll-hint {
             position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
@@ -308,10 +367,10 @@
         .feature-photo::before {
             content: ""; position: absolute; inset: 0; z-index: 1;
             background: linear-gradient(180deg,
-                rgba(242,241,246,0.1) 0%,
-                rgba(242,241,246,0.0) 30%,
-                rgba(242,241,246,0.0) 60%,
-                rgba(242,241,246,0.95) 100%);
+                rgba(var(--bg-rgb),0.10) 0%,
+                rgba(var(--bg-rgb),0.0) 30%,
+                rgba(var(--bg-rgb),0.0) 60%,
+                rgba(var(--bg-rgb),0.95) 100%);
             pointer-events: none;
         }
         /* Decorative pulse line overlay */
@@ -654,6 +713,7 @@
             .hero-inner { padding: 80px 24px 140px; min-height: calc(100vh - 80px); text-align: center; align-items: center; }
             .hero-copy { max-width: 100%; }
             .hero-copy h1 { max-width: 100%; }
+            .hero-runner-card { display: none; }
             .pill-hero-cta { font-size: 1rem; padding: 16px 32px; }
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
@@ -706,6 +766,9 @@
                         <button class="lang-btn active" data-lang-btn="no" aria-pressed="true">NO</button>
                         <button class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
                     </div>
+                    <button class="theme-toggle" id="themeToggle" data-i18n-aria-label="theme_toggle_aria" aria-label="Bytt tema">
+                        <span class="theme-toggle-icon" id="themeToggleIcon" aria-hidden="true">🌙</span>
+                    </button>
                     <a class="pill pill-primary" href="#download" data-i18n="nav_download">Last ned app</a>
                 </div>
                 <button class="hamburger" id="hamburger" aria-label="Meny">
@@ -729,9 +792,12 @@
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <h1 data-i18n="hero_title">Din personlige AI coach</h1>
-                    <p data-i18n="hero_body">Bli coachet mens du trener.</p>
-                    <a class="pill pill-hero-cta" href="#download" data-i18n="hero_cta">Kom i gang</a>
+                    <h1 data-i18n="hero_title">Løp med en coach som holder deg i riktig pulssone</h1>
+                    <p data-i18n="hero_body">Sanntids stemmecoaching med puls og pust, så du holder riktig fart uten å overtenke.</p>
+                    <a class="pill pill-hero-cta" href="/download" data-i18n="hero_cta">Kom i gang</a>
+                </div>
+                <div class="hero-runner-card">
+                    <img src="{{ url_for('static', filename='site/images/hero-runner.png') }}" alt="" aria-hidden="true" loading="lazy">
                 </div>
             </div>
             <div class="hero-scroll-hint">
@@ -998,7 +1064,7 @@
                         <img src="{{ url_for('static', filename='site/images/watch-hr.png') }}" alt="" loading="lazy">
                     </div>
                     <div class="cta-phone cta-phone-front">
-                        <img src="{{ url_for('static', filename='site/images/v2-hero-ui.png') }}" alt="Coachi app skjerm" data-i18n-alt="cta_phone_alt" loading="lazy">
+                        <img src="{{ url_for('static', filename='site/images/step-choose-workout.png') }}" alt="Coachi app skjerm" data-i18n-alt="cta_phone_alt" loading="lazy">
                     </div>
                 </div>
             </div>
@@ -1082,8 +1148,9 @@
                 nav_faq: "Spørsmål",
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
-                hero_title: "Din personlige AI coach",
-                hero_body: "Bli coachet mens du trener.",
+                theme_toggle_aria: "Bytt mellom lys og mørk modus",
+                hero_title: "Løp med en coach som holder deg i riktig pulssone",
+                hero_body: "Sanntids stemmecoaching med puls og pust, så du holder riktig fart uten å overtenke.",
                 hero_cta: "Kom i gang",
                 hero_image_alt: "Person som bruker Coachi på trening",
                 store_prefix: "Last ned på",
@@ -1173,8 +1240,9 @@
                 nav_faq: "FAQ",
                 nav_download: "Download app",
                 nav_home: "Home",
-                hero_title: "Your personal AI coach",
-                hero_body: "Get coached while you train.",
+                theme_toggle_aria: "Switch between light and dark mode",
+                hero_title: "Run with a coach that keeps you in the right heart-rate zone",
+                hero_body: "Real-time voice coaching with heart rate and breathing guidance, so you keep the right pace without overthinking.",
                 hero_cta: "Get started",
                 hero_image_alt: "Person using Coachi at the gym",
                 store_prefix: "Download on",
@@ -1259,6 +1327,39 @@
         };
 
         let currentLang = "no";
+        let currentTheme = "light";
+        const THEME_STORAGE_KEY = "coachi_site_theme";
+
+        function applyTheme(theme, persist = true) {
+            const normalized = theme === "dark" ? "dark" : "light";
+            currentTheme = normalized;
+            document.documentElement.setAttribute("data-theme", normalized);
+
+            const themeToggleIcon = document.getElementById("themeToggleIcon");
+            if (themeToggleIcon) {
+                themeToggleIcon.textContent = normalized === "dark" ? "☀️" : "🌙";
+            }
+
+            const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+            if (themeColorMeta) {
+                themeColorMeta.setAttribute("content", normalized === "dark" ? "#0c1020" : "#f7f9ff");
+            }
+
+            if (persist) {
+                try { localStorage.setItem(THEME_STORAGE_KEY, normalized); } catch (e) {}
+            }
+        }
+
+        function initializeTheme() {
+            let savedTheme = null;
+            try { savedTheme = localStorage.getItem(THEME_STORAGE_KEY); } catch (e) {}
+            if (savedTheme === "light" || savedTheme === "dark") {
+                applyTheme(savedTheme, false);
+                return;
+            }
+            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            applyTheme(prefersDark ? "dark" : "light", false);
+        }
 
         function t(key) {
             return (I18N[currentLang] || I18N.no)[key] || I18N.no[key] || key;
@@ -1299,6 +1400,14 @@
         document.querySelectorAll("[data-lang-btn]").forEach(btn => {
             btn.addEventListener("click", () => applyLanguage(btn.dataset.langBtn));
         });
+
+        /* ── THEME TOGGLE ── */
+        const themeToggle = document.getElementById("themeToggle");
+        if (themeToggle) {
+            themeToggle.addEventListener("click", () => {
+                applyTheme(currentTheme === "dark" ? "light" : "dark");
+            });
+        }
 
         /* ── HAMBURGER ── */
         const hamburger = document.getElementById("hamburger");
@@ -1401,6 +1510,7 @@
         document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
 
         /* ── INIT ── */
+        initializeTheme();
         try {
             const saved = localStorage.getItem("coachi_site_lang");
             if (saved === "en") applyLanguage("en");
