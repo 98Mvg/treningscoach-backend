@@ -61,8 +61,13 @@
 
         img { max-width: 100%; display: block; }
 
+        .page-wrap {
+            width: calc(100% - 32px);
+            max-width: 1600px;
+            margin: 0 auto;
+        }
         .container {
-            width: min(var(--max), calc(100% - 32px));
+            width: min(var(--max), 100%);
             margin: 0 auto;
         }
 
@@ -219,22 +224,12 @@
         .pill-hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
         .hero-visual { display: flex; justify-content: center; align-items: center; }
 
-        /* Phone mockup */
-        .hero-phone-wrap {
-            width: 300px; border-radius: 34px;
-            background: #0a0a0f; padding: 10px;
-            box-shadow: 0 28px 64px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.3);
-            border: 1.5px solid rgba(255,255,255,0.10);
-            position: relative;
+        .hero-single-img {
+            width: 100%; max-width: 440px;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 28px 64px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
+            object-fit: cover;
         }
-        .hero-phone-wrap::before {
-            content: ""; position: absolute;
-            top: 10px; left: 50%; transform: translateX(-50%);
-            width: 72px; height: 20px;
-            background: #0a0a0f; border-radius: 0 0 12px 12px;
-            z-index: 3;
-        }
-        .hero-phone { width: 100%; border-radius: 24px; display: block; }
 
         /* ── WORKS-WITH TRUST STRIP (like Mia Health) ── */
         .works-with {
@@ -632,13 +627,6 @@
         }
         .footer-legal-links a:hover { color: rgba(230,225,255,0.8); }
 
-        /* ── BREAKOUT SECTIONS (full container width, ignoring --max padding) ── */
-        .breakout {
-            width: calc(100vw - 32px);
-            max-width: calc(100vw - 32px);
-            margin-left: calc(-1 * (100vw - 32px - 100%) / 2);
-        }
-
         /* ── REVEAL ANIMATION ── */
         .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
         .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -653,7 +641,7 @@
             .hero-copy p { margin-left: auto; margin-right: auto; }
             .store-row { justify-content: center; }
             .hero-visual { margin-top: 12px; }
-            .hero-phone-wrap { width: 240px; }
+            .hero-single-img { max-width: 280px; }
             .pill-hero-cta { font-size: 0.95rem; padding: 12px 28px; }
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
@@ -684,7 +672,7 @@
     </style>
 </head>
 <body>
-    <main class="container" id="top">
+    <main class="page-wrap" id="top">
         {% set app_store_external = app_store_url and app_store_url.startswith('http') %}
         {% set google_play_external = google_play_url and google_play_url.startswith('http') %}
         {% set android_early_external = android_early_access_url and android_early_access_url.startswith('http') %}
@@ -723,20 +711,18 @@
         </div>
 
         <!-- HERO (photo background + phone mockup) -->
-        <section class="hero breakout">
+        <section class="hero">
             <div class="hero-bg">
                 <img src="{{ url_for('static', filename='site/images/hero-bg.png') }}" alt="" aria-hidden="true">
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
                     <h1 data-i18n="hero_title">Din personlige AI coach</h1>
-                    <p data-i18n="hero_body">Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.</p>
+                    <p data-i18n="hero_body">Bli coachet mens du trener.</p>
                     <a class="pill pill-hero-cta" href="#download" data-i18n="hero_cta">Kom i gang</a>
                 </div>
                 <div class="hero-visual">
-                    <div class="hero-phone-wrap">
-                        <img class="hero-phone" src="{{ url_for('static', filename='site/images/v2-hero-ui.png') }}" alt="Coachi app" data-i18n-alt="hero_image_alt">
-                    </div>
+                    <img class="hero-single-img" src="{{ url_for('static', filename='site/images/hero-coach-pocket.png') }}" alt="Person som bruker Coachi-appen på trening" data-i18n-alt="hero_image_alt">
                 </div>
             </div>
         </section>
@@ -775,7 +761,7 @@
         </div>
 
         <!-- FEATURE PHOTO (full-width runner + overlaid pulse line) -->
-        <div class="feature-photo reveal breakout">
+        <div class="feature-photo reveal">
             <div class="feature-photo-bg">
                 <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
@@ -941,7 +927,7 @@
         </section>
 
         <!-- FULL-WIDTH PHOTO BREAK -->
-        <div class="feature-photo reveal breakout" style="min-height: 480px; margin-top: 18px;">
+        <div class="feature-photo reveal" style="min-height: 480px; margin-top: 18px;">
             <div class="feature-photo-bg">
                 <img src="{{ url_for('static', filename='site/images/action-sled.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
@@ -974,7 +960,7 @@
         </section>
 
         <!-- CTA BLOCK (Mia Health style — phone mockups + badges) -->
-        <section class="cta-block reveal breakout" id="download">
+        <section class="cta-block reveal" id="download">
             <div class="cta-inner">
                 <div class="cta-copy">
                     <h2 data-i18n="cta_title">Klar for en smartere løpetur?</h2>
@@ -1015,7 +1001,7 @@
         </section>
 
         <!-- FOOTER (enhanced — brand + badges + two nav cols + social + legal) -->
-        <footer class="footer reveal breakout">
+        <footer class="footer reveal">
             <div class="footer-top">
                 <div>
                     <h3>coachi</h3>
@@ -1085,9 +1071,9 @@
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
                 hero_title: "Din personlige AI coach",
-                hero_body: "Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.",
+                hero_body: "Bli coachet mens du trener.",
                 hero_cta: "Kom i gang",
-                hero_image_alt: "Coachi app",
+                hero_image_alt: "Person som bruker Coachi på trening",
                 store_prefix: "Last ned på",
                 store_app_aria: "Last ned fra App Store",
                 store_google_aria: "Last ned fra Google Play",
@@ -1176,9 +1162,9 @@
                 nav_download: "Download app",
                 nav_home: "Home",
                 hero_title: "Your personal AI coach",
-                hero_body: "Short voice cues while you run. The coach handles pace and pulse.",
+                hero_body: "Get coached while you train.",
                 hero_cta: "Get started",
-                hero_image_alt: "Coachi app",
+                hero_image_alt: "Person using Coachi at the gym",
                 store_prefix: "Download on",
                 store_app_aria: "Download from App Store",
                 store_google_aria: "Download from Google Play",
