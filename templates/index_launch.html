@@ -252,24 +252,6 @@
             color: rgba(243,241,255,0.90); font-size: 1.25rem;
             max-width: 36ch; margin-bottom: 44px; line-height: 1.6;
         }
-        .hero-runner-card {
-            position: absolute;
-            right: 56px;
-            bottom: 34px;
-            width: min(30vw, 360px);
-            border-radius: 22px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.25);
-            box-shadow: 0 22px 46px rgba(8, 9, 24, 0.42);
-            z-index: 3;
-            backdrop-filter: blur(4px);
-        }
-        .hero-runner-card img {
-            width: 100%;
-            height: auto;
-            display: block;
-            object-fit: cover;
-        }
         .hero-scroll-hint {
             position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
             z-index: 3; color: rgba(255,255,255,0.5);
@@ -713,7 +695,6 @@
             .hero-inner { padding: 80px 24px 140px; min-height: calc(100vh - 80px); text-align: center; align-items: center; }
             .hero-copy { max-width: 100%; }
             .hero-copy h1 { max-width: 100%; }
-            .hero-runner-card { display: none; }
             .pill-hero-cta { font-size: 1rem; padding: 16px 32px; }
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
@@ -792,12 +773,9 @@
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <h1 data-i18n="hero_title">Løp med en coach som holder deg i riktig pulssone</h1>
-                    <p data-i18n="hero_body">Sanntids stemmecoaching med puls og pust, så du holder riktig fart uten å overtenke.</p>
+                    <h1 data-i18n="hero_title">Din personlige AI coach</h1>
+                    <p data-i18n="hero_body">Bli coachet mens du trener.</p>
                     <a class="pill pill-hero-cta" href="/download" data-i18n="hero_cta">Kom i gang</a>
-                </div>
-                <div class="hero-runner-card">
-                    <img src="{{ url_for('static', filename='site/images/hero-runner.png') }}" alt="" aria-hidden="true" loading="lazy">
                 </div>
             </div>
             <div class="hero-scroll-hint">
@@ -1149,8 +1127,8 @@
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
                 theme_toggle_aria: "Bytt mellom lys og mørk modus",
-                hero_title: "Løp med en coach som holder deg i riktig pulssone",
-                hero_body: "Sanntids stemmecoaching med puls og pust, så du holder riktig fart uten å overtenke.",
+                hero_title: "Din personlige AI coach",
+                hero_body: "Bli coachet mens du trener.",
                 hero_cta: "Kom i gang",
                 hero_image_alt: "Person som bruker Coachi på trening",
                 store_prefix: "Last ned på",
@@ -1241,8 +1219,8 @@
                 nav_download: "Download app",
                 nav_home: "Home",
                 theme_toggle_aria: "Switch between light and dark mode",
-                hero_title: "Run with a coach that keeps you in the right heart-rate zone",
-                hero_body: "Real-time voice coaching with heart rate and breathing guidance, so you keep the right pace without overthinking.",
+                hero_title: "Your personal AI coach",
+                hero_body: "Get coached while you train.",
                 hero_cta: "Get started",
                 hero_image_alt: "Person using Coachi at the gym",
                 store_prefix: "Download on",
