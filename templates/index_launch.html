@@ -215,9 +215,7 @@
         }
         .hero-bg img {
             width: 100%; height: 100%;
-            object-fit: cover; object-position: center 16%;
-            filter: blur(1.2px) saturate(1.08) brightness(0.88);
-            transform: scale(1.04);
+            object-fit: cover; object-position: center 25%;
         }
         /* Left overlay for text readability */
         .hero::before {
@@ -735,7 +733,7 @@
             <nav class="nav">
                 <a href="#top" class="brand">
                     <div class="brand-mark"></div>
-                    <span class="brand-text">coachi</span>
+                    <span class="brand-text">Coachi</span>
                 </a>
                 <div class="nav-links">
                     <a href="#how" data-i18n="nav_how">Slik fungerer det</a>
@@ -769,7 +767,7 @@
         <!-- HERO (photo background + phone mockup) -->
         <section class="hero">
             <div class="hero-bg">
-                <img src="{{ url_for('static', filename='site/images/hero-bg.png') }}" alt="" aria-hidden="true">
+                <img src="{{ url_for('static', filename='site/images/mountain-trail-runner.png') }}" alt="" aria-hidden="true">
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
@@ -1060,7 +1058,7 @@
         <footer class="footer reveal">
             <div class="footer-top">
                 <div>
-                    <h3>coachi</h3>
+                    <h3>Coachi</h3>
                     <p class="footer-brand-tagline" data-i18n="footer_tagline">Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.</p>
                     <div class="store-row-black">
                         <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
