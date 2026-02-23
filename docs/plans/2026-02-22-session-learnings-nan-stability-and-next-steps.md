@@ -52,3 +52,6 @@
   - Tone/phrasing/energy may vary by coach persona.
   - Coaching logic, event decisions, cooldowns, and scoring must remain identical.
 - Keep app free mode active while quality/perf is being finalized.
+- Follow task orchestration guardrails documented in:
+  - `tasks/todo.md`
+  - `tasks/lessons.md`
