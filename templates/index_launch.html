@@ -160,10 +160,10 @@
         }
         .mobile-menu a:last-child { border: 0; }
 
-        /* ── HERO (photo background like Mia Health) ── */
+        /* ── HERO (photo background — tall + visual-heavy) ── */
         .hero {
             margin-top: 16px; border-radius: var(--radius-xl);
-            overflow: hidden; position: relative; min-height: 540px;
+            overflow: hidden; position: relative; min-height: 620px;
         }
         .hero-bg {
             position: absolute; inset: 0; z-index: 0;
@@ -184,17 +184,17 @@
         .hero-inner {
             position: relative; z-index: 2;
             display: grid; grid-template-columns: 1.15fr 0.85fr;
-            gap: 32px; padding: 64px 48px; align-items: center;
-            min-height: 540px;
+            gap: 32px; padding: 72px 48px; align-items: center;
+            min-height: 620px;
         }
         .hero-copy h1 {
-            color: #fff; font-size: clamp(2.2rem, 5vw, 3.8rem);
-            max-width: 15ch; margin-bottom: 18px;
+            color: #fff; font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+            max-width: 14ch; margin-bottom: 16px;
             text-shadow: 0 2px 24px rgba(0,0,0,0.3);
         }
         .hero-copy p {
-            color: rgba(243,241,255,0.90); font-size: 1.1rem;
-            max-width: 42ch; margin-bottom: 32px; line-height: 1.65;
+            color: rgba(243,241,255,0.90); font-size: 1.05rem;
+            max-width: 36ch; margin-bottom: 32px; line-height: 1.6;
         }
         .store-row { display: flex; flex-wrap: wrap; gap: 10px; }
         .store-badge {
@@ -212,7 +212,7 @@
 
         /* Phone mockup */
         .hero-phone-wrap {
-            width: 250px; border-radius: 34px;
+            width: 280px; border-radius: 34px;
             background: #0a0a0f; padding: 10px;
             box-shadow: 0 28px 64px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.3);
             border: 1.5px solid rgba(255,255,255,0.10);
@@ -257,19 +257,19 @@
             text-align: center;
         }
         .statement h2 {
-            font-size: clamp(1.8rem, 4vw, 3rem);
-            max-width: 18ch; margin: 0 auto 16px;
+            font-size: clamp(2rem, 4.5vw, 3.4rem);
+            max-width: 16ch; margin: 0 auto 14px;
         }
         .statement p {
-            color: var(--muted); font-size: 1.08rem;
-            max-width: 56ch; margin: 0 auto; line-height: 1.65;
+            color: var(--muted); font-size: 1rem;
+            max-width: 44ch; margin: 0 auto; line-height: 1.6;
         }
 
         /* ── FEATURE PHOTO (full-width photo + overlaid visualization like Mia) ── */
         .feature-photo {
             margin-top: 0; border-radius: var(--radius-xl);
             overflow: hidden; position: relative;
-            min-height: 400px;
+            min-height: 520px;
         }
         .feature-photo-bg {
             position: absolute; inset: 0;
@@ -385,42 +385,44 @@
         .section-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.6rem); margin-bottom: 8px; }
         .section-head p { color: var(--muted); max-width: 54ch; margin: 0 auto; font-size: 0.95rem; }
 
-        /* ── HOW IT WORKS ── */
+        /* ── HOW IT WORKS (image-first, big visuals) ── */
         .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
         .step-card {
             border-radius: var(--radius-md); background: var(--bg);
-            border: 1px solid var(--line); padding: 24px 20px;
+            border: 1px solid var(--line); overflow: hidden;
             text-align: center; position: relative;
+            display: flex; flex-direction: column;
         }
+        .step-img {
+            border-radius: 0; overflow: hidden;
+            background: var(--paper); min-height: 240px;
+            display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid rgba(95,59,240,0.08);
+        }
+        .step-img img { width: 100%; height: 240px; object-fit: cover; }
+        .step-body { padding: 20px 18px 24px; }
         .step-number {
             display: inline-flex; align-items: center; justify-content: center;
-            width: 40px; height: 40px; border-radius: 50%;
+            width: 36px; height: 36px; border-radius: 50%;
             background: linear-gradient(130deg, var(--primary-2), var(--primary));
             color: #fff; font-family: "Poppins", sans-serif;
-            font-weight: 800; font-size: 1.1rem; margin-bottom: 14px;
+            font-weight: 800; font-size: 0.95rem; margin-bottom: 10px;
         }
-        .step-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
-        .step-card p { color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
-        .step-img {
-            margin-top: 14px; border-radius: 12px; overflow: hidden;
-            background: var(--paper); min-height: 150px;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid rgba(95,59,240,0.08);
-        }
-        .step-img img { width: 100%; height: auto; }
+        .step-card h3 { font-size: 1rem; margin-bottom: 4px; }
+        .step-card p { color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
 
-        /* ── BENEFITS (lifestyle photos + text like Mia) ── */
+        /* ── BENEFITS (big lifestyle photos, minimal text) ── */
         .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
         .benefit-card {
             border-radius: var(--radius-md); overflow: hidden;
             background: var(--bg); border: 1px solid var(--line);
         }
         .benefit-photo {
-            width: 100%; height: 200px; object-fit: cover;
+            width: 100%; height: 300px; object-fit: cover;
         }
-        .benefit-body { padding: 22px 20px; }
-        .benefit-body h3 { font-size: 1.1rem; margin-bottom: 6px; color: var(--primary); }
-        .benefit-body p { color: var(--muted); font-size: 0.88rem; line-height: 1.55; }
+        .benefit-body { padding: 20px 18px 22px; }
+        .benefit-body h3 { font-size: 1.05rem; margin-bottom: 4px; color: var(--primary); }
+        .benefit-body p { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
 
         /* ── SOCIAL PROOF ── */
         .proof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -621,13 +623,15 @@
         @media (max-width: 900px) {
             .nav-links { display: none; }
             .hamburger { display: flex; }
-            .hero { min-height: 420px; }
-            .hero-inner { grid-template-columns: 1fr; padding: 44px 24px 36px; text-align: center; min-height: 420px; }
+            .hero { min-height: 480px; }
+            .hero-inner { grid-template-columns: 1fr; padding: 44px 24px 36px; text-align: center; min-height: 480px; }
             .hero-copy h1 { max-width: 100%; margin-left: auto; margin-right: auto; }
             .hero-copy p { margin-left: auto; margin-right: auto; }
             .store-row { justify-content: center; }
             .hero-visual { margin-top: 12px; }
-            .hero-phone-wrap { width: 200px; }
+            .hero-phone-wrap { width: 220px; }
+            .step-img img { height: 200px; }
+            .benefit-photo { height: 240px; }
             .works-with-logos { gap: 16px; }
             .works-with-logos span { font-size: 0.9rem; }
             .statement h2 { font-size: 1.8rem; }
@@ -698,8 +702,8 @@
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <h1 data-i18n="hero_title">Løp med en coach som holder deg i riktig puls</h1>
-                    <p data-i18n="hero_body">Coachi gir deg korte, tydelige stemmeråd mens du løper. Du slipper å tenke på puls og tempo — coachen tar seg av det.</p>
+                    <h1 data-i18n="hero_title">Din coach i riktig puls</h1>
+                    <p data-i18n="hero_body">Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.</p>
                     <div class="store-row">
                         <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" data-i18n-aria-label="store_app_aria"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
                             <span class="store-icon">&#63743;</span>
@@ -734,7 +738,7 @@
         <!-- BIG STATEMENT (like Mia's "Your activity tracker for a healthier life") -->
         <div class="statement reveal">
             <h2 data-i18n="statement_title">Din personlige løpecoach i lomma</h2>
-            <p data-i18n="statement_body">Vi gjør pulsdataene dine om til tydelige stemmeråd i sanntid. Du får beskjed når du skal roe ned, holde tempoet, eller gi litt ekstra — slik at hver løpetur blir bedre enn den forrige.</p>
+            <p data-i18n="statement_body">Pulsen din blir til stemmeråd i sanntid. Hver løpetur blir bedre.</p>
         </div>
 
         <!-- FEATURE PHOTO (full-width runner + overlaid pulse line) -->
@@ -810,27 +814,33 @@
             </div>
             <div class="steps-grid">
                 <div class="step-card">
-                    <div class="step-number">1</div>
-                    <h3 data-i18n="step_1_title">Velg økt</h3>
-                    <p data-i18n="step_1_body">Rolig tur, intervaller eller fri løping. Du bestemmer, coachen tilpasser seg.</p>
                     <div class="step-img">
                         <img src="{{ url_for('static', filename='site/images/step-choose-workout.png') }}" alt="App-bilde: velg treningstype" data-i18n-alt="step_1_img_alt" loading="lazy">
                     </div>
-                </div>
-                <div class="step-card">
-                    <div class="step-number">2</div>
-                    <h3 data-i18n="step_2_title">Få korte råd underveis</h3>
-                    <p data-i18n="step_2_body">Coachen følger pulsen din og gir deg korte råd: «Rolig ned», «Fint tempo», «Trøkk til!»</p>
-                    <div class="step-img">
-                        <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="Løper med stemmecoaching" data-i18n-alt="step_2_img_alt" loading="lazy">
+                    <div class="step-body">
+                        <div class="step-number">1</div>
+                        <h3 data-i18n="step_1_title">Velg økt</h3>
+                        <p data-i18n="step_1_body">Du bestemmer, coachen tilpasser seg.</p>
                     </div>
                 </div>
                 <div class="step-card">
-                    <div class="step-number">3</div>
-                    <h3 data-i18n="step_3_title">Se score og neste steg</h3>
-                    <p data-i18n="step_3_body">Etter økten ser du CoachScore og hva du kan gjøre bedre neste gang.</p>
+                    <div class="step-img">
+                        <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="Løper med stemmecoaching" data-i18n-alt="step_2_img_alt" loading="lazy">
+                    </div>
+                    <div class="step-body">
+                        <div class="step-number">2</div>
+                        <h3 data-i18n="step_2_title">Få råd underveis</h3>
+                        <p data-i18n="step_2_body">«Rolig ned», «Fint tempo», «Trøkk til!»</p>
+                    </div>
+                </div>
+                <div class="step-card">
                     <div class="step-img">
                         <img src="{{ url_for('static', filename='site/images/watch-hr.png') }}" alt="Smartklokke som viser puls under trening" data-i18n-alt="step_3_img_alt" loading="lazy">
+                    </div>
+                    <div class="step-body">
+                        <div class="step-number">3</div>
+                        <h3 data-i18n="step_3_title">Se din score</h3>
+                        <p data-i18n="step_3_body">CoachScore etter hver økt.</p>
                     </div>
                 </div>
             </div>
@@ -844,24 +854,24 @@
             </div>
             <div class="benefits-grid">
                 <div class="benefit-card">
-                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/hero-bg.png') }}" alt="" loading="lazy">
+                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/trail-run.png') }}" alt="" loading="lazy">
                     <div class="benefit-body">
                         <h3 data-i18n="benefit_1_title">Enklere løpeturer</h3>
-                        <p data-i18n="benefit_1_body">Slutt å gjette på tempo. Coachen sier fra når du skal roe ned eller gi litt ekstra.</p>
+                        <p data-i18n="benefit_1_body">Coachen sier fra. Du bare løper.</p>
                     </div>
                 </div>
                 <div class="benefit-card">
-                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="" loading="lazy">
+                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/water-break.png') }}" alt="" loading="lazy">
                     <div class="benefit-body">
-                        <h3 data-i18n="benefit_2_title">Bedre kontroll på intensitet</h3>
-                        <p data-i18n="benefit_2_body">Hold deg i riktig pulssone uten å stirre på klokka. Coachen gjør jobben for deg.</p>
+                        <h3 data-i18n="benefit_2_title">Riktig intensitet</h3>
+                        <p data-i18n="benefit_2_body">Hold deg i sonen uten å sjekke klokka.</p>
                     </div>
                 </div>
                 <div class="benefit-card">
-                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/coach-push.png') }}" alt="" loading="lazy">
+                    <img class="benefit-photo" src="{{ url_for('static', filename='site/images/jump-rope.png') }}" alt="" loading="lazy">
                     <div class="benefit-body">
-                        <h3 data-i18n="benefit_3_title">Mindre overtenking</h3>
-                        <p data-i18n="benefit_3_body">Ingen kompliserte treningsprogram. Bare løp, lytt, og bli bedre litt etter litt.</p>
+                        <h3 data-i18n="benefit_3_title">Bli bedre gradvis</h3>
+                        <p data-i18n="benefit_3_body">Bare løp, lytt, og forbedre deg.</p>
                     </div>
                 </div>
             </div>
@@ -896,6 +906,13 @@
                 <span class="trust-badge" data-i18n="trust_privacy">Dine data, din kontroll</span>
             </div>
         </section>
+
+        <!-- FULL-WIDTH PHOTO BREAK -->
+        <div class="feature-photo reveal" style="min-height: 360px; margin-top: 18px;">
+            <div class="feature-photo-bg">
+                <img src="{{ url_for('static', filename='site/images/coach-push.png') }}" alt="" aria-hidden="true" loading="lazy">
+            </div>
+        </div>
 
         <!-- FAQ -->
         <section class="section reveal" id="faq">
@@ -1034,15 +1051,15 @@
                 nav_faq: "Spørsmål",
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
-                hero_title: "Løp med en coach som holder deg i riktig puls",
-                hero_body: "Coachi gir deg korte, tydelige stemmeråd mens du løper. Du slipper å tenke på puls og tempo — coachen tar seg av det.",
+                hero_title: "Din coach i riktig puls",
+                hero_body: "Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.",
                 hero_image_alt: "Coachi app under løpetur",
                 store_prefix: "Last ned på",
                 store_app_aria: "Last ned fra App Store",
                 store_google_aria: "Last ned fra Google Play",
                 works_with_label: "Fungerer med",
                 statement_title: "Din personlige løpecoach i lomma",
-                statement_body: "Vi gjør pulsdataene dine om til tydelige stemmeråd i sanntid. Du får beskjed når du skal roe ned, holde tempoet, eller gi litt ekstra — slik at hver løpetur blir bedre enn den forrige.",
+                statement_body: "Pulsen din blir til stemmeråd i sanntid. Hver løpetur blir bedre.",
                 fcard_score_pill: "CoachScore",
                 fcard_score_title: "Ditt treningskompass",
                 fcard_score_body: "Etter hver økt får du en score som viser hvor godt du traff riktig intensitet. Enkelt å forstå, lett å forbedre.",
@@ -1057,22 +1074,22 @@
                 how_title: "I gang på under 2 minutter",
                 how_intro: "Tre steg. Ingen oppsett. Bare løp.",
                 step_1_title: "Velg økt",
-                step_1_body: "Rolig tur, intervaller eller fri løping. Du bestemmer, coachen tilpasser seg.",
+                step_1_body: "Du bestemmer, coachen tilpasser seg.",
                 step_1_img_alt: "App-bilde: velg treningstype",
-                step_2_title: "Få korte råd underveis",
-                step_2_body: "Coachen følger pulsen din og gir deg korte råd: «Rolig ned», «Fint tempo», «Trøkk til!»",
+                step_2_title: "Få råd underveis",
+                step_2_body: "«Rolig ned», «Fint tempo», «Trøkk til!»",
                 step_2_img_alt: "App-bilde: coaching underveis",
-                step_3_title: "Se score og neste steg",
-                step_3_body: "Etter økten ser du CoachScore og hva du kan gjøre bedre neste gang.",
+                step_3_title: "Se din score",
+                step_3_body: "CoachScore etter hver økt.",
                 step_3_img_alt: "App-bilde: oppsummering etter løp",
                 benefits_eyebrow: "Hva du får",
                 benefits_title: "Løping som føles enklere",
                 benefit_1_title: "Enklere løpeturer",
-                benefit_1_body: "Slutt å gjette på tempo. Coachen sier fra når du skal roe ned eller gi litt ekstra.",
-                benefit_2_title: "Bedre kontroll på intensitet",
-                benefit_2_body: "Hold deg i riktig pulssone uten å stirre på klokka. Coachen gjør jobben for deg.",
-                benefit_3_title: "Mindre overtenking",
-                benefit_3_body: "Ingen kompliserte treningsprogram. Bare løp, lytt, og bli bedre litt etter litt.",
+                benefit_1_body: "Coachen sier fra. Du bare løper.",
+                benefit_2_title: "Riktig intensitet",
+                benefit_2_body: "Hold deg i sonen uten å sjekke klokka.",
+                benefit_3_title: "Bli bedre gradvis",
+                benefit_3_body: "Bare løp, lytt, og forbedre deg.",
                 proof_eyebrow: "Hvorfor Coachi",
                 proof_title: "Bygget for norske løpere",
                 proof_1_quote: "Ekte norsk stemme — ikke oversatt fra engelsk. Coachen snakker som en treningskompis.",
@@ -1124,15 +1141,15 @@
                 nav_faq: "FAQ",
                 nav_download: "Download app",
                 nav_home: "Home",
-                hero_title: "Run with a coach that keeps you in the right pulse zone",
-                hero_body: "Coachi gives you short, clear voice cues while you run. No more guessing pace or pulse — the coach handles it.",
+                hero_title: "Your coach for the right pulse",
+                hero_body: "Short voice cues while you run. The coach handles pace and pulse.",
                 hero_image_alt: "Coachi app during a run",
                 store_prefix: "Download on",
                 store_app_aria: "Download from App Store",
                 store_google_aria: "Download from Google Play",
                 works_with_label: "Works with",
                 statement_title: "Your personal running coach in your pocket",
-                statement_body: "We turn your heart rate data into clear voice cues in real time. You get told when to slow down, hold pace, or push harder — so every run gets better than the last.",
+                statement_body: "Your pulse becomes voice cues in real time. Every run gets better.",
                 fcard_score_pill: "CoachScore",
                 fcard_score_title: "Your training compass",
                 fcard_score_body: "After each run you get a score showing how well you hit the right intensity. Easy to understand, easy to improve.",
@@ -1147,22 +1164,22 @@
                 how_title: "Running in under 2 minutes",
                 how_intro: "Three steps. No setup. Just run.",
                 step_1_title: "Pick your run",
-                step_1_body: "Easy run, intervals, or free running. You choose, the coach adapts.",
+                step_1_body: "You choose, the coach adapts.",
                 step_1_img_alt: "App screenshot: choose workout type",
-                step_2_title: "Get short cues while you run",
-                step_2_body: "The coach tracks your pulse and gives short cues: 'Easy now', 'Nice pace', 'Push it!'",
+                step_2_title: "Get cues while you run",
+                step_2_body: "'Easy now', 'Nice pace', 'Push it!'",
                 step_2_img_alt: "App screenshot: coaching in progress",
-                step_3_title: "See your score and next steps",
-                step_3_body: "After the run, see your CoachScore and what to improve next time.",
+                step_3_title: "See your score",
+                step_3_body: "CoachScore after every run.",
                 step_3_img_alt: "App screenshot: post-run summary",
                 benefits_eyebrow: "What you get",
                 benefits_title: "Running that feels easier",
                 benefit_1_title: "Easier runs",
-                benefit_1_body: "Stop guessing your pace. The coach tells you when to slow down or push harder.",
-                benefit_2_title: "Better intensity control",
-                benefit_2_body: "Stay in the right pulse zone without staring at your watch. The coach does it for you.",
-                benefit_3_title: "Less overthinking",
-                benefit_3_body: "No complicated training plans. Just run, listen, and improve bit by bit.",
+                benefit_1_body: "The coach tells you. You just run.",
+                benefit_2_title: "Right intensity",
+                benefit_2_body: "Stay in the zone without checking your watch.",
+                benefit_3_title: "Improve gradually",
+                benefit_3_body: "Just run, listen, and get better.",
                 proof_eyebrow: "Why Coachi",
                 proof_title: "Built for Norwegian runners",
                 proof_1_quote: "Real Norwegian voice — not translated from English. The coach talks like a training buddy.",
