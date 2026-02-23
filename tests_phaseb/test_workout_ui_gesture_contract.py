@@ -31,3 +31,13 @@ def test_mic_long_press_opens_pulse_control_panel() -> None:
     assert "LongPressGesture(minimumDuration: 1.5" in text
     assert "AudioPipelineDiagnostics.shared.diagnosticTab = .pulse" in text
     assert "showDiagnostics = true" in text
+
+
+def test_diagnostics_panel_uses_sheet_presentation() -> None:
+    text = _active_workout_view_text()
+    assert ".sheet(isPresented: $showDiagnostics)" in text
+
+
+def test_main_workout_surface_has_no_coach_text_line() -> None:
+    text = _active_workout_view_text()
+    assert "Text(guidanceLine)" not in text

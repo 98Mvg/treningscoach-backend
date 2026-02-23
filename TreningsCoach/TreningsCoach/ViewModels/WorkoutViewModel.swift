@@ -1345,6 +1345,11 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private func resolvedHRQualityForRequest(heartRate: Int?, watchConnected: Bool, currentQuality: String) -> String {
+        guard heartRate != nil, watchConnected else { return "poor" }
+        return currentQuality == "good" ? "good" : "poor"
+    }
+
     private func applyMotionUpdate(_ update: MotionCadenceService.Update) {
         movementScore = update.movementScore
         cadenceSPM = update.cadenceSPM
@@ -1644,7 +1649,11 @@ class WorkoutViewModel: ObservableObject {
                 refreshMotionSignalFromAge()
                 let tickHeartRate = heartRate
                 let tickSampleAge = hrSampleAgeSecondsForRequest
-                let tickQuality = (tickHeartRate != nil && watchConnected) ? "good" : "poor"
+                let tickQuality = resolvedHRQualityForRequest(
+                    heartRate: tickHeartRate,
+                    watchConnected: watchConnected,
+                    currentQuality: hrSignalQuality
+                )
                 let tickMovementScore = movementScore
                 let tickCadenceSPM = cadenceSPM
                 let tickMovementSource = (tickMovementScore != nil || tickCadenceSPM != nil) ? latestMovementSource : "none"

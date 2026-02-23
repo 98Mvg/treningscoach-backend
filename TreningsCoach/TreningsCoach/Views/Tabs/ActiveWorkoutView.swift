@@ -86,14 +86,6 @@ struct ActiveWorkoutView: View {
                         Text(hrStatusText)
                             .font(.system(size: 18, weight: .semibold, design: .monospaced))
                             .foregroundColor(CoachiTheme.textPrimary)
-                        if viewModel.targetHRLow != nil, viewModel.targetHRHigh != nil {
-                            Text("•")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                            Text(viewModel.targetRangeText)
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                        }
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -104,14 +96,6 @@ struct ActiveWorkoutView: View {
                     )
                     .padding(.top, 16)
                 }
-
-                Text(guidanceLine)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .padding(.horizontal, 26)
-                    .padding(.top, 12)
 
                 Spacer()
 
@@ -140,15 +124,6 @@ struct ActiveWorkoutView: View {
                 .padding(.bottom, 34)
             }
 
-            if showDiagnostics {
-                VStack {
-                    AudioDiagnosticOverlayView(workoutViewModel: viewModel, isPresented: $showDiagnostics)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 60)
-                    Spacer()
-                }
-                .zIndex(10)
-            }
         }
         .onAppear {
             showDiagnostics = AudioPipelineDiagnostics.shared.isOverlayVisible
@@ -164,6 +139,19 @@ struct ActiveWorkoutView: View {
         }
         .onChange(of: showDiagnostics) { _, isVisible in
             AudioPipelineDiagnostics.shared.isOverlayVisible = isVisible
+        }
+        .sheet(isPresented: $showDiagnostics) {
+            ZStack {
+                CoachiTheme.backgroundGradient
+                    .ignoresSafeArea()
+                VStack {
+                    AudioDiagnosticOverlayView(workoutViewModel: viewModel, isPresented: $showDiagnostics)
+                    Spacer()
+                }
+                .padding(.top, 20)
+            }
+            .presentationDetents([.height(320), .large])
+            .presentationDragIndicator(.visible)
         }
         .alert(
             L10n.current == .no ? "Avslutte økten?" : "End workout?",
@@ -271,36 +259,6 @@ struct ActiveWorkoutView: View {
             return CoachiTheme.secondary
         default:
             return CoachiTheme.textTertiary
-        }
-    }
-
-    private var guidanceLine: String {
-        if viewModel.workoutState == .paused {
-            return L10n.current == .no ? "Trykk på sirkelen for å fortsette." : "Tap the circle to continue."
-        }
-
-        if viewModel.watchConnected && viewModel.hrIsReliable {
-            switch viewModel.zoneStatus {
-            case "in_zone":
-                return L10n.current == .no ? "Perfekt. Hold dette tempoet." : "Perfect. Hold this pace."
-            case "above_zone", "above_zone_ease":
-                return L10n.current == .no ? "Ro ned i 10-15 sekunder." : "Ease off for 10-15 seconds."
-            case "below_zone", "below_zone_push":
-                return L10n.current == .no ? "Øk litt nå." : "Push a little now."
-            case "timing_control":
-                return L10n.current == .no ? "Følg intervall-timingen." : "Follow the interval timing."
-            default:
-                break
-            }
-        }
-
-        switch viewModel.currentPhase {
-        case .warmup:
-            return L10n.current == .no ? "Start rolig og finn rytmen." : "Start easy and find your rhythm."
-        case .intense:
-            return L10n.current == .no ? "Hold jevn innsats." : "Hold steady effort."
-        case .cooldown:
-            return L10n.current == .no ? "Rolig ned og pust ut." : "Ease down and breathe out."
         }
     }
 

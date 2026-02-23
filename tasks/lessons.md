@@ -38,3 +38,4 @@ Updated: 2026-02-23
 
 - 2026-02-23: Guard all runtime UI numeric inputs (`NaN`/`Inf`) before CoreGraphics/SwiftUI drawing.
 - 2026-02-23: Keep coach persona contract strict: persona changes tone only, never event logic/cooldowns/scoring.
+- 2026-02-23: For Phase 3 requests, derive `hrQuality` from current signal quality + watch/source state, not watch connection alone.
