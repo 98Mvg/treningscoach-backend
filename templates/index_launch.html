@@ -208,11 +208,20 @@
         .store-badge:hover { background: rgba(255,255,255,0.26); transform: translateY(-1px); }
         .store-badge strong { font-size: 1rem; letter-spacing: -0.01em; }
         .store-badge .store-icon { font-size: 1.3rem; }
+        .pill-hero-cta {
+            background: #fff; color: var(--primary);
+            font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;
+            padding: 14px 36px; border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            text-decoration: none; display: inline-flex; align-items: center;
+            transition: transform 0.16s, box-shadow 0.16s;
+        }
+        .pill-hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
         .hero-visual { display: flex; justify-content: center; align-items: center; }
 
         /* Phone mockup */
         .hero-phone-wrap {
-            width: 280px; border-radius: 34px;
+            width: 300px; border-radius: 34px;
             background: #0a0a0f; padding: 10px;
             box-shadow: 0 28px 64px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.3);
             border: 1.5px solid rgba(255,255,255,0.10);
@@ -644,7 +653,8 @@
             .hero-copy p { margin-left: auto; margin-right: auto; }
             .store-row { justify-content: center; }
             .hero-visual { margin-top: 12px; }
-            .hero-phone-wrap { width: 220px; }
+            .hero-phone-wrap { width: 240px; }
+            .pill-hero-cta { font-size: 0.95rem; padding: 12px 28px; }
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
             .benefit-photo { height: 260px; }
@@ -719,22 +729,13 @@
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <h1 data-i18n="hero_title">Din coach i riktig puls</h1>
+                    <h1 data-i18n="hero_title">Din personlige AI coach</h1>
                     <p data-i18n="hero_body">Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.</p>
-                    <div class="store-row">
-                        <a class="store-badge" href="{{ app_store_url }}" data-landing-event="app_store_click" data-i18n-aria-label="store_app_aria"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                            <span class="store-icon">&#63743;</span>
-                            <span><span data-i18n="store_prefix">Last ned på</span><br><strong>App Store</strong></span>
-                        </a>
-                        <a class="store-badge" href="{{ google_play_url }}" data-landing-event="google_play_click" data-i18n-aria-label="store_google_aria"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                            <span class="store-icon">&#9654;</span>
-                            <span><span data-i18n="store_prefix">Last ned på</span><br><strong>Google Play</strong></span>
-                        </a>
-                    </div>
+                    <a class="pill pill-hero-cta" href="#download" data-i18n="hero_cta">Kom i gang</a>
                 </div>
                 <div class="hero-visual">
                     <div class="hero-phone-wrap">
-                        <img class="hero-phone" src="{{ url_for('static', filename='site/images/hero-runner.png') }}" alt="Løper på sti med Coachi som sier 'Perfect pulse'" data-i18n-alt="hero_image_alt">
+                        <img class="hero-phone" src="{{ url_for('static', filename='site/images/v2-hero-ui.png') }}" alt="Coachi app" data-i18n-alt="hero_image_alt">
                     </div>
                 </div>
             </div>
@@ -1083,9 +1084,10 @@
                 nav_faq: "Spørsmål",
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
-                hero_title: "Din coach i riktig puls",
+                hero_title: "Din personlige AI coach",
                 hero_body: "Korte stemmeråd mens du løper. Coachen tar seg av puls og tempo.",
-                hero_image_alt: "Coachi app under løpetur",
+                hero_cta: "Kom i gang",
+                hero_image_alt: "Coachi app",
                 store_prefix: "Last ned på",
                 store_app_aria: "Last ned fra App Store",
                 store_google_aria: "Last ned fra Google Play",
@@ -1173,9 +1175,10 @@
                 nav_faq: "FAQ",
                 nav_download: "Download app",
                 nav_home: "Home",
-                hero_title: "Your coach for the right pulse",
+                hero_title: "Your personal AI coach",
                 hero_body: "Short voice cues while you run. The coach handles pace and pulse.",
-                hero_image_alt: "Coachi app during a run",
+                hero_cta: "Get started",
+                hero_image_alt: "Coachi app",
                 store_prefix: "Download on",
                 store_app_aria: "Download from App Store",
                 store_google_aria: "Download from Google Play",
