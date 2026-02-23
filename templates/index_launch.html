@@ -38,7 +38,7 @@
             --radius-xl: 28px;
             --radius-lg: 20px;
             --radius-md: 14px;
-            --max: 1120px;
+            --max: 1320px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -241,13 +241,21 @@
         }
         .works-with-logos {
             display: flex; align-items: center; justify-content: center;
-            gap: 28px; flex-wrap: wrap;
+            gap: 36px; flex-wrap: wrap;
         }
-        .works-with-logos span {
+        .works-with-logo-item {
+            display: inline-flex; align-items: center; gap: 10px;
+            opacity: 0.60; transition: opacity 0.2s;
+        }
+        .works-with-logo-item:hover { opacity: 0.85; }
+        .works-with-logo-item svg {
+            width: 28px; height: 28px; flex-shrink: 0;
+        }
+        .works-with-logo-item .ww-name {
             font-family: "Poppins", sans-serif;
-            font-size: 1.1rem; font-weight: 800;
-            color: var(--primary); opacity: 0.55;
-            letter-spacing: 0.04em;
+            font-size: 0.95rem; font-weight: 800;
+            color: var(--primary);
+            letter-spacing: 0.02em;
             white-space: nowrap;
         }
 
@@ -299,7 +307,7 @@
 
         /* ── TWO FEATURE CARDS (like Mia's AQ + Fitness Age cards) ── */
         .feature-cards {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
             margin-top: -60px; position: relative; z-index: 3;
         }
         .f-card {
@@ -373,7 +381,7 @@
         .section {
             margin-top: 18px; border-radius: var(--radius-lg);
             background: var(--paper); border: 1px solid var(--line);
-            box-shadow: var(--shadow-soft); padding: 48px 36px;
+            box-shadow: var(--shadow-soft); padding: 56px 48px;
         }
         .section-head { margin-bottom: 32px; text-align: center; }
         .eyebrow {
@@ -386,7 +394,7 @@
         .section-head p { color: var(--muted); max-width: 54ch; margin: 0 auto; font-size: 0.95rem; }
 
         /* ── HOW IT WORKS (image-first, big visuals) ── */
-        .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
         .step-card {
             border-radius: var(--radius-md); background: var(--bg);
             border: 1px solid var(--line); overflow: hidden;
@@ -412,7 +420,7 @@
         .step-card p { color: var(--muted); font-size: 0.82rem; line-height: 1.45; }
 
         /* ── BENEFITS (big lifestyle photos, minimal text) ── */
-        .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
         .benefit-card {
             border-radius: var(--radius-md); overflow: hidden;
             background: var(--bg); border: 1px solid var(--line);
@@ -448,7 +456,7 @@
         }
 
         /* ── FAQ ── */
-        .faq-list { max-width: 680px; margin: 0 auto; }
+        .faq-list { max-width: 780px; margin: 0 auto; }
         .faq-item { border-bottom: 1px solid var(--line); padding: 18px 0; }
         .faq-q {
             display: flex; align-items: center; justify-content: space-between;
@@ -480,7 +488,7 @@
         .cta-block > * { position: relative; z-index: 1; }
         .cta-inner {
             display: grid; grid-template-columns: 1fr 1fr;
-            gap: 40px; align-items: center; max-width: 960px; margin: 0 auto;
+            gap: 40px; align-items: center; max-width: 1100px; margin: 0 auto;
         }
         .cta-copy { text-align: left; }
         .cta-copy h2 { color: #fff; font-size: clamp(1.6rem, 3.2vw, 2.4rem); margin-bottom: 10px; }
@@ -615,6 +623,13 @@
         }
         .footer-legal-links a:hover { color: rgba(230,225,255,0.8); }
 
+        /* ── BREAKOUT SECTIONS (full container width, ignoring --max padding) ── */
+        .breakout {
+            width: calc(100vw - 32px);
+            max-width: calc(100vw - 32px);
+            margin-left: calc(-1 * (100vw - 32px - 100%) / 2);
+        }
+
         /* ── REVEAL ANIMATION ── */
         .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
         .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -633,8 +648,9 @@
             .step-img img { height: 220px; }
             .step-img { min-height: 220px; }
             .benefit-photo { height: 260px; }
-            .works-with-logos { gap: 16px; }
-            .works-with-logos span { font-size: 0.9rem; }
+            .works-with-logos { gap: 18px; }
+            .works-with-logo-item svg { width: 22px; height: 22px; }
+            .works-with-logo-item .ww-name { font-size: 0.78rem; }
             .statement h2 { font-size: 1.8rem; }
             .feature-cards { grid-template-columns: 1fr; margin-top: -40px; }
             .steps-grid { grid-template-columns: 1fr; }
@@ -697,7 +713,7 @@
         </div>
 
         <!-- HERO (photo background + phone mockup) -->
-        <section class="hero">
+        <section class="hero breakout">
             <div class="hero-bg">
                 <img src="{{ url_for('static', filename='site/images/hero-bg.png') }}" alt="" aria-hidden="true">
             </div>
@@ -728,11 +744,26 @@
         <div class="works-with reveal">
             <div class="works-with-label" data-i18n="works_with_label">Fungerer med</div>
             <div class="works-with-logos">
-                <span>Apple Watch</span>
-                <span>Garmin</span>
-                <span>Polar</span>
-                <span>Samsung</span>
-                <span>Suunto</span>
+                <div class="works-with-logo-item">
+                    <svg viewBox="0 0 28 28" fill="none"><rect x="7" y="1" width="14" height="26" rx="5" stroke="var(--primary)" stroke-width="1.8"/><rect x="9.5" y="4" width="9" height="16" rx="2.5" fill="var(--primary)" opacity="0.15"/><rect x="9.5" y="4" width="9" height="16" rx="2.5" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="23" r="1.2" fill="var(--primary)"/><path d="M5 7.5H7M5 18.5H7M21 7.5h2M21 18.5h2" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <span class="ww-name">Apple Watch</span>
+                </div>
+                <div class="works-with-logo-item">
+                    <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L4 8v12l10 6 10-6V8L14 2z" stroke="var(--primary)" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 8l-5 3v6l5 3 5-3v-6l-5-3z" fill="var(--primary)" opacity="0.12"/><path d="M14 8l-5 3v6l5 3 5-3v-6l-5-3z" stroke="var(--primary)" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                    <span class="ww-name">Garmin</span>
+                </div>
+                <div class="works-with-logo-item">
+                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11.5" stroke="var(--primary)" stroke-width="1.8"/><circle cx="14" cy="14" r="6" fill="var(--primary)" opacity="0.12"/><circle cx="14" cy="14" r="6" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="14" r="2" fill="var(--primary)"/></svg>
+                    <span class="ww-name">Polar</span>
+                </div>
+                <div class="works-with-logo-item">
+                    <svg viewBox="0 0 28 28" fill="none"><rect x="4" y="6" width="20" height="16" rx="4" stroke="var(--primary)" stroke-width="1.8"/><rect x="7" y="9" width="14" height="10" rx="2" fill="var(--primary)" opacity="0.12"/><rect x="7" y="9" width="14" height="10" rx="2" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="14" r="2" fill="var(--primary)" opacity="0.5"/></svg>
+                    <span class="ww-name">Samsung</span>
+                </div>
+                <div class="works-with-logo-item">
+                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11.5" stroke="var(--primary)" stroke-width="1.8"/><path d="M14 3v22M3 14h22" stroke="var(--primary)" stroke-width="1.0" opacity="0.25"/><path d="M14 6v8l5 3" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="14" r="1.5" fill="var(--primary)"/></svg>
+                    <span class="ww-name">Suunto</span>
+                </div>
             </div>
         </div>
 
@@ -743,7 +774,7 @@
         </div>
 
         <!-- FEATURE PHOTO (full-width runner + overlaid pulse line) -->
-        <div class="feature-photo reveal">
+        <div class="feature-photo reveal breakout">
             <div class="feature-photo-bg">
                 <img src="{{ url_for('static', filename='site/images/step-coaching.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
@@ -909,7 +940,7 @@
         </section>
 
         <!-- FULL-WIDTH PHOTO BREAK -->
-        <div class="feature-photo reveal" style="min-height: 480px; margin-top: 18px;">
+        <div class="feature-photo reveal breakout" style="min-height: 480px; margin-top: 18px;">
             <div class="feature-photo-bg">
                 <img src="{{ url_for('static', filename='site/images/action-sled.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
@@ -942,7 +973,7 @@
         </section>
 
         <!-- CTA BLOCK (Mia Health style — phone mockups + badges) -->
-        <section class="cta-block reveal" id="download">
+        <section class="cta-block reveal breakout" id="download">
             <div class="cta-inner">
                 <div class="cta-copy">
                     <h2 data-i18n="cta_title">Klar for en smartere løpetur?</h2>
@@ -983,7 +1014,7 @@
         </section>
 
         <!-- FOOTER (enhanced — brand + badges + two nav cols + social + legal) -->
-        <footer class="footer reveal">
+        <footer class="footer reveal breakout">
             <div class="footer-top">
                 <div>
                     <h3>coachi</h3>
