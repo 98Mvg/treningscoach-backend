@@ -292,9 +292,12 @@ class WorkoutViewModel: ObservableObject {
 
     @Published var workoutState: WorkoutState = .idle
     @Published var showComplete: Bool = false
-    @Published var selectedWarmupMinutes: Int = 2  // User picks: 0, 1, 2, 3, 5
+    @Published var selectedWarmupMinutes: Int = 2
     @Published var selectedWorkoutMode: WorkoutMode = .easyRun
     @Published var selectedEasyRunMinutes: Int = 30
+    @Published var selectedIntervalSets: Int = 6
+    @Published var selectedIntervalWorkMinutes: Int = 2
+    @Published var selectedIntervalBreakMinutes: Int = 1
     @Published var selectedIntervalTemplate: IntervalTemplate = .fourByFour
     @Published var coachingStyle: CoachingStyle = .normal
     @Published var useBreathingMicCues: Bool = true
@@ -375,9 +378,9 @@ class WorkoutViewModel: ObservableObject {
         let clamped = max(0, min(100, coachScore))
         let band = scoreBand(for: clamped)
         if currentLanguage == "no" {
-            return "CoachScore: \(clamped) — \(coachWorkPhraseNo(for: band))"
+            return "Coach score: \(clamped) — \(coachWorkPhraseNo(for: band))"
         }
-        return "CoachScore: \(clamped) — \(coachWorkPhraseEn(for: band))"
+        return "Coach score: \(clamped) — \(coachWorkPhraseEn(for: band))"
     }
 
     var effortScore: Int {
@@ -418,6 +421,19 @@ class WorkoutViewModel: ObservableObject {
 
     var hrQualityDisplay: String {
         hrIsReliable ? "HR good" : "HR limited"
+    }
+
+    var isCoachTalkActive: Bool {
+        coachInteractionState == .commandMode ||
+            coachInteractionState == .responding ||
+            isWakeWordActive ||
+            isTalkingToCoach
+    }
+
+    /// True only while user speech is actively being captured.
+    /// Used for mic pulse/haptics so feedback stops when coach is just responding.
+    var isCoachCapturingSpeech: Bool {
+        coachInteractionState == .commandMode || isWakeWordActive
     }
 
     var hrQualityHint: String {
@@ -546,7 +562,7 @@ class WorkoutViewModel: ObservableObject {
         movementSource = "none"
         movementState = "unknown"
         // If no warmup selected, start directly in intense phase
-        if selectedWorkoutMode != .intervals && selectedWarmupMinutes == 0 {
+        if selectedWarmupMinutes == 0 {
             hasSkippedWarmup = true
         } else {
             hasSkippedWarmup = false
@@ -698,10 +714,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private var configuredWarmupDuration: TimeInterval {
-        if selectedWorkoutMode == .intervals {
-            return 10 * 60
-        }
-        return TimeInterval(selectedWarmupMinutes * 60)
+        TimeInterval(max(0, selectedWarmupMinutes) * 60)
     }
 
     private var configuredIntenseDuration: TimeInterval {
@@ -709,28 +722,18 @@ class WorkoutViewModel: ObservableObject {
         case .easyRun:
             return TimeInterval(selectedEasyRunMinutes * 60)
         case .intervals:
-            switch selectedIntervalTemplate {
-            case .fourByFour:
-                return TimeInterval((4 * (4 + 3)) * 60) // 4x (4 min work + 3 min recovery)
-            case .eightByOne:
-                return TimeInterval((8 * (1 + 1)) * 60) // 8x (1 min work + 1 min recovery)
-            case .tenByThirtyThirty:
-                return TimeInterval(10 * 60) // 10x (30/30) = 10 minutes total
-            }
+            let sets = max(1, selectedIntervalSets)
+            let work = max(0, selectedIntervalWorkMinutes)
+            let pause = max(0, selectedIntervalBreakMinutes)
+            let totalMinutes = (sets * work) + (max(0, sets - 1) * pause)
+            return TimeInterval(totalMinutes * 60)
         case .standard:
             return AppConfig.intenseDuration
         }
     }
 
     private var configuredCooldownDuration: TimeInterval {
-        if selectedWorkoutMode == .intervals {
-            switch selectedIntervalTemplate {
-            case .tenByThirtyThirty:
-                return 6 * 60
-            default:
-                return 8 * 60
-            }
-        }
+        if selectedWorkoutMode == .intervals { return 6 * 60 }
         return 5 * 60
     }
 
@@ -865,7 +868,14 @@ class WorkoutViewModel: ObservableObject {
         Task {
             do {
                 print("💬 Talking to coach: '\(message)'")
-                let response = try await apiService.talkToCoach(message: message)
+                let response = try await apiService.talkToCoach(
+                    message: message,
+                    language: currentLanguage,
+                    persona: activePersonality.rawValue,
+                    userName: currentUserName,
+                    responseMode: "qa",
+                    context: isContinuousMode ? "workout" : "chat"
+                )
                 coachConversation.append((role: "coach", text: response.text))
                 coachMessage = response.text
                 print("🗣️ Coach replied: '\(response.text)'")
@@ -925,7 +935,11 @@ class WorkoutViewModel: ObservableObject {
     /// Starts a short speech capture session so the user can speak freely
     func talkToCoachButtonPressed() {
         guard isContinuousMode else { return }
-        guard coachInteractionState == .passiveListening else { return }
+        guard !isPaused else { return }
+        guard coachInteractionState != .responding else {
+            print("⚠️ Talk button ignored while coach is responding")
+            return
+        }
         guard !wakeWordManager.isCapturingUtterance && !wakeWordManager.wakeWordDetected else {
             print("⚠️ Ignoring button capture while wake-word capture is active")
             return
@@ -934,6 +948,7 @@ class WorkoutViewModel: ObservableObject {
         print("🎤 Talk-to-coach button pressed — starting speech capture")
         coachInteractionState = .commandMode
         isWakeWordActive = true
+        voiceState = .listening
 
         // Use speech recognition to capture what the user actually says
         wakeWordManager.captureUtterance(duration: 6.0) { [weak self] transcription in
@@ -959,32 +974,59 @@ class WorkoutViewModel: ObservableObject {
 
     /// Common path: send a user message to the coach backend
     private func sendUserMessageToCoach(_ message: String) {
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMessage.isEmpty else {
+            isWakeWordActive = false
+            coachInteractionState = .passiveListening
+            return
+        }
+
         coachInteractionState = .responding
+        isTalkingToCoach = true
 
         Task {
             do {
-                let response = try await apiService.talkToCoachDuringWorkout(
-                    message: message,
-                    sessionId: sessionId ?? "",
-                    phase: currentPhase.rawValue,
-                    intensity: breathAnalysis?.intensity ?? "moderate",
-                    persona: activePersonality.rawValue,
-                    language: currentLanguage,
-                    userName: currentUserName
-                )
+                let response: CoachTalkResponse
+                if let sid = sessionId, !sid.isEmpty {
+                    response = try await apiService.talkToCoachDuringWorkout(
+                        message: trimmedMessage,
+                        sessionId: sid,
+                        phase: currentPhase.rawValue,
+                        intensity: breathAnalysis?.intensity ?? "moderate",
+                        persona: activePersonality.rawValue,
+                        language: currentLanguage,
+                        userName: currentUserName
+                    )
+                } else {
+                    print("⚠️ session_id missing for workout talk; using generic talk endpoint fallback")
+                    response = try await apiService.talkToCoach(
+                        message: trimmedMessage,
+                        language: currentLanguage,
+                        persona: activePersonality.rawValue,
+                        userName: currentUserName,
+                        responseMode: "qa",
+                        context: "workout"
+                    )
+                }
 
                 coachMessage = response.text
                 print("🗣️ Coach replied to user: '\(response.text)'")
 
                 // Play the response audio
+                voiceState = .speaking
                 await playCoachAudio(response.audioURL)
             } catch {
                 print("❌ Coach talk failed: \(error.localizedDescription)")
+                coachMessage = currentLanguage == "no"
+                    ? "Fikk ikke kontakt med coach akkurat nå. Prøv igjen."
+                    : "Could not reach coach right now. Try again."
             }
 
             // Return to passive listening
+            isTalkingToCoach = false
             isWakeWordActive = false
             coachInteractionState = .passiveListening
+            voiceState = isContinuousMode && !isPaused ? .listening : .idle
         }
     }
 
@@ -1097,9 +1139,9 @@ class WorkoutViewModel: ObservableObject {
         let clampedScore = max(0, min(100, score))
         let band = scoreBand(for: clampedScore)
         if currentLanguage == "no" {
-            return "CoachScore: \(clampedScore) — \(coachWorkPhraseNo(for: band))"
+            return "Coach score: \(clampedScore) — \(coachWorkPhraseNo(for: band))"
         }
-        return "CoachScore: \(clampedScore) — \(coachWorkPhraseEn(for: band))"
+        return "Coach score: \(clampedScore) — \(coachWorkPhraseEn(for: band))"
     }
 
     private func applyExperienceProgression(durationSeconds: Int, finalCoachScore: Int) {
@@ -1389,6 +1431,9 @@ class WorkoutViewModel: ObservableObject {
 
             isContinuousMode = true
             voiceState = .listening  // STAYS listening entire workout
+            coachInteractionState = .passiveListening
+            isWakeWordActive = false
+            isTalkingToCoach = false
             sessionStartTime = Date()
             workoutDuration = 0
 
@@ -1473,6 +1518,9 @@ class WorkoutViewModel: ObservableObject {
         elapsedTimeTimer = nil
 
         voiceState = .idle
+        coachInteractionState = .passiveListening
+        isWakeWordActive = false
+        isTalkingToCoach = false
         consecutiveChunkFailures = 0
 
         print("✅ Workout paused")
@@ -1494,6 +1542,9 @@ class WorkoutViewModel: ObservableObject {
         }
 
         voiceState = .listening
+        coachInteractionState = .passiveListening
+        isWakeWordActive = false
+        isTalkingToCoach = false
 
         // Resume wake word listening
         wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
@@ -1551,7 +1602,9 @@ class WorkoutViewModel: ObservableObject {
         isContinuousMode = false
         isPaused = false
         voiceState = .idle
+        coachInteractionState = .passiveListening
         isWakeWordActive = false
+        isTalkingToCoach = false
         sessionId = nil
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0

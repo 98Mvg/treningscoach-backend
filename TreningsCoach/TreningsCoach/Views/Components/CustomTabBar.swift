@@ -20,9 +20,9 @@ enum TabItem: Int, CaseIterable {
 
     var label: String {
         switch self {
-        case .home:    return L10n.current == .no ? "Hjem" : "Home"
-        case .workout: return L10n.current == .no ? "Trening" : "Workout"
-        case .profile: return L10n.current == .no ? "Profil" : "Profile"
+        case .home:    return L10n.home
+        case .workout: return L10n.workout
+        case .profile: return L10n.profileTab
         }
     }
 }
@@ -42,10 +42,15 @@ struct CustomTabBar: View {
                             .font(.system(size: 20, weight: selectedTab == tab ? .semibold : .regular))
                             .foregroundColor(selectedTab == tab ? CoachiTheme.primary : CoachiTheme.textTertiary)
                         Text(tab.label)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(selectedTab == tab ? CoachiTheme.primary : CoachiTheme.textTertiary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, minHeight: 24)
                     }
-                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                     .background(
                         Group {
                             if selectedTab == tab {
@@ -59,13 +64,13 @@ struct CustomTabBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
+        .padding(.horizontal, 10).padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(CoachiTheme.surface.opacity(0.95))
                 .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
                 .shadow(color: Color.black.opacity(0.4), radius: 20, y: 10)
         )
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 14)
     }
 }

@@ -8,15 +8,48 @@
 import SwiftUI
 
 struct WorkoutLaunchView: View {
+    private enum SetupStage {
+        case easyWarmup
+        case easyDuration
+        case intervalWarmup
+        case intervalSets
+        case intervalDuration
+        case intervalBreak
+    }
+
     @ObservedObject var viewModel: WorkoutViewModel
+    var showsAnimatedBackground: Bool = true
     @State private var appeared = false
     @State private var launchStep = 1
     @State private var showAdvancedOptions = false
+    @State private var setupStage: SetupStage = .easyWarmup
+    @State private var easyRunConfigured = false
+    @State private var intervalsConfigured = false
+
+    private var canStartWorkout: Bool {
+        switch viewModel.selectedWorkoutMode {
+        case .easyRun:
+            return setupStage == .easyDuration && easyRunConfigured
+        case .intervals:
+            return setupStage == .intervalBreak && intervalsConfigured
+        case .standard:
+            return true
+        }
+    }
+
+    private var intervalTotalMinutes: Int {
+        let sets = max(1, viewModel.selectedIntervalSets)
+        let work = max(0, viewModel.selectedIntervalWorkMinutes)
+        let pause = max(0, viewModel.selectedIntervalBreakMinutes)
+        return (sets * work) + (max(0, sets - 1) * pause)
+    }
 
     var body: some View {
         ZStack {
             CoachiTheme.backgroundGradient.ignoresSafeArea()
-            ParticleBackgroundView(particleCount: 30)
+            if showsAnimatedBackground {
+                ParticleBackgroundView(particleCount: 30)
+            }
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
@@ -47,6 +80,7 @@ struct WorkoutLaunchView: View {
                                 selected: viewModel.selectedWorkoutMode == .easyRun
                             ) {
                                 viewModel.selectedWorkoutMode = .easyRun
+                                resetSetupFlowForSelectedMode()
                             }
                             launchCard(
                                 title: "Intervals",
@@ -54,6 +88,7 @@ struct WorkoutLaunchView: View {
                                 selected: viewModel.selectedWorkoutMode == .intervals
                             ) {
                                 viewModel.selectedWorkoutMode = .intervals
+                                resetSetupFlowForSelectedMode()
                             }
                         }
                         launchComingSoonCard(
@@ -62,6 +97,7 @@ struct WorkoutLaunchView: View {
                         )
 
                         Button {
+                            resetSetupFlowForSelectedMode()
                             withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
                                 launchStep = 2
                             }
@@ -87,25 +123,17 @@ struct WorkoutLaunchView: View {
                             Text("Quick setup")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(CoachiTheme.textPrimary)
-                            Text("Session details, inputs, and coaching style.")
+                            Text("Session details, wheels, and coaching options.")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(CoachiTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        launchSection(title: "Step A", subtitle: "Session variant") {
+                        launchSection(title: "Step A", subtitle: stepASubtitle) {
                             if viewModel.selectedWorkoutMode == .easyRun {
-                                HStack(spacing: 8) {
-                                    durationChip(20)
-                                    durationChip(30)
-                                    durationChip(45)
-                                }
+                                easyRunSetupContent
                             } else {
-                                HStack(spacing: 8) {
-                                    templateChip(.fourByFour)
-                                    templateChip(.eightByOne)
-                                    templateChip(.tenByThirtyThirty)
-                                }
+                                intervalsSetupContent
                             }
                         }
 
@@ -123,7 +151,7 @@ struct WorkoutLaunchView: View {
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
                                 } else {
-                                    Text("Not connected")
+                                    Text(L10n.notConnected)
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(CoachiTheme.textTertiary)
                                 }
@@ -136,25 +164,19 @@ struct WorkoutLaunchView: View {
                             .tint(CoachiTheme.primary)
                         }
 
-                        launchSection(title: "Step C", subtitle: "Coaching style") {
-                            HStack(spacing: 8) {
-                                styleChip(.minimal)
-                                styleChip(.normal)
-                                styleChip(.motivational)
-                            }
-                        }
-
                         DisclosureGroup(
                             isExpanded: $showAdvancedOptions,
                             content: {
                                 VStack(spacing: 14) {
-                                    if viewModel.selectedWorkoutMode != .intervals {
-                                        VStack(spacing: 4) {
-                                            Text(L10n.warmupTime.uppercased())
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundColor(CoachiTheme.textTertiary)
-                                                .tracking(1)
-                                            CircularDialPicker(selectedMinutes: $viewModel.selectedWarmupMinutes)
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("COACHING STYLE")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(CoachiTheme.textTertiary)
+                                            .tracking(1)
+                                        HStack(spacing: 8) {
+                                            styleChip(.minimal)
+                                            styleChip(.normal)
+                                            styleChip(.motivational)
                                         }
                                     }
 
@@ -206,10 +228,23 @@ struct WorkoutLaunchView: View {
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity, minHeight: 52)
-                                    .background(CoachiTheme.primaryGradient)
+                                    .background(
+                                        Group {
+                                            if canStartWorkout {
+                                                CoachiTheme.primaryGradient
+                                            } else {
+                                                LinearGradient(
+                                                    colors: [CoachiTheme.textTertiary.opacity(0.55), CoachiTheme.textTertiary.opacity(0.7)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            }
+                                        }
+                                    )
                                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                    .shadow(color: CoachiTheme.primary.opacity(0.28), radius: 10, y: 3)
+                                    .shadow(color: canStartWorkout ? CoachiTheme.primary.opacity(0.28) : .clear, radius: 10, y: 3)
                             }
+                            .disabled(!canStartWorkout)
                             .buttonStyle(.plain)
                         }
                         .padding(.top, 4)
@@ -223,11 +258,11 @@ struct WorkoutLaunchView: View {
         }
         .onAppear {
             // Restore last session warmup time
-            let saved = UserDefaults.standard.integer(forKey: "last_warmup_minutes")
-            if saved > 0 {
+            if let saved = UserDefaults.standard.object(forKey: "last_warmup_minutes") as? Int {
                 viewModel.selectedWarmupMinutes = saved
             }
             launchStep = 1
+            resetSetupFlowForSelectedMode()
             withAnimation(.easeOut(duration: 0.7).delay(0.15)) { appeared = true }
         }
     }
@@ -300,42 +335,254 @@ struct WorkoutLaunchView: View {
         .buttonStyle(.plain)
     }
 
+    private var stepASubtitle: String {
+        switch setupStage {
+        case .easyWarmup, .intervalWarmup:
+            return L10n.warmupTime
+        case .easyDuration:
+            return L10n.current == .no ? "Løpsvarighet" : "Run duration"
+        case .intervalSets:
+            return L10n.current == .no ? "Drag" : "Drag"
+        case .intervalDuration:
+            return L10n.current == .no ? "Tid" : "Time"
+        case .intervalBreak:
+            return L10n.current == .no ? "Pauser" : "Breaks"
+        }
+    }
+
     @ViewBuilder
-    private func durationChip(_ minutes: Int) -> some View {
-        let selected = viewModel.selectedEasyRunMinutes == minutes
-        Button {
-            viewModel.selectedEasyRunMinutes = minutes
-        } label: {
-            Text("\(minutes) min")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
+    private var easyRunSetupContent: some View {
+        if setupStage == .easyWarmup {
+            VStack(spacing: 10) {
+                Text(L10n.warmupTime.uppercased())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedWarmupMinutes,
+                    valueRange: 0...40,
+                    unitLabel: L10n.minutesUpper,
+                    zeroLabel: L10n.skipWarmup
                 )
+                stageCheckButton(title: L10n.current == .no ? "Bekreft oppvarming" : "Confirm warm-up") {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                        setupStage = .easyDuration
+                        easyRunConfigured = false
+                    }
+                }
+            }
+        } else {
+            VStack(spacing: 10) {
+                Text((L10n.current == .no ? "LØPSVARIGHET" : "RUN DURATION"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedEasyRunMinutes,
+                    valueRange: 0...120,
+                    unitLabel: L10n.minutesUpper,
+                    zeroLabel: L10n.current == .no ? "0 MIN" : "0 MIN"
+                )
+                HStack(spacing: 10) {
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .easyWarmup
+                            easyRunConfigured = false
+                        }
+                    } label: {
+                        Text(L10n.current == .no ? "Tilbake" : "Back")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .background(CoachiTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+
+                    stageCheckButton(title: L10n.current == .no ? "Bekreft varighet" : "Confirm duration") {
+                        easyRunConfigured = true
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var intervalsSetupContent: some View {
+        if setupStage == .intervalWarmup {
+            VStack(spacing: 10) {
+                Text(L10n.warmupTime.uppercased())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedWarmupMinutes,
+                    valueRange: 0...40,
+                    unitLabel: L10n.minutesUpper,
+                    zeroLabel: L10n.skipWarmup
+                )
+                stageCheckButton(title: L10n.current == .no ? "Bekreft oppvarming" : "Confirm warm-up") {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                        setupStage = .intervalSets
+                        intervalsConfigured = false
+                    }
+                }
+            }
+        } else if setupStage == .intervalSets {
+            VStack(spacing: 12) {
+                Text((L10n.current == .no ? "DRAG" : "DRAG"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedIntervalSets,
+                    valueRange: 2...20,
+                    unitLabel: L10n.current == .no ? "DRAG" : "DRAG",
+                    zeroLabel: nil
+                )
+
+                HStack(spacing: 10) {
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .intervalWarmup
+                            intervalsConfigured = false
+                        }
+                    } label: {
+                        Text(L10n.current == .no ? "Tilbake" : "Back")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .background(CoachiTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+
+                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .intervalDuration
+                            intervalsConfigured = false
+                        }
+                    }
+                }
+            }
+        } else if setupStage == .intervalDuration {
+            VStack(spacing: 12) {
+                Text((L10n.current == .no ? "TID" : "TIME"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedIntervalWorkMinutes,
+                    valueRange: 1...30,
+                    unitLabel: L10n.minutesUpper,
+                    zeroLabel: nil
+                )
+
+                HStack(spacing: 10) {
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .intervalSets
+                            intervalsConfigured = false
+                        }
+                    } label: {
+                        Text(L10n.current == .no ? "Tilbake" : "Back")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .background(CoachiTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+
+                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .intervalBreak
+                            intervalsConfigured = false
+                        }
+                    }
+                }
+            }
+        } else {
+            VStack(spacing: 12) {
+                Text((L10n.current == .no ? "PAUSER" : "BREAKS"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(1)
+
+                CircularDialPicker(
+                    selectedValue: $viewModel.selectedIntervalBreakMinutes,
+                    valueRange: 0...10,
+                    unitLabel: L10n.minutesUpper,
+                    zeroLabel: L10n.current == .no ? "INGEN" : "NONE"
+                )
+
+                Text(
+                    L10n.current == .no
+                        ? "Total intervalltid: \(intervalTotalMinutes) min"
+                        : "Total interval time: \(intervalTotalMinutes) min"
+                )
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+                HStack(spacing: 10) {
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .intervalDuration
+                            intervalsConfigured = false
+                        }
+                    } label: {
+                        Text(L10n.current == .no ? "Tilbake" : "Back")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity, minHeight: 42)
+                            .background(CoachiTheme.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+
+                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                        intervalsConfigured = true
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func stageCheckButton(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 15, weight: .bold))
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, minHeight: 42)
+            .background(CoachiTheme.primaryGradient)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    private func templateChip(_ template: IntervalTemplate) -> some View {
-        let selected = viewModel.selectedIntervalTemplate == template
-        Button {
-            viewModel.selectedIntervalTemplate = template
-        } label: {
-            Text(template.displayName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
-                )
+    private func resetSetupFlowForSelectedMode() {
+        showAdvancedOptions = false
+        switch viewModel.selectedWorkoutMode {
+        case .easyRun:
+            setupStage = .easyWarmup
+            easyRunConfigured = false
+            intervalsConfigured = false
+        case .intervals:
+            setupStage = .intervalWarmup
+            easyRunConfigured = false
+            intervalsConfigured = false
+        case .standard:
+            setupStage = .easyWarmup
+            easyRunConfigured = true
+            intervalsConfigured = true
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -361,27 +608,48 @@ struct WorkoutLaunchView: View {
 // MARK: - Circular Dial Picker
 
 struct CircularDialPicker: View {
-    @Binding var selectedMinutes: Int
+    @Binding var selectedValue: Int
 
-    private let maxMinutes: CGFloat = 40
-    private let dialSize: CGFloat = 220
-    private let trackWidth: CGFloat = 18
-    private let knobSize: CGFloat = 30
+    var valueRange: ClosedRange<Int> = 0...40
+    var unitLabel: String = L10n.minutesUpper
+    var zeroLabel: String? = L10n.skipWarmup
+    var dialSize: CGFloat = 220
+    var trackWidth: CGFloat = 18
+    var knobSize: CGFloat = 30
 
     // Internal drag state (continuous, not snapped)
     @State private var currentAngle: Double = 0 // 0-360 degrees, 0 = 12 o'clock
     @State private var isDragging = false
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
 
+    private var minValue: Int { valueRange.lowerBound }
+    private var maxValue: Int { valueRange.upperBound }
+    private var valueSpan: CGFloat { CGFloat(max(1, maxValue - minValue)) }
+    private var containerSize: CGFloat { dialSize + max(30, trackWidth + knobSize) }
+
+    private var safeAngle: Double {
+        guard currentAngle.isFinite else { return 0 }
+        return max(0, min(360, currentAngle))
+    }
+
     private var progress: Double {
-        let raw = currentAngle / 360.0
+        let raw = safeAngle / 360.0
         guard raw.isFinite else { return 0 }
         return max(0, min(1, raw))
     }
-    private var displayMinutes: Int {
-        let raw = progress * maxMinutes
-        guard raw.isFinite else { return 0 }
-        return Int(round(raw))
+
+    private var displayValue: Int {
+        let raw = progress * valueSpan
+        guard raw.isFinite else { return minValue }
+        let rounded = Int(round(raw))
+        return max(minValue, min(maxValue, minValue + rounded))
+    }
+
+    private var valueUnitText: String {
+        if displayValue == 0, let zeroLabel {
+            return zeroLabel
+        }
+        return unitLabel
     }
 
     var body: some View {
@@ -415,14 +683,14 @@ struct CircularDialPicker: View {
 
             // Center content
             VStack(spacing: 2) {
-                Text("\(displayMinutes)")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                Text("\(displayValue)")
+                    .font(.system(size: max(36, dialSize * 0.25), weight: .bold, design: .rounded))
                     .foregroundColor(CoachiTheme.textPrimary)
                     .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.15), value: displayMinutes)
+                    .animation(.easeInOut(duration: 0.15), value: displayValue)
 
-                Text(displayMinutes == 0 ? L10n.skipWarmup : L10n.minutesUpper)
-                    .font(.system(size: 14, weight: .semibold))
+                Text(valueUnitText)
+                    .font(.system(size: max(11, dialSize * 0.065), weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
                     .tracking(2)
             }
@@ -430,13 +698,13 @@ struct CircularDialPicker: View {
             // Draggable knob
             knobView
                 .offset(y: -dialSize / 2)
-                .rotationEffect(.degrees(currentAngle))
+                .rotationEffect(.degrees(safeAngle))
         }
-        .frame(width: dialSize + 40, height: dialSize + 40)
+        .frame(width: containerSize, height: containerSize)
         .contentShape(Circle()) // Make entire dial tappable
         .gesture(dialDragGesture)
         .onAppear { syncAngleFromMinutes() }
-        .onChange(of: selectedMinutes) { _ in
+        .onChange(of: selectedValue) { _, _ in
             if !isDragging { syncAngleFromMinutes() }
         }
     }
@@ -484,12 +752,12 @@ struct CircularDialPicker: View {
                     hapticGenerator.prepare()
                     hapticGenerator.impactOccurred()
                 }
-                updateAngle(from: value.location, in: dialSize + 40)
+                updateAngle(from: value.location, in: containerSize)
             }
             .onEnded { _ in
                 isDragging = false
                 // Commit final value
-                selectedMinutes = displayMinutes
+                selectedValue = displayValue
             }
     }
 
@@ -500,28 +768,30 @@ struct CircularDialPicker: View {
 
         // Dead-zone: ignore touches near center where angle is unreliable
         let distance = sqrt(dx * dx + dy * dy)
-        guard distance > 30 else { return }
+        guard distance > max(24, dialSize * 0.16) else { return }
 
         // atan2 gives angle from positive x-axis; convert to clockwise from 12 o'clock
         var angle = atan2(dx, -dy) * 180 / .pi // degrees, 0 = 12 o'clock, clockwise positive
         if angle < 0 { angle += 360 }
 
-        let oldMinutes = displayMinutes
+        let oldMinutes = displayValue
         currentAngle = angle
 
-        let newMinutes = displayMinutes
+        let newMinutes = displayValue
         if newMinutes != oldMinutes {
             hapticGenerator.impactOccurred(intensity: 0.4)
         }
     }
 
     private func syncAngleFromMinutes() {
-        let clamped = min(max(selectedMinutes, 0), Int(maxMinutes))
-        guard maxMinutes > 0 else {
+        let clamped = min(max(selectedValue, minValue), maxValue)
+        let span = max(1, maxValue - minValue)
+        guard span > 0 else {
             currentAngle = 0
             return
         }
-        let nextAngle = Double(clamped) / Double(maxMinutes) * 360.0
+        let normalized = Double(clamped - minValue) / Double(span)
+        let nextAngle = normalized * 360.0
         currentAngle = nextAngle.isFinite ? nextAngle : 0
     }
 }
