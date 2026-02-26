@@ -246,6 +246,11 @@ class WorkoutViewModel: ObservableObject {
     private let spotifyPromptPendingKey = "spotify_prompt_pending"
     private let spotifyPromptSeenKey = "spotify_prompt_seen"
     private let goodCoachWorkoutCountKey = "good_coach_workout_count"
+    private let coachScoreHistoryKey = "coach_score_history_v1"
+    private let lastCoachScoreKey = "last_real_coach_score"
+    private let maxCoachScoreHistoryCount = 42
+    private let workoutIntensityPreferenceKey = "workout_intensity_preference"
+    private let breathAnalysisEnabledKey = "breath_analysis_enabled"
 
     // MARK: - Published Properties
 
@@ -299,8 +304,16 @@ class WorkoutViewModel: ObservableObject {
     @Published var selectedIntervalWorkMinutes: Int = 2
     @Published var selectedIntervalBreakMinutes: Int = 1
     @Published var selectedIntervalTemplate: IntervalTemplate = .fourByFour
-    @Published var coachingStyle: CoachingStyle = .normal
-    @Published var useBreathingMicCues: Bool = true
+    @Published var coachingStyle: CoachingStyle = .medium {
+        didSet {
+            UserDefaults.standard.set(coachingStyle.rawValue, forKey: workoutIntensityPreferenceKey)
+        }
+    }
+    @Published var useBreathingMicCues: Bool = true {
+        didSet {
+            UserDefaults.standard.set(useBreathingMicCues, forKey: breathAnalysisEnabledKey)
+        }
+    }
     @Published var watchConnected: Bool = false
     @Published var hrSignalQuality: String = "poor"
     @Published var heartRate: Int?
@@ -315,6 +328,17 @@ class WorkoutViewModel: ObservableObject {
     @Published var zoneScoreConfidence: String = "low"
     @Published var coachScore: Int = 82
     @Published var coachScoreLine: String = ""
+    @Published var coachScoreV2: Int?
+    @Published var coachScoreComponents: CoachScoreComponents?
+    @Published var coachScoreCapReasonCodes: [String] = []
+    @Published var coachScoreCapApplied: Int?
+    @Published var coachScoreCapAppliedReason: String?
+    @Published var coachScoreHRValidMainSetSeconds: Double?
+    @Published var coachScoreZoneValidMainSetSeconds: Double?
+    @Published var coachScoreZoneCompliance: Double?
+    @Published var breathAvailableReliable: Bool = false
+    @Published private(set) var coachScoreHistory: [CoachScoreRecord] = []
+    @Published private(set) var lastPersistedCoachScore: Int = 0
     @Published var zoneTimeInTargetPct: Double?
     @Published var zoneOvershoots: Int = 0
     @Published var personalizationTip: String = ""
@@ -374,6 +398,43 @@ class WorkoutViewModel: ObservableObject {
         return formattedCoachScoreLine(score: coachScore)
     }
 
+    var coachScoreCapHint: String? {
+        let sensorHintNo = "Koble til klokke eller aktiver pusteanalyse for mer nøyaktig score."
+        let sensorHintEn = "Connect watch or enable breath analysis for more accurate scoring."
+        let sensorHint = L10n.current == .no ? sensorHintNo : sensorHintEn
+
+        if let reason = coachScoreCapAppliedReason {
+            switch reason {
+            case "HR_MISSING":
+                return sensorHint
+            case "ZONE_MISSING_OR_UNENFORCED":
+                return sensorHint
+            case "ZONE_FAIL":
+                return L10n.current == .no ? "Du var for kort tid i målsonen." : "You spent too little time in the target zone."
+            case "BREATH_MISSING":
+                return sensorHint
+            case "BREATH_FAIL":
+                return L10n.current == .no ? "Pustesignalet var svakt i denne økten." : "Breath signal quality was weak in this workout."
+            case "NO_BREATH_STRONG_HR_REQUIRED", "DURATION_ONLY_CAP":
+                return sensorHint
+            case "SHORT_DURATION":
+                return L10n.current == .no ? "Økter under 20 min får begrenset score." : "Workouts under 20 min have a score cap."
+            default:
+                break
+            }
+        }
+
+        if let components = coachScoreComponents {
+            let zoneAvailable = components.zoneAvailable ?? false
+            let breathReliable = components.breathAvailableReliable ?? false
+            if !zoneAvailable || !breathReliable {
+                return sensorHint
+            }
+        }
+
+        return nil
+    }
+
     var coachScoreHeadline: String {
         let clamped = max(0, min(100, coachScore))
         let band = scoreBand(for: clamped)
@@ -393,6 +454,13 @@ class WorkoutViewModel: ObservableObject {
             return "Innsatsscore \(score) (\(scoreLabelNo(for: scoreBand(for: score))))"
         }
         return "Effort Score \(score) (\(scoreLabelEn(for: scoreBand(for: score))))"
+    }
+
+    var homeCoachScore: Int {
+        if let latest = coachScoreHistory.first {
+            return latest.score
+        }
+        return max(0, min(100, lastPersistedCoachScore))
     }
 
     var targetRangeText: String {
@@ -421,6 +489,11 @@ class WorkoutViewModel: ObservableObject {
 
     var hrQualityDisplay: String {
         hrIsReliable ? "HR good" : "HR limited"
+    }
+
+    var watchBPMDisplayText: String {
+        guard watchConnected, let value = heartRate, value > 0 else { return "0 BPM" }
+        return "\(value) BPM"
     }
 
     var isCoachTalkActive: Bool {
@@ -548,6 +621,15 @@ class WorkoutViewModel: ObservableObject {
         showComplete = false
         coachScore = 82
         coachScoreLine = ""
+        coachScoreV2 = nil
+        coachScoreComponents = nil
+        coachScoreCapReasonCodes = []
+        coachScoreCapApplied = nil
+        coachScoreCapAppliedReason = nil
+        coachScoreHRValidMainSetSeconds = nil
+        coachScoreZoneValidMainSetSeconds = nil
+        coachScoreZoneCompliance = nil
+        breathAvailableReliable = false
         zoneStatus = "hr_unstable"
         targetZoneLabel = selectedWorkoutMode == .easyRun ? "Z2" : "Z4"
         targetHRLow = nil
@@ -594,6 +676,15 @@ class WorkoutViewModel: ObservableObject {
         breathAnalysis = nil
         coachScore = 82
         coachScoreLine = ""
+        coachScoreV2 = nil
+        coachScoreComponents = nil
+        coachScoreCapReasonCodes = []
+        coachScoreCapApplied = nil
+        coachScoreCapAppliedReason = nil
+        coachScoreHRValidMainSetSeconds = nil
+        coachScoreZoneValidMainSetSeconds = nil
+        coachScoreZoneCompliance = nil
+        breathAvailableReliable = false
         zoneStatus = "hr_unstable"
         targetHRLow = nil
         targetHRHigh = nil
@@ -774,6 +865,9 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Initialization
 
     init() {
+        loadPersistedCoachScores()
+        loadWorkoutSetupPreferences()
+
         // Configure audio session for playback
         setupAudioSession()
 
@@ -794,6 +888,17 @@ class WorkoutViewModel: ObservableObject {
             await setupHealthSignals()
         }
         print("🔗 Backend URL: \(AppConfig.backendURL)")
+    }
+
+    private func loadWorkoutSetupPreferences() {
+        let defaults = UserDefaults.standard
+        if let storedStyleRaw = defaults.string(forKey: workoutIntensityPreferenceKey),
+           let storedStyle = CoachingStyle(rawValue: storedStyleRaw) {
+            coachingStyle = storedStyle
+        }
+        if defaults.object(forKey: breathAnalysisEnabledKey) != nil {
+            useBreathingMicCues = defaults.bool(forKey: breathAnalysisEnabledKey)
+        }
     }
 
     private func setupAudioSession() {
@@ -1142,6 +1247,58 @@ class WorkoutViewModel: ObservableObject {
             return "Coach score: \(clampedScore) — \(coachWorkPhraseNo(for: band))"
         }
         return "Coach score: \(clampedScore) — \(coachWorkPhraseEn(for: band))"
+    }
+
+    private func loadPersistedCoachScores() {
+        let defaults = UserDefaults.standard
+        let fallback = max(0, min(100, defaults.integer(forKey: lastCoachScoreKey)))
+
+        guard let data = defaults.data(forKey: coachScoreHistoryKey),
+              let decoded = try? JSONDecoder().decode([CoachScoreRecord].self, from: data) else {
+            coachScoreHistory = []
+            lastPersistedCoachScore = fallback
+            return
+        }
+
+        coachScoreHistory = decoded
+            .sorted(by: { $0.date > $1.date })
+            .prefix(maxCoachScoreHistoryCount)
+            .map { $0 }
+
+        if let latest = coachScoreHistory.first {
+            lastPersistedCoachScore = latest.score
+        } else {
+            lastPersistedCoachScore = fallback
+        }
+    }
+
+    private func persistFinalCoachScore(_ score: Int, at date: Date) {
+        let clamped = max(0, min(100, score))
+        var updated = coachScoreHistory
+        updated.insert(
+            CoachScoreRecord(
+                date: date,
+                score: clamped,
+                capApplied: coachScoreCapApplied,
+                capAppliedReason: coachScoreCapAppliedReason,
+                zoneCompliance: coachScoreZoneCompliance,
+                hrValidMainSetSeconds: coachScoreHRValidMainSetSeconds,
+                zoneValidMainSetSeconds: coachScoreZoneValidMainSetSeconds
+            ),
+            at: 0
+        )
+        if updated.count > maxCoachScoreHistoryCount {
+            updated = Array(updated.prefix(maxCoachScoreHistoryCount))
+        }
+
+        coachScoreHistory = updated
+        lastPersistedCoachScore = clamped
+
+        let defaults = UserDefaults.standard
+        defaults.set(clamped, forKey: lastCoachScoreKey)
+        if let data = try? JSONEncoder().encode(updated) {
+            defaults.set(data, forKey: coachScoreHistoryKey)
+        }
     }
 
     private func applyExperienceProgression(durationSeconds: Int, finalCoachScore: Int) {
@@ -1645,6 +1802,7 @@ class WorkoutViewModel: ObservableObject {
         if let duration = finalDurationSeconds {
             applyExperienceProgression(durationSeconds: duration, finalCoachScore: coachScore)
         }
+        persistFinalCoachScore(coachScore, at: Date())
 
         elapsedTime = 0
         print("✅ Continuous workout stopped")
@@ -1736,7 +1894,9 @@ class WorkoutViewModel: ObservableObject {
                     movementSource: tickMovementSource,
                     hrMax: storedHRMax,
                     restingHR: storedRestingHR,
-                    age: storedAge
+                    age: storedAge,
+                    breathAnalysisEnabled: useBreathingMicCues,
+                    micPermissionGranted: AVAudioSession.sharedInstance().recordPermission == .granted
                 )
 
                 let responseTime = Date().timeIntervalSince(tickStart)
@@ -1746,6 +1906,8 @@ class WorkoutViewModel: ObservableObject {
                 coachMessage = response.text
                 if let score = response.coachScore {
                     coachScore = max(0, min(100, score))
+                } else if let scoreV2 = response.coachScoreV2 {
+                    coachScore = max(0, min(100, scoreV2))
                 } else {
                     coachScore = estimatedCoachScore(for: response.breathAnalysis.intensityLevel)
                 }
@@ -1754,6 +1916,15 @@ class WorkoutViewModel: ObservableObject {
                 } else {
                     coachScoreLine = formattedCoachScoreLine(score: coachScore)
                 }
+                coachScoreV2 = response.coachScoreV2
+                coachScoreComponents = response.coachScoreComponents
+                coachScoreCapReasonCodes = response.capReasonCodes ?? []
+                coachScoreCapApplied = response.capApplied
+                coachScoreCapAppliedReason = response.capAppliedReason
+                coachScoreHRValidMainSetSeconds = response.hrValidMainSetSeconds
+                coachScoreZoneValidMainSetSeconds = response.zoneValidMainSetSeconds
+                coachScoreZoneCompliance = response.zoneCompliance
+                breathAvailableReliable = response.breathAvailableReliable ?? false
                 if let responseStyle = response.coachingStyle,
                    let parsedStyle = CoachingStyle(rawValue: responseStyle) {
                     coachingStyle = parsedStyle

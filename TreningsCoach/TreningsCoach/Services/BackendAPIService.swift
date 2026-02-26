@@ -141,7 +141,7 @@ class BackendAPIService {
         persona: String = "personal_trainer",
         userName: String = "",
         workoutMode: WorkoutMode = .standard,
-        coachingStyle: CoachingStyle = .normal,
+        coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
@@ -155,7 +155,9 @@ class BackendAPIService {
         movementSource: String? = nil,
         hrMax: Int? = nil,
         restingHR: Int? = nil,
-        age: Int? = nil
+        age: Int? = nil,
+        breathAnalysisEnabled: Bool = true,
+        micPermissionGranted: Bool = true
     ) async throws -> ContinuousCoachResponse {
         let url = URL(string: "\(baseURL)/coach/continuous")!
         let request = try createContinuousMultipartRequest(
@@ -184,7 +186,9 @@ class BackendAPIService {
             movementSource: movementSource,
             hrMax: hrMax,
             restingHR: restingHR,
-            age: age
+            age: age,
+            breathAnalysisEnabled: breathAnalysisEnabled,
+            micPermissionGranted: micPermissionGranted
         )
 
         let (data, response) = try await session.data(for: request)
@@ -201,14 +205,36 @@ class BackendAPIService {
         return try JSONDecoder().decode(ContinuousCoachResponse.self, from: data)
     }
 
-    /// Talk to the coach (conversational, Sundby personality)
-    func talkToCoach(message: String) async throws -> CoachTalkResponse {
+    /// Talk to the coach (short Q&A by default for user-initiated asks)
+    func talkToCoach(
+        message: String,
+        language: String? = nil,
+        persona: String? = nil,
+        userName: String = "",
+        responseMode: String? = nil,
+        context: String? = nil
+    ) async throws -> CoachTalkResponse {
         let url = URL(string: "\(baseURL)/coach/talk")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = ["message": message]
+        var body: [String: String] = ["message": message]
+        if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {
+            body["language"] = language
+        }
+        if let persona = persona?.trimmingCharacters(in: .whitespacesAndNewlines), !persona.isEmpty {
+            body["persona"] = persona
+        }
+        if !userName.isEmpty {
+            body["user_name"] = userName
+        }
+        if let responseMode = responseMode?.trimmingCharacters(in: .whitespacesAndNewlines), !responseMode.isEmpty {
+            body["response_mode"] = responseMode
+        }
+        if let context = context?.trimmingCharacters(in: .whitespacesAndNewlines), !context.isEmpty {
+            body["context"] = context
+        }
         request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await session.data(for: request)
@@ -245,7 +271,8 @@ class BackendAPIService {
             "intensity": intensity,
             "persona": persona,
             "language": language,
-            "context": "workout"  // Tells backend this is mid-workout, not casual chat
+            "context": "workout",  // Tells backend this is mid-workout, not casual chat
+            "response_mode": "qa"
         ]
         if !userName.isEmpty {
             body["user_name"] = userName
@@ -393,7 +420,7 @@ class BackendAPIService {
         persona: String = "personal_trainer",
         userName: String = "",
         workoutMode: WorkoutMode = .standard,
-        coachingStyle: CoachingStyle = .normal,
+        coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
@@ -407,7 +434,9 @@ class BackendAPIService {
         movementSource: String? = nil,
         hrMax: Int? = nil,
         restingHR: Int? = nil,
-        age: Int? = nil
+        age: Int? = nil,
+        breathAnalysisEnabled: Bool = true,
+        micPermissionGranted: Bool = true
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -487,6 +516,8 @@ class BackendAPIService {
         if let age = age {
             appendField(name: "age", value: "\(age)")
         }
+        appendField(name: "breath_analysis_enabled", value: breathAnalysisEnabled ? "true" : "false")
+        appendField(name: "mic_permission_granted", value: micPermissionGranted ? "true" : "false")
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 

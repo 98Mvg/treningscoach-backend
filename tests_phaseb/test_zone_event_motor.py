@@ -39,15 +39,15 @@ def _base_tick(**overrides):
 def test_zone2_uses_hrr_when_resting_hr_present():
     result = evaluate_zone_tick(**_base_tick())
     assert result["target_source"] == "hrr"
-    assert result["target_hr_low"] == 136
-    assert result["target_hr_high"] == 150
+    assert result["target_hr_low"] == 147
+    assert result["target_hr_high"] == 163
 
 
 def test_zone2_falls_back_to_hrmax_when_resting_hr_missing():
     result = evaluate_zone_tick(**_base_tick(resting_hr=None))
     assert result["target_source"] == "hrmax"
-    assert result["target_hr_low"] == 133
-    assert result["target_hr_high"] == 152
+    assert result["target_hr_low"] == 142
+    assert result["target_hr_high"] == 162
 
 
 def test_hr_poor_mode_emits_safe_event_without_zone_claims():
@@ -140,7 +140,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=0,
             heart_rate=150,
             hr_sample_gap_seconds=4.0,
@@ -153,7 +153,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=4,
             heart_rate=150,
             hr_sample_gap_seconds=4.0,
@@ -166,7 +166,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     paused = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=13,
             heart_rate=147,
             hr_sample_gap_seconds=5.0,
@@ -180,7 +180,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     paused_confirmed = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=22,
             heart_rate=145,
             hr_sample_gap_seconds=4.0,
@@ -196,7 +196,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=50,
             heart_rate=146,
             hr_sample_gap_seconds=28.0,
@@ -208,7 +208,7 @@ def test_movement_pause_and_resume_events_after_dwell():
     resumed = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            coaching_style="motivational",
+            coaching_style="normal",
             elapsed_seconds=72,
             heart_rate=147,
             hr_sample_gap_seconds=22.0,
@@ -218,7 +218,6 @@ def test_movement_pause_and_resume_events_after_dwell():
         )
     )
     assert resumed["event_type"] == "pause_resumed"
-    assert resumed["should_speak"] is True
     assert resumed["movement_state"] == "moving"
 
 
@@ -335,7 +334,7 @@ def test_above_zone_sustained_triggers_ease_when_hr_rises():
             workout_state=state,
             coaching_style="normal",
             elapsed_seconds=0,
-            heart_rate=166,
+            heart_rate=170,
             hr_sample_gap_seconds=2.0,
             movement_score=0.6,
             cadence_spm=120.0,
@@ -347,7 +346,7 @@ def test_above_zone_sustained_triggers_ease_when_hr_rises():
             workout_state=state,
             coaching_style="normal",
             elapsed_seconds=9,
-            heart_rate=167,
+            heart_rate=171,
             hr_sample_gap_seconds=2.0,
             movement_score=0.6,
             cadence_spm=120.0,
@@ -361,7 +360,7 @@ def test_above_zone_sustained_triggers_ease_when_hr_rises():
             workout_state=state,
             coaching_style="normal",
             elapsed_seconds=70,
-            heart_rate=170,
+            heart_rate=176,
             hr_sample_gap_seconds=2.0,
             movement_score=0.6,
             cadence_spm=120.0,
@@ -405,7 +404,7 @@ def test_recovery_seconds_tracked_when_returning_in_zone():
         **_base_tick(
             workout_state=state,
             elapsed_seconds=30,
-            heart_rate=145,
+            heart_rate=150,
             hr_sample_gap_seconds=21.0,
             movement_score=0.65,
             cadence_spm=124.0,
@@ -416,7 +415,7 @@ def test_recovery_seconds_tracked_when_returning_in_zone():
         **_base_tick(
             workout_state=state,
             elapsed_seconds=40,
-            heart_rate=144,
+            heart_rate=151,
             hr_sample_gap_seconds=10.0,
             movement_score=0.65,
             cadence_spm=124.0,

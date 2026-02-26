@@ -251,6 +251,34 @@ def normalize_intensity_value(intensity: str) -> str:
     return mapping.get(value, "moderate")
 
 
+def is_question_request(message: str) -> bool:
+    """
+    Heuristic detection for user-initiated Q&A prompts.
+
+    Keeps existing workout cue logic intact while routing explicit questions
+    to fast knowledge answers.
+    """
+    text = (message or "").strip()
+    if not text:
+        return False
+    lowered = text.lower()
+    if "?" in text:
+        return True
+
+    question_starters = (
+        "why", "how", "what", "when", "where", "who", "which", "can", "should", "is", "are", "do",
+        "hvorfor", "hvordan", "hva", "hvilken", "hvilke", "kan", "bør", "skal", "er", "burde",
+    )
+    for starter in question_starters:
+        if lowered == starter or lowered.startswith(starter + " "):
+            return True
+
+    request_patterns = (
+        "explain ", "tell me ", "forklar ", "si hvorfor ", "hjelp meg å forstå ",
+    )
+    return any(lowered.startswith(pattern) for pattern in request_patterns)
+
+
 def _coach_score_from_intensity(intensity: str) -> int:
     normalized = normalize_intensity_value(intensity)
     if normalized == "calm":
@@ -265,8 +293,587 @@ def _coach_score_from_intensity(intensity: str) -> int:
 def _coach_score_line(score: int, language: str) -> str:
     clamped = max(0, min(100, int(score)))
     if normalize_language_code(language) == "no":
-        return f"CoachScore: {clamped} — Solid jobb. Du traff intensiteten som forbedrer helsa di."
-    return f"CoachScore: {clamped} — Solid work. You hit the intensity that improves your health."
+        return f"Coach score: {clamped} — Solid jobb. Du traff intensiteten som forbedrer helsa di."
+    return f"Coach score: {clamped} — Solid work. You hit the intensity that improves your health."
+
+
+def _coerce_float(value):
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(number) or math.isinf(number):
+        return None
+    return number
+
+
+def _coerce_int(value):
+    number = _coerce_float(value)
+    if number is None:
+        return None
+    return int(round(number))
+
+
+def _coerce_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on", "connected"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", "disconnected"}:
+        return False
+    return False
+
+
+def _normalized_fraction(value):
+    number = _coerce_float(value)
+    if number is None:
+        return 0.0
+    return max(0.0, min(1.0, number))
+
+
+def _duration_score_component(elapsed_seconds: int) -> int:
+    seconds = max(0, int(elapsed_seconds or 0))
+    # Ramp linearly to 100 by 60 minutes.
+    progress = min(1.0, float(seconds) / (60.0 * 60.0))
+    return int(round(progress * 100.0))
+
+
+def _breath_score_component(breath_data: dict) -> int:
+    signal_quality = _normalized_fraction((breath_data or {}).get("signal_quality"))
+    regularity = _normalized_fraction((breath_data or {}).get("breath_regularity"))
+    confidence = _normalized_fraction((breath_data or {}).get("intensity_confidence"))
+    score = (signal_quality * 45.0) + (regularity * 35.0) + (confidence * 20.0)
+    return int(round(max(0.0, min(100.0, score))))
+
+
+def _zone_score_component(zone_tick: dict, breath_data: dict) -> int:
+    if isinstance(zone_tick, dict) and zone_tick.get("score") is not None:
+        return max(0, min(100, int(zone_tick.get("score", 0))))
+    fallback = _coach_score_from_intensity((breath_data or {}).get("intensity", "moderate"))
+    return max(0, min(100, int(fallback)))
+
+
+def _duration_score_component_v2(main_set_seconds: float) -> float:
+    minutes = max(0.0, float(main_set_seconds or 0.0)) / 60.0
+    if minutes <= 0.0:
+        return 0.0
+    if minutes <= 20.0:
+        return max(0.0, min(20.0, minutes))
+    if minutes >= 120.0:
+        return 100.0
+    # Slow ramp with full maturity at 120 min.
+    # 40 min ~= 40, 60 min ~= 57, 120 min = 100.
+    normalized = max(0.0, min(1.0, (minutes - 20.0) / 100.0))
+    score = 20.0 + (math.pow(normalized, 0.85) * 80.0)
+    return max(0.0, min(100.0, score))
+
+
+def _duration_only_cap_score(main_set_seconds: float) -> int:
+    minutes = max(0.0, float(main_set_seconds or 0.0)) / 60.0
+    if minutes <= 0.0:
+        return 0
+    if minutes <= 60.0:
+        return int(max(0.0, min(60.0, math.floor(minutes))))
+    if minutes <= 120.0:
+        scaled = 60.0 + ((minutes - 60.0) * (40.0 / 60.0))
+        return int(max(60.0, min(100.0, math.floor(scaled))))
+    return 100
+
+
+def _median(values):
+    cleaned = [float(v) for v in values if v is not None]
+    if not cleaned:
+        return None
+    cleaned.sort()
+    mid = len(cleaned) // 2
+    if len(cleaned) % 2 == 1:
+        return cleaned[mid]
+    return (cleaned[mid - 1] + cleaned[mid]) / 2.0
+
+
+def _derive_breath_quality_samples(breath_data: dict, breath_quality_samples):
+    samples = []
+    if isinstance(breath_quality_samples, (list, tuple)):
+        for value in breath_quality_samples:
+            parsed = _coerce_float(value)
+            if parsed is not None:
+                samples.append(max(0.0, min(1.0, parsed)))
+    signal_quality = _coerce_float((breath_data or {}).get("signal_quality"))
+    if signal_quality is not None:
+        samples.append(max(0.0, min(1.0, signal_quality)))
+    return samples
+
+
+def _interval_zone_compliance(zone_tick: dict):
+    if not isinstance(zone_tick, dict):
+        return None
+
+    min_phase = float(getattr(config, "CS_MIN_PHASE_VALID_SECONDS", 30.0))
+    work_valid = _coerce_float(zone_tick.get("interval_work_zone_valid_seconds")) or 0.0
+    work_in = _coerce_float(zone_tick.get("interval_work_in_target_seconds")) or 0.0
+    recovery_valid = _coerce_float(zone_tick.get("interval_recovery_zone_valid_seconds")) or 0.0
+    recovery_in = _coerce_float(zone_tick.get("interval_recovery_in_target_seconds")) or 0.0
+
+    work_component = None
+    recovery_component = None
+    if work_valid >= min_phase and work_valid > 0:
+        work_component = max(0.0, min(1.0, work_in / work_valid))
+    if recovery_valid >= min_phase and recovery_valid > 0:
+        recovery_component = max(0.0, min(1.0, recovery_in / recovery_valid))
+
+    if work_component is None and recovery_component is None:
+        return None
+    if work_component is not None and recovery_component is not None:
+        return max(0.0, min(1.0, (0.7 * work_component) + (0.3 * recovery_component)))
+    return work_component if work_component is not None else recovery_component
+
+
+def _resolve_zone_compliance_for_score(zone_tick: dict):
+    if not isinstance(zone_tick, dict):
+        return None
+
+    explicit = _coerce_float(zone_tick.get("zone_compliance"))
+    if explicit is not None:
+        return max(0.0, min(1.0, explicit))
+
+    interval = _interval_zone_compliance(zone_tick)
+    if interval is not None:
+        return interval
+
+    zone_valid = _coerce_float(zone_tick.get("zone_valid_main_set_seconds")) or 0.0
+    in_target = _coerce_float(zone_tick.get("in_target_zone_valid_seconds")) or 0.0
+    if zone_valid > 0:
+        return max(0.0, min(1.0, in_target / zone_valid))
+
+    pct = _coerce_float(zone_tick.get("time_in_target_pct"))
+    if pct is not None:
+        return max(0.0, min(1.0, pct / 100.0))
+    return None
+
+
+def _weighted_component_average(components):
+    available = [(float(v), float(w)) for (v, w) in components if v is not None]
+    if not available:
+        return 0.0
+    denominator = sum(weight for _, weight in available)
+    if denominator <= 0:
+        return 0.0
+    numerator = sum(value * weight for value, weight in available)
+    return max(0.0, min(100.0, numerator / denominator))
+
+
+def _sanitize_log_text(value) -> str:
+    text = str(value or "")
+    return " ".join(text.split())
+
+
+def _log_coach_transcript_debug(
+    *,
+    session_id: str,
+    language: str,
+    phase: str,
+    should_speak: bool,
+    reason: str,
+    source: str,
+    text: str,
+):
+    if not bool(getattr(config, "COACH_TRANSCRIPT_DEBUG_LOGS", True)):
+        return
+    logger.info(
+        "COACH_TRANSCRIPT session=%s lang=%s phase=%s speak=%s reason=%s source=%s text=\"%s\"",
+        session_id,
+        language,
+        phase,
+        bool(should_speak),
+        reason or "none",
+        source or "unknown",
+        _sanitize_log_text(text),
+    )
+
+
+def _log_coach_score_debug_summary(
+    *,
+    session_id: str,
+    language: str,
+    workout_mode: str,
+    score_payload: dict,
+):
+    if not bool(getattr(config, "COACH_SCORE_DEBUG_LOGS", True)):
+        return
+    payload = score_payload if isinstance(score_payload, dict) else {}
+    components = payload.get("coach_score_components") if isinstance(payload.get("coach_score_components"), dict) else {}
+    reasons = payload.get("cap_reason_codes")
+    if not isinstance(reasons, list):
+        reasons = []
+    logger.info(
+        "CS_DEBUG_SUMMARY session=%s lang=%s mode=%s duration_s=%s hr_valid_s=%s zone_valid_s=%s zone_compliance=%s zone_score=%s breath_enabled=%s permission_granted=%s breath_reliable=%s breath_score=%s breath_confidence=%s raw_score=%s cap_applied=%s cap_reason_winning=%s reasons_all=%s final_cs=%s",
+        session_id,
+        language,
+        workout_mode,
+        components.get("main_set_seconds"),
+        payload.get("hr_valid_main_set_seconds"),
+        payload.get("zone_valid_main_set_seconds"),
+        payload.get("zone_compliance"),
+        payload.get("zone_score"),
+        components.get("breath_enabled_by_user"),
+        components.get("mic_permission_granted"),
+        components.get("breath_available_reliable"),
+        payload.get("breath_score"),
+        payload.get("breath_confidence"),
+        payload.get("raw_score"),
+        payload.get("cap_applied"),
+        payload.get("cap_applied_reason"),
+        ",".join(str(item) for item in reasons),
+        payload.get("score"),
+    )
+
+
+def _compute_layered_coach_score_v1(
+    *,
+    language: str,
+    elapsed_seconds: int,
+    breath_data: dict,
+    zone_tick: dict,
+    watch_connected,
+    heart_rate,
+    hr_quality,
+):
+    zone_score = _zone_score_component(zone_tick, breath_data)
+    breath_score = _breath_score_component(breath_data)
+    duration_score = _duration_score_component(elapsed_seconds)
+
+    raw_score = int(round((0.5 * zone_score) + (0.3 * breath_score) + (0.2 * duration_score)))
+    raw_score = max(0, min(100, raw_score))
+
+    hr_quality_value = str(
+        (zone_tick or {}).get("hr_quality")
+        or hr_quality
+        or ""
+    ).strip().lower()
+    watch_connected_value = _coerce_bool(watch_connected)
+    resolved_heart_rate = _coerce_int((zone_tick or {}).get("heart_rate"))
+    if resolved_heart_rate is None:
+        resolved_heart_rate = _coerce_int(heart_rate)
+    time_in_target = _coerce_float((zone_tick or {}).get("time_in_target_pct"))
+    if (
+        not watch_connected_value
+        and isinstance(zone_tick, dict)
+        and hr_quality_value == "good"
+        and resolved_heart_rate is not None
+        and resolved_heart_rate > 0
+    ):
+        watch_connected_value = True
+
+    hr_signal_present = (resolved_heart_rate is not None and resolved_heart_rate > 0) or (time_in_target is not None)
+    hr_zone_compliance_ok = (
+        watch_connected_value
+        and hr_signal_present
+        and hr_quality_value not in {"poor", "missing", "none", "disconnected", "unknown"}
+    )
+    if time_in_target is not None:
+        hr_zone_compliance_ok = hr_zone_compliance_ok and time_in_target >= 55.0
+    else:
+        hr_zone_compliance_ok = hr_zone_compliance_ok and zone_score >= 60
+
+    breath_signal_quality = _normalized_fraction((breath_data or {}).get("signal_quality"))
+    breath_quality_ok = breath_signal_quality >= 0.25 and breath_score >= 60
+
+    cap = 100
+    if not hr_zone_compliance_ok:
+        cap = min(cap, 60)
+    if not breath_quality_ok:
+        cap = min(cap, 75)
+    if max(0, int(elapsed_seconds or 0)) < 20 * 60:
+        cap = min(cap, 20)
+
+    score = max(0, min(100, min(raw_score, cap)))
+    return {
+        "score": score,
+        "score_line": _coach_score_line(score, language),
+        "cap": cap,
+        "raw_score": raw_score,
+        "zone_score": zone_score,
+        "breath_score": breath_score,
+        "duration_score": duration_score,
+        "hr_zone_compliance_ok": hr_zone_compliance_ok,
+        "breath_quality_ok": breath_quality_ok,
+    }
+
+
+def _compute_layered_coach_score_v2(
+    *,
+    language: str,
+    elapsed_seconds: int,
+    breath_data: dict,
+    zone_tick: dict,
+    watch_connected,
+    heart_rate,
+    hr_quality,
+    breath_enabled_by_user: bool,
+    mic_permission_granted: bool,
+    breath_quality_samples,
+):
+    zone_tick_data = zone_tick if isinstance(zone_tick, dict) else {}
+    watch_connected_value = _coerce_bool(watch_connected)
+    resolved_heart_rate = _coerce_int(zone_tick_data.get("heart_rate"))
+    if resolved_heart_rate is None:
+        resolved_heart_rate = _coerce_int(heart_rate)
+    hr_quality_value = str(zone_tick_data.get("hr_quality") or hr_quality or "").strip().lower()
+    if (
+        not watch_connected_value
+        and hr_quality_value == "good"
+        and resolved_heart_rate is not None
+        and resolved_heart_rate > 0
+    ):
+        watch_connected_value = True
+
+    main_set_seconds = _coerce_float(zone_tick_data.get("main_set_seconds"))
+    if main_set_seconds is None or main_set_seconds <= 0:
+        main_set_seconds = float(max(0, int(elapsed_seconds or 0)))
+
+    hr_valid_main_set_seconds = _coerce_float(zone_tick_data.get("hr_valid_main_set_seconds")) or 0.0
+    zone_valid_main_set_seconds = _coerce_float(zone_tick_data.get("zone_valid_main_set_seconds")) or 0.0
+    target_enforced_main_set_seconds = _coerce_float(zone_tick_data.get("target_enforced_main_set_seconds")) or 0.0
+    zone_compliance = _resolve_zone_compliance_for_score(zone_tick_data)
+
+    min_zone_score_seconds = float(getattr(config, "CS_MIN_ZONE_VALID_SECONDS_FOR_SCORE", 30.0))
+    min_hr_pillar_seconds = float(getattr(config, "CS_MIN_HR_VALID_SECONDS_FOR_PILLAR", 120.0))
+    min_zone_cap_seconds = float(getattr(config, "CS_MIN_ZONE_VALID_SECONDS_FOR_CAP", 120.0))
+    zone_pass_threshold = float(getattr(config, "CS_ZONE_PASS_THRESHOLD", 0.50))
+
+    zone_score = None
+    if hr_valid_main_set_seconds >= 30.0 and zone_valid_main_set_seconds >= min_zone_score_seconds and zone_compliance is not None:
+        # Explicit CS v2 formula: 70% compliance maps to full zone score.
+        zone_score = max(0.0, min(100.0, (zone_compliance / 0.70) * 100.0))
+
+    breath_confidence = _normalized_fraction((breath_data or {}).get("intensity_confidence"))
+    breath_score = float(_breath_score_component(breath_data))
+    breath_in_play = bool(breath_enabled_by_user) and bool(mic_permission_granted)
+    quality_samples = _derive_breath_quality_samples(breath_data, breath_quality_samples)
+    breath_sample_count = len(quality_samples)
+    breath_median_quality = _median(quality_samples)
+
+    breath_available_reliable = (
+        breath_in_play
+        and breath_sample_count >= int(getattr(config, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6))
+        and breath_median_quality is not None
+        and breath_median_quality >= float(getattr(config, "CS_BREATH_MIN_RELIABLE_QUALITY", 0.35))
+    )
+    breath_pass = (
+        breath_available_reliable
+        and breath_confidence >= float(getattr(config, "CS_BREATH_PASS_MIN_CONFIDENCE", 0.60))
+        and breath_score >= float(getattr(config, "CS_BREATH_PASS_MIN_SCORE", 50.0))
+    )
+
+    duration_score = _duration_score_component_v2(main_set_seconds)
+    raw_score = _weighted_component_average(
+        [
+            (zone_score, 0.55),
+            (breath_score if breath_available_reliable else None, 0.30),
+            (duration_score, 0.15),
+        ]
+    )
+
+    zone_computable_for_cap = (
+        zone_compliance is not None
+        and zone_valid_main_set_seconds >= min_zone_cap_seconds
+        and target_enforced_main_set_seconds >= min_zone_cap_seconds
+    )
+    hr_pillar_available = (
+        watch_connected_value
+        and hr_valid_main_set_seconds >= min_hr_pillar_seconds
+        and zone_computable_for_cap
+        and zone_score is not None
+    )
+    breath_pillar_available = bool(breath_available_reliable)
+    sensor_pillar_count = int(hr_pillar_available) + int(breath_pillar_available)
+
+    triggered_caps = []
+    cap_reason_codes = []
+
+    def apply_cap(value, reason):
+        cap_value = int(max(0, min(100, int(round(value)))))
+        triggered_caps.append((cap_value, reason))
+        if reason not in cap_reason_codes:
+            cap_reason_codes.append(reason)
+
+    if hr_pillar_available and zone_compliance is not None and zone_compliance < zone_pass_threshold:
+        apply_cap(50, "ZONE_FAIL")
+
+    # Breath fail cap only matters when breath is the only reliable sensor pillar.
+    if (not hr_pillar_available) and breath_pillar_available and (not breath_pass):
+        apply_cap(65, "BREATH_FAIL")
+
+    duration_only_cap = None
+    if sensor_pillar_count == 0:
+        duration_only_cap = _duration_only_cap_score(main_set_seconds)
+        apply_cap(duration_only_cap, "DURATION_ONLY_CAP")
+        if not watch_connected_value or hr_valid_main_set_seconds < min_hr_pillar_seconds:
+            apply_cap(100, "HR_MISSING")
+        if breath_in_play and not breath_available_reliable:
+            apply_cap(100, "BREATH_MISSING")
+    elif breath_in_play and not breath_available_reliable:
+        # Keep this reason visible in diagnostics/hints without reducing score ceilings.
+        apply_cap(100, "BREATH_MISSING")
+    elif breath_in_play and breath_pillar_available and not breath_pass:
+        # If another pillar is strong we still allow high ceilings; quality impact comes via raw score.
+        if hr_pillar_available:
+            apply_cap(100, "BREATH_FAIL")
+
+    if not hr_pillar_available and (zone_compliance is None or not zone_computable_for_cap):
+        apply_cap(100, "ZONE_MISSING_OR_UNENFORCED")
+
+    if hr_valid_main_set_seconds < 30.0:
+        apply_cap(100, "HR_MISSING")
+    if zone_valid_main_set_seconds < min_zone_score_seconds:
+        apply_cap(100, "ZONE_MISSING_OR_UNENFORCED")
+
+    short_cap = None
+    if main_set_seconds < 1200.0:
+        short_cap = int(math.floor((main_set_seconds / 1200.0) * 20.0))
+        short_cap = max(0, min(20, short_cap))
+        apply_cap(short_cap, "SHORT_DURATION")
+
+    cap_applied = 100
+    cap_applied_reason = None
+    if triggered_caps:
+        winner = min(triggered_caps, key=lambda item: item[0])
+        cap_applied = winner[0]
+        cap_applied_reason = winner[1]
+
+    final_score = int(round(min(raw_score, float(cap_applied))))
+    final_score = max(0, min(100, final_score))
+
+    hr_zone_compliance_ok = bool(
+        hr_pillar_available and zone_compliance is not None and zone_compliance >= zone_pass_threshold
+    )
+    breath_quality_ok = bool((not breath_pillar_available) or breath_pass)
+
+    return {
+        "score": final_score,
+        "score_line": _coach_score_line(final_score, language),
+        "cap": cap_applied,
+        "raw_score": int(round(raw_score)),
+        "zone_score": None if zone_score is None else int(round(zone_score)),
+        "breath_score": int(round(breath_score)),
+        "duration_score": int(round(duration_score)),
+        "cap_reason_codes": cap_reason_codes,
+        "cap_applied": cap_applied,
+        "cap_applied_reason": cap_applied_reason,
+        "coach_score_components": {
+            "zone": None if zone_score is None else int(round(zone_score)),
+            "breath": int(round(breath_score)),
+            "duration": int(round(duration_score)),
+            "zone_available": zone_score is not None,
+            "breath_in_play": breath_in_play,
+            "breath_available_reliable": breath_available_reliable,
+            "breath_enabled_by_user": bool(breath_enabled_by_user),
+            "mic_permission_granted": bool(mic_permission_granted),
+            "breath_confidence": round(breath_confidence, 4),
+            "breath_sample_count": breath_sample_count,
+            "breath_median_quality": None if breath_median_quality is None else round(float(breath_median_quality), 4),
+            "zone_compliance": None if zone_compliance is None else round(float(zone_compliance), 4),
+            "hr_valid_main_set_seconds": round(float(hr_valid_main_set_seconds), 2),
+            "zone_valid_main_set_seconds": round(float(zone_valid_main_set_seconds), 2),
+            "main_set_seconds": round(float(main_set_seconds), 2),
+            "hr_pillar_available": hr_pillar_available,
+            "breath_pillar_available": breath_pillar_available,
+            "sensor_pillar_count": sensor_pillar_count,
+        },
+        "coach_score_v2": final_score,
+        "hr_valid_main_set_seconds": round(float(hr_valid_main_set_seconds), 2),
+        "zone_valid_main_set_seconds": round(float(zone_valid_main_set_seconds), 2),
+        "zone_compliance": None if zone_compliance is None else round(float(zone_compliance), 4),
+        "breath_confidence": round(breath_confidence, 4),
+        "breath_available_reliable": breath_available_reliable,
+        "breath_in_play": breath_in_play,
+        "hr_zone_compliance_ok": hr_zone_compliance_ok,
+        "breath_quality_ok": breath_quality_ok,
+        "short_duration_cap": short_cap,
+        "duration_only_cap": duration_only_cap,
+    }
+
+
+def _compute_layered_coach_score(
+    *,
+    language: str,
+    elapsed_seconds: int,
+    breath_data: dict,
+    zone_tick: dict,
+    watch_connected,
+    heart_rate,
+    hr_quality,
+    breath_enabled_by_user: bool = True,
+    mic_permission_granted: bool = True,
+    breath_quality_samples=None,
+):
+    version = str(getattr(config, "COACH_SCORE_VERSION", "cs_v2")).strip().lower()
+    if version not in {"cs_v1", "cs_v2", "shadow"}:
+        version = "cs_v2"
+
+    payload_v1 = _compute_layered_coach_score_v1(
+        language=language,
+        elapsed_seconds=elapsed_seconds,
+        breath_data=breath_data,
+        zone_tick=zone_tick,
+        watch_connected=watch_connected,
+        heart_rate=heart_rate,
+        hr_quality=hr_quality,
+    )
+    payload_v2 = _compute_layered_coach_score_v2(
+        language=language,
+        elapsed_seconds=elapsed_seconds,
+        breath_data=breath_data,
+        zone_tick=zone_tick,
+        watch_connected=watch_connected,
+        heart_rate=heart_rate,
+        hr_quality=hr_quality,
+        breath_enabled_by_user=breath_enabled_by_user,
+        mic_permission_granted=mic_permission_granted,
+        breath_quality_samples=breath_quality_samples,
+    )
+
+    if version == "cs_v1":
+        payload_v1.setdefault("coach_score_v2", payload_v2.get("score"))
+        payload_v1.setdefault("coach_score_components", payload_v2.get("coach_score_components"))
+        payload_v1.setdefault("cap_reason_codes", payload_v2.get("cap_reason_codes"))
+        payload_v1.setdefault("cap_applied", payload_v1.get("cap"))
+        payload_v1.setdefault("cap_applied_reason", payload_v2.get("cap_applied_reason"))
+        payload_v1.setdefault("hr_valid_main_set_seconds", payload_v2.get("hr_valid_main_set_seconds"))
+        payload_v1.setdefault("zone_valid_main_set_seconds", payload_v2.get("zone_valid_main_set_seconds"))
+        payload_v1.setdefault("zone_compliance", payload_v2.get("zone_compliance"))
+        payload_v1.setdefault("breath_available_reliable", payload_v2.get("breath_available_reliable"))
+        return payload_v1
+
+    if version == "shadow":
+        payload = dict(payload_v1)
+        payload["coach_score_v2"] = payload_v2.get("score")
+        payload["coach_score_components"] = payload_v2.get("coach_score_components")
+        payload["cap_reason_codes"] = payload_v2.get("cap_reason_codes")
+        payload["cap_applied"] = payload_v1.get("cap")
+        payload["cap_applied_reason"] = payload_v2.get("cap_applied_reason")
+        payload["hr_valid_main_set_seconds"] = payload_v2.get("hr_valid_main_set_seconds")
+        payload["zone_valid_main_set_seconds"] = payload_v2.get("zone_valid_main_set_seconds")
+        payload["zone_compliance"] = payload_v2.get("zone_compliance")
+        payload["breath_available_reliable"] = payload_v2.get("breath_available_reliable")
+        payload["cs_v1_debug"] = {
+            "score": payload_v1.get("score"),
+            "raw_score": payload_v1.get("raw_score"),
+            "cap": payload_v1.get("cap"),
+        }
+        payload["cs_v2_debug"] = {
+            "score": payload_v2.get("score"),
+            "raw_score": payload_v2.get("raw_score"),
+            "cap": payload_v2.get("cap"),
+            "cap_reason_codes": payload_v2.get("cap_reason_codes"),
+            "cap_applied_reason": payload_v2.get("cap_applied_reason"),
+        }
+        return payload
+
+    return payload_v2
 
 
 def _normalize_personalization_user_id(
@@ -1212,6 +1819,13 @@ def coach_continuous():
         )
         user_name = request.form.get('user_name', '').strip()
         user_profile_id = request.form.get('user_profile_id', '').strip()
+        heart_rate_raw = request.form.get("heart_rate")
+        hr_quality_raw = request.form.get("hr_quality")
+        watch_connected_raw = request.form.get("watch_connected")
+        breath_analysis_enabled_raw = request.form.get("breath_analysis_enabled", "true")
+        mic_permission_granted_raw = request.form.get("mic_permission_granted", "true")
+        breath_enabled_by_user = _coerce_bool(breath_analysis_enabled_raw)
+        mic_permission_granted = _coerce_bool(mic_permission_granted_raw)
 
         if not session_id:
             return jsonify({"error": "session_id is required"}), 400
@@ -1349,8 +1963,20 @@ def coach_continuous():
                 intensity=breath_data.get("intensity", "moderate"),
                 coaching_frequency=0
             )
-            coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
-            coach_score_line = _coach_score_line(coach_score, language)
+            score_payload = _compute_layered_coach_score(
+                language=language,
+                elapsed_seconds=elapsed_seconds,
+                breath_data=breath_data,
+                zone_tick=None,
+                watch_connected=watch_connected_raw,
+                heart_rate=heart_rate_raw,
+                hr_quality=hr_quality_raw,
+                breath_enabled_by_user=breath_enabled_by_user,
+                mic_permission_granted=mic_permission_granted,
+                breath_quality_samples=[],
+            )
+            coach_score = int(score_payload["score"])
+            coach_score_line = score_payload["score_line"]
 
             return jsonify({
                 "text": "",
@@ -1363,6 +1989,15 @@ def coach_continuous():
                 "reason": "audio_too_small",
                 "coach_score": coach_score,
                 "coach_score_line": coach_score_line,
+                "coach_score_v2": score_payload.get("coach_score_v2"),
+                "coach_score_components": score_payload.get("coach_score_components"),
+                "cap_reason_codes": score_payload.get("cap_reason_codes"),
+                "cap_applied": score_payload.get("cap_applied", score_payload.get("cap")),
+                "cap_applied_reason": score_payload.get("cap_applied_reason"),
+                "hr_valid_main_set_seconds": score_payload.get("hr_valid_main_set_seconds"),
+                "zone_valid_main_set_seconds": score_payload.get("zone_valid_main_set_seconds"),
+                "zone_compliance": score_payload.get("zone_compliance"),
+                "breath_available_reliable": score_payload.get("breath_available_reliable"),
                 "coaching_style": coaching_style,
                 "interval_template": interval_template if workout_mode == "interval" else None,
             })
@@ -1461,15 +2096,15 @@ def coach_continuous():
                 persona=persona,
                 coaching_style=coaching_style,
                 interval_template=interval_template,
-                heart_rate=request.form.get("heart_rate"),
-                hr_quality=request.form.get("hr_quality"),
+                heart_rate=heart_rate_raw,
+                hr_quality=hr_quality_raw,
                 hr_confidence=request.form.get("hr_confidence"),
                 hr_sample_age_seconds=request.form.get("hr_sample_age_seconds"),
                 hr_sample_gap_seconds=request.form.get("hr_sample_gap_seconds"),
                 movement_score=request.form.get("movement_score"),
                 cadence_spm=request.form.get("cadence_spm"),
                 movement_source=request.form.get("movement_source"),
-                watch_connected=request.form.get("watch_connected"),
+                watch_connected=watch_connected_raw,
                 watch_status=request.form.get("watch_status"),
                 hr_max=request.form.get("hr_max"),
                 resting_hr=request.form.get("resting_hr"),
@@ -1861,6 +2496,15 @@ def coach_continuous():
             coach_text = voice_intelligence.add_human_variation(coach_text)
 
         coach_text = enforce_language_consistency(coach_text, language, phase=phase)
+        _log_coach_transcript_debug(
+            session_id=session_id,
+            language=language,
+            phase=phase,
+            should_speak=speak_decision,
+            reason=reason,
+            source=brain_meta.get("source"),
+            text=coach_text,
+        )
         brain_ms = (time.perf_counter() - brain_started) * 1000.0
 
         # Generate voice only if should speak (language-aware)
@@ -1915,12 +2559,30 @@ def coach_continuous():
         except Exception as e:
             logger.warning(f"Could not remove temp file {filepath}: {e}")
 
-        if zone_mode_active and zone_tick is not None:
-            coach_score = int(zone_tick.get("score", _coach_score_from_intensity(breath_data.get("intensity", "moderate"))))
-            coach_score_line = zone_tick.get("score_line") or _coach_score_line(coach_score, language)
-        else:
-            coach_score = _coach_score_from_intensity(breath_data.get("intensity", "moderate"))
-            coach_score_line = _coach_score_line(coach_score, language)
+        score_payload = _compute_layered_coach_score(
+            language=language,
+            elapsed_seconds=elapsed_seconds,
+            breath_data=breath_data,
+            zone_tick=zone_tick if zone_mode_active else None,
+            watch_connected=watch_connected_raw,
+            heart_rate=heart_rate_raw,
+            hr_quality=hr_quality_raw,
+            breath_enabled_by_user=breath_enabled_by_user,
+            mic_permission_granted=mic_permission_granted,
+            breath_quality_samples=[
+                item.get("signal_quality")
+                for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
+                if isinstance(item, dict) and item.get("signal_quality") is not None
+            ],
+        )
+        _log_coach_score_debug_summary(
+            session_id=session_id,
+            language=language,
+            workout_mode=workout_mode,
+            score_payload=score_payload,
+        )
+        coach_score = int(score_payload["score"])
+        coach_score_line = score_payload["score_line"]
 
         personalization_tip = None
         recovery_line = None
@@ -1985,6 +2647,15 @@ def coach_continuous():
             "reason": reason,  # For debugging
             "coach_score": coach_score,
             "coach_score_line": coach_score_line,
+            "coach_score_v2": score_payload.get("coach_score_v2"),
+            "coach_score_components": score_payload.get("coach_score_components"),
+            "cap_reason_codes": score_payload.get("cap_reason_codes"),
+            "cap_applied": score_payload.get("cap_applied", score_payload.get("cap")),
+            "cap_applied_reason": score_payload.get("cap_applied_reason"),
+            "hr_valid_main_set_seconds": score_payload.get("hr_valid_main_set_seconds"),
+            "zone_valid_main_set_seconds": score_payload.get("zone_valid_main_set_seconds"),
+            "zone_compliance": score_payload.get("zone_compliance"),
+            "breath_available_reliable": score_payload.get("breath_available_reliable"),
             "brain_provider": brain_meta.get("provider"),
             "brain_source": brain_meta.get("source"),
             "brain_status": brain_meta.get("status"),
@@ -2300,65 +2971,78 @@ def coach_talk():
         default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
         language = normalize_language_code(data.get('language', default_language))
         user_name = data.get('user_name', '').strip()
+        response_mode = (data.get("response_mode", "") or "").strip().lower()
 
         logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
 
-        # Build system prompt based on context
-        name_context = f"\n- The athlete's name is {user_name}. Use it at most once in this response, and only if it feels natural." if user_name else ""
+        is_question = response_mode in {"qa", "qna", "question"} or is_question_request(user_message)
 
-        if context == 'workout':
-            # Mid-workout: user spoke via wake word — keep response VERY SHORT
-            persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
-            system_prompt = (
-                f"{persona_prompt}\n\n"
-                f"IMPORTANT: The user is IN THE MIDDLE of a workout right now.\n"
-                f"- Current phase: {phase}\n"
-                f"- Breathing intensity: {intensity}\n"
-                f"- They used the wake word to speak to you.\n"
-                f"- Keep your response to 1 sentence MAX. Be direct and actionable.\n"
-                f"- Don't ask questions — they can't easily respond.\n"
-                f"- If unclear, give a short motivational response."
-                f"{name_context}"
-            )
-            if language == "no":
-                system_prompt += "\n- RESPOND IN NORWEGIAN."
-            max_tokens = 40  # Very short for mid-workout
-        else:
-            # Casual chat: outside workout, slightly longer allowed
-            persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
-            system_prompt = (
-                f"{persona_prompt}\n"
-                f"Max 2 sentences. You speak out loud to an athlete. Be concise and direct."
-                f"{name_context}"
-            )
-            if language == "no":
-                system_prompt += "\n- RESPOND IN NORWEGIAN."
-            max_tokens = 60
-
-        # Use strategic brain (Claude Haiku for cost efficiency) if enabled
-        coach_text = None
-        if strategic_brain is not None and strategic_brain.is_available():
-            try:
-                response = strategic_brain.client.messages.create(
-                    model="claude-3-haiku-20240307",
-                    max_tokens=max_tokens,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_message}]
-                )
-                coach_text = response.content[0].text
-                logger.info(f"Claude Haiku response: '{coach_text}'")
-            except Exception as e:
-                logger.error(f"Claude API error: {e}")
-
-        # Fallback to config-based response
-        if not coach_text:
-            coach_text = brain_router.get_coaching_response(
-                {"intensity": intensity, "volume": 50, "tempo": 20},
-                phase,
-                mode="chat",
+        # User questions should use fast Grok-first Q&A with max 3 sentences.
+        if is_question:
+            coach_text = brain_router.get_question_response(
+                user_message,
                 language=language,
-                persona=persona
+                persona=persona,
+                context=context,
+                user_name=user_name or None,
             )
+        else:
+            # Build system prompt based on context
+            name_context = f"\n- The athlete's name is {user_name}. Use it at most once in this response, and only if it feels natural." if user_name else ""
+
+            if context == 'workout':
+                # Mid-workout: user spoke via wake word — keep response VERY SHORT
+                persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
+                system_prompt = (
+                    f"{persona_prompt}\n\n"
+                    f"IMPORTANT: The user is IN THE MIDDLE of a workout right now.\n"
+                    f"- Current phase: {phase}\n"
+                    f"- Breathing intensity: {intensity}\n"
+                    f"- They used the wake word to speak to you.\n"
+                    f"- Keep your response to 1 sentence MAX. Be direct and actionable.\n"
+                    f"- Don't ask questions — they can't easily respond.\n"
+                    f"- If unclear, give a short motivational response."
+                    f"{name_context}"
+                )
+                if language == "no":
+                    system_prompt += "\n- RESPOND IN NORWEGIAN."
+                max_tokens = 40  # Very short for mid-workout
+            else:
+                # Casual chat: outside workout, slightly longer allowed
+                persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
+                system_prompt = (
+                    f"{persona_prompt}\n"
+                    f"Max 2 sentences. You speak out loud to an athlete. Be concise and direct."
+                    f"{name_context}"
+                )
+                if language == "no":
+                    system_prompt += "\n- RESPOND IN NORWEGIAN."
+                max_tokens = 60
+
+            # Use strategic brain (Claude Haiku for cost efficiency) if enabled
+            coach_text = None
+            if strategic_brain is not None and strategic_brain.is_available():
+                try:
+                    response = strategic_brain.client.messages.create(
+                        model="claude-3-haiku-20240307",
+                        max_tokens=max_tokens,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_message}]
+                    )
+                    coach_text = response.content[0].text
+                    logger.info(f"Claude Haiku response: '{coach_text}'")
+                except Exception as e:
+                    logger.error(f"Claude API error: {e}")
+
+            # Fallback to config-based response
+            if not coach_text:
+                coach_text = brain_router.get_coaching_response(
+                    {"intensity": intensity, "volume": 50, "tempo": 20},
+                    phase,
+                    mode="chat",
+                    language=language,
+                    persona=persona
+                )
         coach_text = enforce_language_consistency(
             coach_text,
             language,

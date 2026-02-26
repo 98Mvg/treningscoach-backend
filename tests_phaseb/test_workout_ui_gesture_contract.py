@@ -79,6 +79,13 @@ def test_primary_talk_button_uses_tap_to_talk() -> None:
     assert "LongPressGesture(minimumDuration: 1.5" not in text
 
 
+def test_active_workout_has_visible_finish_button() -> None:
+    text = _active_workout_view_text()
+    assert "private var finishWorkoutButton: some View" in text
+    assert 'Text(L10n.current == .no ? "Avslutt økt" : "Finish workout")' in text
+    assert "showStopConfirmation = true" in text
+
+
 def test_spotify_is_in_top_row_corner_button() -> None:
     text = _active_workout_view_text()
     assert "spotifyCornerButton" in text
@@ -144,8 +151,30 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
 def test_workout_launch_moves_style_to_advanced_options() -> None:
     text = _workout_launch_view_text()
     assert "launchSection(title: \"Step C\"" not in text
-    assert "Text(\"COACHING STYLE\")" in text
+    assert "Text(L10n.workoutIntensityTitle)" in text
+    assert "styleChip(.easy)" in text
+    assert "styleChip(.medium)" in text
+    assert "styleChip(.hard)" in text
+    assert "Text(L10n.breathAnalysisTitle)" in text
+    assert "Use breathing mic cues" not in text
     assert "DisclosureGroup(" in text
+
+
+def test_workout_launch_shows_explicit_bpm_readout_when_watch_disconnected() -> None:
+    text = _workout_launch_view_text()
+    assert "Text(L10n.notConnected)" in text
+    assert "Text(viewModel.watchBPMDisplayText)" in text
+
+
+def test_warmup_stage_labels_easy_intensity_cue() -> None:
+    text = _workout_launch_view_text()
+    assert 'return "\\(L10n.warmupTime) · \\(L10n.intensityEasy)"' in text
+    assert "Text(L10n.warmupEasyBPMCue)" in text
+
+
+def test_active_workout_hr_fallback_is_zero_bpm() -> None:
+    text = _active_workout_view_text()
+    assert 'return "HR 0 BPM"' in text
 
 
 def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
@@ -154,3 +183,13 @@ def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     assert "@Published var selectedIntervalWorkMinutes: Int = 2" in text
     assert "@Published var selectedIntervalBreakMinutes: Int = 1" in text
     assert "let totalMinutes = (sets * work) + (max(0, sets - 1) * pause)" in text
+
+
+def test_view_model_persists_final_coach_score_history_for_home() -> None:
+    text = _workout_view_model_text()
+    assert 'private let coachScoreHistoryKey = "coach_score_history_v1"' in text
+    assert 'private let lastCoachScoreKey = "last_real_coach_score"' in text
+    assert "@Published private(set) var coachScoreHistory: [CoachScoreRecord] = []" in text
+    assert "@Published private(set) var lastPersistedCoachScore: Int = 0" in text
+    assert "loadPersistedCoachScores()" in text
+    assert "persistFinalCoachScore(coachScore, at: Date())" in text

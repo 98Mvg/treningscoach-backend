@@ -106,20 +106,20 @@ enum IntervalTemplate: String, CaseIterable, Identifiable, Codable {
 }
 
 enum CoachingStyle: String, CaseIterable, Identifiable, Codable {
-    case minimal = "minimal"
-    case normal = "normal"
-    case motivational = "motivational"
+    case easy = "minimal"
+    case medium = "normal"
+    case hard = "motivational"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .minimal:
-            return "Minimal"
-        case .normal:
-            return "Normal"
-        case .motivational:
-            return "Motivational"
+        case .easy:
+            return L10n.intensityEasy
+        case .medium:
+            return L10n.intensityMedium
+        case .hard:
+            return L10n.intensityHard
         }
     }
 }
@@ -302,6 +302,15 @@ struct ContinuousCoachResponse: Codable {
     let personalizationTip: String?
     let recoveryLine: String?
     let recoveryBaselineSeconds: Double?
+    let coachScoreV2: Int?
+    let coachScoreComponents: CoachScoreComponents?
+    let capReasonCodes: [String]?
+    let capApplied: Int?
+    let capAppliedReason: String?
+    let hrValidMainSetSeconds: Double?
+    let zoneValidMainSetSeconds: Double?
+    let zoneCompliance: Double?
+    let breathAvailableReliable: Bool?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -341,6 +350,51 @@ struct ContinuousCoachResponse: Codable {
         case personalizationTip = "personalization_tip"
         case recoveryLine = "recovery_line"
         case recoveryBaselineSeconds = "recovery_baseline_seconds"
+        case coachScoreV2 = "coach_score_v2"
+        case coachScoreComponents = "coach_score_components"
+        case capReasonCodes = "cap_reason_codes"
+        case capApplied = "cap_applied"
+        case capAppliedReason = "cap_applied_reason"
+        case hrValidMainSetSeconds = "hr_valid_main_set_seconds"
+        case zoneValidMainSetSeconds = "zone_valid_main_set_seconds"
+        case zoneCompliance = "zone_compliance"
+        case breathAvailableReliable = "breath_available_reliable"
+    }
+}
+
+struct CoachScoreComponents: Codable {
+    let zone: Int?
+    let breath: Int?
+    let duration: Int?
+    let zoneAvailable: Bool?
+    let breathInPlay: Bool?
+    let breathAvailableReliable: Bool?
+    let breathEnabledByUser: Bool?
+    let micPermissionGranted: Bool?
+    let breathConfidence: Double?
+    let breathSampleCount: Int?
+    let breathMedianQuality: Double?
+    let zoneCompliance: Double?
+    let hrValidMainSetSeconds: Double?
+    let zoneValidMainSetSeconds: Double?
+    let mainSetSeconds: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case zone
+        case breath
+        case duration
+        case zoneAvailable = "zone_available"
+        case breathInPlay = "breath_in_play"
+        case breathAvailableReliable = "breath_available_reliable"
+        case breathEnabledByUser = "breath_enabled_by_user"
+        case micPermissionGranted = "mic_permission_granted"
+        case breathConfidence = "breath_confidence"
+        case breathSampleCount = "breath_sample_count"
+        case breathMedianQuality = "breath_median_quality"
+        case zoneCompliance = "zone_compliance"
+        case hrValidMainSetSeconds = "hr_valid_main_set_seconds"
+        case zoneValidMainSetSeconds = "zone_valid_main_set_seconds"
+        case mainSetSeconds = "main_set_seconds"
     }
 }
 
@@ -416,6 +470,39 @@ struct WorkoutRecord: Identifiable, Codable {
     }
 
     var intensity: String { avgIntensity }
+}
+
+// MARK: - Coach Score Record
+
+struct CoachScoreRecord: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let score: Int
+    let capApplied: Int?
+    let capAppliedReason: String?
+    let zoneCompliance: Double?
+    let hrValidMainSetSeconds: Double?
+    let zoneValidMainSetSeconds: Double?
+
+    init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        score: Int,
+        capApplied: Int? = nil,
+        capAppliedReason: String? = nil,
+        zoneCompliance: Double? = nil,
+        hrValidMainSetSeconds: Double? = nil,
+        zoneValidMainSetSeconds: Double? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.score = max(0, min(100, score))
+        self.capApplied = capApplied
+        self.capAppliedReason = capAppliedReason
+        self.zoneCompliance = zoneCompliance
+        self.hrValidMainSetSeconds = hrValidMainSetSeconds
+        self.zoneValidMainSetSeconds = zoneValidMainSetSeconds
+    }
 }
 
 // MARK: - User Stats

@@ -17,9 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 _STYLE_ALIASES = {
+    "easy": "minimal",
     "min": "minimal",
     "minimal": "minimal",
+    "medium": "normal",
     "normal": "normal",
+    "hard": "motivational",
     "motivational": "motivational",
     "motivation": "motivational",
     "coachy": "motivational",
@@ -133,6 +136,16 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     metrics.setdefault("poor_ticks", 0)
     metrics.setdefault("overshoots", 0)
     metrics.setdefault("recovery_samples", [])
+    metrics.setdefault("main_set_seconds", 0.0)
+    metrics.setdefault("hr_valid_main_set_seconds", 0.0)
+    metrics.setdefault("zone_valid_main_set_seconds", 0.0)
+    metrics.setdefault("in_target_zone_valid_seconds", 0.0)
+    metrics.setdefault("interval_work_zone_valid_seconds", 0.0)
+    metrics.setdefault("interval_work_in_target_seconds", 0.0)
+    metrics.setdefault("interval_recovery_zone_valid_seconds", 0.0)
+    metrics.setdefault("interval_recovery_in_target_seconds", 0.0)
+    metrics.setdefault("target_enforced_main_set_seconds", 0.0)
+    metrics.setdefault("last_elapsed_seconds", None)
     return state
 
 
@@ -156,6 +169,128 @@ def _resolve_hr_profile(
         "resting_hr": resting_hr,
         "method": "hrr" if (hr_max is not None and resting_hr is not None) else "hrmax",
     }
+
+
+def _style_to_intensity(style: Optional[str]) -> str:
+    normalized = (style or "").strip().lower()
+    if normalized in {"minimal", "easy"}:
+        return "easy"
+    if normalized in {"motivational", "hard"}:
+        return "hard"
+    return "medium"
+
+
+def _target_band(
+    *,
+    workout_mode: str,
+    segment: str,
+    intensity: str,
+    method: str,
+    config_module,
+) -> Tuple[Optional[float], Optional[float]]:
+    key = intensity if intensity in {"easy", "medium", "hard"} else "medium"
+    mode = (workout_mode or "").strip().lower()
+    seg = (segment or "").strip().lower()
+
+    if seg in {"warmup", "cooldown"}:
+        key = "easy"
+
+    if mode == "interval":
+        if seg == "work":
+            table_name = "INTERVAL_WORK_HRR_BANDS" if method == "hrr" else "INTERVAL_WORK_HRMAX_BANDS"
+            table = getattr(config_module, table_name, {}) or {}
+            return table.get(key, table.get("medium", (None, None)))
+        if seg == "rest":
+            if method == "hrr":
+                table = getattr(config_module, "INTERVAL_RECOVERY_HRR_BANDS", {}) or {}
+                return table.get(key, table.get("medium", (None, None)))
+            # HRmax fallback recovery derives from work band:
+            work_table = getattr(config_module, "INTERVAL_WORK_HRMAX_BANDS", {}) or {}
+            work_low, _ = work_table.get(key, work_table.get("medium", (None, None)))
+            if work_low is None:
+                return None, None
+            rec_low = max(0.60, float(work_low) - 0.15)
+            rec_high = float(work_low) - 0.05
+            if rec_high <= rec_low:
+                rec_high = rec_low + 0.05
+            return rec_low, rec_high
+
+    # Steady/easy run
+    table_name = "STEADY_HRR_BANDS" if method == "hrr" else "STEADY_HRMAX_BANDS"
+    table = getattr(config_module, table_name, {}) or {}
+    return table.get(key, table.get("medium", (None, None)))
+
+
+def _apply_target_safety(
+    *,
+    low: int,
+    high: int,
+    profile: Dict[str, Any],
+    config_module,
+) -> Tuple[int, int]:
+    min_half_width = int(getattr(config_module, "TARGET_MIN_HALF_WIDTH_BPM", 8))
+    min_half_width = max(4, min_half_width)
+    min_width = max(2, min_half_width * 2)
+
+    low_int = int(low)
+    high_int = int(high)
+    if high_int < low_int:
+        low_int, high_int = high_int, low_int
+
+    if (high_int - low_int) < min_width:
+        mid = int(round((low_int + high_int) / 2.0))
+        low_int = mid - min_half_width
+        high_int = mid + min_half_width
+
+    hr_max = _safe_int(profile.get("hr_max"))
+    if hr_max is not None:
+        upper_cap = min(hr_max - 3, int(getattr(config_module, "TARGET_HR_UPPER_ABSOLUTE_CAP", 195)))
+        high_int = min(high_int, upper_cap)
+        if (high_int - low_int) < min_width:
+            low_int = high_int - min_width
+
+    low_int = max(40, low_int)
+    if high_int <= low_int:
+        high_int = low_int + 1
+
+    return low_int, high_int
+
+
+def _resolve_intensity_target_bounds(
+    *,
+    workout_mode: str,
+    segment: str,
+    intensity: str,
+    profile: Dict[str, Any],
+    config_module,
+) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+    hr_max = _safe_int(profile.get("hr_max"))
+    resting_hr = _safe_int(profile.get("resting_hr"))
+    method = "hrr" if (hr_max is not None and resting_hr is not None) else "hrmax"
+
+    if hr_max is None:
+        return None, None, None
+
+    low_pct, high_pct = _target_band(
+        workout_mode=workout_mode,
+        segment=segment,
+        intensity=intensity,
+        method=method,
+        config_module=config_module,
+    )
+    if low_pct is None or high_pct is None:
+        return None, None, None
+
+    if method == "hrr":
+        hrr = hr_max - resting_hr
+        low = int(round(resting_hr + float(low_pct) * hrr))
+        high = int(round(resting_hr + float(high_pct) * hrr))
+    else:
+        low = int(round(float(low_pct) * hr_max))
+        high = int(round(float(high_pct) * hr_max))
+
+    low, high = _apply_target_safety(low=low, high=high, profile=profile, config_module=config_module)
+    return low, high, method
 
 
 def _zone_bounds_for_label(label: Optional[str], profile: Dict[str, Any], config_module) -> Tuple[Optional[int], Optional[int], Optional[str]]:
@@ -212,6 +347,7 @@ def _interval_target(
     interval_template: str,
     elapsed_seconds: int,
     profile: Dict[str, Any],
+    intensity: str,
     config_module,
 ) -> Dict[str, Any]:
     templates = getattr(config_module, "INTERVAL_TEMPLATES", {})
@@ -229,13 +365,13 @@ def _interval_target(
 
     segment = "cooldown"
     rep_index = 0
-    target_label = "Z2"
+    target_label = "easy"
     hr_enforced = True
     main_set = False
 
     if elapsed < warmup:
         segment = "warmup"
-        target_label = "Z2"
+        target_label = "easy"
     elif elapsed < warmup + main_set_duration:
         main_set = True
         segment_elapsed = elapsed - warmup
@@ -243,23 +379,29 @@ def _interval_target(
         within_rep = segment_elapsed % cycle
         if within_rep < work:
             segment = "work"
-            target_label = str(cfg.get("work_target", "Z4"))
+            target_label = intensity
             hr_enforced = bool(cfg.get("work_hr_enforced", True))
         else:
             segment = "rest"
-            target_label = str(cfg.get("rest_target", "Z1-2"))
+            target_label = "easy"
             hr_enforced = True
     elif elapsed < session_end:
         segment = "cooldown"
-        target_label = "Z2"
+        target_label = "easy"
 
-    low, high, source = _zone_bounds_for_label(target_label, profile, config_module)
+    low, high, source = _resolve_intensity_target_bounds(
+        workout_mode="interval",
+        segment=segment,
+        intensity=intensity,
+        profile=profile,
+        config_module=config_module,
+    )
 
     return {
         "segment": segment,
         "rep_index": rep_index,
         "segment_key": f"{segment}:{rep_index}" if segment in {"work", "rest"} else segment,
-        "target_zone_label": target_label,
+        "target_zone_label": target_label.capitalize(),
         "target_low": low,
         "target_high": high,
         "target_source": source,
@@ -268,33 +410,43 @@ def _interval_target(
     }
 
 
-def _easy_run_target(phase: str, profile: Dict[str, Any], config_module) -> Dict[str, Any]:
-    low, high, source = _zone_bounds_for_label("Z2", profile, config_module)
+def _easy_run_target(phase: str, profile: Dict[str, Any], intensity: str, config_module) -> Dict[str, Any]:
+    normalized_phase = (phase or "").strip().lower() or "intense"
+    target_intensity = "easy" if normalized_phase in {"warmup", "cooldown"} else intensity
+    low, high, source = _resolve_intensity_target_bounds(
+        workout_mode="easy_run",
+        segment=normalized_phase,
+        intensity=target_intensity,
+        profile=profile,
+        config_module=config_module,
+    )
     return {
-        "segment": phase,
+        "segment": normalized_phase,
         "rep_index": 0,
-        "segment_key": f"easy_run:{phase}",
-        "target_zone_label": "Z2",
+        "segment_key": f"easy_run:{normalized_phase}",
+        "target_zone_label": target_intensity.capitalize(),
         "target_low": low,
         "target_high": high,
         "target_source": source,
         "hr_enforced": low is not None and high is not None,
-        "main_set": phase == "intense",
+        "main_set": normalized_phase == "intense",
     }
 
 
 def _resolve_target(
     workout_mode: str,
     phase: str,
+    coaching_style: Optional[str],
     interval_template: str,
     elapsed_seconds: int,
     profile: Dict[str, Any],
     config_module,
 ) -> Dict[str, Any]:
     mode = (workout_mode or "").strip().lower()
+    intensity = _style_to_intensity(coaching_style)
     if mode == "interval":
-        return _interval_target(interval_template, elapsed_seconds, profile, config_module)
-    return _easy_run_target(phase, profile, config_module)
+        return _interval_target(interval_template, elapsed_seconds, profile, intensity, config_module)
+    return _easy_run_target(phase, profile, intensity, config_module)
 
 
 def _evaluate_hr_quality(
@@ -663,25 +815,115 @@ def _update_metrics(
     in_main_set: bool,
     hr_quality_state: str,
     transition_event: Optional[str],
+    elapsed_seconds: int,
+    hr_bpm: Optional[int],
+    target: Dict[str, Any],
+    movement_state: str,
+    config_module,
 ) -> None:
+    metrics = state.setdefault("metrics", {})
+    current_elapsed = max(0.0, float(elapsed_seconds))
+    previous_elapsed = _safe_float(metrics.get("last_elapsed_seconds"))
+    if previous_elapsed is None:
+        metrics["last_elapsed_seconds"] = current_elapsed
+        return
+
+    delta = current_elapsed - previous_elapsed
+    metrics["last_elapsed_seconds"] = current_elapsed
+    if delta <= 0.0:
+        return
+
+    # Protect metrics from large timestamp jumps after app backgrounding.
+    max_tick_seconds = float(getattr(config_module, "MAX_COACHING_INTERVAL", 15))
+    delta = min(delta, max(1.0, max_tick_seconds))
+
     if not in_main_set:
         return
-    metrics = state.setdefault("metrics", {})
-    metrics["total_main_set_ticks"] = int(metrics.get("total_main_set_ticks", 0)) + 1
-
-    if hr_quality_state == "poor":
-        metrics["poor_ticks"] = int(metrics.get("poor_ticks", 0)) + 1
+    if movement_state == "paused":
         return
 
-    if zone_status == "in_zone":
-        metrics["in_zone_ticks"] = int(metrics.get("in_zone_ticks", 0)) + 1
-    elif zone_status == "above_zone":
-        metrics["above_zone_ticks"] = int(metrics.get("above_zone_ticks", 0)) + 1
-    elif zone_status == "below_zone":
-        metrics["below_zone_ticks"] = int(metrics.get("below_zone_ticks", 0)) + 1
+    metrics["total_main_set_ticks"] = int(metrics.get("total_main_set_ticks", 0)) + 1
+    metrics["main_set_seconds"] = float(metrics.get("main_set_seconds", 0.0)) + delta
+
+    hr_valid = (
+        hr_bpm is not None
+        and 35 <= int(hr_bpm) <= 230
+        and hr_quality_state == "good"
+    )
+    if hr_valid:
+        metrics["hr_valid_main_set_seconds"] = float(metrics.get("hr_valid_main_set_seconds", 0.0)) + delta
+    else:
+        metrics["poor_ticks"] = int(metrics.get("poor_ticks", 0)) + 1
+
+    target_low = _safe_int(target.get("target_low"))
+    target_high = _safe_int(target.get("target_high"))
+    target_enforced = bool(target.get("hr_enforced")) and target_low is not None and target_high is not None
+    if target_enforced:
+        metrics["target_enforced_main_set_seconds"] = float(metrics.get("target_enforced_main_set_seconds", 0.0)) + delta
+
+    in_target = False
+    if hr_valid and target_enforced:
+        metrics["zone_valid_main_set_seconds"] = float(metrics.get("zone_valid_main_set_seconds", 0.0)) + delta
+        in_target = target_low <= int(hr_bpm) <= target_high
+        if in_target:
+            metrics["in_target_zone_valid_seconds"] = float(metrics.get("in_target_zone_valid_seconds", 0.0)) + delta
+
+        segment = str(target.get("segment", "")).strip().lower()
+        if segment == "work":
+            metrics["interval_work_zone_valid_seconds"] = float(metrics.get("interval_work_zone_valid_seconds", 0.0)) + delta
+            if in_target:
+                metrics["interval_work_in_target_seconds"] = float(metrics.get("interval_work_in_target_seconds", 0.0)) + delta
+        elif segment in {"rest", "recovery"}:
+            metrics["interval_recovery_zone_valid_seconds"] = float(metrics.get("interval_recovery_zone_valid_seconds", 0.0)) + delta
+            if in_target:
+                metrics["interval_recovery_in_target_seconds"] = float(metrics.get("interval_recovery_in_target_seconds", 0.0)) + delta
+
+    if hr_valid:
+        if zone_status == "in_zone":
+            metrics["in_zone_ticks"] = int(metrics.get("in_zone_ticks", 0)) + 1
+        elif zone_status == "above_zone":
+            metrics["above_zone_ticks"] = int(metrics.get("above_zone_ticks", 0)) + 1
+        elif zone_status == "below_zone":
+            metrics["below_zone_ticks"] = int(metrics.get("below_zone_ticks", 0)) + 1
 
     if transition_event == "above_zone":
         metrics["overshoots"] = int(metrics.get("overshoots", 0)) + 1
+
+
+def _interval_weighted_zone_compliance(metrics: Dict[str, Any], config_module) -> Optional[float]:
+    min_phase_seconds = float(getattr(config_module, "CS_MIN_PHASE_VALID_SECONDS", 30.0))
+    work_valid = float(metrics.get("interval_work_zone_valid_seconds", 0.0))
+    work_in = float(metrics.get("interval_work_in_target_seconds", 0.0))
+    recovery_valid = float(metrics.get("interval_recovery_zone_valid_seconds", 0.0))
+    recovery_in = float(metrics.get("interval_recovery_in_target_seconds", 0.0))
+
+    work_component = None
+    recovery_component = None
+    if work_valid >= min_phase_seconds and work_valid > 0.0:
+        work_component = _clamp(work_in / work_valid, 0.0, 1.0)
+    if recovery_valid >= min_phase_seconds and recovery_valid > 0.0:
+        recovery_component = _clamp(recovery_in / recovery_valid, 0.0, 1.0)
+
+    if work_component is None and recovery_component is None:
+        return None
+    if work_component is not None and recovery_component is not None:
+        return _clamp((0.7 * work_component) + (0.3 * recovery_component), 0.0, 1.0)
+    return work_component if work_component is not None else recovery_component
+
+
+def _resolve_zone_compliance(metrics: Dict[str, Any], segment: str, config_module) -> Optional[float]:
+    zone_valid = float(metrics.get("zone_valid_main_set_seconds", 0.0))
+    in_target = float(metrics.get("in_target_zone_valid_seconds", 0.0))
+
+    segment_name = (segment or "").strip().lower()
+    if segment_name in {"work", "rest", "recovery"}:
+        interval_compliance = _interval_weighted_zone_compliance(metrics, config_module)
+        if interval_compliance is not None:
+            return interval_compliance
+
+    if zone_valid <= 0.0:
+        return None
+    return _clamp(in_target / zone_valid, 0.0, 1.0)
 
 
 def _score_label(score: int) -> str:
@@ -929,6 +1171,7 @@ def evaluate_zone_tick(
     target = _resolve_target(
         workout_mode=workout_mode,
         phase=phase,
+        coaching_style=style,
         interval_template=template,
         elapsed_seconds=int(elapsed_seconds),
         profile=profile,
@@ -1019,8 +1262,14 @@ def evaluate_zone_tick(
         in_main_set=bool(target.get("main_set")),
         hr_quality_state=hr_quality_info["state"],
         transition_event=transition_event,
+        elapsed_seconds=int(elapsed_seconds),
+        hr_bpm=hr_bpm,
+        target=target,
+        movement_state=movement_state,
+        config_module=config_module,
     )
-    score_payload = _score_from_metrics(state.get("metrics", {}), lang)
+    metrics_snapshot = state.get("metrics", {})
+    score_payload = _score_from_metrics(metrics_snapshot, lang)
 
     event_type = None
     should_speak = False
@@ -1104,6 +1353,12 @@ def evaluate_zone_tick(
     if recovery_samples:
         recovery_avg_seconds = round(sum(recovery_samples) / float(len(recovery_samples)), 1)
 
+    zone_compliance = _resolve_zone_compliance(
+        metrics_snapshot,
+        str(target.get("segment", "")),
+        config_module,
+    )
+
     return {
         "handled": True,
         "should_speak": should_speak,
@@ -1138,4 +1393,14 @@ def evaluate_zone_tick(
         "recovery_seconds": recovery_seconds,
         "recovery_avg_seconds": recovery_avg_seconds,
         "recovery_samples_count": len(recovery_samples),
+        "main_set_seconds": float(metrics_snapshot.get("main_set_seconds", 0.0)),
+        "hr_valid_main_set_seconds": float(metrics_snapshot.get("hr_valid_main_set_seconds", 0.0)),
+        "zone_valid_main_set_seconds": float(metrics_snapshot.get("zone_valid_main_set_seconds", 0.0)),
+        "in_target_zone_valid_seconds": float(metrics_snapshot.get("in_target_zone_valid_seconds", 0.0)),
+        "interval_work_zone_valid_seconds": float(metrics_snapshot.get("interval_work_zone_valid_seconds", 0.0)),
+        "interval_work_in_target_seconds": float(metrics_snapshot.get("interval_work_in_target_seconds", 0.0)),
+        "interval_recovery_zone_valid_seconds": float(metrics_snapshot.get("interval_recovery_zone_valid_seconds", 0.0)),
+        "interval_recovery_in_target_seconds": float(metrics_snapshot.get("interval_recovery_in_target_seconds", 0.0)),
+        "target_enforced_main_set_seconds": float(metrics_snapshot.get("target_enforced_main_set_seconds", 0.0)),
+        "zone_compliance": zone_compliance,
     }

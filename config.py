@@ -60,11 +60,22 @@ APP_NAME = "Coachi"
 APP_VERSION = "3.0.0"
 WEB_UI_VARIANT = (os.getenv("WEB_UI_VARIANT", "codex") or "codex").strip().lower()
 
+# Monetization runtime policy:
+# - Keep app fully free while APP_FREE_MODE=true.
+# - Billing flags can be prepared now and activated later by flipping APP_FREE_MODE=false.
+APP_FREE_MODE = _env_bool("APP_FREE_MODE", True)
+BILLING_ENABLED = _env_bool("BILLING_ENABLED", False)
+PREMIUM_SURFACES_ENABLED = _env_bool("PREMIUM_SURFACES_ENABLED", False)
+if APP_FREE_MODE:
+    BILLING_ENABLED = False
+    PREMIUM_SURFACES_ENABLED = False
+
 # ============================================
 # LANGUAGE SETTINGS
 # ============================================
 SUPPORTED_LANGUAGES = ["en", "no", "da"]
-DEFAULT_LANGUAGE = "en"
+_DEFAULT_LANGUAGE_RAW = (os.getenv("DEFAULT_LANGUAGE", "no") or "no").strip().lower()
+DEFAULT_LANGUAGE = _DEFAULT_LANGUAGE_RAW if _DEFAULT_LANGUAGE_RAW in SUPPORTED_LANGUAGES else "no"
 
 # ============================================
 # VOICE CONFIGURATION (per language)
@@ -121,7 +132,7 @@ EARLY_WORKOUT_GRACE_SECONDS = 30  # Force coaching output during early workout
 # Minimum signal quality required to force a cue after max silence
 # Set to 0.0 so the override ALWAYS fires — phone mics are noisy during workouts
 # and we never want the coach to go permanently silent
-MIN_SIGNAL_QUALITY_TO_FORCE = 0.0
+MIN_SIGNAL_QUALITY_TO_FORCE = _env_float("MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
 
 # Persona-specific voices
 # Maps to iOS CoachPersonality enum values
@@ -323,6 +334,9 @@ BRAIN_TIMEOUT = _env_float("BRAIN_TIMEOUT", 1.2)  # global default timeout (seco
 BRAIN_TIMEOUTS = _env_json_dict("BRAIN_TIMEOUTS_JSON", {"grok": 6.0})
 # Optional per-mode overrides (realtime_coach/chat). Falls back to BRAIN_TIMEOUTS/BRAIN_TIMEOUT.
 BRAIN_MODE_TIMEOUTS = _env_json_dict("BRAIN_MODE_TIMEOUTS_JSON", {})
+COACH_QA_TIMEOUT_SECONDS = _env_float("COACH_QA_TIMEOUT_SECONDS", 5.0)
+COACH_QA_MAX_TOKENS = _env_int("COACH_QA_MAX_TOKENS", 110)
+COACH_QA_MAX_SENTENCES = _env_int("COACH_QA_MAX_SENTENCES", 5)
 #
 # Provider client timeout strategy:
 # Keep provider HTTP timeout slightly below router timeout so timed-out work
@@ -370,11 +384,14 @@ MIN_TIME_BETWEEN_COACHING = 20  # minimum seconds between spoken messages (preve
 
 # Optional quality systems (defaulted for behavior parity)
 # - Shadow mode logs/observes only.
-# - Enforce mode can alter spoken output (off by default).
+# - Enforce mode can alter spoken output (on by default for launch quality floor).
 COACHING_VALIDATION_SHADOW_MODE = _env_bool("COACHING_VALIDATION_SHADOW_MODE", True)
-COACHING_VALIDATION_ENFORCE = _env_bool("COACHING_VALIDATION_ENFORCE", False)
+# Day 3 quality floor: validated fallback templates should protect every spoken cue.
+COACHING_VALIDATION_ENFORCE = _env_bool("COACHING_VALIDATION_ENFORCE", True)
 BREATHING_TIMELINE_SHADOW_MODE = _env_bool("BREATHING_TIMELINE_SHADOW_MODE", True)
-BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", False)
+# Timeline enforcement is enabled by default, but runtime only applies it when
+# no deterministic zone-event text is active.
+BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", True)
 
 # ============================================
 # WORKOUT MODES (BACKEND-ONLY FOR NOW)
@@ -382,6 +399,60 @@ BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", False)
 SUPPORTED_WORKOUT_MODES = ["standard", "interval", "easy_run"]
 DEFAULT_WORKOUT_MODE = "standard"
 ZONE_COACHING_WORKOUT_MODES = ["easy_run", "interval"]
+
+# Coach score rollout switch:
+# - cs_v2: new layered score (default)
+# - cs_v1: legacy score
+# - shadow: compute both, return v1 as primary while logging v2 diagnostics
+COACH_SCORE_VERSION = (os.getenv("COACH_SCORE_VERSION", "cs_v2") or "cs_v2").strip().lower()
+if COACH_SCORE_VERSION not in {"cs_v1", "cs_v2", "shadow"}:
+    COACH_SCORE_VERSION = "cs_v2"
+COACH_SCORE_DEBUG_LOGS = _env_bool("COACH_SCORE_DEBUG_LOGS", True)
+COACH_TRANSCRIPT_DEBUG_LOGS = _env_bool("COACH_TRANSCRIPT_DEBUG_LOGS", True)
+
+# CS v2 thresholds
+CS_ZONE_PASS_THRESHOLD = _env_float("CS_ZONE_PASS_THRESHOLD", 0.50)
+CS_BREATH_MIN_RELIABLE_QUALITY = _env_float("CS_BREATH_MIN_RELIABLE_QUALITY", 0.35)
+CS_BREATH_MIN_RELIABLE_SAMPLES = _env_int("CS_BREATH_MIN_RELIABLE_SAMPLES", 6)
+CS_BREATH_PASS_MIN_CONFIDENCE = _env_float("CS_BREATH_PASS_MIN_CONFIDENCE", 0.60)
+CS_BREATH_PASS_MIN_SCORE = _env_float("CS_BREATH_PASS_MIN_SCORE", 50.0)
+CS_STRONG_HR_FOR_MAX_ZONE_COMPLIANCE = _env_float("CS_STRONG_HR_FOR_MAX_ZONE_COMPLIANCE", 0.75)
+CS_STRONG_HR_FOR_MAX_SECONDS = _env_float("CS_STRONG_HR_FOR_MAX_SECONDS", 600.0)
+CS_MIN_HR_VALID_SECONDS_FOR_PILLAR = _env_float("CS_MIN_HR_VALID_SECONDS_FOR_PILLAR", 120.0)
+CS_MIN_ZONE_VALID_SECONDS_FOR_CAP = _env_float("CS_MIN_ZONE_VALID_SECONDS_FOR_CAP", 120.0)
+CS_MIN_ZONE_VALID_SECONDS_FOR_SCORE = _env_float("CS_MIN_ZONE_VALID_SECONDS_FOR_SCORE", 30.0)
+CS_MIN_PHASE_VALID_SECONDS = _env_float("CS_MIN_PHASE_VALID_SECONDS", 30.0)
+
+# Target generation safety
+TARGET_MIN_HALF_WIDTH_BPM = _env_int("TARGET_MIN_HALF_WIDTH_BPM", 8)  # +/- 8 bpm
+TARGET_HR_UPPER_ABSOLUTE_CAP = _env_int("TARGET_HR_UPPER_ABSOLUTE_CAP", 195)
+
+# Auto target bands (primary HRR, fallback %HRmax)
+STEADY_HRR_BANDS = {
+    "easy": (0.55, 0.68),
+    "medium": (0.68, 0.80),
+    "hard": (0.80, 0.90),
+}
+STEADY_HRMAX_BANDS = {
+    "easy": (0.65, 0.75),
+    "medium": (0.75, 0.85),
+    "hard": (0.85, 0.92),
+}
+INTERVAL_WORK_HRR_BANDS = {
+    "easy": (0.70, 0.82),
+    "medium": (0.80, 0.90),
+    "hard": (0.88, 0.95),
+}
+INTERVAL_RECOVERY_HRR_BANDS = {
+    "easy": (0.55, 0.65),
+    "medium": (0.58, 0.68),
+    "hard": (0.60, 0.72),
+}
+INTERVAL_WORK_HRMAX_BANDS = {
+    "easy": (0.75, 0.85),
+    "medium": (0.85, 0.92),
+    "hard": (0.88, 0.94),
+}
 
 # Running session templates (v1)
 SUPPORTED_INTERVAL_TEMPLATES = ["4x4", "8x1", "10x30/30"]

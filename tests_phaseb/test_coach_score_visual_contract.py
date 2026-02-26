@@ -39,14 +39,19 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
 
 def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     text = HOME_VIEW.read_text(encoding="utf-8")
-    assert "coachScore: workoutViewModel.coachScore" in text
+    assert "scoreHistory: workoutViewModel.coachScoreHistory" in text
+    assert "coachScore: workoutViewModel.homeCoachScore" in text
     assert "GamifiedCoachScoreRingView(" in text
 
 
 def test_workout_complete_uses_gamified_score_ring() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
-    assert "GamifiedCoachScoreRingView(" in text
+    assert "NeonCoachScoreRingView(" in text
     assert "score: viewModel.coachScore" in text
+    assert 'Text("CS")' in text
+    assert 'return "0 BPM"' in text
+    assert "ShareLink(item: shareSummaryText)" in text
+    assert "Text(L10n.done)" in text
 
 
 def test_onboarding_data_and_result_use_gamified_ring() -> None:
