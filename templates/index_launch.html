@@ -120,8 +120,11 @@
             max-width: 1400px; margin: 0 auto;
         }
         .brand {
-            display: inline-flex; align-items: center; gap: 0;
+            display: inline-flex; align-items: center; gap: 8px;
             text-decoration: none; color: var(--primary); flex-shrink: 0;
+        }
+        .brand-logo {
+            width: 30px; height: 30px; flex-shrink: 0;
         }
         .brand-text {
             font-family: "Poppins", sans-serif;
@@ -743,6 +746,17 @@
         <div class="nav-wrap">
             <nav class="nav">
                 <a href="#top" class="brand">
+                    <svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <defs><linearGradient id="navGrad" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stop-color="#FF8A5A"/><stop offset="100%" stop-color="#FF5E6C"/></linearGradient></defs>
+                        <circle cx="50" cy="50" r="46" fill="url(#navGrad)"/>
+                        <circle cx="54" cy="26" r="5.5" fill="#fff"/>
+                        <g stroke="#fff" stroke-width="5.5" stroke-linecap="round" fill="none">
+                            <path d="M50 33 L45 52"/>
+                            <path d="M37 40 L48 37 L58 33"/>
+                            <path d="M45 52 L56 64 L65 58"/>
+                            <path d="M45 52 L34 66 L28 74"/>
+                        </g>
+                    </svg>
                     <span class="brand-text">Coachi</span>
                 </a>
                 <div class="nav-right">
@@ -1045,7 +1059,20 @@
           <div class="footer-inner">
             <div class="footer-top">
                 <div>
-                    <h3>Coachi</h3>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs><linearGradient id="ftGrad" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stop-color="#FF8A5A"/><stop offset="100%" stop-color="#FF5E6C"/></linearGradient></defs>
+                            <circle cx="50" cy="50" r="46" fill="url(#ftGrad)"/>
+                            <circle cx="54" cy="26" r="5.5" fill="#fff"/>
+                            <g stroke="#fff" stroke-width="5.5" stroke-linecap="round" fill="none">
+                                <path d="M50 33 L45 52"/>
+                                <path d="M37 40 L48 37 L58 33"/>
+                                <path d="M45 52 L56 64 L65 58"/>
+                                <path d="M45 52 L34 66 L28 74"/>
+                            </g>
+                        </svg>
+                        <h3 style="margin-bottom:0;">Coachi</h3>
+                    </div>
                     <p class="footer-brand-tagline" data-i18n="footer_tagline">Din personlige løpecoach. Korte stemmeråd som hjelper deg å løpe smartere.</p>
                     <div class="store-row-black">
                         <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
