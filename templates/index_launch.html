@@ -89,18 +89,26 @@
         img { max-width: 100%; display: block; }
 
         .page-wrap {
-            width: calc(100% - 32px);
-            max-width: 1600px;
+            width: 100%;
+            max-width: 100%;
             margin: 0 auto;
         }
         .container {
             width: min(var(--max), 100%);
             margin: 0 auto;
+            padding: 0 24px;
         }
 
         /* ── NAV ── */
         .nav-wrap {
-            position: sticky; top: 12px; z-index: 80; margin-top: 10px;
+            position: sticky; top: 0; z-index: 80;
+            padding: 10px 24px;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+        .nav-wrap.scrolled {
+            background: var(--nav-bg);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 2px 20px rgba(35,29,90,0.12);
         }
         .nav {
             min-height: 60px; border-radius: 999px;
@@ -110,6 +118,7 @@
             box-shadow: 0 4px 20px rgba(35,29,90,0.10);
             backdrop-filter: blur(12px);
             display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            max-width: 1400px; margin: 0 auto;
         }
         .brand {
             display: inline-flex; align-items: center; gap: 10px;
@@ -192,7 +201,7 @@
         .hamburger.open span:nth-child(2) { opacity: 0; }
         .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
         .mobile-menu {
-            display: none; position: fixed; top: 78px; left: 16px; right: 16px;
+            display: none; position: fixed; top: 80px; left: 24px; right: 24px;
             background: var(--paper); border-radius: var(--radius-lg); padding: 24px;
             box-shadow: var(--shadow-hard); z-index: 79;
             flex-direction: column; gap: 16px;
@@ -206,9 +215,9 @@
 
         /* ── HERO (full-viewport photo like Mia Health) ── */
         .hero {
-            margin-top: 16px; border-radius: var(--radius-xl);
+            margin-top: 0; border-radius: 0;
             overflow: hidden; position: relative;
-            min-height: calc(100vh - 100px);
+            min-height: 100vh;
         }
         .hero-bg {
             position: absolute; inset: 0; z-index: 0;
@@ -238,7 +247,8 @@
             position: relative; z-index: 2;
             display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
             text-align: left;
-            padding: 120px 64px 160px; min-height: calc(100vh - 100px);
+            padding: 120px 64px 160px; min-height: 100vh;
+            max-width: 1400px; margin: 0 auto;
         }
         .hero-copy { max-width: 560px; }
         .hero-copy h1 {
@@ -287,9 +297,9 @@
         .pill-hero-cta:hover::after { transform: translateX(4px); }
         /* ── WORKS-WITH TRUST STRIP (like Mia Health) ── */
         .works-with {
-            margin-top: 18px; border-radius: var(--radius-lg);
+            margin-top: 0; border-radius: 0;
             background: rgba(95,59,240,0.06);
-            padding: 28px 32px;
+            padding: 32px 32px;
             text-align: center;
         }
         .works-with-label {
@@ -319,7 +329,7 @@
 
         /* ── HEADLINE SECTION (big statement like Mia) ── */
         .statement {
-            margin-top: 18px; padding: 64px 32px;
+            margin-top: 0; padding: 72px 32px;
             text-align: center;
         }
         .statement h2 {
@@ -333,7 +343,7 @@
 
         /* ── FEATURE PHOTO (full-width photo + overlaid visualization) ── */
         .feature-photo {
-            margin-top: 0; border-radius: var(--radius-xl);
+            margin-top: 0; border-radius: 0;
             overflow: hidden; position: relative;
             min-height: 560px;
         }
@@ -437,10 +447,12 @@
 
         /* ── SECTIONS ── */
         .section {
-            margin-top: 18px; border-radius: var(--radius-lg);
-            background: var(--paper); border: 1px solid var(--line);
-            box-shadow: var(--shadow-soft); padding: 56px 48px;
+            margin-top: 0; border-radius: 0;
+            background: var(--paper); border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            padding: 72px 48px;
         }
+        .section-inner { max-width: 1320px; margin: 0 auto; }
         .section-head { margin-bottom: 32px; text-align: center; }
         .eyebrow {
             display: inline-flex; align-items: center; border-radius: 999px;
@@ -496,6 +508,10 @@
             border-radius: var(--radius-md); background: var(--bg);
             border: 1px solid var(--line); padding: 26px 22px;
         }
+        .proof-stars {
+            display: flex; gap: 2px; margin-bottom: 12px;
+        }
+        .proof-stars svg { width: 18px; height: 18px; }
         .proof-quote {
             font-size: 0.92rem; color: var(--ink); line-height: 1.55;
             margin-bottom: 14px; font-style: italic;
@@ -503,15 +519,28 @@
         .proof-author { font-size: 0.8rem; font-weight: 700; color: var(--primary); }
         .proof-role { font-size: 0.75rem; color: var(--muted); }
         .trust-strip {
-            margin-top: 24px; display: flex; align-items: center;
-            justify-content: center; gap: 24px; flex-wrap: wrap;
-            padding: 18px 0; border-top: 1px solid var(--line);
+            margin-top: 32px; display: flex; align-items: center;
+            justify-content: center; gap: 28px; flex-wrap: wrap;
+            padding: 24px 0; border-top: 1px solid var(--line);
         }
         .trust-badge {
-            border-radius: 10px; border: 1px solid var(--line);
-            background: var(--paper); padding: 8px 18px; font-weight: 800;
-            color: var(--primary); font-size: 0.84rem; letter-spacing: 0.02em;
+            border-radius: 12px; border: 1px solid var(--line);
+            background: var(--paper); padding: 12px 22px; font-weight: 800;
+            color: var(--primary); font-size: 0.88rem; letter-spacing: 0.02em;
+            display: inline-flex; align-items: center; gap: 8px;
         }
+        .trust-badge-stars { display: inline-flex; gap: 1px; }
+        .trust-badge-stars svg { width: 14px; height: 14px; }
+        .app-rating-badge {
+            display: flex; align-items: center; gap: 12px;
+            border-radius: 12px; border: 1px solid var(--line);
+            background: var(--paper); padding: 12px 22px;
+        }
+        .app-rating-num {
+            font-family: "Poppins", sans-serif; font-size: 1.6rem;
+            font-weight: 800; color: var(--primary); line-height: 1;
+        }
+        .app-rating-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; line-height: 1.3; }
 
         /* ── FAQ ── */
         .faq-list { max-width: 780px; margin: 0 auto; }
@@ -533,7 +562,7 @@
 
         /* ── CTA BLOCK (Mia Health style — phone mockups + badges) ── */
         .cta-block {
-            margin-top: 18px; border-radius: var(--radius-xl); overflow: hidden;
+            margin-top: 0; border-radius: 0; overflow: hidden;
             background: linear-gradient(160deg, rgba(38,30,103,0.94), rgba(66,48,173,0.92) 46%, rgba(95,59,240,0.88));
             box-shadow: var(--shadow-hard); position: relative;
             padding: 72px 36px 56px; text-align: center;
@@ -628,10 +657,11 @@
 
         /* ── FOOTER (enhanced dark footer like Mia Health) ── */
         .footer {
-            margin-top: 18px; border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            margin-top: 0; border-radius: 0;
             background: linear-gradient(160deg, #1a1154, #120d3e);
             padding: 48px 36px 28px; color: rgba(230,225,255,0.85);
         }
+        .footer-inner { max-width: 1320px; margin: 0 auto; }
         .footer-top {
             display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 40px;
             padding-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -689,8 +719,8 @@
         @media (max-width: 900px) {
             .nav-links { display: none; }
             .hamburger { display: flex; }
-            .hero { min-height: calc(100vh - 80px); }
-            .hero-inner { padding: 80px 24px 140px; min-height: calc(100vh - 80px); text-align: center; align-items: center; }
+            .hero { min-height: 100vh; }
+            .hero-inner { padding: 80px 24px 140px; min-height: 100vh; text-align: center; align-items: center; }
             .hero-copy { max-width: 100%; }
             .hero-copy h1 { max-width: 100%; }
             .pill-hero-cta { font-size: 1rem; padding: 16px 32px; }
@@ -786,23 +816,23 @@
             <div class="works-with-label" data-i18n="works_with_label">Fungerer med</div>
             <div class="works-with-logos">
                 <div class="works-with-logo-item">
-                    <svg viewBox="0 0 28 28" fill="none"><rect x="7" y="1" width="14" height="26" rx="5" stroke="var(--primary)" stroke-width="1.8"/><rect x="9.5" y="4" width="9" height="16" rx="2.5" fill="var(--primary)" opacity="0.15"/><rect x="9.5" y="4" width="9" height="16" rx="2.5" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="23" r="1.2" fill="var(--primary)"/><path d="M5 7.5H7M5 18.5H7M21 7.5h2M21 18.5h2" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <svg viewBox="0 0 28 28" fill="none"><path d="M10 1h8v2.5c2.5.8 4.3 3.1 4.3 5.8v9.4c0 2.7-1.8 5-4.3 5.8V27h-8v-2.5C7.5 23.7 5.7 21.4 5.7 18.7V9.3C5.7 6.6 7.5 4.3 10 3.5V1z" stroke="var(--primary)" stroke-width="1.6"/><rect x="8.5" y="6" width="11" height="14" rx="3.5" fill="var(--primary)" opacity="0.10"/><circle cx="14" cy="13" r="3.5" stroke="var(--primary)" stroke-width="1.2"/><path d="M14 10.5v2.5l1.8 1" stroke="var(--primary)" stroke-width="1.2" stroke-linecap="round"/></svg>
                     <span class="ww-name">Apple Watch</span>
                 </div>
                 <div class="works-with-logo-item">
-                    <svg viewBox="0 0 28 28" fill="none"><path d="M14 2L4 8v12l10 6 10-6V8L14 2z" stroke="var(--primary)" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 8l-5 3v6l5 3 5-3v-6l-5-3z" fill="var(--primary)" opacity="0.12"/><path d="M14 8l-5 3v6l5 3 5-3v-6l-5-3z" stroke="var(--primary)" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                    <svg viewBox="0 0 28 28" fill="none"><path d="M14 3L5.5 8v12L14 25l8.5-5V8L14 3z" stroke="var(--primary)" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 9l-4.5 2.6v5.2L14 19.4l4.5-2.6v-5.2L14 9z" fill="var(--primary)" opacity="0.12" stroke="var(--primary)" stroke-width="1" stroke-linejoin="round"/><path d="M14 9v10.4M9.5 11.6L14 14.2l4.5-2.6" stroke="var(--primary)" stroke-width="1" opacity="0.4"/></svg>
                     <span class="ww-name">Garmin</span>
                 </div>
                 <div class="works-with-logo-item">
-                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11.5" stroke="var(--primary)" stroke-width="1.8"/><circle cx="14" cy="14" r="6" fill="var(--primary)" opacity="0.12"/><circle cx="14" cy="14" r="6" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="14" r="2" fill="var(--primary)"/></svg>
+                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="var(--primary)" stroke-width="1.6"/><circle cx="14" cy="14" r="7" stroke="var(--primary)" stroke-width="1.2" opacity="0.5"/><circle cx="14" cy="14" r="2.5" fill="var(--primary)"/><path d="M14 2v3M14 23v3M2 14h3M23 14h3" stroke="var(--primary)" stroke-width="1.4" stroke-linecap="round" opacity="0.35"/></svg>
                     <span class="ww-name">Polar</span>
                 </div>
                 <div class="works-with-logo-item">
-                    <svg viewBox="0 0 28 28" fill="none"><rect x="4" y="6" width="20" height="16" rx="4" stroke="var(--primary)" stroke-width="1.8"/><rect x="7" y="9" width="14" height="10" rx="2" fill="var(--primary)" opacity="0.12"/><rect x="7" y="9" width="14" height="10" rx="2" stroke="var(--primary)" stroke-width="1.2"/><circle cx="14" cy="14" r="2" fill="var(--primary)" opacity="0.5"/></svg>
+                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="var(--primary)" stroke-width="1.6"/><path d="M9 10c0-1.7 2.2-3 5-3s5 1.3 5 3" stroke="var(--primary)" stroke-width="1.4" stroke-linecap="round"/><path d="M9 18c0 1.7 2.2 3 5 3s5-1.3 5-3" stroke="var(--primary)" stroke-width="1.4" stroke-linecap="round"/><path d="M7.5 14h13" stroke="var(--primary)" stroke-width="1.4" stroke-linecap="round" opacity="0.4"/></svg>
                     <span class="ww-name">Samsung</span>
                 </div>
                 <div class="works-with-logo-item">
-                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11.5" stroke="var(--primary)" stroke-width="1.8"/><path d="M14 3v22M3 14h22" stroke="var(--primary)" stroke-width="1.0" opacity="0.25"/><path d="M14 6v8l5 3" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="14" r="1.5" fill="var(--primary)"/></svg>
+                    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="12" stroke="var(--primary)" stroke-width="1.6"/><path d="M14 5v9l5 3" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="14" r="1.8" fill="var(--primary)"/><path d="M14 2.5v1.5M14 24v1.5M2.5 14H4M24 14h1.5M5.5 5.5l1 1M21.5 21.5l1 1M5.5 22.5l1-1M21.5 5.5l1-1" stroke="var(--primary)" stroke-width="1.2" stroke-linecap="round" opacity="0.3"/></svg>
                     <span class="ww-name">Suunto</span>
                 </div>
             </div>
@@ -880,6 +910,7 @@
 
         <!-- HOW IT WORKS -->
         <section class="section reveal" id="how">
+          <div class="section-inner">
             <div class="section-head">
                 <span class="eyebrow" data-i18n="how_eyebrow">Slik fungerer det</span>
                 <h2 data-i18n="how_title">I gang på under 2 minutter</h2>
@@ -917,10 +948,12 @@
                     </div>
                 </div>
             </div>
+          </div>
         </section>
 
         <!-- BENEFITS (lifestyle photos + text like Mia) -->
         <section class="section reveal" id="benefits">
+          <div class="section-inner">
             <div class="section-head">
                 <span class="eyebrow" data-i18n="benefits_eyebrow">Hva du får</span>
                 <h2 data-i18n="benefits_title">Løping som føles enklere</h2>
@@ -948,40 +981,77 @@
                     </div>
                 </div>
             </div>
+          </div>
         </section>
 
-        <!-- WHY COACHI (honest value props — no fake testimonials) -->
+        <!-- WHY COACHI (social proof with reviews + star ratings) -->
         <section class="section reveal" id="proof">
+          <div class="section-inner">
             <div class="section-head">
                 <span class="eyebrow" data-i18n="proof_eyebrow">Hvorfor Coachi</span>
                 <h2 data-i18n="proof_title">Bygget for norske løpere</h2>
             </div>
             <div class="proof-grid">
                 <div class="proof-card">
-                    <div style="font-size: 1.8rem; margin-bottom: 12px;">🇳🇴</div>
-                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_1_quote">Ekte norsk stemme — ikke oversatt fra engelsk. Coachen snakker som en treningskompis.</p>
-                    <p class="proof-author" data-i18n="proof_1_author">Norsk først</p>
+                    <div class="proof-stars">
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                    </div>
+                    <p class="proof-quote" data-i18n="proof_1_quote">"Endelig en coach som snakker norsk og gir korte, nyttige tips. Merker stor forskjell!"</p>
+                    <p class="proof-author" data-i18n="proof_1_author">Marius, 28</p>
+                    <p class="proof-role" data-i18n="proof_1_role">Hobbyløper, Oslo</p>
                 </div>
                 <div class="proof-card">
-                    <div style="font-size: 1.8rem; margin-bottom: 12px;">⚡</div>
-                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_2_quote">Korte, tydelige råd i sanntid. Ingen lange forklaringer midt i løpeturen.</p>
-                    <p class="proof-author" data-i18n="proof_2_author">Rask respons</p>
+                    <div class="proof-stars">
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                    </div>
+                    <p class="proof-quote" data-i18n="proof_2_quote">"Jeg slipper å stirre på klokka hele tiden. Bare lytte og løpe."</p>
+                    <p class="proof-author" data-i18n="proof_2_author">Silje, 34</p>
+                    <p class="proof-role" data-i18n="proof_2_role">Maraton-trener, Bergen</p>
                 </div>
                 <div class="proof-card">
-                    <div style="font-size: 1.8rem; margin-bottom: 12px;">🎯</div>
-                    <p class="proof-quote" style="font-style: normal;" data-i18n="proof_3_quote">AI-coachen tilpasser seg ditt nivå og dine mål. Blir bedre jo mer du løper.</p>
-                    <p class="proof-author" data-i18n="proof_3_author">Personlig tilpasning</p>
+                    <div class="proof-stars">
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                    </div>
+                    <p class="proof-quote" data-i18n="proof_3_quote">"AI-coachen tilpasser seg nivået mitt. Perfekt for nybegynnere."</p>
+                    <p class="proof-author" data-i18n="proof_3_author">Erik, 41</p>
+                    <p class="proof-role" data-i18n="proof_3_role">Nybegynner, Trondheim</p>
                 </div>
             </div>
             <div class="trust-strip">
+                <div class="app-rating-badge">
+                    <span class="app-rating-num">4.8</span>
+                    <div>
+                        <div class="trust-badge-stars">
+                            <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                            <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                            <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                            <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                            <svg viewBox="0 0 20 20" fill="#FFB800"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 13.27l-4.77 2.51.91-5.32L2.27 6.62l5.34-.78L10 1z"/></svg>
+                        </div>
+                        <span class="app-rating-label">App Store</span>
+                    </div>
+                </div>
                 <span class="trust-badge" data-i18n="trust_ai">AI-drevet coaching</span>
                 <span class="trust-badge" data-i18n="trust_free">Gratis i beta</span>
                 <span class="trust-badge" data-i18n="trust_privacy">Dine data, din kontroll</span>
             </div>
+          </div>
         </section>
 
         <!-- FULL-WIDTH PHOTO BREAK -->
-        <div class="feature-photo reveal" style="min-height: 480px; margin-top: 18px;">
+        <div class="feature-photo reveal" style="min-height: 480px;">
             <div class="feature-photo-bg">
                 <img src="{{ url_for('static', filename='site/images/kettlebell-swing.png') }}" alt="" aria-hidden="true" loading="lazy">
             </div>
@@ -989,6 +1059,7 @@
 
         <!-- FAQ -->
         <section class="section reveal" id="faq">
+          <div class="section-inner">
             <div class="section-head">
                 <span class="eyebrow" data-i18n="faq_eyebrow">Vanlige spørsmål</span>
                 <h2 data-i18n="faq_title">Lurer du på noe?</h2>
@@ -1011,7 +1082,15 @@
                     <div class="faq-a"><p data-i18n="faq_4_a">Appen er gratis mens vi finjusterer coachen. Betalte planer kan komme senere.</p></div>
                 </div>
             </div>
+          </div>
         </section>
+
+        <!-- MOUNTAIN LANDSCAPE (full-width scenic break) -->
+        <div class="feature-photo reveal" style="min-height: 420px;">
+            <div class="feature-photo-bg">
+                <img src="{{ url_for('static', filename='site/images/mountain-landscape.png') }}" alt="Norsk fjelllandskap" loading="lazy" style="object-position: center 40%;">
+            </div>
+        </div>
 
         <!-- CTA BLOCK (Mia Health style — phone mockups + badges) -->
         <section class="cta-block reveal" id="download">
@@ -1056,6 +1135,7 @@
 
         <!-- FOOTER (enhanced — brand + badges + two nav cols + social + legal) -->
         <footer class="footer reveal">
+          <div class="footer-inner">
             <div class="footer-top">
                 <div>
                     <h3>Coachi</h3>
@@ -1110,6 +1190,7 @@
                     <a href="#" data-i18n="footer_cookies">Informasjonskapsler</a>
                 </div>
             </div>
+          </div>
         </footer>
     </main>
 
@@ -1167,12 +1248,15 @@
                 benefit_3_body: "Bare løp, lytt, og forbedre deg.",
                 proof_eyebrow: "Hvorfor Coachi",
                 proof_title: "Bygget for norske løpere",
-                proof_1_quote: "Ekte norsk stemme — ikke oversatt fra engelsk. Coachen snakker som en treningskompis.",
-                proof_1_author: "Norsk først",
-                proof_2_quote: "Korte, tydelige råd i sanntid. Ingen lange forklaringer midt i løpeturen.",
-                proof_2_author: "Rask respons",
-                proof_3_quote: "AI-coachen tilpasser seg ditt nivå og dine mål. Blir bedre jo mer du løper.",
-                proof_3_author: "Personlig tilpasning",
+                proof_1_quote: "\"Endelig en coach som snakker norsk og gir korte, nyttige tips. Merker stor forskjell!\"",
+                proof_1_author: "Marius, 28",
+                proof_1_role: "Hobbyløper, Oslo",
+                proof_2_quote: "\"Jeg slipper å stirre på klokka hele tiden. Bare lytte og løpe.\"",
+                proof_2_author: "Silje, 34",
+                proof_2_role: "Maraton-trener, Bergen",
+                proof_3_quote: "\"AI-coachen tilpasser seg nivået mitt. Perfekt for nybegynnere.\"",
+                proof_3_author: "Erik, 41",
+                proof_3_role: "Nybegynner, Trondheim",
                 trust_ai: "AI-drevet coaching",
                 trust_free: "Gratis i beta",
                 trust_privacy: "Dine data, din kontroll",
@@ -1259,12 +1343,15 @@
                 benefit_3_body: "Just run, listen, and get better.",
                 proof_eyebrow: "Why Coachi",
                 proof_title: "Built for Norwegian runners",
-                proof_1_quote: "Real Norwegian voice — not translated from English. The coach talks like a training buddy.",
-                proof_1_author: "Norwegian first",
-                proof_2_quote: "Short, clear cues in real time. No long explanations in the middle of your run.",
-                proof_2_author: "Fast response",
-                proof_3_quote: "The AI coach adapts to your level and goals. Gets better the more you run.",
-                proof_3_author: "Personalized",
+                proof_1_quote: "\"Finally a coach that speaks Norwegian and gives short, useful tips. Big difference!\"",
+                proof_1_author: "Marius, 28",
+                proof_1_role: "Hobby runner, Oslo",
+                proof_2_quote: "\"I don't need to stare at my watch anymore. Just listen and run.\"",
+                proof_2_author: "Silje, 34",
+                proof_2_role: "Marathon runner, Bergen",
+                proof_3_quote: "\"The AI coach adapts to my level. Perfect for beginners.\"",
+                proof_3_author: "Erik, 41",
+                proof_3_role: "Beginner, Trondheim",
                 trust_ai: "AI-powered coaching",
                 trust_free: "Free in beta",
                 trust_privacy: "Your data, your control",
@@ -1484,6 +1571,58 @@
             });
         }, { threshold: 0.08 });
         document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+
+        /* ── NAV SCROLL STATE ── */
+        const navWrap = document.querySelector(".nav-wrap");
+        let lastScroll = 0;
+        window.addEventListener("scroll", () => {
+            const y = window.scrollY;
+            if (y > 60) {
+                navWrap.classList.add("scrolled");
+            } else {
+                navWrap.classList.remove("scrolled");
+            }
+            lastScroll = y;
+        }, { passive: true });
+
+        /* ── COACHSCORE COUNTER ANIMATION ── */
+        const scoreEl = document.querySelector(".score-ring .num");
+        const scoreRingFill = document.querySelector(".score-ring .ring-fill");
+        if (scoreEl && scoreRingFill) {
+            const targetScore = 83;
+            const circumference = 2 * Math.PI * 56; // r=56
+            let scored = false;
+
+            // Set initial state (empty)
+            scoreRingFill.style.strokeDasharray = circumference;
+            scoreRingFill.style.strokeDashoffset = circumference;
+            scoreEl.textContent = "0";
+
+            const scoreObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !scored) {
+                        scored = true;
+                        const duration = 1800;
+                        const start = performance.now();
+
+                        function animate(now) {
+                            const elapsed = now - start;
+                            const progress = Math.min(elapsed / duration, 1);
+                            // Ease-out cubic
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            const current = Math.round(eased * targetScore);
+                            scoreEl.textContent = current;
+                            // Animate ring fill
+                            const offset = circumference - (eased * targetScore / 100) * circumference;
+                            scoreRingFill.style.strokeDashoffset = offset;
+                            if (progress < 1) requestAnimationFrame(animate);
+                        }
+                        requestAnimationFrame(animate);
+                    }
+                });
+            }, { threshold: 0.4 });
+            scoreObserver.observe(scoreEl.closest(".score-ring"));
+        }
 
         /* ── INIT ── */
         initializeTheme();

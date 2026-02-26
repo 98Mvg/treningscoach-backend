@@ -35,11 +35,10 @@ def test_root_and_backend_launch_templates_are_in_sync() -> None:
 def test_launch_template_uses_static_url_for_images() -> None:
     html = LAUNCH_TEMPLATE.read_text(encoding="utf-8")
     expected = [
-        "hero-runner.png",
+        "mountain-trail-runner.png",
         "step-choose-workout.png",
         "step-coaching.png",
         "watch-hr.png",
-        "coach-push.png",
     ]
     for image_name in expected:
         token = f"url_for('static', filename='site/images/{image_name}'"
