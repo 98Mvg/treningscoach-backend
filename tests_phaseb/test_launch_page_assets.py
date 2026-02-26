@@ -39,6 +39,7 @@ def test_launch_template_uses_static_url_for_images() -> None:
         "step-choose-workout.png",
         "step-coaching.png",
         "watch-hr.png",
+        "sunset-hilltop-rest.png",
     ]
     for image_name in expected:
         token = f"url_for('static', filename='site/images/{image_name}'"
