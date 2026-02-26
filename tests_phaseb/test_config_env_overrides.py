@@ -105,8 +105,10 @@ def test_monetization_can_be_enabled_later(monkeypatch):
 
 def test_coach_score_version_env_override(monkeypatch):
     monkeypatch.setenv("COACH_SCORE_VERSION", "shadow")
+    monkeypatch.setenv("SPEECH_DECISION_OWNER_V2", "false")
     importlib.reload(config)
     assert config.COACH_SCORE_VERSION == "shadow"
+    assert config.SPEECH_DECISION_OWNER_V2 is False
 
     monkeypatch.setenv("COACH_SCORE_VERSION", "invalid")
     importlib.reload(config)

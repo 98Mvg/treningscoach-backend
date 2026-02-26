@@ -193,6 +193,9 @@ def test_coach_continuous_contract(monkeypatch, tmp_path):
     assert "zone_valid_main_set_seconds" in payload
     assert "zone_compliance" in payload
     assert "breath_available_reliable" in payload
+    assert "decision_owner" in payload
+    assert "decision_reason" in payload
+    assert "breath_quality_state" in payload
     assert isinstance(payload["coach_score"], int)
     assert isinstance(payload["coach_score_line"], str)
 
