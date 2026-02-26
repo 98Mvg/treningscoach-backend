@@ -99,7 +99,7 @@
             padding: 0 24px;
         }
 
-        /* ── NAV (clean white bar like Mia Health) ── */
+        /* ── NAV ── */
         .nav-wrap {
             position: sticky; top: 0; z-index: 80;
             background: #fff;
@@ -196,7 +196,7 @@
         }
         .mobile-menu a:last-child { border: 0; }
 
-        /* ── HERO (full-viewport photo like Mia Health) ── */
+        /* ── HERO ── */
         .hero {
             margin-top: 0; border-radius: 0;
             overflow: hidden; position: relative;
@@ -207,41 +207,41 @@
         }
         .hero-bg img {
             width: 100%; height: 100%;
-            object-fit: cover; object-position: center 25%;
+            object-fit: cover; object-position: center 30%;
         }
-        /* Left overlay for text readability */
+        /* Dark overlay for text readability */
         .hero::before {
             content: ""; position: absolute; inset: 0; z-index: 1;
-            background: linear-gradient(100deg,
-                var(--hero-overlay-a) 0%,
-                var(--hero-overlay-b) 34%,
-                var(--hero-overlay-c) 62%,
-                rgba(43,26,138,0.02) 100%);
+            background: linear-gradient(180deg,
+                rgba(10, 12, 35, 0.55) 0%,
+                rgba(10, 12, 35, 0.45) 50%,
+                rgba(10, 12, 35, 0.70) 100%);
             pointer-events: none;
         }
-        /* Bottom fade to bg color (like Mia) */
+        /* Bottom fade to bg color */
         .hero::after {
             content: ""; position: absolute; bottom: 0; left: 0; right: 0;
-            height: 180px; z-index: 1;
+            height: 160px; z-index: 1;
             background: linear-gradient(180deg, transparent 0%, var(--bg) 100%);
             pointer-events: none;
         }
         .hero-inner {
             position: relative; z-index: 2;
-            display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-            text-align: left;
-            padding: 120px 64px 160px; min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+            padding: 140px 32px 180px; min-height: 100vh;
             max-width: 1400px; margin: 0 auto;
         }
-        .hero-copy { max-width: 560px; }
+        .hero-copy { max-width: 720px; }
         .hero-copy h1 {
-            color: #fff; font-size: clamp(2.8rem, 6.5vw, 5rem);
-            max-width: 14ch; margin-bottom: 18px; line-height: 1.08;
-            text-shadow: 0 2px 24px rgba(0,0,0,0.3);
+            color: #fff; font-size: clamp(2.6rem, 6vw, 4.8rem);
+            max-width: 22ch; margin: 0 auto 24px; line-height: 1.1;
+            text-shadow: 0 2px 32px rgba(0,0,0,0.4);
         }
         .hero-copy p {
-            color: rgba(243,241,255,0.90); font-size: 1.25rem;
-            max-width: 36ch; margin-bottom: 44px; line-height: 1.6;
+            color: rgba(243,241,255,0.88); font-size: 1.18rem;
+            max-width: 52ch; margin: 0 auto 48px; line-height: 1.75;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.3);
         }
         .hero-scroll-hint {
             position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
@@ -278,7 +278,7 @@
         }
         .pill-hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
         .pill-hero-cta:hover::after { transform: translateX(4px); }
-        /* ── WORKS-WITH TRUST STRIP (like Mia Health) ── */
+        /* ── WORKS-WITH TRUST STRIP ── */
         .works-with {
             margin-top: 0; border-radius: 0;
             background: rgba(95,59,240,0.06);
@@ -310,7 +310,7 @@
             white-space: nowrap;
         }
 
-        /* ── HEADLINE SECTION (big statement like Mia) ── */
+        /* ── HEADLINE SECTION ── */
         .statement {
             margin-top: 0; padding: 80px 32px;
             text-align: center;
@@ -412,7 +412,7 @@
             opacity: 0.25;
         }
 
-        /* ── TWO FEATURE CARDS (like Mia's AQ + Fitness Age cards) ── */
+        /* ── TWO FEATURE CARDS ── */
         .feature-cards {
             display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
             margin-top: -60px; position: relative; z-index: 3;
@@ -599,7 +599,7 @@
         .faq-item.open .faq-a { max-height: 200px; }
         .faq-a p { padding-top: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
 
-        /* ── CTA BLOCK (Mia Health style — phone mockups + badges) ── */
+        /* ── CTA BLOCK ── */
         .cta-block {
             margin-top: 0; border-radius: 0; overflow: hidden;
             background: linear-gradient(160deg, rgba(38,30,103,0.94), rgba(66,48,173,0.92) 46%, rgba(95,59,240,0.88));
@@ -647,7 +647,7 @@
         .store-badge-black .badge-text .prefix { font-size: 0.62rem; opacity: 0.8; display: block; line-height: 1.1; letter-spacing: 0.02em; }
         .store-badge-black .badge-text .name { font-size: 1.05rem; font-weight: 700; display: block; line-height: 1.2; letter-spacing: -0.01em; }
 
-        /* Two phone mockups (overlapping like Mia) */
+        /* Two phone mockups (overlapping) */
         .cta-phones { display: flex; justify-content: center; align-items: flex-end; position: relative; }
         .cta-phone {
             width: 200px; border-radius: 28px;
@@ -694,7 +694,7 @@
         }
         .android-early-link:hover { color: #fff; text-decoration-color: rgba(243,241,255,0.8); }
 
-        /* ── FOOTER (enhanced dark footer like Mia Health) ── */
+        /* ── FOOTER ── */
         .footer {
             margin-top: 0; border-radius: 0;
             background: linear-gradient(160deg, #1a1154, #120d3e);
@@ -844,15 +844,15 @@
             </div>
         </div>
 
-        <!-- HERO (photo background + phone mockup) -->
+        <!-- HERO + STATEMENT (combined full-page with photo background) -->
         <section class="hero">
             <div class="hero-bg">
-                <img src="{{ url_for('static', filename='site/images/mountain-trail-runner.png') }}" alt="" aria-hidden="true">
+                <img src="{{ url_for('static', filename='site/images/sunset-hilltop-rest.png') }}" alt="" aria-hidden="true">
             </div>
             <div class="hero-inner">
                 <div class="hero-copy">
-                    <h1 data-i18n="hero_title">Din personlige AI coach</h1>
-                    <p data-i18n="hero_body">Bli coachet mens du trener.</p>
+                    <h1 data-i18n="hero_title">Din sanntidscoach for smartere trening</h1>
+                    <p data-i18n="hero_body">Vi gjør pulsen og pusten din til tydelig veiledning mens du løper. Du vet alltid hva du skal gjøre, hva du kan forbedre, og hvordan formen din utvikler seg.</p>
                     <a class="pill pill-hero-cta" href="/download" data-i18n="hero_cta">Kom i gang</a>
                 </div>
             </div>
@@ -861,7 +861,7 @@
             </div>
         </section>
 
-        <!-- WORKS WITH (trust strip like Mia Health) -->
+        <!-- WORKS WITH (trust strip) -->
         <div class="works-with reveal">
             <div class="works-with-label" data-i18n="works_with_label">Fungerer med</div>
             <div class="works-with-logos">
@@ -886,12 +886,6 @@
                     <span class="ww-name">Suunto</span>
                 </div>
             </div>
-        </div>
-
-        <!-- BIG STATEMENT (like Mia's "Your activity tracker for a healthier life") -->
-        <div class="statement reveal">
-            <h2 data-i18n="statement_title">Din sanntidscoach for smartere trening</h2>
-            <p data-i18n="statement_body">Vi gjør pulsen og pusten din til tydelig veiledning mens du løper. Du vet alltid hva du skal gjøre, hva du kan forbedre, og hvordan formen din utvikler seg.</p>
         </div>
 
         <!-- FEATURE PHOTO (full-width runner + overlaid pulse line) -->
@@ -919,7 +913,7 @@
             <h2 data-i18n="two_numbers_title">To tall som forteller historien</h2>
         </div>
 
-        <!-- TWO FEATURE CARDS (like Mia's AQ + Fitness Age) -->
+        <!-- TWO FEATURE CARDS -->
         <div class="container">
             <div class="feature-cards reveal">
                 <div class="f-card">
@@ -1044,7 +1038,7 @@
           </div>
         </section>
 
-        <!-- BENEFITS (lifestyle photos + text like Mia) -->
+        <!-- BENEFITS -->
         <section class="section reveal" id="benefits">
           <div class="section-inner">
             <div class="section-head">
@@ -1105,14 +1099,14 @@
           </div>
         </section>
 
-        <!-- SUNSET HILLTOP (full-width scenic break) -->
+        <!-- SCENIC BREAK (full-width photo before CTA) -->
         <div class="feature-photo reveal" style="min-height: 420px;">
             <div class="feature-photo-bg">
-                <img src="{{ url_for('static', filename='site/images/sunset-hilltop-rest.png') }}" alt="Løper hviler på toppen av en bakke i solnedgang" loading="lazy" style="object-position: center 30%;">
+                <img src="{{ url_for('static', filename='site/images/mountain-trail-runner.png') }}" alt="" loading="lazy" style="object-position: center 30%;" aria-hidden="true">
             </div>
         </div>
 
-        <!-- CTA BLOCK (Mia Health style — phone mockups + badges) -->
+        <!-- CTA BLOCK -->
         <section class="cta-block reveal" id="download">
             <div class="cta-inner">
                 <div class="cta-copy">
@@ -1240,7 +1234,7 @@
                 nav_home: "Hjem",
                 theme_toggle_aria: "Bytt mellom lys og mørk modus",
                 hero_title: "Din sanntidscoach for smartere trening",
-                hero_body: "Bli coachet mens du løper.",
+                hero_body: "Vi gjør pulsen og pusten din til tydelig veiledning mens du løper. Du vet alltid hva du skal gjøre, hva du kan forbedre, og hvordan formen din utvikler seg.",
                 hero_cta: "Kom i gang",
                 hero_image_alt: "Person som bruker Coachi på trening",
                 store_prefix: "Last ned på",
@@ -1348,7 +1342,7 @@
                 nav_home: "Home",
                 theme_toggle_aria: "Switch between light and dark mode",
                 hero_title: "Your real-time coach for smarter training",
-                hero_body: "Get coached while you run.",
+                hero_body: "We turn your heart rate and breathing into clear guidance while you run. You always know what to do, what to improve, and how your fitness is evolving.",
                 hero_cta: "Get started",
                 hero_image_alt: "Person using Coachi while running",
                 store_prefix: "Download on",
