@@ -2215,6 +2215,9 @@ def coach_continuous():
                 age=request.form.get("age"),
                 config_module=config,
                 breath_intensity=breath_data.get("intensity"),
+                breath_signal_quality=breath_data.get("signal_quality"),
+                session_id=session_id,
+                paused=request.form.get("paused"),
             )
             zone_mode_speaks = bool(zone_tick.get("should_speak"))
             zone_forced_text = zone_tick.get("coach_text")
@@ -2272,6 +2275,23 @@ def coach_continuous():
             breath_data=breath_data,
             recent_samples=recent_breath_quality_samples,
         )
+        unified_event_router_enabled = bool(getattr(config, "UNIFIED_EVENT_ROUTER_ENABLED", True))
+        unified_event_router_shadow = bool(getattr(config, "UNIFIED_EVENT_ROUTER_SHADOW", False))
+        unified_zone_router_active = (
+            unified_event_router_enabled
+            and zone_mode_active
+            and zone_tick is not None
+            and workout_mode in {"easy_run", "interval"}
+        )
+        if unified_event_router_shadow and zone_mode_active and zone_tick is not None:
+            logger.info(
+                "UNIFIED_EVENT_SHADOW session=%s mode=%s events=%s legacy_reason=%s legacy_should_speak=%s",
+                session_id,
+                workout_mode,
+                [item.get("event_type") for item in (zone_tick.get("events") or []) if isinstance(item, dict)],
+                zone_tick.get("reason"),
+                zone_tick.get("should_speak"),
+            )
         if is_first_breath:
             # Always speak on first breath to welcome the user
             speak_decision = True
@@ -2286,16 +2306,17 @@ def coach_continuous():
                 if zone_mode_active and zone_tick is not None:
                     decision_owner_base = "zone_event"
                     speak_decision = bool(zone_tick.get("should_speak"))
-                    reason = zone_tick.get("reason") or "zone_no_change"
+                    reason = zone_tick.get("primary_event_type") or zone_tick.get("reason") or "zone_no_change"
                     zone_forced_text = zone_tick.get("coach_text")
                     logger.info(
-                        "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s",
+                        "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s events=%s",
                         speak_decision,
                         reason,
                         zone_tick.get("zone_status"),
                         zone_tick.get("heart_rate"),
                         zone_tick.get("hr_quality"),
                         zone_tick.get("coaching_style"),
+                        [item.get("event_type") for item in (zone_tick.get("events") or []) if isinstance(item, dict)],
                     )
                 elif breath_quality_state == "reliable":
                     decision_owner_base = "breath_logic"
@@ -2328,31 +2349,34 @@ def coach_continuous():
                         speak_decision = False
                         reason = "phase_fallback_wait"
 
-                max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                pre_override_speak = bool(speak_decision)
-                speak_decision, reason = apply_max_silence_override(
-                    should_speak=speak_decision,
-                    reason=reason,
-                    elapsed_since_last=elapsed_since_last,
-                    max_silence_seconds=max_silence
-                )
-                if (
-                    (not pre_override_speak)
-                    and speak_decision
-                    and reason == "max_silence_override"
-                ):
-                    max_silence_override_used = True
-                    decision_owner = "max_silence_override"
-                else:
+                if unified_zone_router_active and decision_owner_base == "zone_event":
                     decision_owner = decision_owner_base
-                if (
-                    speak_decision
-                    and reason == "max_silence_override"
-                    and zone_mode_active
-                    and zone_tick is not None
-                    and not zone_forced_text
-                ):
-                    zone_forced_text = zone_tick.get("max_silence_text")
+                else:
+                    max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
+                    pre_override_speak = bool(speak_decision)
+                    speak_decision, reason = apply_max_silence_override(
+                        should_speak=speak_decision,
+                        reason=reason,
+                        elapsed_since_last=elapsed_since_last,
+                        max_silence_seconds=max_silence
+                    )
+                    if (
+                        (not pre_override_speak)
+                        and speak_decision
+                        and reason == "max_silence_override"
+                    ):
+                        max_silence_override_used = True
+                        decision_owner = "max_silence_override"
+                    else:
+                        decision_owner = decision_owner_base
+                    if (
+                        speak_decision
+                        and reason == "max_silence_override"
+                        and zone_mode_active
+                        and zone_tick is not None
+                        and not zone_forced_text
+                    ):
+                        zone_forced_text = zone_tick.get("max_silence_text")
             else:
                 if zone_mode_active and zone_tick is not None:
                     speak_decision = bool(zone_tick.get("should_speak"))
@@ -2525,7 +2549,11 @@ def coach_continuous():
                 "mode": "realtime_coach",
             }
         elif speech_decision_owner_v2 and decision_owner_base == "zone_event":
-            zone_event_type = (zone_tick or {}).get("event_type") or reason
+            zone_event_type = (
+                (zone_tick or {}).get("primary_event_type")
+                or (zone_tick or {}).get("event_type")
+                or reason
+            )
             if zone_forced_text:
                 coach_text, brain_meta = _maybe_rephrase_zone_event_text(
                     base_text=zone_forced_text,
@@ -2554,7 +2582,11 @@ def coach_continuous():
                     zone_event_type,
                 )
         elif zone_mode_active and zone_forced_text:
-            zone_event_type = (zone_tick or {}).get("event_type") or reason
+            zone_event_type = (
+                (zone_tick or {}).get("primary_event_type")
+                or (zone_tick or {}).get("event_type")
+                or reason
+            )
             coach_text, brain_meta = _maybe_rephrase_zone_event_text(
                 base_text=zone_forced_text,
                 language=language,
@@ -2910,6 +2942,7 @@ def coach_continuous():
             "zone_valid_main_set_seconds": score_payload.get("zone_valid_main_set_seconds"),
             "zone_compliance": score_payload.get("zone_compliance"),
             "breath_available_reliable": score_payload.get("breath_available_reliable"),
+            "events": (zone_tick.get("events") if isinstance(zone_tick, dict) else []) or [],
             "brain_provider": brain_meta.get("provider"),
             "brain_source": brain_meta.get("source"),
             "brain_status": brain_meta.get("status"),
@@ -2931,6 +2964,11 @@ def coach_continuous():
                 {
                     "zone_status": zone_tick.get("zone_status"),
                     "zone_event": zone_tick.get("event_type"),
+                    "zone_primary_event": zone_tick.get("primary_event_type"),
+                    "sensor_mode": zone_tick.get("sensor_mode"),
+                    "phase_id": zone_tick.get("phase_id"),
+                    "zone_state": zone_tick.get("zone_state"),
+                    "delta_to_band": zone_tick.get("delta_to_band"),
                     "heart_rate": zone_tick.get("heart_rate"),
                     "target_zone_label": zone_tick.get("target_zone_label"),
                     "target_hr_low": zone_tick.get("target_hr_low"),

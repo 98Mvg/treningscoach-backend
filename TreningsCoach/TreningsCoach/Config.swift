@@ -66,6 +66,7 @@ struct AppConfig {
         static let minChunkBytes: Int = 8000
         static let maxWorkoutDuration: TimeInterval = 45 * 60
         static let autoTimeoutMessage = "Great workout! Remember to tap Stop when done."
+        static let iosEventSpeechEnabled = true
     }
 
     // MARK: - Health Signals

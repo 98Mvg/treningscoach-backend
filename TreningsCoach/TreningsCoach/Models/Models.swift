@@ -311,6 +311,12 @@ struct ContinuousCoachResponse: Codable {
     let zoneValidMainSetSeconds: Double?
     let zoneCompliance: Double?
     let breathAvailableReliable: Bool?
+    let events: [CoachingEvent]?
+    let zonePrimaryEvent: String?
+    let sensorMode: String?
+    let phaseId: Int?
+    let zoneState: String?
+    let deltaToBand: Int?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -359,6 +365,57 @@ struct ContinuousCoachResponse: Codable {
         case zoneValidMainSetSeconds = "zone_valid_main_set_seconds"
         case zoneCompliance = "zone_compliance"
         case breathAvailableReliable = "breath_available_reliable"
+        case events
+        case zonePrimaryEvent = "zone_primary_event"
+        case sensorMode = "sensor_mode"
+        case phaseId = "phase_id"
+        case zoneState = "zone_state"
+        case deltaToBand = "delta_to_band"
+    }
+}
+
+struct CoachingEvent: Codable, Identifiable {
+    var id: String { "\(eventType)-\(ts)" }
+    let eventType: String
+    let ts: Double
+    let payload: CoachingEventPayload
+
+    enum CodingKeys: String, CodingKey {
+        case eventType = "event_type"
+        case ts
+        case payload
+    }
+}
+
+struct CoachingEventPayload: Codable {
+    let sessionId: String
+    let workoutType: String
+    let phase: String
+    let selectedIntensity: String
+    let hrBPM: Int
+    let targetLow: Int?
+    let targetHigh: Int?
+    let targetEnforced: Bool
+    let zoneState: String
+    let deltaToBand: Int?
+    let elapsedSeconds: Int
+    let remainingPhaseSeconds: Int?
+    let phaseId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case workoutType = "workout_type"
+        case phase
+        case selectedIntensity = "selected_intensity"
+        case hrBPM = "hr_bpm"
+        case targetLow = "target_low"
+        case targetHigh = "target_high"
+        case targetEnforced = "target_enforced"
+        case zoneState = "zone_state"
+        case deltaToBand = "delta_to_band"
+        case elapsedSeconds = "elapsed_seconds"
+        case remainingPhaseSeconds = "remaining_phase_seconds"
+        case phaseId = "phase_id"
     }
 }
 

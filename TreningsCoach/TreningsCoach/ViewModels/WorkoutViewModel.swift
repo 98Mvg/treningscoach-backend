@@ -697,6 +697,9 @@ class WorkoutViewModel: ObservableObject {
         cadenceSPM = nil
         movementSource = "none"
         movementState = "unknown"
+        lastEventSpeechAt = nil
+        lastEventSpeechPriority = -1
+        lastResolvedUtteranceID = nil
     }
 
     func selectPersonality(_ persona: CoachPersonality) {
@@ -857,6 +860,10 @@ class WorkoutViewModel: ObservableObject {
     private var previousHeartRateSampleDate: Date?
     private var latestMovementSampleDate: Date?
     private var latestMovementSource: String = "none"
+    private let eventSpeechCollisionWindowSeconds: TimeInterval = 2.0
+    private var lastEventSpeechAt: Date?
+    private var lastEventSpeechPriority: Int = -1
+    private var lastResolvedUtteranceID: String?
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -1330,6 +1337,124 @@ class WorkoutViewModel: ObservableObject {
         return "beginner"
     }
 
+    private func eventPriority(for eventType: String) -> Int {
+        switch eventType {
+        case "interval_countdown_start", "hr_signal_lost":
+            return 100
+        case "interval_countdown_5":
+            return 95
+        case "interval_countdown_15":
+            return 94
+        case "interval_countdown_30":
+            return 93
+        case "warmup_started", "main_started", "cooldown_started", "workout_finished":
+            return 90
+        case "watch_disconnected_notice", "no_sensors_notice", "watch_restored_notice":
+            return 88
+        case "exited_target_above", "exited_target_below":
+            return 70
+        case "entered_target":
+            return 60
+        default:
+            return 0
+        }
+    }
+
+    private func utteranceID(for eventType: String) -> String? {
+        switch eventType {
+        case "warmup_started":
+            return "workout.warmup.start"
+        case "main_started":
+            return "workout.main.start"
+        case "cooldown_started":
+            return "workout.cooldown.start"
+        case "workout_finished":
+            return "workout.finish"
+        case "entered_target":
+            return "zone.entered_target"
+        case "exited_target_above":
+            return "zone.exited_above"
+        case "exited_target_below":
+            return "zone.exited_below"
+        case "hr_signal_lost":
+            return "sensor.hr_lost"
+        case "hr_signal_restored":
+            return "sensor.hr_restored"
+        case "watch_disconnected_notice":
+            return "sensor.watch_disconnected_notice"
+        case "no_sensors_notice":
+            return "sensor.no_sensors_notice"
+        case "watch_restored_notice":
+            return "sensor.watch_restored_notice"
+        case "interval_countdown_30":
+            return "interval.countdown.30"
+        case "interval_countdown_15":
+            return "interval.countdown.15"
+        case "interval_countdown_5":
+            return "interval.countdown.5"
+        case "interval_countdown_start":
+            return "interval.countdown.start"
+        default:
+            return nil
+        }
+    }
+
+    private func selectHighestPriorityEvent(from events: [CoachingEvent]) -> CoachingEvent? {
+        guard !events.isEmpty else { return nil }
+        return events.sorted { lhs, rhs in
+            let l = eventPriority(for: lhs.eventType)
+            let r = eventPriority(for: rhs.eventType)
+            if l == r {
+                return lhs.ts < rhs.ts
+            }
+            return l > r
+        }.first
+    }
+
+    private func shouldSpeakEventFirst(response: ContinuousCoachResponse) -> (speak: Bool, reason: String) {
+        guard AppConfig.ContinuousCoaching.iosEventSpeechEnabled else {
+            return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
+        }
+
+        guard let events = response.events, !events.isEmpty else {
+            return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
+        }
+
+        guard let selected = selectHighestPriorityEvent(from: events) else {
+            return (false, "event_router_no_event")
+        }
+
+        guard let utteranceID = utteranceID(for: selected.eventType) else {
+            print("🔇 EVENT_SUPPRESSED reason=no_utterance event=\(selected.eventType)")
+            return (false, "event_router_no_utterance")
+        }
+
+        let selectedPriority = eventPriority(for: selected.eventType)
+        let now = Date()
+        if let lastAt = lastEventSpeechAt,
+           now.timeIntervalSince(lastAt) < eventSpeechCollisionWindowSeconds,
+           selectedPriority <= lastEventSpeechPriority {
+            print("🔇 EVENT_SUPPRESSED reason=collision event=\(selected.eventType) priority=\(selectedPriority) last_priority=\(lastEventSpeechPriority)")
+            return (false, "event_router_collision")
+        }
+
+        if selected.eventType == "workout_finished" {
+            // Clear scheduler state at session end to avoid stale suppression on next workout.
+            lastEventSpeechAt = nil
+            lastEventSpeechPriority = -1
+        } else {
+            lastEventSpeechAt = now
+            lastEventSpeechPriority = selectedPriority
+        }
+        lastResolvedUtteranceID = utteranceID
+        print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority)")
+
+        if response.audioURL == nil {
+            return (false, "event_router_no_audio")
+        }
+        return (true, "event_router")
+    }
+
     // MARK: - API Communication
 
     func sendToBackend(audioURL: URL, phase: WorkoutPhase) async {
@@ -1596,6 +1721,9 @@ class WorkoutViewModel: ObservableObject {
 
             // Generate unique session ID
             sessionId = "session_\(UUID().uuidString)"
+            lastEventSpeechAt = nil
+            lastEventSpeechPriority = -1
+            lastResolvedUtteranceID = nil
 
             // Auto-detect initial phase
             autoDetectPhase()
@@ -1772,6 +1900,9 @@ class WorkoutViewModel: ObservableObject {
         movementState = "unknown"
         latestMovementSource = "none"
         latestMovementSampleDate = nil
+        lastEventSpeechAt = nil
+        lastEventSpeechPriority = -1
+        lastResolvedUtteranceID = nil
 
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
@@ -1979,15 +2110,18 @@ class WorkoutViewModel: ObservableObject {
                     coachText: response.text
                 )
 
-                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
+                let eventCount = response.events?.count ?? 0
+                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), events=\(eventCount), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
 
-                // 4. Coach speaks ONLY if backend says so
-                // voiceState STAYS .listening (no visual state change during workout)
-                if response.shouldSpeak, let audioURL = response.audioURL {
-                    print("🗣️ Coach speaking: '\(response.text)'")
+                // 4. Event-first speech routing:
+                // - If events[] exists, only event scheduler decides.
+                // - If events[] is empty, fallback to legacy should_speak/audio.
+                let eventSpeechDecision = shouldSpeakEventFirst(response: response)
+                if eventSpeechDecision.speak, let audioURL = response.audioURL {
+                    print("🗣️ Coach speaking via \(eventSpeechDecision.reason): '\(response.text)'")
                     await playCoachAudio(audioURL)
                 } else {
-                    print("🤐 Coach silent: \(response.reason ?? "no reason")")
+                    print("🤐 Coach silent via \(eventSpeechDecision.reason)")
                 }
 
                 // 5. Adjust next interval dynamically

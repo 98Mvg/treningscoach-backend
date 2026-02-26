@@ -10,7 +10,8 @@ Design goals:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,114 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
+def _median(values) -> Optional[float]:
+    cleaned = [float(v) for v in values if v is not None]
+    if not cleaned:
+        return None
+    cleaned.sort()
+    n = len(cleaned)
+    mid = n // 2
+    if n % 2 == 1:
+        return cleaned[mid]
+    return (cleaned[mid - 1] + cleaned[mid]) / 2.0
+
+
+def _canonical_workout_type(workout_mode: str) -> str:
+    return "intervals" if (workout_mode or "").strip().lower() == "interval" else "easy_run"
+
+
+def _canonical_phase(*, workout_mode: str, request_phase: str, segment: str) -> str:
+    mode = (workout_mode or "").strip().lower()
+    seg = (segment or "").strip().lower()
+    req = (request_phase or "").strip().lower()
+    if mode == "interval":
+        if seg == "rest":
+            return "recovery"
+        if seg == "work":
+            return "work"
+        if seg in {"warmup", "cooldown"}:
+            return seg
+        return "main"
+    if req == "intense":
+        return "main"
+    if req in {"warmup", "cooldown"}:
+        return req
+    return "main"
+
+
+def _canonical_zone_state(
+    *,
+    target_enforced: bool,
+    hr_available: bool,
+    zone_status: str,
+) -> str:
+    if not target_enforced:
+        return "TARGETS_UNENFORCED"
+    if not hr_available:
+        return "HR_MISSING"
+
+    mapping = {
+        "in_zone": "IN_TARGET",
+        "above_zone": "ABOVE_TARGET",
+        "below_zone": "BELOW_TARGET",
+    }
+    return mapping.get((zone_status or "").strip().lower(), "HR_MISSING")
+
+
+def _delta_to_band(
+    *,
+    hr_bpm: int,
+    target_low: Optional[int],
+    target_high: Optional[int],
+    target_enforced: bool,
+) -> Optional[int]:
+    if not target_enforced or target_low is None or target_high is None:
+        return None
+    if hr_bpm <= 0:
+        return None
+    if hr_bpm < int(target_low):
+        return int(hr_bpm - int(target_low))
+    if hr_bpm > int(target_high):
+        return int(hr_bpm - int(target_high))
+    return 0
+
+
+def _event_priority(event_type: str) -> int:
+    order = {
+        "interval_countdown_start": 100,
+        "hr_signal_lost": 99,
+        "interval_countdown_5": 95,
+        "interval_countdown_15": 94,
+        "interval_countdown_30": 93,
+        "warmup_started": 90,
+        "main_started": 90,
+        "cooldown_started": 90,
+        "workout_finished": 90,
+        "watch_disconnected_notice": 88,
+        "no_sensors_notice": 88,
+        "watch_restored_notice": 88,
+        "exited_target_above": 70,
+        "exited_target_below": 70,
+        "entered_target": 60,
+    }
+    return order.get(event_type, 0)
+
+
+def _canonical_to_legacy_event(event_type: Optional[str]) -> Optional[str]:
+    mapping = {
+        "entered_target": "in_zone_recovered",
+        "exited_target_above": "above_zone",
+        "exited_target_below": "below_zone",
+        "hr_signal_lost": "hr_poor_enter",
+        "hr_signal_restored": "hr_poor_exit",
+        "warmup_started": "phase_change_warmup",
+        "cooldown_started": "phase_change_cooldown",
+    }
+    if not event_type:
+        return None
+    return mapping.get(event_type, event_type)
+
+
 def is_zone_mode(workout_mode: str, config_module) -> bool:
     modes = set(getattr(config_module, "ZONE_COACHING_WORKOUT_MODES", ["easy_run", "interval"]))
     return (workout_mode or "").strip().lower() in modes
@@ -128,6 +237,23 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     state.setdefault("style_history", [])
     state.setdefault("last_sustained_event_elapsed", {})
     state.setdefault("last_above_zone_elapsed", None)
+    state.setdefault("phase_id", 0)
+    state.setdefault("event_last_elapsed_seconds", None)
+    state.setdefault("sensor_mode", None)
+    state.setdefault("sensor_mode_candidate", None)
+    state.setdefault("sensor_mode_candidate_since", None)
+    state.setdefault("notice_watch_disconnected_sent", False)
+    state.setdefault("notice_no_sensors_sent", False)
+    state.setdefault("notice_watch_restored_sent", False)
+    state.setdefault("countdown_fired_map", {})
+    state.setdefault("session_finished", False)
+    state.setdefault("main_started_emitted", False)
+    state.setdefault("hr_signal_state", None)
+    state.setdefault("hr_valid_streak_seconds", 0.0)
+    state.setdefault("hr_invalid_streak_seconds", 0.0)
+    state.setdefault("breath_reliable_streak_seconds", 0.0)
+    state.setdefault("breath_unreliable_streak_seconds", 0.0)
+    state.setdefault("breath_quality_samples", [])
     metrics = state.setdefault("metrics", {})
     metrics.setdefault("total_main_set_ticks", 0)
     metrics.setdefault("in_zone_ticks", 0)
@@ -368,10 +494,14 @@ def _interval_target(
     target_label = "easy"
     hr_enforced = True
     main_set = False
+    segment_elapsed_seconds = 0
+    segment_remaining_seconds = None
 
     if elapsed < warmup:
         segment = "warmup"
         target_label = "easy"
+        segment_elapsed_seconds = elapsed
+        segment_remaining_seconds = max(0, warmup - elapsed)
     elif elapsed < warmup + main_set_duration:
         main_set = True
         segment_elapsed = elapsed - warmup
@@ -381,13 +511,26 @@ def _interval_target(
             segment = "work"
             target_label = intensity
             hr_enforced = bool(cfg.get("work_hr_enforced", True))
+            segment_elapsed_seconds = int(within_rep)
+            segment_remaining_seconds = max(0, work - int(within_rep))
         else:
             segment = "rest"
             target_label = "easy"
             hr_enforced = True
+            rest_elapsed = int(within_rep - work)
+            segment_elapsed_seconds = rest_elapsed
+            segment_remaining_seconds = max(0, rest - rest_elapsed)
     elif elapsed < session_end:
         segment = "cooldown"
         target_label = "easy"
+        cooldown_elapsed = max(0, elapsed - (warmup + main_set_duration))
+        segment_elapsed_seconds = int(cooldown_elapsed)
+        segment_remaining_seconds = max(0, cooldown - int(cooldown_elapsed))
+    else:
+        segment = "cooldown"
+        target_label = "easy"
+        segment_elapsed_seconds = cooldown
+        segment_remaining_seconds = 0
 
     low, high, source = _resolve_intensity_target_bounds(
         workout_mode="interval",
@@ -407,6 +550,11 @@ def _interval_target(
         "target_source": source,
         "hr_enforced": hr_enforced and low is not None and high is not None,
         "main_set": main_set,
+        "segment_elapsed_seconds": segment_elapsed_seconds,
+        "segment_remaining_seconds": segment_remaining_seconds,
+        "work_seconds": work,
+        "rest_seconds": rest,
+        "session_end_seconds": session_end,
     }
 
 
@@ -430,6 +578,11 @@ def _easy_run_target(phase: str, profile: Dict[str, Any], intensity: str, config
         "target_source": source,
         "hr_enforced": low is not None and high is not None,
         "main_set": normalized_phase == "intense",
+        "segment_elapsed_seconds": None,
+        "segment_remaining_seconds": None,
+        "work_seconds": None,
+        "rest_seconds": None,
+        "session_end_seconds": None,
     }
 
 
@@ -447,6 +600,188 @@ def _resolve_target(
     if mode == "interval":
         return _interval_target(interval_template, elapsed_seconds, profile, intensity, config_module)
     return _easy_run_target(phase, profile, intensity, config_module)
+
+
+def _tick_delta_seconds(state: Dict[str, Any], elapsed_seconds: int, config_module) -> float:
+    now_elapsed = max(0.0, float(elapsed_seconds))
+    prev_elapsed = _safe_float(state.get("event_last_elapsed_seconds"))
+    state["event_last_elapsed_seconds"] = now_elapsed
+    if prev_elapsed is None:
+        return 0.0
+    delta = now_elapsed - prev_elapsed
+    if delta <= 0.0:
+        return 0.0
+    max_tick_seconds = float(getattr(config_module, "MAX_COACHING_INTERVAL", 15))
+    return min(delta, max(1.0, max_tick_seconds))
+
+
+def _update_hr_signal_state(
+    *,
+    state: Dict[str, Any],
+    hr_good_now: bool,
+    dt_seconds: float,
+    config_module,
+) -> List[str]:
+    events: List[str] = []
+    valid_streak = float(state.get("hr_valid_streak_seconds", 0.0))
+    invalid_streak = float(state.get("hr_invalid_streak_seconds", 0.0))
+    signal_state = state.get("hr_signal_state")
+
+    if signal_state is None:
+        # First tick bootstrap:
+        # - Good HR starts in "ok" with no event.
+        # - Missing/poor HR starts in "lost" and emits one loss event for compatibility.
+        signal_state = "ok" if hr_good_now else "lost"
+        valid_streak = 5.0 if hr_good_now else 0.0
+        invalid_streak = 4.0 if not hr_good_now else 0.0
+        if not hr_good_now:
+            events.append("hr_signal_lost")
+
+    if hr_good_now:
+        valid_streak += dt_seconds
+        invalid_streak = 0.0
+    else:
+        invalid_streak += dt_seconds
+        valid_streak = 0.0
+
+    loss_threshold = float(getattr(config_module, "UNIFIED_EVENT_HR_LOST_SECONDS", 4.0))
+    restore_threshold = float(getattr(config_module, "UNIFIED_EVENT_HR_RESTORED_SECONDS", 5.0))
+
+    if signal_state != "lost" and invalid_streak >= loss_threshold:
+        signal_state = "lost"
+        events.append("hr_signal_lost")
+    elif signal_state == "lost" and valid_streak >= restore_threshold:
+        signal_state = "ok"
+        events.append("hr_signal_restored")
+
+    state["hr_signal_state"] = signal_state
+    state["hr_valid_streak_seconds"] = valid_streak
+    state["hr_invalid_streak_seconds"] = invalid_streak
+    return events
+
+
+def _update_breath_reliability(
+    *,
+    state: Dict[str, Any],
+    breath_signal_quality: Any,
+    dt_seconds: float,
+    config_module,
+) -> bool:
+    samples = state.setdefault("breath_quality_samples", [])
+    current_quality = _safe_float(breath_signal_quality)
+    if current_quality is not None:
+        samples.append(current_quality)
+    max_samples = int(getattr(config_module, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6)) * 3
+    if len(samples) > max(12, max_samples):
+        del samples[:-max(12, max_samples)]
+
+    required_samples = int(getattr(config_module, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6))
+    required_quality = float(getattr(config_module, "CS_BREATH_MIN_RELIABLE_QUALITY", 0.35))
+    median_quality = _median(samples[-max(required_samples, 6):])
+    reliable_now = (
+        len(samples) >= required_samples
+        and median_quality is not None
+        and median_quality >= required_quality
+    )
+
+    reliable_streak = float(state.get("breath_reliable_streak_seconds", 0.0))
+    unreliable_streak = float(state.get("breath_unreliable_streak_seconds", 0.0))
+    if reliable_now:
+        reliable_streak += dt_seconds
+        unreliable_streak = 0.0
+    else:
+        unreliable_streak += dt_seconds
+        reliable_streak = 0.0
+
+    state["breath_reliable_streak_seconds"] = reliable_streak
+    state["breath_unreliable_streak_seconds"] = unreliable_streak
+    persistence_seconds = float(getattr(config_module, "UNIFIED_EVENT_BREATH_PERSIST_SECONDS", 4.0))
+
+    if reliable_now and reliable_streak >= persistence_seconds:
+        return True
+    if not reliable_now and unreliable_streak >= persistence_seconds:
+        return False
+
+    # If not yet stable in current streak, keep previous stable interpretation.
+    prior_mode = state.get("sensor_mode")
+    return prior_mode == "BREATH_FALLBACK"
+
+
+def _resolve_sensor_mode(
+    *,
+    state: Dict[str, Any],
+    hr_signal_state: str,
+    breath_reliable: bool,
+    elapsed_seconds: int,
+    config_module,
+) -> List[str]:
+    events: List[str] = []
+    if hr_signal_state == "ok":
+        desired = "FULL_HR"
+    elif breath_reliable:
+        desired = "BREATH_FALLBACK"
+    else:
+        desired = "NO_SENSORS"
+
+    current_mode = state.get("sensor_mode")
+    if current_mode is None:
+        state["sensor_mode"] = desired
+        state["sensor_mode_candidate"] = desired
+        state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+        current_mode = desired
+
+    if desired != current_mode:
+        candidate = state.get("sensor_mode_candidate")
+        candidate_since = _safe_float(state.get("sensor_mode_candidate_since"))
+        if candidate != desired:
+            state["sensor_mode_candidate"] = desired
+            state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+        else:
+            dwell_seconds = float(getattr(config_module, "UNIFIED_EVENT_SENSOR_MODE_DWELL_SECONDS", 2.0))
+            candidate_age = 0.0 if candidate_since is None else max(0.0, float(elapsed_seconds) - candidate_since)
+            if candidate_age >= dwell_seconds:
+                previous_mode = current_mode
+                current_mode = desired
+                state["sensor_mode"] = desired
+                state["sensor_mode_candidate"] = desired
+                state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+
+                if (
+                    previous_mode == "FULL_HR"
+                    and desired in {"BREATH_FALLBACK", "NO_SENSORS"}
+                    and not bool(state.get("notice_watch_disconnected_sent"))
+                ):
+                    events.append("watch_disconnected_notice")
+                    state["notice_watch_disconnected_sent"] = True
+
+                if (
+                    desired == "NO_SENSORS"
+                    and previous_mode != "NO_SENSORS"
+                    and not bool(state.get("notice_no_sensors_sent"))
+                ):
+                    events.append("no_sensors_notice")
+                    state["notice_no_sensors_sent"] = True
+
+                if (
+                    previous_mode != "FULL_HR"
+                    and desired == "FULL_HR"
+                    and not bool(state.get("notice_watch_restored_sent"))
+                ):
+                    events.append("watch_restored_notice")
+                    state["notice_watch_restored_sent"] = True
+    else:
+        state["sensor_mode_candidate"] = current_mode
+        state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+
+    return events
+
+
+def _countdown_thresholds(recovery_seconds: int) -> List[int]:
+    if recovery_seconds < 30:
+        return [5, 0]
+    if recovery_seconds < 45:
+        return [15, 5, 0]
+    return [30, 15, 5, 0]
 
 
 def _evaluate_hr_quality(
@@ -1025,6 +1360,54 @@ def _event_text(
     if tone not in {"minimal", "normal", "motivational"}:
         tone = "normal"
 
+    if event_type == "hr_signal_lost":
+        event_type = "hr_poor_enter"
+    elif event_type == "hr_signal_restored":
+        event_type = "hr_poor_exit"
+    elif event_type == "entered_target":
+        event_type = "in_zone_recovered"
+    elif event_type == "exited_target_above":
+        event_type = "above_zone"
+    elif event_type == "exited_target_below":
+        event_type = "below_zone"
+
+    if event_type == "watch_disconnected_notice":
+        if lang == "no":
+            return "Klokken er frakoblet. Jeg coacher videre med pust og timing."
+        return "Watch disconnected. I'll coach using breathing and timing."
+
+    if event_type == "no_sensors_notice":
+        if lang == "no":
+            return "Ingen sensorer nå. Løp på følelse."
+        return "No sensors now. Run by feel."
+
+    if event_type == "watch_restored_notice":
+        if lang == "no":
+            return "Klokken er tilbake. Sonecoaching er aktiv igjen."
+        return "Watch restored. Zone coaching is back."
+
+    if event_type == "interval_countdown_30":
+        return "30 sekunder igjen." if lang == "no" else "30 seconds left."
+
+    if event_type == "interval_countdown_15":
+        return "15 sekunder igjen." if lang == "no" else "15 seconds left."
+
+    if event_type == "interval_countdown_5":
+        return "5 sekunder igjen." if lang == "no" else "5 seconds left."
+
+    if event_type == "interval_countdown_start":
+        return "Neste drag nå." if lang == "no" else "Next interval now."
+
+    if event_type == "main_started":
+        if lang == "no":
+            return "Hoveddel nå. Hold kontroll."
+        return "Main set now. Stay controlled."
+
+    if event_type == "workout_finished":
+        if lang == "no":
+            return "Økten er ferdig. Bra jobbet."
+        return "Workout finished. Nice work."
+
     if event_type == "hr_poor_enter":
         if lang == "no":
             return "Puls-signalet er svakt akkurat nå. Jeg coacher med timing og pust til det stabiliserer seg. Stram klokka litt."
@@ -1147,12 +1530,23 @@ def evaluate_zone_tick(
     age: Any,
     config_module,
     breath_intensity: Any = None,
+    breath_signal_quality: Any = None,
+    session_id: Optional[str] = None,
+    paused: Any = None,
 ) -> Dict[str, Any]:
     _ = persona  # Persona must not influence event decisions.
     state = _zone_state(workout_state)
     style = normalize_coaching_style(coaching_style, config_module)
     template = normalize_interval_template(interval_template, config_module)
     lang = "no" if language == "no" else "en"
+
+    canonical_workout_type = _canonical_workout_type(workout_mode)
+    selected_intensity = _style_to_intensity(style)
+    session_identifier = (
+        str(session_id).strip()
+        if session_id is not None and str(session_id).strip()
+        else "unknown_session"
+    )
 
     profile = _resolve_hr_profile(hr_max, resting_hr, age)
     hr_bpm = _safe_int(heart_rate)
@@ -1167,6 +1561,32 @@ def evaluate_zone_tick(
         state=state,
         config_module=config_module,
     )
+    state["hr_quality_state"] = hr_quality_info["state"]
+
+    dt_seconds = _tick_delta_seconds(state, int(elapsed_seconds), config_module)
+    hr_good_now = hr_quality_info["state"] == "good" and hr_bpm is not None and hr_bpm > 0
+    hr_signal_events = _update_hr_signal_state(
+        state=state,
+        hr_good_now=hr_good_now,
+        dt_seconds=dt_seconds,
+        config_module=config_module,
+    )
+    hr_signal_state = str(state.get("hr_signal_state") or "lost")
+
+    breath_reliable = _update_breath_reliability(
+        state=state,
+        breath_signal_quality=breath_signal_quality,
+        dt_seconds=dt_seconds,
+        config_module=config_module,
+    )
+    sensor_notice_events = _resolve_sensor_mode(
+        state=state,
+        hr_signal_state=hr_signal_state,
+        breath_reliable=breath_reliable,
+        elapsed_seconds=int(elapsed_seconds),
+        config_module=config_module,
+    )
+    sensor_mode = str(state.get("sensor_mode") or "NO_SENSORS")
 
     target = _resolve_target(
         workout_mode=workout_mode,
@@ -1178,15 +1598,44 @@ def evaluate_zone_tick(
         config_module=config_module,
     )
 
-    previous_quality = state.get("hr_quality_state", "unknown")
-    state["hr_quality_state"] = hr_quality_info["state"]
+    canonical_phase = _canonical_phase(
+        workout_mode=workout_mode,
+        request_phase=phase,
+        segment=str(target.get("segment", "")),
+    )
+
+    phase_events: List[str] = []
+    if int(state.get("phase_id", 0)) <= 0:
+        state["phase_id"] = 1
+    previous_phase = state.get("canonical_phase")
+    if previous_phase != canonical_phase:
+        if previous_phase is not None:
+            state["phase_id"] = int(state.get("phase_id", 1)) + 1
+        state["canonical_phase"] = canonical_phase
+        if canonical_phase == "warmup":
+            phase_events.append("warmup_started")
+        elif canonical_phase == "cooldown":
+            phase_events.append("cooldown_started")
+
+    if canonical_phase in {"main", "work", "recovery"} and not bool(state.get("main_started_emitted")):
+        phase_events.append("main_started")
+        state["main_started_emitted"] = True
+
+    if (
+        not bool(state.get("session_finished"))
+        and canonical_workout_type == "intervals"
+        and target.get("session_end_seconds") is not None
+        and int(elapsed_seconds) >= int(target.get("session_end_seconds") or 0)
+    ):
+        phase_events.append("workout_finished")
+        state["session_finished"] = True
 
     movement_signal = _resolve_movement_signal(
         movement_score_value=movement_score,
         cadence_spm_value=cadence_spm,
         movement_source_value=movement_source,
     )
-    movement_state, movement_event = _apply_movement_state(
+    movement_state, _movement_event = _apply_movement_state(
         state=state,
         movement_score=movement_signal.get("movement_score"),
         hr_quality_state=hr_quality_info["state"],
@@ -1196,10 +1645,20 @@ def evaluate_zone_tick(
         config_module=config_module,
     )
 
-    zone_status = "hr_unstable" if hr_quality_info["state"] == "poor" else "timing_control"
+    pause_flag = (_safe_bool(paused) is True) or movement_state == "paused"
+    target_enforced = bool(target.get("hr_enforced"))
+    hr_available = (
+        hr_signal_state == "ok"
+        and hr_quality_info["state"] == "good"
+        and hr_bpm is not None
+        and hr_bpm > 0
+    )
+    hr_ok_for_zone_events = hr_available and float(state.get("hr_valid_streak_seconds", 0.0)) >= 5.0
+
+    zone_status = "hr_unstable" if not hr_available else "timing_control"
     transition_event = None
 
-    if hr_quality_info["state"] == "good" and target["hr_enforced"] and hr_bpm is not None:
+    if hr_ok_for_zone_events and target_enforced and sensor_mode == "FULL_HR":
         candidate = _zone_candidate(
             hr_bpm=hr_bpm,
             low=int(target["target_low"]),
@@ -1211,6 +1670,23 @@ def evaluate_zone_tick(
             state=state,
             candidate=candidate,
             elapsed_seconds=int(elapsed_seconds),
+            config_module=config_module,
+        )
+    elif not target_enforced:
+        zone_status = "timing_control"
+
+    sustained_event = None
+    if not pause_flag and target_enforced and hr_ok_for_zone_events and sensor_mode == "FULL_HR":
+        sustained_event = _sustained_zone_event(
+            state=state,
+            zone_status=zone_status,
+            elapsed_seconds=int(elapsed_seconds),
+            movement_state=movement_state,
+            movement_score=movement_signal.get("movement_score"),
+            hr_delta_bpm=hr_quality_info.get("hr_delta_bpm"),
+            hr_sample_gap_seconds=hr_quality_info.get("hr_sample_gap_seconds"),
+            hr_quality_state=hr_quality_info["state"],
+            breath_intensity=(str(breath_intensity).strip().lower() if breath_intensity is not None else None),
             config_module=config_module,
         )
 
@@ -1229,38 +1705,11 @@ def evaluate_zone_tick(
                 del samples[:-max_samples]
         state["last_above_zone_elapsed"] = None
 
-    sustained_event = _sustained_zone_event(
-        state=state,
-        zone_status=zone_status,
-        elapsed_seconds=int(elapsed_seconds),
-        movement_state=movement_state,
-        movement_score=movement_signal.get("movement_score"),
-        hr_delta_bpm=hr_quality_info.get("hr_delta_bpm"),
-        hr_sample_gap_seconds=hr_quality_info.get("hr_sample_gap_seconds"),
-        hr_quality_state=hr_quality_info["state"],
-        breath_intensity=(str(breath_intensity).strip().lower() if breath_intensity is not None else None),
-        config_module=config_module,
-    )
-
-    segment_key = target.get("segment_key")
-    phase_change_event = None
-    if segment_key != state.get("last_segment_key"):
-        segment = str(target.get("segment", ""))
-        if segment == "work":
-            phase_change_event = "phase_change_work"
-        elif segment == "rest":
-            phase_change_event = "phase_change_rest"
-        elif segment == "warmup":
-            phase_change_event = "phase_change_warmup"
-        elif segment == "cooldown":
-            phase_change_event = "phase_change_cooldown"
-        state["last_segment_key"] = segment_key
-
     _update_metrics(
         state=state,
         zone_status=zone_status,
         in_main_set=bool(target.get("main_set")),
-        hr_quality_state=hr_quality_info["state"],
+        hr_quality_state=("good" if hr_available else "poor"),
         transition_event=transition_event,
         elapsed_seconds=int(elapsed_seconds),
         hr_bpm=hr_bpm,
@@ -1271,58 +1720,120 @@ def evaluate_zone_tick(
     metrics_snapshot = state.get("metrics", {})
     score_payload = _score_from_metrics(metrics_snapshot, lang)
 
-    event_type = None
+    event_types: List[str] = []
+    for candidate_event in phase_events + hr_signal_events + sensor_notice_events:
+        if candidate_event and candidate_event not in event_types:
+            event_types.append(candidate_event)
+
+    if (
+        canonical_workout_type == "intervals"
+        and canonical_phase == "recovery"
+        and not pause_flag
+        and target.get("rest_seconds") is not None
+        and target.get("segment_remaining_seconds") is not None
+    ):
+        recovery_seconds_total = int(target.get("rest_seconds") or 0)
+        remaining = int(max(0, target.get("segment_remaining_seconds") or 0))
+        if recovery_seconds_total > 0:
+            fired = state.setdefault("countdown_fired_map", {})
+            phase_id = int(state.get("phase_id", 1))
+            for threshold in _countdown_thresholds(recovery_seconds_total):
+                event_key = f"{phase_id}:{threshold}"
+                if remaining <= threshold and not bool(fired.get(event_key)):
+                    event_name = "interval_countdown_start" if threshold == 0 else f"interval_countdown_{threshold}"
+                    event_types.append(event_name)
+                    fired[event_key] = True
+
+    if not pause_flag and target_enforced and hr_ok_for_zone_events and sensor_mode == "FULL_HR":
+        if transition_event == "above_zone":
+            event_types.append("exited_target_above")
+        elif transition_event == "below_zone":
+            event_types.append("exited_target_below")
+        elif transition_event == "in_zone_recovered":
+            event_types.append("entered_target")
+
+    event_types = [event for event in event_types if event]
+    event_types = sorted(event_types, key=_event_priority, reverse=True)
+
+    legacy_style_event_map = {
+        "entered_target",
+        "exited_target_above",
+        "exited_target_below",
+    }
+    primary_event: Optional[str] = None
+    event_type: Optional[str] = None
     should_speak = False
     reason = "zone_no_change"
+    style_block_reason: Optional[str] = None
+    blocked_event_type: Optional[str] = None
 
-    if hr_quality_info["state"] == "poor" and previous_quality != "poor" and not state.get("hr_poor_announced"):
-        event_type = "hr_poor_enter"
+    for candidate_event in event_types:
+        mapped_legacy_event = _canonical_to_legacy_event(candidate_event)
+        if candidate_event in legacy_style_event_map:
+            allowed, allow_reason = _allow_style_event(
+                state=state,
+                event_type=mapped_legacy_event or candidate_event,
+                style=style,
+                elapsed_seconds=int(elapsed_seconds),
+                hr_quality_state=hr_quality_info["state"],
+                config_module=config_module,
+            )
+            if not allowed:
+                style_block_reason = allow_reason
+                if blocked_event_type is None:
+                    blocked_event_type = mapped_legacy_event or candidate_event
+                continue
+
+        primary_event = candidate_event
+        event_type = mapped_legacy_event or candidate_event
         should_speak = True
-        reason = event_type
-        state["hr_poor_announced"] = True
-    elif hr_quality_info["state"] == "poor" and movement_event:
-        event_type = movement_event
-        should_speak = True
-        reason = event_type
-    elif hr_quality_info["state"] == "poor" and phase_change_event:
-        event_type = phase_change_event
-        should_speak = True
-        reason = event_type
-    elif previous_quality == "poor" and hr_quality_info["state"] == "good":
-        event_type = "hr_poor_exit"
-        should_speak = True
-        reason = event_type
-    elif movement_event:
-        event_type = movement_event
-        should_speak = True
-        reason = event_type
-    elif phase_change_event:
-        event_type = phase_change_event
-        should_speak = True
-        reason = event_type
-    elif transition_event:
-        event_type = transition_event
-        should_speak = True
-        reason = event_type
-    elif sustained_event:
-        event_type = sustained_event
-        should_speak = True
-        reason = event_type
+        reason = candidate_event
+        break
+
+    if not should_speak and blocked_event_type is not None:
+        event_type = blocked_event_type
+
+    if not should_speak:
+        legacy_fallback_candidates: List[str] = []
+        if sensor_mode == "FULL_HR" and _movement_event:
+            legacy_fallback_candidates.append(_movement_event)
+        if sensor_mode == "FULL_HR" and sustained_event:
+            legacy_fallback_candidates.append(sustained_event)
+
+        for fallback_event in legacy_fallback_candidates:
+            fallback_allowed, fallback_reason = _allow_style_event(
+                state=state,
+                event_type=fallback_event,
+                style=style,
+                elapsed_seconds=int(elapsed_seconds),
+                hr_quality_state=hr_quality_info["state"],
+                config_module=config_module,
+            )
+            if event_type is None:
+                event_type = fallback_event
+            if not fallback_allowed:
+                style_block_reason = fallback_reason
+                continue
+            primary_event = fallback_event
+            event_type = fallback_event
+            should_speak = True
+            reason = fallback_event
+            break
+
+    if not should_speak and style_block_reason:
+        reason = style_block_reason
 
     coach_text = None
-    if should_speak and event_type:
-        allowed, style_reason = _allow_style_event(
-            state=state,
-            event_type=event_type,
+    if should_speak and primary_event:
+        coach_text = _event_text(
+            event_type=primary_event,
+            language=lang,
             style=style,
-            elapsed_seconds=int(elapsed_seconds),
-            hr_quality_state=hr_quality_info["state"],
-            config_module=config_module,
+            target_low=target.get("target_low"),
+            target_high=target.get("target_high"),
+            segment=str(target.get("segment", "")),
         )
-        if not allowed:
-            should_speak = False
-            reason = style_reason
-        else:
+        if not coach_text and event_type:
             coach_text = _event_text(
                 event_type=event_type,
                 language=lang,
@@ -1331,6 +1842,9 @@ def evaluate_zone_tick(
                 target_high=target.get("target_high"),
                 segment=str(target.get("segment", "")),
             )
+        if not coach_text:
+            should_speak = False
+            reason = "zone_no_text"
 
     max_silence_text = _event_text(
         event_type="max_silence_override",
@@ -1359,23 +1873,68 @@ def evaluate_zone_tick(
         config_module,
     )
 
+    contract_hr_bpm = int(hr_bpm) if hr_available and hr_bpm is not None else 0
+    canonical_zone = _canonical_zone_state(
+        target_enforced=target_enforced,
+        hr_available=hr_available and sensor_mode == "FULL_HR",
+        zone_status=zone_status,
+    )
+    delta_to_band = _delta_to_band(
+        hr_bpm=contract_hr_bpm,
+        target_low=_safe_int(target.get("target_low")),
+        target_high=_safe_int(target.get("target_high")),
+        target_enforced=target_enforced,
+    )
+    remaining_phase_seconds = _safe_int(target.get("segment_remaining_seconds"))
+    phase_id_value = int(state.get("phase_id", 1))
+    now_ts = time.time()
+    event_payload_base = {
+        "session_id": session_identifier,
+        "workout_type": canonical_workout_type,
+        "phase": canonical_phase,
+        "selected_intensity": selected_intensity,
+        "hr_bpm": int(contract_hr_bpm),
+        "target_low": _safe_int(target.get("target_low")),
+        "target_high": _safe_int(target.get("target_high")),
+        "target_enforced": bool(target_enforced),
+        "zone_state": canonical_zone,
+        "delta_to_band": delta_to_band,
+        "elapsed_seconds": int(elapsed_seconds),
+        "remaining_phase_seconds": int(remaining_phase_seconds) if remaining_phase_seconds is not None else None,
+        "phase_id": phase_id_value,
+    }
+    events_payload = [
+        {
+            "event_type": event_name,
+            "ts": now_ts,
+            "payload": dict(event_payload_base),
+        }
+        for event_name in event_types
+    ]
+
     return {
         "handled": True,
         "should_speak": should_speak,
         "reason": reason,
         "event_type": event_type,
+        "primary_event_type": primary_event,
         "coach_text": coach_text,
         "max_silence_text": max_silence_text,
+        "events": events_payload,
+        "phase_id": phase_id_value,
+        "sensor_mode": sensor_mode,
         "zone_status": zone_status,
+        "zone_state": canonical_zone,
+        "delta_to_band": delta_to_band,
         "target_zone_label": target.get("target_zone_label"),
         "target_hr_low": target.get("target_low"),
         "target_hr_high": target.get("target_high"),
         "target_source": target.get("target_source"),
-        "target_hr_enforced": bool(target.get("hr_enforced")),
+        "target_hr_enforced": bool(target_enforced),
         "interval_template": template if workout_mode == "interval" else None,
         "segment": target.get("segment"),
         "segment_key": target.get("segment_key"),
-        "heart_rate": hr_bpm,
+        "heart_rate": contract_hr_bpm,
         "hr_delta_bpm": hr_quality_info.get("hr_delta_bpm"),
         "hr_quality": hr_quality_info["state"],
         "hr_quality_reasons": hr_quality_info["reasons"],

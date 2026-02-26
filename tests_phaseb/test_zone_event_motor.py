@@ -428,3 +428,127 @@ def test_recovery_seconds_tracked_when_returning_in_zone():
     assert recovered["recovery_seconds"] > 0
     assert recovered["recovery_avg_seconds"] is not None
     assert recovered["recovery_samples_count"] >= 1
+
+
+def test_phase1_watch_disconnect_notice_emits_once_with_breath_fallback():
+    state = {}
+
+    # Build breath reliability while HR is valid/full.
+    for second in range(0, 6):
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=145,
+                hr_quality="good",
+                watch_connected=True,
+                watch_status="connected",
+                breath_signal_quality=0.8,
+            )
+        )
+
+    # First lost-HR tick starts dwell candidate only.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+        )
+    )
+
+    # Second lost-HR tick crosses dwell and emits notices.
+    switched = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+        )
+    )
+    switched_events = [item.get("event_type") for item in switched.get("events", []) if isinstance(item, dict)]
+    assert "watch_disconnected_notice" in switched_events
+    assert switched["sensor_mode"] == "BREATH_FALLBACK"
+    assert switched["zone_state"] == "HR_MISSING"
+    assert "entered_target" not in switched_events
+    assert "exited_target_above" not in switched_events
+    assert "exited_target_below" not in switched_events
+
+    later = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=20,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+        )
+    )
+    later_events = [item.get("event_type") for item in later.get("events", []) if isinstance(item, dict)]
+    assert "watch_disconnected_notice" not in later_events
+
+
+def test_phase1_no_sensors_notice_emits_once_without_fallback_coaching_cues():
+    state = {}
+
+    # Start in full-HR mode.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+
+    # Move to no-sensors via stable HR loss + missing breath reliability.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    switched = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    switched_events = [item.get("event_type") for item in switched.get("events", []) if isinstance(item, dict)]
+    assert "watch_disconnected_notice" in switched_events
+    assert "no_sensors_notice" in switched_events
+    assert switched["sensor_mode"] == "NO_SENSORS"
+    assert switched["event_type"] not in {"below_zone_push", "above_zone_ease", "pause_detected", "pause_resumed"}
+
+    later = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=20,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    later_events = [item.get("event_type") for item in later.get("events", []) if isinstance(item, dict)]
+    assert "no_sensors_notice" not in later_events
