@@ -312,16 +312,72 @@
 
         /* ── HEADLINE SECTION (big statement like Mia) ── */
         .statement {
-            margin-top: 0; padding: 72px 32px;
+            margin-top: 0; padding: 80px 32px;
             text-align: center;
         }
         .statement h2 {
             font-size: clamp(2rem, 4.5vw, 3.4rem);
-            max-width: 16ch; margin: 0 auto 14px;
+            max-width: 20ch; margin: 0 auto 20px;
         }
         .statement p {
-            color: var(--muted); font-size: 1rem;
-            max-width: 44ch; margin: 0 auto; line-height: 1.6;
+            color: var(--muted); font-size: 1.1rem;
+            max-width: 52ch; margin: 0 auto; line-height: 1.78;
+        }
+
+        /* ── TWO NUMBERS SECTION HEADING ── */
+        .two-numbers-head {
+            text-align: center; padding: 72px 32px 8px;
+        }
+        .two-numbers-head h2 {
+            font-size: clamp(1.8rem, 3.5vw, 3rem); margin-bottom: 0;
+        }
+
+        /* ── REAL-TIME GUIDANCE SECTION ── */
+        .realtime-section {
+            padding: 88px 32px; text-align: center;
+            background: var(--paper);
+            border-top: 1px solid var(--line);
+        }
+        .rt-inner { max-width: 660px; margin: 0 auto; }
+        .realtime-section h2 {
+            font-size: clamp(1.8rem, 3.5vw, 2.8rem); margin-bottom: 20px;
+        }
+        .realtime-section p {
+            color: var(--muted); font-size: 1.05rem;
+            line-height: 1.78; max-width: 52ch; margin: 0 auto;
+        }
+
+        /* ── BUILT FOR ACTION SECTION ── */
+        .action-section {
+            padding: 88px 32px; text-align: center;
+            background: var(--bg-accent);
+            border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+        }
+        .action-inner { max-width: 560px; margin: 0 auto; }
+        .action-inner h2 {
+            font-size: clamp(1.8rem, 3.5vw, 2.8rem); margin-bottom: 18px;
+        }
+        .action-lead {
+            color: var(--muted); font-size: 1.05rem;
+            line-height: 1.7; margin-bottom: 32px;
+        }
+        .action-list {
+            list-style: none; display: inline-flex;
+            flex-direction: column; gap: 16px; text-align: left; margin-bottom: 36px;
+        }
+        .action-list li {
+            display: flex; align-items: flex-start; gap: 14px;
+            font-size: 1.02rem; font-weight: 600; color: var(--ink);
+        }
+        .action-check {
+            width: 24px; height: 24px; flex-shrink: 0; margin-top: 1px;
+            border-radius: 50%;
+            background: linear-gradient(130deg, var(--teal), var(--mint));
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .action-check svg { width: 11px; height: 11px; }
+        .action-close {
+            font-size: 1.12rem; font-weight: 700; color: var(--primary);
         }
 
         /* ── FEATURE PHOTO (full-width photo + overlaid visualization) ── */
@@ -834,8 +890,8 @@
 
         <!-- BIG STATEMENT (like Mia's "Your activity tracker for a healthier life") -->
         <div class="statement reveal">
-            <h2 data-i18n="statement_title">Din personlige løpecoach i lomma</h2>
-            <p data-i18n="statement_body">Pulsen din blir til stemmeråd i sanntid. Hver løpetur blir bedre.</p>
+            <h2 data-i18n="statement_title">Din sanntidscoach for smartere trening</h2>
+            <p data-i18n="statement_body">Vi gjør pulsen og pusten din til tydelig veiledning mens du løper. Du vet alltid hva du skal gjøre, hva du kan forbedre, og hvordan formen din utvikler seg.</p>
         </div>
 
         <!-- FEATURE PHOTO (full-width runner + overlaid pulse line) -->
@@ -857,13 +913,19 @@
             </div>
         </div>
 
+        <!-- TWO NUMBERS HEADING -->
+        <div class="two-numbers-head reveal">
+            <span class="eyebrow" data-i18n="two_numbers_eyebrow">To tall</span>
+            <h2 data-i18n="two_numbers_title">To tall som forteller historien</h2>
+        </div>
+
         <!-- TWO FEATURE CARDS (like Mia's AQ + Fitness Age) -->
         <div class="container">
             <div class="feature-cards reveal">
                 <div class="f-card">
-                    <span class="f-card-pill" data-i18n="fcard_score_pill">CoachScore</span>
-                    <h3 data-i18n="fcard_score_title">Ditt treningskompass</h3>
-                    <p data-i18n="fcard_score_body">Etter hver økt får du en score som viser hvor godt du traff riktig intensitet. Enkelt å forstå, lett å forbedre.</p>
+                    <span class="f-card-pill" data-i18n="fcard_score_pill">Coaching Score</span>
+                    <h3 data-i18n="fcard_score_title">Din treningskvalitet, forenklet</h3>
+                    <p data-i18n="fcard_score_body">Etter hver økt får du én score som viser hvor godt du trente. Den måler sonepresisjon, konsistens og fullstendighet — den raskeste måten å se om dagens økt faktisk tok deg fremover.</p>
                     <div class="score-ring">
                         <svg viewBox="0 0 120 120">
                             <defs>
@@ -882,9 +944,9 @@
                     </div>
                 </div>
                 <div class="f-card">
-                    <span class="f-card-pill" data-i18n="fcard_zone_pill">Pulssone</span>
-                    <h3 data-i18n="fcard_zone_title">Hold riktig intensitet</h3>
-                    <p data-i18n="fcard_zone_body">Coachen holder deg i riktig sone gjennom hele økten. Du trenger ikke sjekke klokka — bare lytt.</p>
+                    <span class="f-card-pill" data-i18n="fcard_zone_pill">Sanntid</span>
+                    <h3 data-i18n="fcard_zone_title">Din puls, live</h3>
+                    <p data-i18n="fcard_zone_body">Coachen leser pulsen din kontinuerlig og holder deg i riktig sone. Ikke nødvendig å sjekke klokka — du hører det i stedet.</p>
                     <div class="zone-visual">
                         <div class="zone-num">152 <span style="font-size: 0.9rem; font-weight: 600; color: var(--muted);">bpm</span></div>
                         <div class="zone-bar-wrap">
@@ -901,6 +963,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- REAL-TIME GUIDANCE SECTION -->
+        <section class="realtime-section reveal">
+            <div class="rt-inner">
+                <span class="eyebrow" data-i18n="rt_eyebrow">Sanntidsveiledning</span>
+                <h2 data-i18n="rt_title">Vet hva du skal gjøre mens du løper</h2>
+                <p data-i18n="rt_body">Coachen din forteller deg når du skal roe ned, presse på, og slappe av. Ingen gjetting. Ingen stirring på tall. Bare tydelig stemmeveiledning som holder deg i riktig sone.</p>
+            </div>
+        </section>
+
+        <!-- BUILT FOR ACTION SECTION -->
+        <section class="action-section reveal">
+            <div class="action-inner">
+                <span class="eyebrow" data-i18n="action_eyebrow">Bygg fremgang</span>
+                <h2 data-i18n="action_title">Tren i dag. Bli bedre i morgen.</h2>
+                <p class="action-lead" data-i18n="action_lead">Hver løpetur gir deg:</p>
+                <ul class="action-list">
+                    <li>
+                        <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span data-i18n="action_1">Sanntids stemmeveiledning</span>
+                    </li>
+                    <li>
+                        <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span data-i18n="action_2">En tydelig Coaching Score</span>
+                    </li>
+                    <li>
+                        <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span data-i18n="action_3">En langsiktig Fitness Age-trend</span>
+                    </li>
+                    <li>
+                        <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span data-i18n="action_4">Enkle tips til neste økt</span>
+                    </li>
+                </ul>
+                <p class="action-close" data-i18n="action_close">Så du alltid vet hva som er neste steg.</p>
+            </div>
+        </section>
 
         <!-- HOW IT WORKS -->
         <section class="section reveal" id="how">
@@ -1140,22 +1239,35 @@
                 nav_download: "Last ned app",
                 nav_home: "Hjem",
                 theme_toggle_aria: "Bytt mellom lys og mørk modus",
-                hero_title: "Din personlige AI coach",
-                hero_body: "Bli coachet mens du trener.",
+                hero_title: "Din sanntidscoach for smartere trening",
+                hero_body: "Bli coachet mens du løper.",
                 hero_cta: "Kom i gang",
                 hero_image_alt: "Person som bruker Coachi på trening",
                 store_prefix: "Last ned på",
                 store_app_aria: "Last ned fra App Store",
                 store_google_aria: "Last ned fra Google Play",
                 works_with_label: "Fungerer med",
-                statement_title: "Din personlige løpecoach i lomma",
-                statement_body: "Pulsen din blir til stemmeråd i sanntid. Hver løpetur blir bedre.",
-                fcard_score_pill: "CoachScore",
-                fcard_score_title: "Ditt treningskompass",
-                fcard_score_body: "Etter hver økt får du en score som viser hvor godt du traff riktig intensitet. Enkelt å forstå, lett å forbedre.",
-                fcard_zone_pill: "Pulssone",
-                fcard_zone_title: "Hold riktig intensitet",
-                fcard_zone_body: "Coachen holder deg i riktig sone gjennom hele økten. Du trenger ikke sjekke klokka — bare lytt.",
+                statement_title: "Din sanntidscoach for smartere trening",
+                statement_body: "Vi gjør pulsen og pusten din til tydelig veiledning mens du løper. Du vet alltid hva du skal gjøre, hva du kan forbedre, og hvordan formen din utvikler seg.",
+                two_numbers_eyebrow: "To tall",
+                two_numbers_title: "To tall som forteller historien",
+                fcard_score_pill: "Coaching Score",
+                fcard_score_title: "Din treningskvalitet, forenklet",
+                fcard_score_body: "Etter hver økt får du én score som viser hvor godt du trente. Den måler sonepresisjon, konsistens og fullstendighet — den raskeste måten å se om dagens økt faktisk tok deg fremover.",
+                fcard_zone_pill: "Sanntid",
+                fcard_zone_title: "Din puls, live",
+                fcard_zone_body: "Coachen leser pulsen din kontinuerlig og holder deg i riktig sone. Ikke nødvendig å sjekke klokka — du hører det i stedet.",
+                rt_eyebrow: "Sanntidsveiledning",
+                rt_title: "Vet hva du skal gjøre mens du løper",
+                rt_body: "Coachen din forteller deg når du skal roe ned, presse på, og slappe av. Ingen gjetting. Ingen stirring på tall. Bare tydelig stemmeveiledning som holder deg i riktig sone.",
+                action_eyebrow: "Bygg fremgang",
+                action_title: "Tren i dag. Bli bedre i morgen.",
+                action_lead: "Hver løpetur gir deg:",
+                action_1: "Sanntids stemmeveiledning",
+                action_2: "En tydelig Coaching Score",
+                action_3: "En langsiktig Fitness Age-trend",
+                action_4: "Enkle tips til neste økt",
+                action_close: "Så du alltid vet hva som er neste steg.",
                 zone_easy: "Rolig",
                 zone_moderate: "Moderat",
                 zone_hard: "Hardt",
@@ -1235,22 +1347,35 @@
                 nav_download: "Download app",
                 nav_home: "Home",
                 theme_toggle_aria: "Switch between light and dark mode",
-                hero_title: "Your personal AI coach",
-                hero_body: "Get coached while you train.",
+                hero_title: "Your real-time coach for smarter training",
+                hero_body: "Get coached while you run.",
                 hero_cta: "Get started",
-                hero_image_alt: "Person using Coachi at the gym",
+                hero_image_alt: "Person using Coachi while running",
                 store_prefix: "Download on",
                 store_app_aria: "Download from App Store",
                 store_google_aria: "Download from Google Play",
                 works_with_label: "Works with",
-                statement_title: "Your personal running coach in your pocket",
-                statement_body: "Your pulse becomes voice cues in real time. Every run gets better.",
-                fcard_score_pill: "CoachScore",
-                fcard_score_title: "Your training compass",
-                fcard_score_body: "After each run you get a score showing how well you hit the right intensity. Easy to understand, easy to improve.",
-                fcard_zone_pill: "Pulse zone",
-                fcard_zone_title: "Stay at the right intensity",
-                fcard_zone_body: "The coach keeps you in the right zone throughout the workout. No need to check your watch — just listen.",
+                statement_title: "Your real-time coach for smarter training",
+                statement_body: "We turn your heart rate and breathing into clear guidance while you run. You always know what to do, what to improve, and how your fitness is evolving.",
+                two_numbers_eyebrow: "Two numbers",
+                two_numbers_title: "Two numbers that tell the story",
+                fcard_score_pill: "Coaching Score",
+                fcard_score_title: "Your workout quality, simplified",
+                fcard_score_body: "After every session, you get a single score that shows how well you trained. It measures how closely you followed your target zones, how consistent you were, and how complete the workout was. The fastest way to see if today's session actually moved you forward.",
+                fcard_zone_pill: "Real-time",
+                fcard_zone_title: "Your heart rate, live",
+                fcard_zone_body: "The coach reads your pulse continuously and keeps you in the right zone. No need to check your watch — you hear it instead.",
+                rt_eyebrow: "Real-time guidance",
+                rt_title: "Know what to do while you run",
+                rt_body: "Your coach tells you when to slow down, when to push, and when to relax. No guessing. No staring at numbers. Just clear voice guidance that keeps you in the right zone.",
+                action_eyebrow: "Built for action",
+                action_title: "Train today. Improve tomorrow.",
+                action_lead: "Every run gives you:",
+                action_1: "Real-time voice coaching",
+                action_2: "A clear Coaching Score",
+                action_3: "A long-term Fitness Age trend",
+                action_4: "Simple tips for your next session",
+                action_close: "So you always know your next step.",
                 zone_easy: "Easy",
                 zone_moderate: "Moderate",
                 zone_hard: "Hard",
