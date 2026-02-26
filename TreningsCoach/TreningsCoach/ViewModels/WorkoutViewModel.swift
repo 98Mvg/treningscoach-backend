@@ -1416,8 +1416,14 @@ class WorkoutViewModel: ObservableObject {
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
         }
 
-        guard let events = response.events, !events.isEmpty else {
+        // Event-capable contract:
+        // - If `events` is present (even empty), event system owns speech.
+        // - Legacy fallback is only for old payloads where `events` is missing.
+        guard let events = response.events else {
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
+        }
+        guard !events.isEmpty else {
+            return (false, "event_router_empty")
         }
 
         guard let selected = selectHighestPriorityEvent(from: events) else {
@@ -2111,11 +2117,12 @@ class WorkoutViewModel: ObservableObject {
                 )
 
                 let eventCount = response.events?.count ?? 0
-                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), events=\(eventCount), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
+                let hasEventsField = response.events != nil
+                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), has_events_field=\(hasEventsField), events=\(eventCount), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
 
                 // 4. Event-first speech routing:
-                // - If events[] exists, only event scheduler decides.
-                // - If events[] is empty, fallback to legacy should_speak/audio.
+                // - If events field exists (even empty), event scheduler decides.
+                // - Legacy fallback is only for payloads missing events.
                 let eventSpeechDecision = shouldSpeakEventFirst(response: response)
                 if eventSpeechDecision.speak, let audioURL = response.audioURL {
                     print("🗣️ Coach speaking via \(eventSpeechDecision.reason): '\(response.text)'")
