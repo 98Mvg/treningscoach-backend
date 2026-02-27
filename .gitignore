@@ -90,3 +90,9 @@ DerivedData/
 # Swift Package Manager
 .swiftpm/
 Package.resolved
+
+# Generated audio packs (large MP3 files)
+output/audio_pack/*/en/
+output/audio_pack/*/no/
+# Keep manifests
+!output/audio_pack/*/manifest.json

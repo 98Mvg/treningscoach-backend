@@ -280,6 +280,21 @@ PHRASE_CATALOG = [
     {"id": "zone.silence.work.1", "en": "Stay controlled. One rep at a time.", "no": "Hold kontroll. Ett drag av gangen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.silence.rest.1", "en": "Stay easy between reps.", "no": "Rolig mellom dragene.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.silence.default.1", "en": "Hold steady rhythm.", "no": "Hold jevn rytme.", "persona": "personal_trainer", "priority": "core"},
+
+    # -----------------------------------------------------------------
+    # MOTIVATION — general encouragement cues
+    # -----------------------------------------------------------------
+
+    {"id": "motivation.1", "en": "You're doing great.", "no": "Du er kjempeflink.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.2", "en": "Strong work. Keep it up.", "no": "Sterkt. Fortsett slik.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.3", "en": "That's the effort I want to see.", "no": "Det er innsatsen jeg vil se.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.4", "en": "One step at a time. You got this.", "no": "Ett steg om gangen. Du klarer det.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.5", "en": "Discipline beats motivation. Keep going.", "no": "Disiplin slår motivasjon. Fortsett.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.6", "en": "This is where it counts.", "no": "Det er nå det gjelder.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.7", "en": "You showed up. Now finish it.", "no": "Du møtte opp. Nå fullfører du.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.8", "en": "Trust the process.", "no": "Stol på prosessen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.9", "en": "Every rep matters.", "no": "Hvert steg teller.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.10", "en": "Finish what you started.", "no": "Fullfør det du begynte på.", "persona": "personal_trainer", "priority": "core"},
 ]
 
 

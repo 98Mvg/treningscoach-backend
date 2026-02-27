@@ -38,6 +38,7 @@ enum PipelineStage: String {
     case backendSend = "BACKEND_SEND"
     case backendResponse = "BACKEND_RESP"
     case ttsPlayback = "TTS_PLAY"
+    case speechTranscript = "SPEECH"
 }
 
 /// A single pipeline event for the log
@@ -233,6 +234,10 @@ class AudioPipelineDiagnostics: ObservableObject {
 
         // Also print for Xcode console debugging
         print("🔬 [\(stage.rawValue)] \(detail)")
+    }
+
+    func logSpeech(utteranceId: String, eventType: String, source: String) {
+        log(.speechTranscript, detail: "[\(source)] \(utteranceId) event=\(eventType)")
     }
 
     /// Track speech recognizer restart activity to detect error thrash.

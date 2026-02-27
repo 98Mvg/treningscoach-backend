@@ -133,6 +133,16 @@ TTS_AUDIO_CACHE_MAX_AGE_SECONDS = _env_int("TTS_AUDIO_CACHE_MAX_AGE_SECONDS", 14
 TTS_AUDIO_CACHE_CLEANUP_INTERVAL_WRITES = _env_int("TTS_AUDIO_CACHE_CLEANUP_INTERVAL_WRITES", 25)
 
 # ============================================
+# R2 AUDIO PACK CONFIGURATION
+# ============================================
+R2_BUCKET_NAME = (os.getenv("R2_BUCKET_NAME", "coachi-audio") or "coachi-audio").strip()
+R2_ACCOUNT_ID = (os.getenv("R2_ACCOUNT_ID", "") or "").strip()
+R2_ACCESS_KEY_ID = (os.getenv("R2_ACCESS_KEY_ID", "") or "").strip()
+R2_SECRET_ACCESS_KEY = (os.getenv("R2_SECRET_ACCESS_KEY", "") or "").strip()
+R2_PUBLIC_URL = (os.getenv("R2_PUBLIC_URL", "") or "").strip()
+AUDIO_PACK_VERSION = (os.getenv("AUDIO_PACK_VERSION", "v1") or "v1").strip()
+
+# ============================================
 # BREATH ANALYSIS SETTINGS
 # ============================================
 # Downsample to reduce CPU and improve stability
