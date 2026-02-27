@@ -10,26 +10,22 @@ Note: eleven_multilingual_v2 does NOT support Norwegian properly (sounds Danish)
 import os
 import hashlib
 import json
+import math
 import shutil
+import struct
 import time
+import wave
+from datetime import datetime
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
 import logging
 import config
+from locale_config import get_voice_id as locale_get_voice_id, get_tts_language_code
 
 logger = logging.getLogger(__name__)
 
 # TTS model selection — flash_v2_5 is fastest + cheapest + supports Norwegian
 TTS_MODEL = "eleven_flash_v2_5"
-
-# Language codes for ElevenLabs (helps with short/ambiguous text)
-# ElevenLabs uses ISO 639-1 codes for language_code parameter
-# See: https://elevenlabs.io/docs/api-reference/text-to-speech
-LANGUAGE_CODES = {
-    "en": None,     # Auto-detect works well for English
-    "no": "no",     # Norwegian — ISO 639-1 (NOT "nor" which returns 400)
-    "da": "da",     # Danish — ISO 639-1
-}
 
 class ElevenLabsTTS:
     def __init__(self, api_key: str, voice_id: str):
@@ -62,8 +58,8 @@ class ElevenLabsTTS:
         Returns:
             Voice ID string
         """
-        if language and language in config.VOICE_CONFIG:
-            voice_id = config.VOICE_CONFIG[language].get("voice_id", "")
+        if language:
+            voice_id = locale_get_voice_id(language, "personal_trainer")
             if voice_id:
                 return voice_id
         return self.default_voice_id
@@ -95,7 +91,10 @@ class ElevenLabsTTS:
             Path to the generated audio file
         """
         # Start with defaults
-        voice_id = self.get_voice_id(language)
+        persona_key = (persona or "personal_trainer").strip() or "personal_trainer"
+        voice_id = locale_get_voice_id(language or "en", persona_key)
+        if not voice_id:
+            voice_id = self.get_voice_id(language)
         stability = 0.5
         similarity_boost = 0.75
         style = 0.0
@@ -130,7 +129,7 @@ class ElevenLabsTTS:
 
         lang_label = f" [{language}]" if language else ""
         persona_label = f" ({persona})" if persona else ""
-        language_code = LANGUAGE_CODES.get(language) if language else None
+        language_code = get_tts_language_code(language) if language else None
 
         cache_enabled = bool(getattr(config, "TTS_AUDIO_CACHE_ENABLED", False))
         cache_read_enabled = bool(getattr(config, "TTS_AUDIO_CACHE_READ_ENABLED", True))
@@ -245,7 +244,10 @@ class ElevenLabsTTS:
         Returns:
             Audio bytes (MP3 format)
         """
-        voice_id = self.get_voice_id(language)
+        persona_key = (persona or "personal_trainer").strip() or "personal_trainer"
+        voice_id = locale_get_voice_id(language or "en", persona_key)
+        if not voice_id:
+            voice_id = self.get_voice_id(language)
         stability = 0.5
         similarity_boost = 0.75
         style = 0.0
@@ -275,7 +277,7 @@ class ElevenLabsTTS:
         style = max(0.0, min(1.0, float(style)))
         speed = max(0.7, min(1.2, float(speed)))
 
-        language_code = LANGUAGE_CODES.get(language) if language else None
+        language_code = get_tts_language_code(language) if language else None
 
         # Build API kwargs — language_code is optional, only add when set
         convert_kwargs = dict(
@@ -406,6 +408,41 @@ class ElevenLabsTTS:
             "max_files": int(getattr(config, "TTS_AUDIO_CACHE_MAX_FILES", 1000)),
             "max_age_seconds": int(getattr(config, "TTS_AUDIO_CACHE_MAX_AGE_SECONDS", 14 * 24 * 3600)),
         }
+
+
+def synthesize_speech_mock(text: str) -> str:
+    """
+    Generate a short audible beep file as deterministic fallback when cloud TTS is unavailable.
+    """
+    output_folder = os.path.join(os.path.dirname(__file__), "output")
+    os.makedirs(output_folder, exist_ok=True)
+    timestamp = datetime.now().timestamp()
+    output_path = os.path.join(output_folder, f"coach_mock_{timestamp}.wav")
+
+    sample_rate = 44100
+    beep_duration = 0.15
+    pause_duration = 0.1
+    frequency = 880
+    amplitude = 8000
+
+    with wave.open(output_path, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+
+        for i in range(int(beep_duration * sample_rate)):
+            sample = int(amplitude * math.sin(2 * math.pi * frequency * i / sample_rate))
+            wav_file.writeframes(struct.pack("<h", sample))
+
+        for _ in range(int(pause_duration * sample_rate)):
+            wav_file.writeframes(struct.pack("<h", 0))
+
+        for i in range(int(beep_duration * sample_rate)):
+            sample = int(amplitude * math.sin(2 * math.pi * frequency * i / sample_rate))
+            wav_file.writeframes(struct.pack("<h", sample))
+
+    logger.warning("⚠️ Using MOCK audio (beep) for: %r", text)
+    return output_path
 
 
 # Example usage

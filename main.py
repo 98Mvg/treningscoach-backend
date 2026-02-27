@@ -22,10 +22,8 @@ from persona_manager import PersonaManager  # Import Persona Manager
 from coaching_intelligence import should_coach_speak, calculate_next_interval, apply_max_silence_override  # Import coaching intelligence
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
-from tts_service import synthesize_speech_mock  # Import mock TTS (Qwen disabled)
-from elevenlabs_tts import ElevenLabsTTS  # Import ElevenLabs TTS
+from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
-from coach_personality import get_coach_prompt, ENDURANCE_COACH_PERSONALITY  # Import coach personality
 from database import init_db, db, WaitlistSignup  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
@@ -39,8 +37,10 @@ from zone_event_motor import (
     normalize_coaching_style,
     normalize_interval_template,
 )
+from coaching_pipeline import run as run_coaching_pipeline
 from web_routes import create_web_blueprint
 from chat_routes import create_chat_blueprint
+from locale_config import get_voice_id as locale_voice_id
 
 # Configure logging
 logging.basicConfig(
@@ -110,26 +110,17 @@ logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
 def _resolve_default_elevenlabs_voice_id():
     """
     Pick a default ElevenLabs voice ID from explicit env vars first,
-    then config-level voice maps.
+    then locale-config voice maps.
     """
-    persona_config = getattr(config, "PERSONA_VOICE_CONFIG", {}) or {}
-    voice_config = getattr(config, "VOICE_CONFIG", {}) or {}
-    personal_ids = (persona_config.get("personal_trainer", {}) or {}).get("voice_ids", {}) or {}
-    toxic_ids = (persona_config.get("toxic_mode", {}) or {}).get("voice_ids", {}) or {}
-    voice_config_en = (voice_config.get("en", {}) or {}).get("voice_id", "")
-    voice_config_no = (voice_config.get("no", {}) or {}).get("voice_id", "")
-
     candidates = [
         ("ELEVENLABS_VOICE_ID", os.getenv("ELEVENLABS_VOICE_ID", "")),
         ("ELEVENLABS_VOICE_ID_EN", os.getenv("ELEVENLABS_VOICE_ID_EN", "")),
         ("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "")),
-        ("config.PERSONA_VOICE_CONFIG.personal_trainer.en", personal_ids.get("en", "")),
-        ("config.VOICE_CONFIG.en", voice_config_en),
+        ("locale_config.personal_trainer.en", locale_voice_id("en", "personal_trainer")),
         ("ELEVENLABS_VOICE_ID_NO", os.getenv("ELEVENLABS_VOICE_ID_NO", "")),
         ("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "")),
-        ("config.PERSONA_VOICE_CONFIG.personal_trainer.no", personal_ids.get("no", "")),
-        ("config.VOICE_CONFIG.no", voice_config_no),
-        ("config.PERSONA_VOICE_CONFIG.toxic_mode.en", toxic_ids.get("en", "")),
+        ("locale_config.personal_trainer.no", locale_voice_id("no", "personal_trainer")),
+        ("locale_config.toxic_mode.en", locale_voice_id("en", "toxic_mode")),
     ]
 
     for source, raw_value in candidates:
@@ -2263,9 +2254,6 @@ def coach_continuous():
         decision_started = time.perf_counter()
         rich_followup_forced = False
         speech_decision_owner_v2 = bool(getattr(config, "SPEECH_DECISION_OWNER_V2", True))
-        decision_owner = "legacy"
-        decision_owner_base = "legacy"
-        max_silence_override_used = False
         recent_breath_quality_samples = [
             item.get("signal_quality")
             for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
@@ -2292,167 +2280,62 @@ def coach_continuous():
                 zone_tick.get("reason"),
                 zone_tick.get("should_speak"),
             )
-        if is_first_breath:
-            # Always speak on first breath to welcome the user
-            speak_decision = True
-            reason = "welcome_message"
-            decision_owner = "welcome"
-            decision_owner_base = "welcome"
-            workout_state["is_first_breath"] = False  # Clear flag
-            workout_state["use_welcome_phrase"] = True  # Flag to use specific cached phrase
-            logger.info(f"First breath detected - will provide welcome message")
-        else:
-            if speech_decision_owner_v2:
-                if zone_mode_active and zone_tick is not None:
-                    decision_owner_base = "zone_event"
-                    speak_decision = bool(zone_tick.get("should_speak"))
-                    reason = zone_tick.get("primary_event_type") or zone_tick.get("reason") or "zone_no_change"
-                    zone_forced_text = zone_tick.get("coach_text")
-                    logger.info(
-                        "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s events=%s",
-                        speak_decision,
-                        reason,
-                        zone_tick.get("zone_status"),
-                        zone_tick.get("heart_rate"),
-                        zone_tick.get("hr_quality"),
-                        zone_tick.get("coaching_style"),
-                        [item.get("event_type") for item in (zone_tick.get("events") or []) if isinstance(item, dict)],
-                    )
-                elif breath_quality_state == "reliable":
-                    decision_owner_base = "breath_logic"
-                    should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
-                        breath_data=breath_data,
-                        phase=phase,
-                        last_coaching=last_coaching,
-                        elapsed_seconds=elapsed_seconds,
-                        session_id=session_id
-                    )
-                    if should_be_silent:
-                        speak_decision = False
-                        reason = silence_reason
-                    else:
-                        speak_decision, reason = should_coach_speak(
-                            current_analysis=breath_data,
-                            last_analysis=last_breath,
-                            coaching_history=coaching_context["coaching_history"],
-                            phase=phase,
-                            training_level=training_level,
-                            elapsed_seconds=elapsed_seconds
-                        )
-                else:
-                    decision_owner_base = "phase_fallback"
-                    fallback_interval = _phase_fallback_interval_seconds(phase)
-                    if elapsed_since_last is None or elapsed_since_last >= fallback_interval:
-                        speak_decision = True
-                        reason = "phase_fallback_interval"
-                    else:
-                        speak_decision = False
-                        reason = "phase_fallback_wait"
+        decision = run_coaching_pipeline(
+            is_first_breath=bool(is_first_breath),
+            zone_mode_active=bool(zone_mode_active),
+            zone_tick=zone_tick,
+            breath_quality_state=breath_quality_state,
+            speech_decision_owner_v2=bool(speech_decision_owner_v2),
+            unified_zone_router_active=bool(unified_zone_router_active),
+            voice_intelligence=voice_intelligence,
+            should_coach_speak_fn=should_coach_speak,
+            apply_max_silence_override_fn=apply_max_silence_override,
+            phase_fallback_interval_seconds_fn=_phase_fallback_interval_seconds,
+            breath_data=breath_data,
+            phase=phase,
+            last_coaching=last_coaching,
+            elapsed_seconds=elapsed_seconds,
+            last_breath=last_breath,
+            coaching_history=coaching_context["coaching_history"],
+            training_level=training_level,
+            session_id=session_id,
+            elapsed_since_last=elapsed_since_last,
+            max_silence_seconds=float(getattr(config, "MAX_SILENCE_SECONDS", 60)),
+        )
+        speak_decision = bool(decision.speak)
+        reason = decision.reason
+        decision_owner = decision.owner
+        decision_owner_base = decision.owner_base
+        zone_forced_text = decision.zone_forced_text
+        max_silence_override_used = bool(decision.max_silence_override_used)
 
-                if unified_zone_router_active and decision_owner_base == "zone_event":
-                    decision_owner = decision_owner_base
-                else:
-                    max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                    pre_override_speak = bool(speak_decision)
-                    speak_decision, reason = apply_max_silence_override(
-                        should_speak=speak_decision,
-                        reason=reason,
-                        elapsed_since_last=elapsed_since_last,
-                        max_silence_seconds=max_silence
-                    )
-                    if (
-                        (not pre_override_speak)
-                        and speak_decision
-                        and reason == "max_silence_override"
-                    ):
-                        max_silence_override_used = True
-                        decision_owner = "max_silence_override"
-                    else:
-                        decision_owner = decision_owner_base
-                    if (
-                        speak_decision
-                        and reason == "max_silence_override"
-                        and zone_mode_active
-                        and zone_tick is not None
-                        and not zone_forced_text
-                    ):
-                        zone_forced_text = zone_tick.get("max_silence_text")
-            else:
-                if zone_mode_active and zone_tick is not None:
-                    speak_decision = bool(zone_tick.get("should_speak"))
-                    reason = zone_tick.get("reason") or "zone_no_change"
-                    zone_forced_text = zone_tick.get("coach_text")
-                    decision_owner_base = "zone_event"
-                    logger.info(
-                        "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s",
-                        speak_decision,
-                        reason,
-                        zone_tick.get("zone_status"),
-                        zone_tick.get("heart_rate"),
-                        zone_tick.get("hr_quality"),
-                        zone_tick.get("coaching_style"),
-                    )
-                else:
-                    # STEP 6: Check if coach should stay silent (optimal breathing)
-                    should_be_silent, silence_reason = voice_intelligence.should_stay_silent(
-                        breath_data=breath_data,
-                        phase=phase,
-                        last_coaching=last_coaching,
-                        elapsed_seconds=elapsed_seconds,
-                        session_id=session_id
-                    )
+        if decision.mark_first_breath_consumed:
+            workout_state["is_first_breath"] = False
+        if decision.mark_use_welcome_phrase:
+            workout_state["use_welcome_phrase"] = True
+            logger.info("First breath detected - will provide welcome message")
 
-                    if should_be_silent:
-                        # Cap silence so coach doesn't disappear
-                        max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                        min_quality = getattr(config, "MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
-                        signal_quality = breath_data.get("signal_quality") or 0.0
+        if zone_mode_active and zone_tick is not None:
+            logger.info(
+                "Zone decision: should_speak=%s reason=%s zone=%s hr=%s quality=%s style=%s events=%s",
+                speak_decision,
+                reason,
+                zone_tick.get("zone_status"),
+                zone_tick.get("heart_rate"),
+                zone_tick.get("hr_quality"),
+                zone_tick.get("coaching_style"),
+                [item.get("event_type") for item in (zone_tick.get("events") or []) if isinstance(item, dict)],
+            )
 
-                        if elapsed_since_last is not None and elapsed_since_last >= max_silence and signal_quality >= min_quality:
-                            speak_decision = True
-                            reason = "max_silence_override"
-                            logger.info(f"Voice intelligence override: speaking after {elapsed_since_last:.0f}s silence")
-                        else:
-                            # Silence = confidence
-                            logger.info(f"Voice intelligence: staying silent ({silence_reason})")
-                            speak_decision = False
-                            reason = silence_reason
-                    else:
-                        # Event motor contract: persona controls wording/voice only.
-                        # Decision logic must stay persona-agnostic for predictable coaching behavior.
-                        # Decide if coach should speak (STEP 1/2 logic)
-                        speak_decision, reason = should_coach_speak(
-                            current_analysis=breath_data,
-                            last_analysis=last_breath,
-                            coaching_history=coaching_context["coaching_history"],
-                            phase=phase,
-                            training_level=training_level,
-                            elapsed_seconds=elapsed_seconds
-                        )
-                    decision_owner_base = "breath_logic"
-
-                # Hard silence cap for guided mode: coach must re-engage at bounded intervals
-                max_silence = getattr(config, "MAX_SILENCE_SECONDS", 60)
-                pre_override_speak = bool(speak_decision)
-                speak_decision, reason = apply_max_silence_override(
-                    should_speak=speak_decision,
-                    reason=reason,
-                    elapsed_since_last=elapsed_since_last,
-                    max_silence_seconds=max_silence
-                )
-                if (not pre_override_speak) and speak_decision and reason == "max_silence_override":
-                    max_silence_override_used = True
-                    decision_owner = "max_silence_override"
-                else:
-                    decision_owner = decision_owner_base
-                if speak_decision and reason == "max_silence_override" and zone_mode_active and zone_tick is not None and not zone_forced_text:
-                    zone_forced_text = zone_tick.get("max_silence_text")
-
-            logger.info(f"Coaching decision: should_speak={speak_decision}, reason={reason}, "
-                        f"signal_quality={breath_data.get('signal_quality', 'N/A')}, "
-                        f"elapsed_since_last={elapsed_since_last}, "
-                        f"is_first_breath={breath_data.get('is_first_breath', False)}, "
-                        f"owner={decision_owner}")
+        logger.info(
+            "Coaching decision: should_speak=%s, reason=%s, signal_quality=%s, elapsed_since_last=%s, is_first_breath=%s, owner=%s",
+            speak_decision,
+            reason,
+            breath_data.get("signal_quality", "N/A"),
+            elapsed_since_last,
+            breath_data.get("is_first_breath", False),
+            decision_owner,
+        )
 
         _log_decision_debug(
             session_id=session_id,

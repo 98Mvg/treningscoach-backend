@@ -28,28 +28,23 @@ def test_resolve_default_voice_id_prefers_explicit_env(monkeypatch):
     assert source == "ELEVENLABS_VOICE_ID"
 
 
-def test_resolve_default_voice_id_uses_config_when_env_missing(monkeypatch):
+def test_resolve_default_voice_id_uses_locale_when_env_missing(monkeypatch):
     _clear_voice_env(monkeypatch)
     monkeypatch.setattr(
-        main.config,
-        "PERSONA_VOICE_CONFIG",
-        {
-            "personal_trainer": {"voice_ids": {"en": "voice_from_persona_config", "no": ""}},
-            "toxic_mode": {"voice_ids": {"en": "", "no": ""}},
-        },
-        raising=False,
-    )
-    monkeypatch.setattr(
-        main.config,
-        "VOICE_CONFIG",
-        {"en": {"voice_id": ""}, "no": {"voice_id": ""}},
+        main,
+        "locale_voice_id",
+        lambda lang, persona="personal_trainer": (
+            "voice_from_locale_personal_en"
+            if (lang == "en" and persona == "personal_trainer")
+            else ("voice_from_locale_personal_no" if (lang == "no" and persona == "personal_trainer") else "")
+        ),
         raising=False,
     )
 
     voice_id, source = main._resolve_default_elevenlabs_voice_id()
 
-    assert voice_id == "voice_from_persona_config"
-    assert source == "config.PERSONA_VOICE_CONFIG.personal_trainer.en"
+    assert voice_id == "voice_from_locale_personal_en"
+    assert source == "locale_config.personal_trainer.en"
 
 
 def test_coach_score_mapping_covers_localized_inputs():

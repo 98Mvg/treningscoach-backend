@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, AsyncIterator, List
 
 from .base_brain import BaseBrain
 import config
-from coach_personality import get_coach_prompt
+from persona_manager import get_coach_prompt
 
 try:
     import google.generativeai as genai

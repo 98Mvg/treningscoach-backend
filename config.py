@@ -3,6 +3,7 @@
 
 import json
 import os
+from locale_config import SUPPORTED_LOCALES, get_voice_id as locale_get_voice_id
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -78,22 +79,38 @@ _DEFAULT_LANGUAGE_RAW = (os.getenv("DEFAULT_LANGUAGE", "no") or "no").strip().lo
 DEFAULT_LANGUAGE = _DEFAULT_LANGUAGE_RAW if _DEFAULT_LANGUAGE_RAW in SUPPORTED_LANGUAGES else "no"
 
 # ============================================
-# VOICE CONFIGURATION (per language)
+# VOICE CONFIGURATION (locale_config SSoT)
 # ============================================
-VOICE_CONFIG = {
-    "en": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_EN", os.getenv("ELEVENLABS_VOICE_ID", "")),
-        "name": "English Coach"
-    },
-    "no": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_NO", "nhvaqgRyAq6BmFs3WcdX"),
-        "name": "Norwegian Coach"
-    },
-    "da": {
-        "voice_id": os.getenv("ELEVENLABS_VOICE_ID_DA", ""),
-        "name": "Danish Coach"
-    }
-}
+def _build_voice_config_from_locales() -> dict:
+    voice_config = {}
+    for language, locale in SUPPORTED_LOCALES.items():
+        display_name = (locale.get("display_name") or {}).get("en", language.upper())
+        voice_id = locale_get_voice_id(language, "personal_trainer")
+        voice_config[language] = {
+            "voice_id": voice_id,
+            "name": f"{display_name} Coach",
+        }
+    return voice_config
+
+
+def _build_persona_voice_config_from_locales() -> dict:
+    persona_voice_config = {}
+    for persona in ("personal_trainer", "toxic_mode"):
+        voice_ids = {}
+        for language, locale in SUPPORTED_LOCALES.items():
+            _ = locale  # Keep loop shape explicit for readability.
+            voice_ids[language] = locale_get_voice_id(language, persona)
+        persona_voice_config[persona] = {
+            "voice_ids": voice_ids,
+            "name": "Personal Trainer" if persona == "personal_trainer" else "Toxic Mode",
+            "stability": 0.7 if persona == "personal_trainer" else 0.25,
+            "similarity_boost": 0.9 if persona == "personal_trainer" else 0.85,
+            "style": 0.25 if persona == "personal_trainer" else 0.9,
+        }
+    return persona_voice_config
+
+
+VOICE_CONFIG = _build_voice_config_from_locales()
 
 # ============================================
 # TTS SETTINGS
@@ -135,33 +152,8 @@ EARLY_WORKOUT_GRACE_SECONDS = 30  # Force coaching output during early workout
 MIN_SIGNAL_QUALITY_TO_FORCE = _env_float("MIN_SIGNAL_QUALITY_TO_FORCE", 0.0)
 
 # Persona-specific voices
-# Maps to iOS CoachPersonality enum values
-# voice_ids: Dict of language -> voice_id (use language default if not set)
-# stability: 0.0-1.0 (higher = more consistent delivery)
-# similarity_boost: 0.0-1.0 (higher = keeps core timbre more consistent)
-# style: 0.0-1.0 (higher = more expressive/dramatic)
-PERSONA_VOICE_CONFIG = {
-    "personal_trainer": {
-        "voice_ids": {
-            "en": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "9MPvdQh2pLsLhn7SuiIS"),
-            "no": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_NO", "nhvaqgRyAq6BmFs3WcdX"),
-        },
-        "name": "Personal Trainer",
-        "stability": 0.7,
-        "similarity_boost": 0.9,
-        "style": 0.25
-    },
-    "toxic_mode": {
-        "voice_ids": {
-            "en": os.getenv("ELEVENLABS_VOICE_ID_TOXIC_EN", "YxsfIjmqZRHBp5erMzLg"),
-            "no": os.getenv("ELEVENLABS_VOICE_ID_TOXIC_NO", "nhvaqgRyAq6BmFs3WcdX"),
-        },
-        "name": "Toxic Mode",
-        "stability": 0.25,
-        "similarity_boost": 0.85,
-        "style": 0.9
-    }
-}
+# voice_ids now derive from locale_config SUPPORTED_LOCALES (single source of truth).
+PERSONA_VOICE_CONFIG = _build_persona_voice_config_from_locales()
 
 # ============================================
 # TRAINING LEVEL CONFIGURATION
