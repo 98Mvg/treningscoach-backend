@@ -20,6 +20,15 @@ enum CoachInteractionState: String {
     case responding         // Coach is generating/speaking response
 }
 
+struct SpeechTranscriptEntry: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let utteranceId: String
+    let eventType: String
+    let source: String
+    let text: String?
+}
+
 private final class HealthKitHeartRateService {
     struct Update {
         let bpm: Int
@@ -326,8 +335,9 @@ class WorkoutViewModel: ObservableObject {
     @Published var targetHRLow: Int?
     @Published var targetHRHigh: Int?
     @Published var zoneScoreConfidence: String = "low"
-    @Published var coachScore: Int = 82
+    @Published var coachScore: Int = 0
     @Published var coachScoreLine: String = ""
+    @Published private(set) var hasAuthoritativeCoachScore: Bool = false
     @Published var coachScoreV2: Int?
     @Published var coachScoreComponents: CoachScoreComponents?
     @Published var coachScoreCapReasonCodes: [String] = []
@@ -345,6 +355,7 @@ class WorkoutViewModel: ObservableObject {
     @Published var recoveryLine: String = ""
     @Published var isSpotifyConnected: Bool = UserDefaults.standard.bool(forKey: "spotify_connected")
     @Published var showSpotifyConnectSheet: Bool = false
+    @Published private(set) var speechTranscript: [SpeechTranscriptEntry] = []
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -619,8 +630,9 @@ class WorkoutViewModel: ObservableObject {
     func startWorkout() {
         workoutState = .active
         showComplete = false
-        coachScore = 82
+        coachScore = 0
         coachScoreLine = ""
+        hasAuthoritativeCoachScore = false
         coachScoreV2 = nil
         coachScoreComponents = nil
         coachScoreCapReasonCodes = []
@@ -674,8 +686,9 @@ class WorkoutViewModel: ObservableObject {
         elapsedTime = 0
         coachMessage = nil
         breathAnalysis = nil
-        coachScore = 82
+        coachScore = 0
         coachScoreLine = ""
+        hasAuthoritativeCoachScore = false
         coachScoreV2 = nil
         coachScoreComponents = nil
         coachScoreCapReasonCodes = []
@@ -700,6 +713,7 @@ class WorkoutViewModel: ObservableObject {
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
+        lastResolvedEventType = nil
     }
 
     func selectPersonality(_ persona: CoachPersonality) {
@@ -864,6 +878,8 @@ class WorkoutViewModel: ObservableObject {
     private var lastEventSpeechAt: Date?
     private var lastEventSpeechPriority: Int = -1
     private var lastResolvedUtteranceID: String?
+    private var lastResolvedEventType: String?
+    private let maxSpeechTranscriptEntries = 120
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -1168,19 +1184,6 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    private func estimatedCoachScore(for intensity: IntensityLevel) -> Int {
-        switch intensity {
-        case .calm:
-            return 74
-        case .moderate:
-            return 82
-        case .intense:
-            return 88
-        case .critical:
-            return 68
-        }
-    }
-
     private enum ScoreBand {
         case strong
         case solid
@@ -1363,37 +1366,37 @@ class WorkoutViewModel: ObservableObject {
     private func utteranceID(for eventType: String) -> String? {
         switch eventType {
         case "warmup_started":
-            return "workout.warmup.start"
+            return "zone.phase.warmup.1"
         case "main_started":
-            return "workout.main.start"
+            return "zone.main_started.1"
         case "cooldown_started":
-            return "workout.cooldown.start"
+            return "zone.phase.cooldown.1"
         case "workout_finished":
-            return "workout.finish"
+            return "zone.workout_finished.1"
         case "entered_target":
-            return "zone.entered_target"
+            return "zone.in_zone.default.1"
         case "exited_target_above":
-            return "zone.exited_above"
+            return "zone.above.default.1"
         case "exited_target_below":
-            return "zone.exited_below"
+            return "zone.below.default.1"
         case "hr_signal_lost":
-            return "sensor.hr_lost"
+            return "zone.hr_poor_enter.1"
         case "hr_signal_restored":
-            return "sensor.hr_restored"
+            return "zone.hr_poor_exit.1"
         case "watch_disconnected_notice":
-            return "sensor.watch_disconnected_notice"
+            return "zone.watch_disconnected.1"
         case "no_sensors_notice":
-            return "sensor.no_sensors_notice"
+            return "zone.no_sensors.1"
         case "watch_restored_notice":
-            return "sensor.watch_restored_notice"
+            return "zone.watch_restored.1"
         case "interval_countdown_30":
-            return "interval.countdown.30"
+            return "zone.countdown.30"
         case "interval_countdown_15":
-            return "interval.countdown.15"
+            return "zone.countdown.15"
         case "interval_countdown_5":
-            return "interval.countdown.5"
+            return "zone.countdown.5"
         case "interval_countdown_start":
-            return "interval.countdown.start"
+            return "zone.countdown.start"
         default:
             return nil
         }
@@ -1413,6 +1416,8 @@ class WorkoutViewModel: ObservableObject {
 
     private func shouldSpeakEventFirst(response: ContinuousCoachResponse) -> (speak: Bool, reason: String) {
         guard AppConfig.ContinuousCoaching.iosEventSpeechEnabled else {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
         }
 
@@ -1420,18 +1425,26 @@ class WorkoutViewModel: ObservableObject {
         // - If `events` is present (even empty), event system owns speech.
         // - Legacy fallback is only for old payloads where `events` is missing.
         guard let events = response.events else {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
         }
         guard !events.isEmpty else {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
             return (false, "event_router_empty")
         }
 
         guard let selected = selectHighestPriorityEvent(from: events) else {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
             return (false, "event_router_no_event")
         }
 
         guard let utteranceID = utteranceID(for: selected.eventType) else {
             print("🔇 EVENT_SUPPRESSED reason=no_utterance event=\(selected.eventType)")
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
             return (false, "event_router_no_utterance")
         }
 
@@ -1453,11 +1466,8 @@ class WorkoutViewModel: ObservableObject {
             lastEventSpeechPriority = selectedPriority
         }
         lastResolvedUtteranceID = utteranceID
+        lastResolvedEventType = selected.eventType
         print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority)")
-
-        if response.audioURL == nil {
-            return (false, "event_router_no_audio")
-        }
         return (true, "event_router")
     }
 
@@ -1730,6 +1740,7 @@ class WorkoutViewModel: ObservableObject {
             lastEventSpeechAt = nil
             lastEventSpeechPriority = -1
             lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
 
             // Auto-detect initial phase
             autoDetectPhase()
@@ -1909,6 +1920,7 @@ class WorkoutViewModel: ObservableObject {
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
+        lastResolvedEventType = nil
 
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
@@ -1932,14 +1944,17 @@ class WorkoutViewModel: ObservableObject {
         }
 
         if coachScoreLine.isEmpty {
-            coachScore = estimatedCoachScore(for: breathAnalysis?.intensityLevel ?? .moderate)
             coachScoreLine = formattedCoachScoreLine(score: coachScore)
         }
 
         if let duration = finalDurationSeconds {
             applyExperienceProgression(durationSeconds: duration, finalCoachScore: coachScore)
         }
-        persistFinalCoachScore(coachScore, at: Date())
+        if hasAuthoritativeCoachScore {
+            persistFinalCoachScore(coachScore, at: Date())
+        } else {
+            print("⚠️ Skipping coach score persistence: no authoritative score received")
+        }
 
         elapsedTime = 0
         print("✅ Continuous workout stopped")
@@ -2041,16 +2056,16 @@ class WorkoutViewModel: ObservableObject {
                 // 3. Update metrics silently (NO UI state change)
                 breathAnalysis = response.breathAnalysis
                 coachMessage = response.text
-                if let score = response.coachScore {
-                    coachScore = max(0, min(100, score))
-                } else if let scoreV2 = response.coachScoreV2 {
+                if let scoreV2 = response.coachScoreV2 {
                     coachScore = max(0, min(100, scoreV2))
-                } else {
-                    coachScore = estimatedCoachScore(for: response.breathAnalysis.intensityLevel)
+                    hasAuthoritativeCoachScore = true
+                } else if let score = response.coachScore {
+                    coachScore = max(0, min(100, score))
+                    hasAuthoritativeCoachScore = true
                 }
                 if let line = response.coachScoreLine, !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     coachScoreLine = line
-                } else {
+                } else if hasAuthoritativeCoachScore {
                     coachScoreLine = formattedCoachScoreLine(score: coachScore)
                 }
                 coachScoreV2 = response.coachScoreV2
@@ -2124,9 +2139,18 @@ class WorkoutViewModel: ObservableObject {
                 // - If events field exists (even empty), event scheduler decides.
                 // - Legacy fallback is only for payloads missing events.
                 let eventSpeechDecision = shouldSpeakEventFirst(response: response)
-                if eventSpeechDecision.speak, let audioURL = response.audioURL {
-                    print("🗣️ Coach speaking via \(eventSpeechDecision.reason): '\(response.text)'")
-                    await playCoachAudio(audioURL)
+                if eventSpeechDecision.speak {
+                    let didPlay = await playCoachAudio(
+                        response.audioURL,
+                        utteranceID: lastResolvedUtteranceID,
+                        eventType: lastResolvedEventType,
+                        transcriptText: response.text
+                    )
+                    if didPlay {
+                        print("🗣️ Coach speaking via \(eventSpeechDecision.reason): '\(response.text)'")
+                    } else {
+                        print("🤐 Coach silent via event_router_no_audio_source")
+                    }
                 } else {
                     print("🤐 Coach silent via \(eventSpeechDecision.reason)")
                 }
@@ -2230,35 +2254,223 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private func normalizedLanguageCode(_ raw: String) -> String {
+        let lower = raw.lowercased()
+        if lower.hasPrefix("no") || lower.hasPrefix("nb") || lower.hasPrefix("nn") {
+            return "no"
+        }
+        return "en"
+    }
+
+    private var audioPackVersion: String {
+        AppConfig.AudioPack.version
+    }
+
+    private var activeAudioPersonaKey: String {
+        switch activePersonality {
+        case .personalTrainer:
+            return "personal_trainer"
+        case .toxicMode:
+            // UI name is "Performance Mode", keep neutral cache key.
+            return "performance_mode"
+        }
+    }
+
+    private func isLocalPackAllowed(for utteranceID: String) -> Bool {
+        // Personal trainer must never play toxic/performance phrase ids from cached packs.
+        if activePersonality == .personalTrainer && utteranceID.hasPrefix("toxic.") {
+            return false
+        }
+        return true
+    }
+
+    private var audioPackRootDirectory: URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documents.appendingPathComponent("audio_pack", isDirectory: true)
+    }
+
+    private func localPackFileURL(for utteranceID: String, language: String, personaKey: String) -> URL? {
+        let url = audioPackRootDirectory
+            .appendingPathComponent(audioPackVersion, isDirectory: true)
+            .appendingPathComponent(language, isDirectory: true)
+            .appendingPathComponent(personaKey, isDirectory: true)
+            .appendingPathComponent("\(utteranceID).mp3")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    private func bundledPackFileURL(for utteranceID: String, language: String, personaKey: String) -> URL? {
+        if let personaSpecific = Bundle.main.url(
+            forResource: utteranceID,
+            withExtension: "mp3",
+            subdirectory: "CoreAudioPack/\(language)/\(personaKey)"
+        ) {
+            return personaSpecific
+        }
+        return Bundle.main.url(
+            forResource: utteranceID,
+            withExtension: "mp3",
+            subdirectory: "CoreAudioPack/\(language)"
+        )
+    }
+
+    private func remotePackFileURLs(for utteranceID: String, language: String, personaKey: String) -> [URL] {
+        let base = AppConfig.AudioPack.r2PublicURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty else { return [] }
+        let encodedID = utteranceID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? utteranceID
+        let personaURLString = "\(base)/\(audioPackVersion)/\(language)/\(personaKey)/\(encodedID).mp3"
+        let genericURLString = "\(base)/\(audioPackVersion)/\(language)/\(encodedID).mp3"
+        return [personaURLString, genericURLString].compactMap(URL.init(string:))
+    }
+
+    private func downloadAudioPackFileIfNeeded(
+        for utteranceID: String,
+        language: String,
+        personaKey: String
+    ) async -> URL? {
+        let remoteURLs = remotePackFileURLs(for: utteranceID, language: language, personaKey: personaKey)
+        guard !remoteURLs.isEmpty else {
+            return nil
+        }
+
+        let localDir = audioPackRootDirectory
+            .appendingPathComponent(audioPackVersion, isDirectory: true)
+            .appendingPathComponent(language, isDirectory: true)
+            .appendingPathComponent(personaKey, isDirectory: true)
+        let localFile = localDir.appendingPathComponent("\(utteranceID).mp3")
+        if FileManager.default.fileExists(atPath: localFile.path) {
+            return localFile
+        }
+
+        do {
+            try FileManager.default.createDirectory(at: localDir, withIntermediateDirectories: true)
+            for remoteURL in remoteURLs {
+                let (data, response) = try await URLSession.shared.data(from: remoteURL)
+                guard let http = response as? HTTPURLResponse, http.statusCode == 200, !data.isEmpty else {
+                    continue
+                }
+                try data.write(to: localFile, options: .atomic)
+                return localFile
+            }
+            return nil
+        } catch {
+            print("📦 Audio pack fetch failed for \(utteranceID): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func logSpeechTranscript(utteranceID: String, eventType: String, source: String, text: String?) {
+        let entry = SpeechTranscriptEntry(
+            timestamp: Date(),
+            utteranceId: utteranceID,
+            eventType: eventType,
+            source: source,
+            text: text
+        )
+        speechTranscript.append(entry)
+        if speechTranscript.count > maxSpeechTranscriptEntries {
+            speechTranscript.removeFirst(speechTranscript.count - maxSpeechTranscriptEntries)
+        }
+        AudioPipelineDiagnostics.shared.logSpeech(
+            utteranceId: utteranceID,
+            eventType: eventType,
+            source: source
+        )
+    }
+
     private func playWelcomeMessage() async {
         do {
             print("👋 Fetching welcome message...")
             let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue, userName: currentUserName)
             coachMessage = welcome.text
             print("👋 Welcome: '\(welcome.text)' - downloading audio...")
-            await playCoachAudio(welcome.audioURL)
+            _ = await playCoachAudio(
+                welcome.audioURL,
+                utteranceID: "welcome.standard.1",
+                eventType: "welcome_message",
+                transcriptText: welcome.text
+            )
         } catch {
             print("⚠️ Welcome message failed: \(error.localizedDescription)")
             // Non-critical: workout continues even if welcome fails
         }
     }
 
-    private func playCoachAudio(_ audioURL: String) async {
+    @discardableResult
+    private func playCoachAudio(
+        _ audioURL: String?,
+        utteranceID: String? = nil,
+        eventType: String? = nil,
+        transcriptText: String? = nil
+    ) async -> Bool {
+        let language = normalizedLanguageCode(currentLanguage)
+        let resolvedEventType = eventType ?? "unknown"
+        let personaKey = activeAudioPersonaKey
+
+        if let utteranceID {
+            if isLocalPackAllowed(for: utteranceID) {
+                if let localURL = localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
+                    await playAudio(from: localURL)
+                    logSpeechTranscript(
+                        utteranceID: utteranceID,
+                        eventType: resolvedEventType,
+                        source: "local_pack",
+                        text: transcriptText
+                    )
+                    return true
+                }
+
+                if let bundledURL = bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
+                    await playAudio(from: bundledURL)
+                    logSpeechTranscript(
+                        utteranceID: utteranceID,
+                        eventType: resolvedEventType,
+                        source: "bundled_core",
+                        text: transcriptText
+                    )
+                    return true
+                }
+
+                if let downloadedURL = await downloadAudioPackFileIfNeeded(
+                    for: utteranceID,
+                    language: language,
+                    personaKey: personaKey
+                ) {
+                    await playAudio(from: downloadedURL)
+                    logSpeechTranscript(
+                        utteranceID: utteranceID,
+                        eventType: resolvedEventType,
+                        source: "r2_pack",
+                        text: transcriptText
+                    )
+                    return true
+                }
+            } else {
+                print("🔇 PACK_SUPPRESSED persona=personal_trainer utterance=\(utteranceID)")
+            }
+        }
+
+        guard let audioURL else {
+            return false
+        }
+
         do {
             let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
-
-            // Detect file extension from URL (backend returns .mp3 from ElevenLabs)
             let ext = URL(string: audioURL)?.pathExtension ?? "mp3"
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("continuous_coach_\(Date().timeIntervalSince1970).\(ext.isEmpty ? "mp3" : ext)")
             try audioData.write(to: tempURL)
-
-            // Play audio (NO state change - stays .listening)
             await playAudio(from: tempURL)
 
+            logSpeechTranscript(
+                utteranceID: utteranceID ?? "dynamic",
+                eventType: resolvedEventType,
+                source: "backend_tts",
+                text: transcriptText
+            )
+            return true
         } catch {
             print("Failed to download/play coach audio: \(error.localizedDescription)")
-            // Don't show error to user - just log and continue
+            return false
         }
     }
 }
