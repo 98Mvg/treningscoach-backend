@@ -96,3 +96,9 @@ output/audio_pack/*/en/
 output/audio_pack/*/no/
 # Keep manifests
 !output/audio_pack/*/manifest.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
