@@ -714,6 +714,16 @@ class WorkoutViewModel: ObservableObject {
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
+
+        // Cleanup stale audio pack files now that workout is idle
+        AudioPackSyncManager.shared.purgeStaleFiles()
+    }
+
+    /// Trigger background audio pack sync. Call from MainTabView.onAppear.
+    func triggerAudioPackSync() {
+        Task {
+            await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
+        }
     }
 
     func selectPersonality(_ persona: CoachPersonality) {
@@ -1344,6 +1354,8 @@ class WorkoutViewModel: ObservableObject {
         switch eventType {
         case "interval_countdown_start", "hr_signal_lost":
             return 100
+        case "hr_signal_restored":
+            return 98
         case "interval_countdown_5":
             return 95
         case "interval_countdown_15":
@@ -1352,18 +1364,31 @@ class WorkoutViewModel: ObservableObject {
             return 93
         case "warmup_started", "main_started", "cooldown_started", "workout_finished":
             return 90
+        case "pause_detected":
+            return 86
+        case "pause_resumed":
+            return 85
         case "watch_disconnected_notice", "no_sensors_notice", "watch_restored_notice":
             return 88
+        case "max_silence_override", "max_silence_breath_guide":
+            return 68
+        case "max_silence_go_by_feel":
+            return 66
         case "exited_target_above", "exited_target_below":
             return 70
         case "entered_target":
             return 60
+        case "max_silence_motivation":
+            return 10
         default:
             return 0
         }
     }
 
-    private func utteranceID(for eventType: String) -> String? {
+    private func utteranceID(for event: CoachingEvent) -> String? {
+        let eventType = event.eventType
+        let phase = event.payload.phase.lowercased()
+
         switch eventType {
         case "warmup_started":
             return "zone.phase.warmup.1"
@@ -1397,6 +1422,32 @@ class WorkoutViewModel: ObservableObject {
             return "zone.countdown.5"
         case "interval_countdown_start":
             return "zone.countdown.start"
+        case "max_silence_override":
+            if phase == "work" {
+                return "zone.silence.work.1"
+            }
+            if phase == "recovery" {
+                return "zone.silence.rest.1"
+            }
+            return "zone.silence.default.1"
+        case "max_silence_go_by_feel":
+            if phase == "work" {
+                return "zone.feel.work.1"
+            }
+            if phase == "recovery" {
+                return "zone.feel.recovery.1"
+            }
+            return "zone.feel.easy_run.1"
+        case "max_silence_breath_guide":
+            if phase == "work" {
+                return "zone.breath.work.1"
+            }
+            if phase == "recovery" {
+                return "zone.breath.recovery.1"
+            }
+            return "zone.breath.easy_run.1"
+        case "max_silence_motivation":
+            return "motivation.1"
         default:
             return nil
         }
@@ -1441,7 +1492,7 @@ class WorkoutViewModel: ObservableObject {
             return (false, "event_router_no_event")
         }
 
-        guard let utteranceID = utteranceID(for: selected.eventType) else {
+        guard let utteranceID = utteranceID(for: selected) else {
             print("🔇 EVENT_SUPPRESSED reason=no_utterance event=\(selected.eventType)")
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
@@ -2263,7 +2314,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private var audioPackVersion: String {
-        AppConfig.AudioPack.version
+        AudioPackSyncManager.shared.currentPackVersion ?? AppConfig.AudioPack.version
     }
 
     private var activeAudioPersonaKey: String {
