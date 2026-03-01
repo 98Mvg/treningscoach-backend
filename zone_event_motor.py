@@ -162,24 +162,68 @@ def _delta_to_band(
 
 
 def _event_priority(event_type: str) -> int:
+    """4-tier event priority: A (countdown/signal) > B (phase/notices) > C (coaching) > D (motivation)."""
     order = {
+        # Tier A — countdowns + signal
         "interval_countdown_start": 100,
         "hr_signal_lost": 99,
+        "hr_signal_restored": 98,
         "interval_countdown_5": 95,
         "interval_countdown_15": 94,
         "interval_countdown_30": 93,
+
+        # Tier B — phase transitions
         "warmup_started": 90,
         "main_started": 90,
         "cooldown_started": 90,
         "workout_finished": 90,
+        "pause_detected": 86,
+        "pause_resumed": 85,
+
+        # Signal notices (between B and C)
         "watch_disconnected_notice": 88,
         "no_sensors_notice": 88,
         "watch_restored_notice": 88,
+
+        # Tier C — actionable coaching
         "exited_target_above": 70,
         "exited_target_below": 70,
+        "max_silence_override": 68,
+        "max_silence_breath_guide": 68,
+        "max_silence_go_by_feel": 66,
+        "recovery_hr_above_relax_ceiling": 65,
+        "recovery_hr_ok_relax": 64,
         "entered_target": 60,
+
+        # Tier D — motivational filler
+        "max_silence_motivation": 10,
     }
     return order.get(event_type, 0)
+
+
+def _compute_max_silence_seconds(
+    workout_type: str,
+    phase: str,
+    elapsed_minutes: int,
+    hr_missing: bool,
+    config_module,
+) -> int:
+    """Context-aware max-silence threshold."""
+    if workout_type == "intervals":
+        if phase == "work":
+            return int(getattr(config_module, "MAX_SILENCE_INTERVALS_WORK", 30))
+        return int(getattr(config_module, "MAX_SILENCE_INTERVALS_RECOVERY", 45))
+
+    easy_run_base = int(getattr(config_module, "MAX_SILENCE_EASY_RUN_BASE", 60))
+    ramp_per_10min = int(getattr(config_module, "MAX_SILENCE_RAMP_PER_10MIN", 15))
+    raw = 45 + (max(0, int(elapsed_minutes)) // 10) * ramp_per_10min
+    threshold = min(120, max(easy_run_base, raw))
+
+    if hr_missing:
+        multiplier = float(getattr(config_module, "MAX_SILENCE_HR_MISSING_MULTIPLIER", 1.5))
+        threshold = int(round(float(threshold) * multiplier))
+
+    return max(1, threshold)
 
 
 def _canonical_to_legacy_event(event_type: Optional[str]) -> Optional[str]:
@@ -251,9 +295,14 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     state.setdefault("hr_signal_state", None)
     state.setdefault("hr_valid_streak_seconds", 0.0)
     state.setdefault("hr_invalid_streak_seconds", 0.0)
+    state.setdefault("last_spoken_elapsed", None)
     state.setdefault("breath_reliable_streak_seconds", 0.0)
     state.setdefault("breath_unreliable_streak_seconds", 0.0)
     state.setdefault("breath_quality_samples", [])
+    state.setdefault("last_high_priority_spoken_elapsed", None)
+    state.setdefault("last_motivation_spoken_elapsed", None)
+    state.setdefault("last_max_silence_elapsed", None)
+    state.setdefault("last_max_silence_phase_id", None)
     metrics = state.setdefault("metrics", {})
     metrics.setdefault("total_main_set_ticks", 0)
     metrics.setdefault("in_zone_ticks", 0)
@@ -1080,8 +1129,12 @@ def _sustained_zone_event(
 
 
 def _event_group(event_type: str) -> str:
+    if event_type in {"max_silence_motivation"}:
+        return "motivation"
     if event_type in {"above_zone", "below_zone", "above_zone_ease", "below_zone_push"}:
         return "corrective"
+    if event_type in {"max_silence_go_by_feel", "max_silence_breath_guide", "max_silence_override"}:
+        return "info"
     if event_type in {"in_zone_recovered"}:
         return "positive"
     return "info"
@@ -1141,6 +1194,41 @@ def _allow_style_event(
         {"elapsed": float(elapsed_seconds), "event": event_type, "group": cue_group}
     )
     return True, "allowed"
+
+
+def _allow_motivation_event(
+    *,
+    state: Dict[str, Any],
+    workout_type: str,
+    elapsed_seconds: int,
+    config_module,
+) -> bool:
+    """Motivation cooldown barrier for Tier D events."""
+    is_intervals = workout_type == "intervals"
+
+    barrier = int(
+        getattr(
+            config_module,
+            "MOTIVATION_BARRIER_SECONDS_INTERVALS" if is_intervals else "MOTIVATION_BARRIER_SECONDS_EASY_RUN",
+            25 if is_intervals else 45,
+        )
+    )
+    last_high_priority = _safe_float(state.get("last_high_priority_spoken_elapsed"))
+    if last_high_priority is not None and (float(elapsed_seconds) - last_high_priority) < float(barrier):
+        return False
+
+    min_spacing = int(
+        getattr(
+            config_module,
+            "MOTIVATION_MIN_SPACING_INTERVALS" if is_intervals else "MOTIVATION_MIN_SPACING_EASY_RUN",
+            60 if is_intervals else 120,
+        )
+    )
+    last_motivation = _safe_float(state.get("last_motivation_spoken_elapsed"))
+    if last_motivation is not None and (float(elapsed_seconds) - last_motivation) < float(min_spacing):
+        return False
+
+    return True
 
 
 def _update_metrics(
@@ -1498,9 +1586,28 @@ def _event_text(
     if event_type == "max_silence_override":
         if segment == "work":
             return "Hold kontroll. Ett drag av gangen." if lang == "no" else "Stay controlled. One rep at a time."
-        if segment == "rest":
+        if segment in {"rest", "recovery"}:
             return "Rolig mellom dragene." if lang == "no" else "Stay easy between reps."
         return "Hold jevn rytme." if lang == "no" else "Hold steady rhythm."
+
+    if event_type == "max_silence_breath_guide":
+        if segment == "work":
+            return "Pust gjennom innsatsen." if lang == "no" else "Breathe through the effort."
+        if segment in {"rest", "recovery"}:
+            return "Senk pustetakten." if lang == "no" else "Slow your breathing down."
+        return "Tilpass pusten til tempoet." if lang == "no" else "Match your breathing to your pace."
+
+    if event_type == "max_silence_go_by_feel":
+        if segment == "work":
+            return "Trykk hardt men kontrollert." if lang == "no" else "Push hard but controlled."
+        if segment in {"rest", "recovery"}:
+            return "Slipp av. La kroppen hente seg inn." if lang == "no" else "Ease off. Let your body recover."
+        return "Jevn innsats. Hold det behagelig." if lang == "no" else "Steady effort. Stay comfortable."
+
+    if event_type == "max_silence_motivation":
+        if lang == "no":
+            return "Bra innsats. Fortsett slik."
+        return "Strong work. Keep it up."
 
     return ""
 
@@ -1675,21 +1782,6 @@ def evaluate_zone_tick(
     elif not target_enforced:
         zone_status = "timing_control"
 
-    sustained_event = None
-    if not pause_flag and target_enforced and hr_ok_for_zone_events and sensor_mode == "FULL_HR":
-        sustained_event = _sustained_zone_event(
-            state=state,
-            zone_status=zone_status,
-            elapsed_seconds=int(elapsed_seconds),
-            movement_state=movement_state,
-            movement_score=movement_signal.get("movement_score"),
-            hr_delta_bpm=hr_quality_info.get("hr_delta_bpm"),
-            hr_sample_gap_seconds=hr_quality_info.get("hr_sample_gap_seconds"),
-            hr_quality_state=hr_quality_info["state"],
-            breath_intensity=(str(breath_intensity).strip().lower() if breath_intensity is not None else None),
-            config_module=config_module,
-        )
-
     recovery_seconds = None
     if transition_event == "above_zone":
         state["last_above_zone_elapsed"] = float(elapsed_seconds)
@@ -1793,38 +1885,119 @@ def evaluate_zone_tick(
     if not should_speak and blocked_event_type is not None:
         event_type = blocked_event_type
 
-    if not should_speak:
-        legacy_fallback_candidates: List[str] = []
-        if sensor_mode == "FULL_HR" and _movement_event:
-            legacy_fallback_candidates.append(_movement_event)
-        if sensor_mode == "FULL_HR" and sustained_event:
-            legacy_fallback_candidates.append(sustained_event)
-
-        for fallback_event in legacy_fallback_candidates:
-            fallback_allowed, fallback_reason = _allow_style_event(
-                state=state,
-                event_type=fallback_event,
-                style=style,
-                elapsed_seconds=int(elapsed_seconds),
-                hr_quality_state=hr_quality_info["state"],
-                config_module=config_module,
-            )
-            if event_type is None:
-                event_type = fallback_event
-            if not fallback_allowed:
-                style_block_reason = fallback_reason
-                continue
-            primary_event = fallback_event
-            event_type = fallback_event
-            should_speak = True
-            reason = fallback_event
-            break
-
     if not should_speak and style_block_reason:
         reason = style_block_reason
 
+    # Unified event path owns bounded silence behavior for event-capable workouts.
+    if not should_speak and not pause_flag and not bool(state.get("session_finished")):
+        context_aware_enabled = bool(getattr(config_module, "CONTEXT_AWARE_MAX_SILENCE_ENABLED", True))
+        max_silence_seconds = max(1, int(getattr(config_module, "MAX_SILENCE_SECONDS", 30)))
+        if context_aware_enabled:
+            max_silence_seconds = _compute_max_silence_seconds(
+                workout_type=canonical_workout_type,
+                phase=canonical_phase,
+                elapsed_minutes=max(0, int(elapsed_seconds) // 60),
+                hr_missing=not hr_available,
+                config_module=config_module,
+            )
+
+        last_spoken_elapsed = _safe_float(state.get("last_spoken_elapsed"))
+        if last_spoken_elapsed is not None:
+            elapsed_since_spoken = max(0.0, float(elapsed_seconds) - last_spoken_elapsed)
+            if elapsed_since_spoken >= float(max_silence_seconds):
+                max_silence_allowed = True
+                max_silence_candidate: Optional[str] = None
+
+                if canonical_workout_type == "easy_run":
+                    last_max_silence_elapsed = _safe_float(state.get("last_max_silence_elapsed"))
+                    easy_run_budget_seconds = float(
+                        getattr(config_module, "MAX_SILENCE_BUDGET_EASY_RUN_SECONDS", 90)
+                    )
+                    if (
+                        last_max_silence_elapsed is not None
+                        and (float(elapsed_seconds) - last_max_silence_elapsed) < easy_run_budget_seconds
+                    ):
+                        max_silence_allowed = False
+
+                if canonical_workout_type == "intervals":
+                    phase_id = int(state.get("phase_id", 1))
+                    if _safe_int(state.get("last_max_silence_phase_id")) == phase_id:
+                        max_silence_allowed = False
+
+                    remaining_phase_seconds = _safe_int(target.get("segment_remaining_seconds"))
+                    suppress_remaining = int(
+                        getattr(config_module, "MAX_SILENCE_INTERVAL_SUPPRESS_REMAINING", 35)
+                    )
+                    if (
+                        canonical_phase == "recovery"
+                        and remaining_phase_seconds is not None
+                        and remaining_phase_seconds <= suppress_remaining
+                    ):
+                        max_silence_allowed = False
+
+                    work_ramp_seconds = int(
+                        getattr(config_module, "MAX_SILENCE_INTERVAL_WORK_RAMP_SECONDS", 12)
+                    )
+                    elapsed_in_phase_seconds = _safe_int(target.get("segment_elapsed_seconds"))
+                    if (
+                        canonical_phase == "work"
+                        and elapsed_in_phase_seconds is not None
+                        and elapsed_in_phase_seconds < work_ramp_seconds
+                    ):
+                        max_silence_allowed = False
+
+                if max_silence_allowed:
+                    if hr_available and target_enforced and sensor_mode == "FULL_HR":
+                        max_silence_candidate = "max_silence_override"
+                    elif breath_reliable:
+                        max_silence_candidate = "max_silence_breath_guide"
+                    elif not hr_available:
+                        max_silence_candidate = "max_silence_go_by_feel"
+                    else:
+                        max_silence_candidate = "max_silence_motivation"
+
+                if max_silence_candidate == "max_silence_motivation":
+                    # Drop motivation when stronger events are present in this tick.
+                    motivation_priority = _event_priority("max_silence_motivation")
+                    stronger_event_present = any(
+                        _event_priority(candidate) > motivation_priority for candidate in event_types
+                    )
+                    if stronger_event_present:
+                        max_silence_candidate = None
+                        reason = "motivation_blocked_by_higher_tier"
+                    elif not _allow_motivation_event(
+                        state=state,
+                        workout_type=canonical_workout_type,
+                        elapsed_seconds=int(elapsed_seconds),
+                        config_module=config_module,
+                    ):
+                        max_silence_candidate = None
+                        reason = "motivation_cooldown"
+
+                if max_silence_candidate:
+                    primary_event = max_silence_candidate
+                    event_type = max_silence_candidate
+                    should_speak = True
+                    reason = max_silence_candidate
+                    if max_silence_candidate not in event_types:
+                        event_types.append(max_silence_candidate)
+
+    event_types = sorted(set(event_types), key=_event_priority, reverse=True)
+
     coach_text = None
     if should_speak and primary_event:
+        state["last_spoken_elapsed"] = float(elapsed_seconds)
+        if primary_event.startswith("max_silence_"):
+            state["last_max_silence_elapsed"] = float(elapsed_seconds)
+            if canonical_workout_type == "intervals":
+                state["last_max_silence_phase_id"] = int(state.get("phase_id", 1))
+        if primary_event == "max_silence_motivation":
+            state["last_motivation_spoken_elapsed"] = float(elapsed_seconds)
+        else:
+            # Tier A/B/C events reset the motivation barrier window.
+            if _event_priority(primary_event) >= 60:
+                state["last_high_priority_spoken_elapsed"] = float(elapsed_seconds)
+
         coach_text = _event_text(
             event_type=primary_event,
             language=lang,

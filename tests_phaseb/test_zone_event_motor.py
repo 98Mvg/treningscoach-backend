@@ -189,9 +189,11 @@ def test_movement_pause_and_resume_events_after_dwell():
             movement_source="cadence",
         )
     )
-    assert paused_confirmed["event_type"] == "pause_detected"
-    assert paused_confirmed["should_speak"] is True
+    assert paused_confirmed["event_type"] is None
+    assert paused_confirmed["should_speak"] is False
     assert paused_confirmed["movement_state"] == "paused"
+    paused_events = [item.get("event_type") for item in paused_confirmed.get("events", []) if isinstance(item, dict)]
+    assert "pause_detected" not in paused_events
 
     evaluate_zone_tick(
         **_base_tick(
@@ -217,8 +219,10 @@ def test_movement_pause_and_resume_events_after_dwell():
             movement_source="cadence",
         )
     )
-    assert resumed["event_type"] == "pause_resumed"
+    assert resumed["event_type"] == "max_silence_override"
     assert resumed["movement_state"] == "moving"
+    resumed_events = [item.get("event_type") for item in resumed.get("events", []) if isinstance(item, dict)]
+    assert "pause_resumed" not in resumed_events
 
 
 def test_pause_requires_hr_fall_when_hr_signal_is_good():
@@ -276,11 +280,13 @@ def test_pause_requires_hr_fall_when_hr_signal_is_good():
             movement_source="cadence",
         )
     )
-    assert paused_confirmed["event_type"] == "pause_detected"
+    assert paused_confirmed["event_type"] is None
     assert paused_confirmed["movement_state"] == "paused"
+    paused_events = [item.get("event_type") for item in paused_confirmed.get("events", []) if isinstance(item, dict)]
+    assert "pause_detected" not in paused_events
 
 
-def test_below_zone_sustained_triggers_push_when_moving():
+def test_below_zone_sustained_does_not_emit_legacy_push_fallback():
     state = {}
 
     # Build movement confidence and enter below-zone state.
@@ -322,11 +328,13 @@ def test_below_zone_sustained_triggers_push_when_moving():
             movement_source="cadence",
         )
     )
-    assert sustained["event_type"] == "below_zone_push"
+    assert sustained["event_type"] == "max_silence_override"
     assert sustained["should_speak"] is True
+    sustained_events = [item.get("event_type") for item in sustained.get("events", []) if isinstance(item, dict)]
+    assert "below_zone_push" not in sustained_events
 
 
-def test_above_zone_sustained_triggers_ease_when_hr_rises():
+def test_above_zone_sustained_does_not_emit_legacy_ease_fallback():
     state = {}
 
     evaluate_zone_tick(
@@ -367,8 +375,51 @@ def test_above_zone_sustained_triggers_ease_when_hr_rises():
             movement_source="cadence",
         )
     )
-    assert sustained["event_type"] == "above_zone_ease"
+    assert sustained["event_type"] == "max_silence_override"
     assert sustained["should_speak"] is True
+    sustained_events = [item.get("event_type") for item in sustained.get("events", []) if isinstance(item, dict)]
+    assert "above_zone_ease" not in sustained_events
+
+
+def test_max_silence_override_emits_canonical_event():
+    state = {}
+    first = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            phase="intense",
+            heart_rate=150,
+            hr_quality="good",
+        )
+    )
+    assert first["event_type"] == "main_started"
+    assert first["should_speak"] is True
+
+    quiet = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=10,
+            phase="intense",
+            heart_rate=151,
+            hr_quality="good",
+        )
+    )
+    assert quiet["should_speak"] is False
+
+    forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=70,
+            phase="intense",
+            heart_rate=150,
+            hr_quality="good",
+        )
+    )
+    assert forced["should_speak"] is True
+    assert forced["event_type"] == "max_silence_override"
+    assert forced["reason"] == "max_silence_override"
+    forced_events = [item.get("event_type") for item in forced.get("events", []) if isinstance(item, dict)]
+    assert "max_silence_override" in forced_events
 
 
 def test_recovery_seconds_tracked_when_returning_in_zone():

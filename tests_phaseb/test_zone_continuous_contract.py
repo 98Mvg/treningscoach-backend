@@ -208,7 +208,7 @@ def test_zone_mode_owner_remains_zone_event_when_breath_quality_is_poor(monkeypa
     assert payload["breath_quality_state"] in {"degraded", "unavailable"}
 
 
-def test_non_zone_mode_uses_phase_fallback_when_breath_not_reliable(monkeypatch, tmp_path):
+def test_standard_mode_uses_zone_event_owner_when_breath_not_reliable(monkeypatch, tmp_path):
     fake_audio = tmp_path / "dummy.mp3"
     fake_audio.write_bytes(b"ID3")
     monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
@@ -241,11 +241,16 @@ def test_non_zone_mode_uses_phase_fallback_when_breath_not_reliable(monkeypatch,
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["decision_owner"] == "phase_fallback"
-    assert payload["decision_reason"] in {"phase_fallback_wait", "phase_fallback_interval"}
+    assert payload["decision_owner"] == "zone_event"
+    assert payload["decision_reason"] in {
+        "main_started",
+        "zone_no_change",
+        "max_silence_override",
+        "hr_signal_lost",
+    }
 
 
-def test_non_zone_mode_uses_breath_logic_when_breath_is_reliable(monkeypatch, tmp_path):
+def test_standard_mode_uses_zone_event_owner_when_breath_is_reliable(monkeypatch, tmp_path):
     fake_audio = tmp_path / "dummy.mp3"
     fake_audio.write_bytes(b"ID3")
     monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
@@ -279,18 +284,16 @@ def test_non_zone_mode_uses_breath_logic_when_breath_is_reliable(monkeypatch, tm
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["decision_owner"] == "breath_logic"
+    assert payload["decision_owner"] == "zone_event"
     assert payload["breath_quality_state"] == "reliable"
 
 
-def test_max_silence_override_is_reported_as_single_owner(monkeypatch, tmp_path):
+def test_standard_mode_emits_max_silence_event_with_zone_owner(monkeypatch, tmp_path):
     fake_audio = tmp_path / "dummy.mp3"
     fake_audio.write_bytes(b"ID3")
     monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
     monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
     monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
-    monkeypatch.setattr(main.voice_intelligence, "should_stay_silent", lambda **kwargs: (True, "no_change"))
-
     session_id = main.session_manager.create_session(user_id="override_owner_user", persona="personal_trainer")
     main.session_manager.init_workout_state(session_id, phase="intense")
     state = main.session_manager.get_workout_state(session_id)
@@ -301,25 +304,58 @@ def test_max_silence_override_is_reported_as_single_owner(monkeypatch, tmp_path)
     state["breath_history"] = [{"signal_quality": 0.8} for _ in range(8)]
 
     client = main.app.test_client()
-    response = client.post(
+    first_response = client.post(
         "/coach/continuous",
         data={
             "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
             "session_id": session_id,
             "phase": "intense",
-            "elapsed_seconds": "360",
+            "elapsed_seconds": "300",
             "language": "en",
             "persona": "personal_trainer",
             "workout_mode": "standard",
             "coaching_style": "normal",
+            "heart_rate": "150",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "123.0",
+            "movement_source": "cadence",
         },
         content_type="multipart/form-data",
     )
+    assert first_response.status_code == 200
 
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+                "phase": "intense",
+                "elapsed_seconds": "370",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "standard",
+            "coaching_style": "normal",
+            "heart_rate": "151",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "123.0",
+            "movement_source": "cadence",
+        },
+        content_type="multipart/form-data",
+    )
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload["decision_owner"] == "max_silence_override"
-    assert payload["decision_reason"] == "max_silence_override"
+    assert payload["decision_owner"] == "zone_event"
+    assert str(payload["decision_reason"]).startswith("max_silence_")
+    event_names = [item.get("event_type") for item in payload.get("events", []) if isinstance(item, dict)]
+    assert any(str(name).startswith("max_silence_") for name in event_names)
 
 
 def test_zone_owner_v2_does_not_fall_back_to_ai_when_zone_text_missing(monkeypatch, tmp_path):
@@ -328,7 +364,6 @@ def test_zone_owner_v2_does_not_fall_back_to_ai_when_zone_text_missing(monkeypat
     monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
     monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis_low_quality)
     monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
-    monkeypatch.setattr(main, "is_zone_mode", lambda *args, **kwargs: True)
     monkeypatch.setattr(
         main,
         "evaluate_zone_tick",
@@ -385,3 +420,83 @@ def test_zone_owner_v2_does_not_fall_back_to_ai_when_zone_text_missing(monkeypat
     payload = response.get_json()
     assert payload["decision_owner"] == "zone_event"
     assert payload["brain_source"] == "zone_event_fallback"
+
+
+def test_zone_mode_emits_max_silence_event_instead_of_event_router_empty(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+
+    session_id = main.session_manager.create_session(user_id="zone_silence_guard_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    seeded = (datetime.now() - timedelta(seconds=10)).isoformat()
+    state["is_first_breath"] = False
+    state["coaching_history"] = [{"timestamp": seeded, "text": "Keep steady."}]
+    state["last_coaching_time"] = seeded
+
+    client = main.app.test_client()
+
+    # First tick establishes zone-engine speech baseline (main_started).
+    first_response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "300",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+            "heart_rate": "150",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "123.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+    assert first_response.status_code == 200
+
+    # Next tick has no zone transition; max silence should now emit canonical event.
+    second_response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+                "phase": "intense",
+                "elapsed_seconds": "370",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+            "heart_rate": "151",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "123.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+    assert second_response.status_code == 200
+    payload = second_response.get_json()
+    assert payload["decision_owner"] == "zone_event"
+    assert payload["decision_reason"] == "max_silence_override"
+    assert payload["should_speak"] is True
+    event_names = [item.get("event_type") for item in payload.get("events", []) if isinstance(item, dict)]
+    assert "max_silence_override" in event_names
