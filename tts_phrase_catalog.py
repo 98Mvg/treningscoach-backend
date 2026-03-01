@@ -281,6 +281,21 @@ PHRASE_CATALOG = [
     {"id": "zone.silence.rest.1", "en": "Stay easy between reps.", "no": "Rolig mellom dragene.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.silence.default.1", "en": "Hold steady rhythm.", "no": "Hold jevn rytme.", "persona": "personal_trainer", "priority": "core"},
 
+    # Go-by-feel fallback (no HR, no reliable breath) — phase-aware
+    {"id": "zone.feel.easy_run.1", "en": "Steady effort. Stay comfortable.", "no": "Jevn innsats. Hold det behagelig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.easy_run.2", "en": "Find your rhythm and hold it.", "no": "Finn rytmen din og hold den.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.easy_run.3", "en": "Easy and controlled. You set the pace.", "no": "Rolig og kontrollert. Du bestemmer tempoet.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.work.1", "en": "Push hard but controlled.", "no": "Trykk hardt men kontrollert.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.work.2", "en": "Strong effort now. Stay focused.", "no": "Sterk innsats nå. Hold fokus.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.recovery.1", "en": "Ease off. Let your body recover.", "no": "Slipp av. La kroppen hente seg inn.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.feel.recovery.2", "en": "Relax and breathe. Recovery counts.", "no": "Slapp av og pust. Hvile teller.", "persona": "personal_trainer", "priority": "core"},
+
+    # Breath guidance fallback (no HR, breath reliable)
+    {"id": "zone.breath.easy_run.1", "en": "Match your breathing to your pace.", "no": "Tilpass pusten til tempoet.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.breath.easy_run.2", "en": "Smooth breaths. You're doing well.", "no": "Jevn pust. Du gjør det bra.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.breath.work.1", "en": "Breathe through the effort.", "no": "Pust gjennom innsatsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.breath.recovery.1", "en": "Slow your breathing down.", "no": "Senk pustetakten.", "persona": "personal_trainer", "priority": "core"},
+
     # -----------------------------------------------------------------
     # MOTIVATION — general encouragement cues
     # -----------------------------------------------------------------

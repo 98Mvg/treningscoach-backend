@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
+from tts_phrase_catalog import PHRASE_CATALOG
 
 
 def test_config_has_max_silence_easy_run_base():
@@ -70,3 +71,46 @@ def test_legacy_max_silence_seconds_still_exists():
     """Legacy constant must remain for non-zone workouts."""
     assert hasattr(config, "MAX_SILENCE_SECONDS")
     assert config.MAX_SILENCE_SECONDS == 30
+
+
+def test_phrase_catalog_has_go_by_feel_easy_run():
+    ids = {p["id"] for p in PHRASE_CATALOG}
+    assert "zone.feel.easy_run.1" in ids
+    assert "zone.feel.easy_run.2" in ids
+    assert "zone.feel.easy_run.3" in ids
+
+
+def test_phrase_catalog_has_go_by_feel_work():
+    ids = {p["id"] for p in PHRASE_CATALOG}
+    assert "zone.feel.work.1" in ids
+    assert "zone.feel.work.2" in ids
+
+
+def test_phrase_catalog_has_go_by_feel_recovery():
+    ids = {p["id"] for p in PHRASE_CATALOG}
+    assert "zone.feel.recovery.1" in ids
+    assert "zone.feel.recovery.2" in ids
+
+
+def test_phrase_catalog_has_breath_guide_phrases():
+    ids = {p["id"] for p in PHRASE_CATALOG}
+    assert "zone.breath.easy_run.1" in ids
+    assert "zone.breath.easy_run.2" in ids
+    assert "zone.breath.work.1" in ids
+    assert "zone.breath.recovery.1" in ids
+
+
+def test_go_by_feel_phrases_are_bilingual():
+    for phrase in PHRASE_CATALOG:
+        if phrase["id"].startswith("zone.feel."):
+            assert phrase.get("en"), f"{phrase['id']} missing English"
+            assert phrase.get("no"), f"{phrase['id']} missing Norwegian"
+            assert phrase.get("persona") == "personal_trainer"
+            assert phrase.get("priority") == "core"
+
+
+def test_breath_guide_phrases_are_bilingual():
+    for phrase in PHRASE_CATALOG:
+        if phrase["id"].startswith("zone.breath."):
+            assert phrase.get("en"), f"{phrase['id']} missing English"
+            assert phrase.get("no"), f"{phrase['id']} missing Norwegian"
