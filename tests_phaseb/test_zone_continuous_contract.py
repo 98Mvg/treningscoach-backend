@@ -356,6 +356,19 @@ def test_standard_mode_emits_max_silence_event_with_zone_owner(monkeypatch, tmp_
     assert str(payload["decision_reason"]).startswith("max_silence_")
     event_names = [item.get("event_type") for item in payload.get("events", []) if isinstance(item, dict)]
     assert any(str(name).startswith("max_silence_") for name in event_names)
+    assert payload.get("zone_primary_event") in event_names
+    # Regression guard: max-silence speech must come from canonical events[], not legacy-only fields.
+    max_silence_event = next(
+        (
+            item
+            for item in (payload.get("events") or [])
+            if isinstance(item, dict) and str(item.get("event_type", "")).startswith("max_silence_")
+        ),
+        None,
+    )
+    assert max_silence_event is not None
+    assert max_silence_event.get("phrase_id")
+    assert isinstance(max_silence_event.get("priority"), int)
 
 
 def test_zone_owner_v2_does_not_fall_back_to_ai_when_zone_text_missing(monkeypatch, tmp_path):
@@ -503,3 +516,59 @@ def test_zone_mode_emits_max_silence_event_instead_of_event_router_empty(monkeyp
     assert payload["should_speak"] is True
     event_names = [item.get("event_type") for item in payload.get("events", []) if isinstance(item, dict)]
     assert any(e in _silence_breakers for e in event_names)
+
+
+def test_zone_tick_missing_returns_silent_safe_without_legacy_fallback(monkeypatch, tmp_path, caplog):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "evaluate_zone_tick", lambda **kwargs: None)
+
+    session_id = main.session_manager.create_session(user_id="zone_tick_missing_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    seeded = (datetime.now() - timedelta(seconds=120)).isoformat()
+    state["is_first_breath"] = False
+    state["coaching_history"] = [{"timestamp": seeded, "text": "Keep steady."}]
+    state["last_coaching_time"] = seeded
+
+    caplog.set_level("INFO", logger=main.logger.name)
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "360",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+            "heart_rate": "145",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "123.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["decision_owner"] == "zone_event"
+    assert payload["decision_reason"] == "zone_tick_missing_silent_safe"
+    assert payload["zone_tick_guard_silent_safe"] is True
+    assert payload["should_speak"] is False
+    assert payload["events"] == []
+    assert payload["audio_url"] is None
+    messages = "\n".join(record.getMessage() for record in caplog.records)
+    assert "ZONE_GUARD silent-safe: zone_tick missing; legacy fallback disabled" in messages
