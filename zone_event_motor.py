@@ -9,6 +9,7 @@ Design goals:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -224,6 +225,57 @@ def _compute_max_silence_seconds(
         threshold = int(round(float(threshold) * multiplier))
 
     return max(1, threshold)
+
+
+def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
+    """Map a canonical event type to its phrase catalog ID (mirrors iOS utteranceID mapping)."""
+    if not event_type:
+        return None
+    _map = {
+        "warmup_started": "zone.phase.warmup.1",
+        "main_started": "zone.main_started.1",
+        "cooldown_started": "zone.phase.cooldown.1",
+        "workout_finished": "zone.workout_finished.1",
+        "entered_target": "zone.in_zone.default.1",
+        "exited_target_above": "zone.above.default.1",
+        "exited_target_below": "zone.below.default.1",
+        "hr_signal_lost": "zone.hr_poor_enter.1",
+        "hr_signal_restored": "zone.hr_poor_exit.1",
+        "watch_disconnected_notice": "zone.watch_disconnected.1",
+        "no_sensors_notice": "zone.no_sensors.1",
+        "watch_restored_notice": "zone.watch_restored.1",
+        "interval_countdown_30": "zone.countdown.30",
+        "interval_countdown_15": "zone.countdown.15",
+        "interval_countdown_5": "zone.countdown.5",
+        "interval_countdown_start": "zone.countdown.start",
+        "pause_detected": "zone.pause.detected.1",
+        "pause_resumed": "zone.pause.resumed.1",
+    }
+    direct = _map.get(event_type)
+    if direct:
+        return direct
+    p = phase.lower()
+    if event_type == "max_silence_override":
+        if p == "work":
+            return "zone.silence.work.1"
+        if p == "recovery":
+            return "zone.silence.rest.1"
+        return "zone.silence.default.1"
+    if event_type == "max_silence_go_by_feel":
+        if p == "work":
+            return "zone.feel.work.1"
+        if p == "recovery":
+            return "zone.feel.recovery.1"
+        return "zone.feel.easy_run.1"
+    if event_type == "max_silence_breath_guide":
+        if p == "work":
+            return "zone.breath.work.1"
+        if p == "recovery":
+            return "zone.breath.recovery.1"
+        return "zone.breath.easy_run.1"
+    if event_type == "max_silence_motivation":
+        return "motivation.1"
+    return None
 
 
 def _canonical_to_legacy_event(event_type: Optional[str]) -> Optional[str]:
@@ -1231,6 +1283,50 @@ def _allow_motivation_event(
     return True
 
 
+# ---------------------------------------------------------------------------
+# Stage-based motivation helpers (interval_in_target_sustained / easy_run)
+# ---------------------------------------------------------------------------
+
+def _motivation_stage_from_rep(rep_index: int) -> int:
+    """Map 1-based rep_index to motivation stage 1-4."""
+    return max(1, min(4, rep_index))
+
+
+def _motivation_stage_from_elapsed(elapsed_minutes: int, config_module) -> int:
+    """Map elapsed minutes into main phase to motivation stage 1-4 (easy_run)."""
+    thresholds = getattr(config_module, "EASY_RUN_STAGE_THRESHOLDS", [20, 40, 60])
+    stage = 1
+    for threshold in thresholds:
+        if elapsed_minutes >= threshold:
+            stage += 1
+    return max(1, min(4, stage))
+
+
+def _motivation_budget(work_seconds: int) -> int:
+    """Compute max motivation cues per work phase from interval duration."""
+    import math
+    return max(1, min(4, math.floor(1 + work_seconds / 90)))
+
+
+def _motivation_slots(budget: int) -> list:
+    """Return slot fractions for a given budget."""
+    _SLOT_MAP = {
+        1: [0.55],
+        2: [0.35, 0.75],
+        3: [0.25, 0.55, 0.85],
+        4: [0.20, 0.45, 0.70, 0.90],
+    }
+    return _SLOT_MAP.get(max(1, min(4, budget)), [0.55])
+
+
+def _motivation_phrase_id(workout_type: str, stage: int, variant: int) -> str:
+    """Build phrase_id for stage-based motivation events."""
+    prefix = "interval" if workout_type == "intervals" else "easy_run"
+    s = max(1, min(4, stage))
+    v = 1 if variant not in (1, 2) else variant
+    return f"{prefix}.motivate.s{s}.{v}"
+
+
 def _update_metrics(
     *,
     state: Dict[str, Any],
@@ -2079,11 +2175,40 @@ def evaluate_zone_tick(
     events_payload = [
         {
             "event_type": event_name,
+            "priority": _event_priority(event_name),
+            "phrase_id": _resolve_phrase_id(event_name, canonical_phase),
             "ts": now_ts,
             "payload": dict(event_payload_base),
         }
         for event_name in event_types
     ]
+
+    resolved_priority = _event_priority(primary_event) if primary_event else 0
+    resolved_phrase_id = _resolve_phrase_id(primary_event, canonical_phase) if primary_event else None
+
+    # Structured observability log — one JSON line per evaluate_zone_tick() call.
+    _last_spoken = _safe_float(state.get("last_spoken_elapsed"))
+    _silence_secs = round(float(elapsed_seconds) - _last_spoken, 1) if _last_spoken is not None else None
+    logger.info(
+        "ZONE_TICK %s",
+        json.dumps(
+            {
+                "elapsed": int(elapsed_seconds),
+                "event_type": event_type,
+                "primary_event": primary_event,
+                "priority": resolved_priority,
+                "phrase_id": resolved_phrase_id,
+                "should_speak": should_speak,
+                "reason": reason,
+                "silence_seconds": _silence_secs,
+                "sensor_mode": sensor_mode,
+                "workout_type": canonical_workout_type,
+                "phase": canonical_phase,
+                "coaching_style": style,
+            },
+            separators=(",", ":"),
+        ),
+    )
 
     return {
         "handled": True,
@@ -2091,9 +2216,19 @@ def evaluate_zone_tick(
         "reason": reason,
         "event_type": event_type,
         "primary_event_type": primary_event,
+        "priority": resolved_priority,
+        "text": coach_text,
+        "phrase_id": resolved_phrase_id,
         "coach_text": coach_text,
         "max_silence_text": max_silence_text,
         "events": events_payload,
+        "meta": {
+            "sensor_mode": sensor_mode,
+            "coaching_style": style,
+            "workout_type": canonical_workout_type,
+            "phase": canonical_phase,
+            "elapsed_seconds": int(elapsed_seconds),
+        },
         "phase_id": phase_id_value,
         "sensor_mode": sensor_mode,
         "zone_status": zone_status,
