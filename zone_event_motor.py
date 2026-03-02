@@ -2458,6 +2458,83 @@ def evaluate_zone_tick(
         else _resolve_phrase_id(primary_event, canonical_phase)
     ) if primary_event else None
 
+    # Contract hardening: every speakable event must carry both priority and phrase_id.
+    for item in events_payload:
+        event_name = str(item.get("event_type") or "")
+        if not event_name:
+            continue
+        if item.get("priority") is None:
+            item["priority"] = _event_priority(event_name)
+        if not item.get("phrase_id"):
+            if event_name in _MOTIVATION_EVENT_TYPES:
+                item["phrase_id"] = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
+            else:
+                item["phrase_id"] = _resolve_phrase_id(event_name, canonical_phase)
+
+    if should_speak:
+        primary_payload = next(
+            (item for item in events_payload if item.get("event_type") == primary_event),
+            None,
+        )
+        primary_payload_priority = _safe_int(primary_payload.get("priority")) if primary_payload else None
+        primary_payload_phrase = str(primary_payload.get("phrase_id") or "").strip() if primary_payload else ""
+        primary_contract_ok = (
+            resolved_priority > 0
+            and bool(str(resolved_phrase_id or "").strip())
+            and primary_payload is not None
+            and primary_payload_priority is not None
+            and primary_payload_priority > 0
+            and bool(primary_payload_phrase)
+        )
+
+        if not primary_contract_ok:
+            fallback_event = "max_silence_override"
+            fallback_priority = _event_priority(fallback_event)
+            fallback_phrase = _resolve_phrase_id(fallback_event, canonical_phase)
+            fallback_text = _event_text(
+                event_type=fallback_event,
+                language=lang,
+                style=style,
+                target_low=target.get("target_low"),
+                target_high=target.get("target_high"),
+                segment=str(target.get("segment", "")),
+            )
+            if fallback_priority > 0 and fallback_phrase and fallback_text:
+                primary_event = fallback_event
+                event_type = fallback_event
+                reason = "contract_fallback_missing_phrase_or_priority"
+                resolved_priority = fallback_priority
+                resolved_phrase_id = fallback_phrase
+                coach_text = fallback_text
+                should_speak = True
+                state["last_spoken_elapsed"] = float(elapsed_seconds)
+                state["last_max_silence_elapsed"] = float(elapsed_seconds)
+                if canonical_workout_type == "intervals":
+                    state["last_max_silence_phase_id"] = int(state.get("phase_id", 1))
+                fallback_payload = {
+                    "event_type": fallback_event,
+                    "priority": fallback_priority,
+                    "phrase_id": fallback_phrase,
+                    "ts": now_ts,
+                    "payload": dict(event_payload_base),
+                }
+                events_payload = [item for item in events_payload if item.get("event_type") != fallback_event]
+                events_payload.append(fallback_payload)
+            else:
+                should_speak = False
+                reason = "contract_drop_missing_phrase_or_priority"
+                event_type = None
+                primary_event = None
+                resolved_priority = 0
+                resolved_phrase_id = None
+                coach_text = None
+
+    events_payload = sorted(
+        events_payload,
+        key=lambda item: _safe_int(item.get("priority")) or 0,
+        reverse=True,
+    )
+
     # Clean up pending motivation state
     state.pop("_pending_motivation_phrase_id", None)
     state.pop("_pending_motivation_stage", None)

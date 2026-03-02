@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
+import zone_event_motor
 from zone_event_motor import _resolve_phrase_id, evaluate_zone_tick
 
 
@@ -220,6 +221,29 @@ def test_events_carry_priority_and_phrase_id():
         assert "priority" in ev, f"Event {ev['event_type']} missing priority"
         assert "phrase_id" in ev, f"Event {ev['event_type']} missing phrase_id"
         assert isinstance(ev["priority"], int)
+
+
+def test_speakable_event_contract_downgrades_to_safe_fallback(monkeypatch):
+    state = {}
+    original_resolver = zone_event_motor._resolve_phrase_id
+
+    def _broken_resolver(event_type, phase):
+        if event_type == "main_started":
+            return None
+        return original_resolver(event_type, phase)
+
+    monkeypatch.setattr(zone_event_motor, "_resolve_phrase_id", _broken_resolver)
+
+    result = evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0))
+    assert result["should_speak"] is True
+    assert result["event_type"] == "max_silence_override"
+    assert result["priority"] == 68
+    assert result["phrase_id"] in {
+        "zone.silence.default.1",
+        "zone.silence.work.1",
+        "zone.silence.rest.1",
+    }
+    assert result["reason"] == "contract_fallback_missing_phrase_or_priority"
 
 
 # ── _resolve_phrase_id unit tests ─────────────────────────────────────

@@ -1,103 +1,103 @@
 {
   "version": "v1",
-  "generated_at": "2026-02-27T20:17:05.606684+00:00",
+  "generated_at": "2026-03-02T19:34:21.119245+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
-  "total_files": 380,
-  "total_size_bytes": 14006489,
+  "total_files": 468,
+  "total_size_bytes": 16204192,
   "phrases": [
     {
       "id": "breath.cooldown.1",
       "en": {
         "file": "en/breath.cooldown.1.mp3",
-        "size": 32226,
-        "sha256": "f6cc369052fe395a14bf6803b81ead9b3cb4ab5665ad79c87321a87bd3dcc26f"
+        "size": 33898,
+        "sha256": "443724ca8ccd6f247bf3e9439ee2ce54744042b7ddf5044b3e526e7916d2e1c7"
       },
       "no": {
         "file": "no/breath.cooldown.1.mp3",
         "size": 25539,
-        "sha256": "e5a2b79dcdae5a1faef1d45ba0e7e3c1c222ab46b08a27bc6fa8c5cc93808b3e"
+        "sha256": "acc58956733b526292aa2a2868b9aa5bc99ecacf14abb8c1d9f7b41abace6fb1"
       }
     },
     {
       "id": "breath.cooldown.2",
       "en": {
         "file": "en/breath.cooldown.2.mp3",
-        "size": 27629,
-        "sha256": "ff1946e76a6924f8dd37cedb96ecb904d3e10d8040fac5f9f57a1850302cf55e"
+        "size": 30973,
+        "sha256": "883931818aec7ad19119102da50cde9ff9f22cd4ced674056c8124ae14b6656c"
       },
       "no": {
         "file": "no/breath.cooldown.2.mp3",
         "size": 39750,
-        "sha256": "522d419fb2a7367605d0d29565d2b7a815165d8a7ded9b0edc4ab5914fa26979"
+        "sha256": "7ab5dfd033de227c17570b52112abb97b08cae84b5bc53b718db93eaf2127153"
       }
     },
     {
       "id": "breath.cooldown.3",
       "en": {
         "file": "en/breath.cooldown.3.mp3",
-        "size": 32226,
-        "sha256": "34e614eb1db479bbe1352189a58ceb0c6b150a954bdf70e2a66c22b8d5308852"
+        "size": 30973,
+        "sha256": "c84e68e8ea2da4bfa63edc239426879f0e425fbaf325a31570fac2731c24aa58"
       },
       "no": {
         "file": "no/breath.cooldown.3.mp3",
-        "size": 33898,
-        "sha256": "f79853bc9c709a5f5cebc6a1f6f7d6a29f9132c78c007a8f1490295551588a65"
+        "size": 32226,
+        "sha256": "85cf2e06c1ca0cb82c45f34ea994ee0b31e82ce03eb80d9d874bc064d98e2350"
       }
     },
     {
       "id": "breath.cooldown.4",
       "en": {
         "file": "en/breath.cooldown.4.mp3",
-        "size": 30137,
-        "sha256": "ca38302f79f4fe7fd870f8dc3158ec4d96c7ddcf9c486cba3c2a91d63b8fa508"
+        "size": 31391,
+        "sha256": "5da1c12008492fca8699d7a77cde3933f9599546b100d67bef829d2bb927023f"
       },
       "no": {
         "file": "no/breath.cooldown.4.mp3",
-        "size": 32226,
-        "sha256": "7ad8383fabfdd30ddd3a61275f703538f37524fe0444e4469126a0a82cfb694c"
+        "size": 31391,
+        "sha256": "cedc6a0ad3c384d9f72c1692c54ce5b0b0abdd48be39e50bb4d4af73fe14d3f9"
       }
     },
     {
       "id": "breath.cooldown.5",
       "en": {
         "file": "en/breath.cooldown.5.mp3",
-        "size": 30137,
-        "sha256": "05d95a2847fca49306b6a23a2c9715dbea82295b9d39746edc3ff773d43c6e9d"
+        "size": 29301,
+        "sha256": "0cf82997abfbc59de28eca5c6385cf4a4060eed653757fd2e445a1a71e1fa8cd"
       },
       "no": {
         "file": "no/breath.cooldown.5.mp3",
-        "size": 37660,
-        "sha256": "5d9e16ee5f5dde9db94acc6135569ac274df32384838db3c8fa6b28d202ee96e"
+        "size": 27629,
+        "sha256": "176247a1595d50496633239640a453466a09de38418f27952d9ba03b2831b8ab"
       }
     },
     {
       "id": "breath.countdown.1.10",
       "en": {
         "file": "en/breath.countdown.1.10.mp3",
-        "size": 25539,
-        "sha256": "2d69fef68d67319994eb01312283f2b2625eeed3281a64bbef57913c04f9dde5"
+        "size": 24703,
+        "sha256": "d7c218b87fce5b61c85869c8a80ea3c2e0a1d40f2fecb6119471e28536f4f19f"
       },
       "no": {
         "file": "no/breath.countdown.1.10.mp3",
-        "size": 23449,
-        "sha256": "2a2930244ffd4335de980de0512d3c0f5ecb04b521deaf63b52929c1c030567f"
+        "size": 21777,
+        "sha256": "51564060619e57c9fa506f05451781d552570c8d2bcffc6251bc97854cadd9ff"
       }
     },
     {
       "id": "breath.countdown.1.15",
       "en": {
         "file": "en/breath.countdown.1.15.mp3",
-        "size": 27211,
-        "sha256": "55038c73536b3769647afe399174577889ee66aa44e79f479d51aa7fd4ba8616"
+        "size": 26375,
+        "sha256": "a83186948d97fa251ef40c9771531da245b0270b75a014b1d4bbd1ff0b1decec"
       },
       "no": {
         "file": "no/breath.countdown.1.15.mp3",
-        "size": 24703,
-        "sha256": "75ba763dc724ba009e5ab54d0928f352896452dc4d57eb0dd4ab7c367362ac19"
+        "size": 23449,
+        "sha256": "72d332136f71000ef11c6f9965e8ac9192243eeb99666de90a62141a44a79f45"
       }
     },
     {
@@ -105,38 +105,38 @@
       "en": {
         "file": "en/breath.countdown.1.20.mp3",
         "size": 26375,
-        "sha256": "25a368c5b6f1f398bcbe3728a5f00059d3643b74c2793fa9580fd2d1bea92cca"
+        "sha256": "b3d92c9db5b1cd4fbe03d231fabb832d23bd1d3344d7a74972382edc7aef4b4a"
       },
       "no": {
         "file": "no/breath.countdown.1.20.mp3",
-        "size": 21777,
-        "sha256": "7efe8846563dc97171cfaeea66cdaade4deed63ea51faaba2ff2b52b1ce43950"
+        "size": 24285,
+        "sha256": "bde7615aacce9a4304124d870d95e06c632c8089d39fde403cdd7960ebbe2cb3"
       }
     },
     {
       "id": "breath.countdown.1.30",
       "en": {
         "file": "en/breath.countdown.1.30.mp3",
-        "size": 26375,
-        "sha256": "4ee7ab5e974b5911088bbd40aa1e7972cc68a1ee2972ff27250aac5c9f603dae"
+        "size": 25539,
+        "sha256": "ed410f6046ac3604e0f1b6e196cea6465e5e0e6b9eba861d5bcb687ffb403199"
       },
       "no": {
         "file": "no/breath.countdown.1.30.mp3",
-        "size": 26375,
-        "sha256": "ab456df52b96be8bcbd72ae6cced6726a67667ebb3150514a6064c594f31cd90"
+        "size": 24285,
+        "sha256": "f2795e87a33abba4ca2c87569e887df5c0637b5348d5ae602c6b7ad7afbaa9f8"
       }
     },
     {
       "id": "breath.countdown.1.5",
       "en": {
         "file": "en/breath.countdown.1.5.mp3",
-        "size": 24285,
-        "sha256": "08cb25e45ea9d7941a72128992ae38a2170c5bc1977d874e919b8ff1c95d4e42"
+        "size": 24703,
+        "sha256": "f1bb60a392b5072db4405e09e183011725cbc57ffddfd609a5a20b56b7cb8c5f"
       },
       "no": {
         "file": "no/breath.countdown.1.5.mp3",
-        "size": 23449,
-        "sha256": "a47d84a78017580ff578170dd2a9e15b6bd7ee5b52584ef4664e4a38860b8830"
+        "size": 22613,
+        "sha256": "b882b2a4bc5482a0ea71db74acd072921eba161b71c543f8dbd922a259b7a3cf"
       }
     },
     {
@@ -144,51 +144,51 @@
       "en": {
         "file": "en/breath.countdown.2.10.mp3",
         "size": 20942,
-        "sha256": "3cca10ed77caa6e8daffd3e4b1089d5c450a1b015009406bbec8607dbd3664b5"
+        "sha256": "f7490385561778895eeb500d38a28737984a8a89528efb10107785d6b3541f57"
       },
       "no": {
         "file": "no/breath.countdown.2.10.mp3",
-        "size": 22613,
-        "sha256": "47303447c31b43b6bec1b1d800115c35b0c62bbe939d24816f48cd5be0b3dbfd"
+        "size": 28465,
+        "sha256": "83d57c755533af0c8bbbd7cde8f0db77f06669403e83327c4384590dc7f66353"
       }
     },
     {
       "id": "breath.countdown.2.15",
       "en": {
         "file": "en/breath.countdown.2.15.mp3",
-        "size": 26375,
-        "sha256": "a69225d22df9b53481617ee27c661ac910bc69f8ae7e864700053a8f22e9cbee"
+        "size": 24285,
+        "sha256": "28c5a3635c6887120b19ea7235557afaebed209f90be34ee7ed1b66b822ca262"
       },
       "no": {
         "file": "no/breath.countdown.2.15.mp3",
-        "size": 26375,
-        "sha256": "c85b2814073926ef534904b8fa9b0df94895c68a6bf6959fcc099a533a68fb06"
+        "size": 23449,
+        "sha256": "7dc0a8e7e7cace68278ae2c8f1e9ebf80a978b1329587c9339b81aa4de5d80c3"
       }
     },
     {
       "id": "breath.countdown.2.20",
       "en": {
         "file": "en/breath.countdown.2.20.mp3",
-        "size": 20942,
-        "sha256": "b93d7329294f6cd35e6ed37c3e79ad4de837cce669e630f39c180e26bc68ea40"
+        "size": 23449,
+        "sha256": "744a7c4ff2838249dcf38da24a9b404824a678c82db77ab8506655ca2797b4e1"
       },
       "no": {
         "file": "no/breath.countdown.2.20.mp3",
         "size": 21777,
-        "sha256": "1c7aa661ec815a7328b759e891864565a828e633a7320e2ceb0f3954dfdf63a7"
+        "sha256": "6a890fae4bd0c1b8d34eb5c8bfb1abd46e24e7a362576098268ed73b3c1d1888"
       }
     },
     {
       "id": "breath.countdown.2.30",
       "en": {
         "file": "en/breath.countdown.2.30.mp3",
-        "size": 21777,
-        "sha256": "78519dd71581c59129f3446472721c23abc99f19749b66efd6ebfd89d3320a0d"
+        "size": 20942,
+        "sha256": "11501059dad517ffcb3b0c3a48320ee6111b34b30b2ed8f50b5549dd5f181350"
       },
       "no": {
         "file": "no/breath.countdown.2.30.mp3",
-        "size": 21777,
-        "sha256": "2d54596e9cf9c123e18eb9046ab083af0fcc529108d0d8afd1a222bf8d1bc0eb"
+        "size": 22613,
+        "sha256": "ba42c3db12e910dc95a871c3a80f2692c66fddbcd699d722c8d660b7133f742e"
       }
     },
     {
@@ -196,51 +196,51 @@
       "en": {
         "file": "en/breath.countdown.2.5.mp3",
         "size": 20942,
-        "sha256": "a390c1310ebe7f586e6357cd785b4f340f8967469a507f33063a17043123c1b7"
+        "sha256": "acd4f106240affff12acd26276f2469008b8f3eb6b5dd6d92f62c734bdb3cd99"
       },
       "no": {
         "file": "no/breath.countdown.2.5.mp3",
-        "size": 22613,
-        "sha256": "3cc71a6e9b845ceb7715d05e74f32e805fcf779e70a53790412d25232acf101f"
+        "size": 21777,
+        "sha256": "cfee611f634d80d670407fc05e35c414054724c8a03bfb0371711283f899a3d0"
       }
     },
     {
       "id": "breath.countdown.3.10",
       "en": {
         "file": "en/breath.countdown.3.10.mp3",
-        "size": 18852,
-        "sha256": "93c2a4f9253a7796dae9406e66eacce54231a624fed0e5777fe3500b47700af7"
+        "size": 19688,
+        "sha256": "5ffe3c0729d67e04affb10b4b881a3f61ebad6360079bdf8389bd041a0e5d565"
       },
       "no": {
         "file": "no/breath.countdown.3.10.mp3",
-        "size": 20942,
-        "sha256": "f7008d697fe20393fc92845d9246220966d4299d86c482b439374001f53edb66"
+        "size": 19688,
+        "sha256": "68ba1d66603ff6c7a21b8acd9af51ccb80b64259498a869382c677c99f606ba6"
       }
     },
     {
       "id": "breath.countdown.3.15",
       "en": {
         "file": "en/breath.countdown.3.15.mp3",
-        "size": 21777,
-        "sha256": "8e4258334f18632b58034acfe20f5a42f4e19897e834d0b9cc6e909a42a7a4b5"
+        "size": 22613,
+        "sha256": "c0a1988aac88bcb8022f61a5981ab5ea72696f3d44e94d343bb1547a5a13b523"
       },
       "no": {
         "file": "no/breath.countdown.3.15.mp3",
-        "size": 20942,
-        "sha256": "275a51ffbb07d6553977586541bc0a7f55a14543852a30d23a6a2a92680ab260"
+        "size": 22613,
+        "sha256": "8dbd1080a96591336a51347da4a3efc90c5d358216423f50ef8e26f6b6824f36"
       }
     },
     {
       "id": "breath.countdown.3.20",
       "en": {
         "file": "en/breath.countdown.3.20.mp3",
-        "size": 21777,
-        "sha256": "c7e00d5170a33696ea817c278aa91ba265d4c1897a518db450b278d7fb604226"
+        "size": 19688,
+        "sha256": "c3ed2655669338ffadbca27dbaa4ee7cc12c569b2627a003180c910a0b7a7813"
       },
       "no": {
         "file": "no/breath.countdown.3.20.mp3",
-        "size": 20524,
-        "sha256": "6184b64ec5361ba16a6357af1c66d8ba8549d4f8c431da8f0035219ab3758287"
+        "size": 19688,
+        "sha256": "ab9d091055b4b3096e5095c8f1700cd3b17a4be09c3be77c6d02ddd512d67537"
       }
     },
     {
@@ -248,38 +248,38 @@
       "en": {
         "file": "en/breath.countdown.3.30.mp3",
         "size": 20524,
-        "sha256": "ffea235c3b5f43e70a405217a21dc3e2fe3c9af5c24444dab9f06019649f6c57"
+        "sha256": "21d9f3bcf199393a86a099239a233f5b3dca1cadd333657e2583b00287c2d838"
       },
       "no": {
         "file": "no/breath.countdown.3.30.mp3",
         "size": 22613,
-        "sha256": "a475c87379a63be41f69449cf59e9936db60b5c4be0cd366c714c3b28a989be7"
+        "sha256": "e189421bf412561fcb6800d7a00ecf61101976bd40bf835ac132a6f1285efdae"
       }
     },
     {
       "id": "breath.countdown.3.5",
       "en": {
         "file": "en/breath.countdown.3.5.mp3",
-        "size": 19688,
-        "sha256": "dc7e9380b2592e0ec61a3f798659bd150cb48c88b4c4784d4e167accae6d4623"
+        "size": 20524,
+        "sha256": "da97d3ed7a335e9a26697d7d4f357cd600ee39d05c2ebb6e4f13fcdb17a65f4b"
       },
       "no": {
         "file": "no/breath.countdown.3.5.mp3",
-        "size": 19688,
-        "sha256": "f4593a8c5e381888664f923ba78f66a3f206a33b516ece73235f72002cad937d"
+        "size": 20524,
+        "sha256": "d6bede39f97ca2d2637ed13025e9d79262f057e2d551ce20fee504aaf28c7d2c"
       }
     },
     {
       "id": "breath.intense.1",
       "en": {
         "file": "en/breath.intense.1.mp3",
-        "size": 19688,
-        "sha256": "2bfb5217e92cabdd981de976a7391a3a750a8e942b689d1b4d7f6407274def25"
+        "size": 16762,
+        "sha256": "94bdc963b6da9f3f37d82fe0d8cd030fc9a11e9fbce67e978d6e3d7ae98f6a75"
       },
       "no": {
         "file": "no/breath.intense.1.mp3",
         "size": 16762,
-        "sha256": "f35f3617c1c60158488316966d9a4fb675e31c6d46a4a8ea700cfc69e35df909"
+        "sha256": "91a7d1263443c9b44c65b97cdb9df3c04dca578173da11b3ce7e838fe3bd8920"
       }
     },
     {
@@ -287,350 +287,350 @@
       "en": {
         "file": "en/breath.intense.2.mp3",
         "size": 27629,
-        "sha256": "92447a27e785abe6cdeba8cb077bee3220ae2d601465d2a5021464c4c4ab61fb"
+        "sha256": "1068ff93c664bf80fd2066138bdc99a71da726720d175ed8dcf9719f6b196c26"
       },
       "no": {
         "file": "no/breath.intense.2.mp3",
-        "size": 41004,
-        "sha256": "ef089d00a185b22fe1371104369afaa5afa3b40fea1932be88cb6ebf64b80f92"
+        "size": 36824,
+        "sha256": "b9346c78a46f159897de3b12c1ee4c3c7f7656c1225bba256b53693b2f1a9361"
       }
     },
     {
       "id": "breath.intense.3",
       "en": {
         "file": "en/breath.intense.3.mp3",
-        "size": 20942,
-        "sha256": "b2aa225606a00de5fc51c9036e90897902e99b7b5a7e42c6fc74cb54f76a3e20"
+        "size": 22613,
+        "sha256": "2451f5c202e215d17a3614f323166852d86c664b40f8e7fc795852055d097720"
       },
       "no": {
         "file": "no/breath.intense.3.mp3",
-        "size": 17598,
-        "sha256": "0c537b37b2155ed265f7f51cb83cf7d2eeab42af065c4fa1388a26874472a5fe"
+        "size": 21777,
+        "sha256": "aa63e67797edcf16ab847630b8ce0ee9495abc77c8bf41a21317cc6266b10c63"
       }
     },
     {
       "id": "breath.intense.4",
       "en": {
         "file": "en/breath.intense.4.mp3",
-        "size": 20942,
-        "sha256": "88df66c51a7a8a1580e003de3ba374ed392f5c279459656333e9872c23089d9c"
+        "size": 21777,
+        "sha256": "761adbba46b09fe01b7d96b34912a80c981500b3a0b1cdbfe0cbbae7e06b3ea6"
       },
       "no": {
         "file": "no/breath.intense.4.mp3",
-        "size": 22613,
-        "sha256": "74c9c31abd55c330e159d41831f7de94a2f9bced5ba6639d5f1d2b7b8dcf57fe"
+        "size": 20942,
+        "sha256": "208a2a39bb784ef1ad0c091c66559c69aca92a00a0bf0a9e2295fc61222cfe3d"
       }
     },
     {
       "id": "breath.intense.5",
       "en": {
         "file": "en/breath.intense.5.mp3",
-        "size": 30137,
-        "sha256": "6bca55858e11fbb973f8c89c6e8f0a2e19632e397b7a4c3230cf3bcc79c9eb32"
+        "size": 28465,
+        "sha256": "7ca3bc5bf13f40dd74b1552a4fce86eb356cf51aa7b1e4506e374758af3f5b89"
       },
       "no": {
         "file": "no/breath.intense.5.mp3",
         "size": 34316,
-        "sha256": "851ef44fbf96b20f93269d99e2b3a9dee90a41897551e6802e8770a267e22544"
+        "sha256": "b24bb139c41b1c10146c6cb963204b00a6550f3871f3e2fd60602f0683f7942a"
       }
     },
     {
       "id": "breath.interrupt.cant_breathe.1",
       "en": {
         "file": "en/breath.interrupt.cant_breathe.1.mp3",
-        "size": 53960,
-        "sha256": "88430b5c808addad08056d790bb43c1ac1b1c48932c42905ff148d0bfa65473e"
+        "size": 53124,
+        "sha256": "80010a8df5efd192be89aeee34c485e6aa278211aea40b7f5f82539acadd52dd"
       },
       "no": {
         "file": "no/breath.interrupt.cant_breathe.1.mp3",
-        "size": 47691,
-        "sha256": "8f21a6dda0f016d1dae60195c4f0189d6b421854916d485bc49eef6ad2a75515"
+        "size": 70261,
+        "sha256": "e4e63db672eee4543fbea5e4d0ed3946cfd1e9aad7f0c03f3210844ab98009d3"
       }
     },
     {
       "id": "breath.interrupt.dizzy.1",
       "en": {
         "file": "en/breath.interrupt.dizzy.1.mp3",
-        "size": 56886,
-        "sha256": "874ecf28d6103376599bc9329ea5130f1cd4b63d291b35961b5e3b93b8a7c98b"
+        "size": 59812,
+        "sha256": "7a0d5fd551deb7c1572e4ef6f75b4c15bdbbaa23e8307a00f81b370b1588363f"
       },
       "no": {
         "file": "no/breath.interrupt.dizzy.1.mp3",
-        "size": 64409,
-        "sha256": "f45da7ebd5f7cb3ba6a70982bedd326e32654ba685317b80d9dc9e21d6dfdcb0"
+        "size": 77784,
+        "sha256": "d6d1adc429bb33e40ce147589cf92072b73e1a13b31c4a903f021c7d0592352b"
       }
     },
     {
       "id": "breath.interrupt.slow_down.1",
       "en": {
         "file": "en/breath.interrupt.slow_down.1.mp3",
-        "size": 56886,
-        "sha256": "ac74915e29078c4a5383217456813a35b2c443eeefdcc2ba1d10d9163c161855"
+        "size": 51453,
+        "sha256": "fd05a8a75b97df7cd2d96596d1860cdb64c8fcb5541c96d6f3f72adfb8baf337"
       },
       "no": {
         "file": "no/breath.interrupt.slow_down.1.mp3",
-        "size": 69425,
-        "sha256": "5830c66f4d46a25b20766c396c63324c439a79cb70d22aa011e5695a92c058cf"
+        "size": 67753,
+        "sha256": "385ca3cc74a1614efa9ac815b830a7016228b6ee292aaf241c0bd6f87fc23d7d"
       }
     },
     {
       "id": "breath.prep.1",
       "en": {
         "file": "en/breath.prep.1.mp3",
-        "size": 20942,
-        "sha256": "1f4462b9a3705ee3619fdf12c9b88356f681b380b185aa0c2b113c0f37920db4"
+        "size": 23449,
+        "sha256": "1b26583b5793bd606b31fb7f6e1b249841cecd85eaebeb556b5bea005ffaa39e"
       },
       "no": {
         "file": "no/breath.prep.1.mp3",
-        "size": 27211,
-        "sha256": "4a75384ecfcfe9635f2158393aa590e045520df063f81bcf729ce3819e41533c"
+        "size": 29301,
+        "sha256": "818b82dfc13bbb967e7865a7bc0a65707e1b0e0383b38d42f031d5d42d9ca811"
       }
     },
     {
       "id": "breath.prep.2",
       "en": {
         "file": "en/breath.prep.2.mp3",
-        "size": 27211,
-        "sha256": "b433596a99b9330c866ca42fb80d559d62308876ed69037f0b0b16adc002ff22"
+        "size": 27629,
+        "sha256": "be9b87ced8880482c90c080f866c154b9fe1c2c0538e89e782a7fce7a6511666"
       },
       "no": {
         "file": "no/breath.prep.2.mp3",
-        "size": 27629,
-        "sha256": "8e88d6be71ce9f61099f93ef25b0e78e9e151996bfb6441e1f8db68ec29469ae"
+        "size": 27211,
+        "sha256": "c7a67fc558412bc9b294cb6b4e1395bcb5bfde94cc8ea6f0b422e2b2545ef46f"
       }
     },
     {
       "id": "breath.prep.3",
       "en": {
         "file": "en/breath.prep.3.mp3",
-        "size": 32226,
-        "sha256": "bcc35b4b72b161f1336d089cf793e566fb0c343b52c30ab2a6619d09d685f725"
+        "size": 35988,
+        "sha256": "97a2d96c1dd11ba177e233da3896550ceca7cb77fc8c83ad582d33e79b666353"
       },
       "no": {
         "file": "no/breath.prep.3.mp3",
-        "size": 30137,
-        "sha256": "7205084b9e86857da7e4c9437d5af481c956f0ff4113dc45e168d9cdb560f45d"
+        "size": 27211,
+        "sha256": "5a72d4ebfed39a2f45b38e1354dbcbd1fa9563a1f91237f46acb6f3428f27dac"
       }
     },
     {
       "id": "breath.prep.4",
       "en": {
         "file": "en/breath.prep.4.mp3",
-        "size": 36824,
-        "sha256": "db7136b6dbccaccd491134c9d120b8c9997587d5841cfcf456b10642bda3dcd8"
+        "size": 37660,
+        "sha256": "11243510d70c3b6cf637763891ff439846811b86e42a13541edb9f25f2e867cb"
       },
       "no": {
         "file": "no/breath.prep.4.mp3",
-        "size": 38914,
-        "sha256": "69ec09d78e54a3544107ff23afd61c1085dd491640a86373f9e015142e7cf632"
+        "size": 51453,
+        "sha256": "71c00460ef67608a804d551da6b05528ed57a797347a95021d7f6855c530352d"
       }
     },
     {
       "id": "breath.prep.5",
       "en": {
         "file": "en/breath.prep.5.mp3",
-        "size": 76112,
-        "sha256": "d664d164d7cce3208f94fb96f299e73abc50837d3d8cd0cead73fb859ad53940"
+        "size": 74022,
+        "sha256": "0502b14fc1b04c67f333019eff0b6f9a79c1033c5eea800c62a6975ddad5917d"
       },
       "no": {
         "file": "no/breath.prep.5.mp3",
-        "size": 61066,
-        "sha256": "8ffa4650b0c2de768e70f04fc4541f30141469844f53e426b501ec2a269c70a6"
+        "size": 60648,
+        "sha256": "ea80a3d2e409b4e60dbeddbff042b308e136fe03a186eae79a9f5e458fa913df"
       }
     },
     {
       "id": "breath.prep.6",
       "en": {
         "file": "en/breath.prep.6.mp3",
-        "size": 25539,
-        "sha256": "7ef6a5c09886204320122c22d699f21ff8ca14e4216a5c03df5236dff6cdd762"
+        "size": 24285,
+        "sha256": "981fe3e89b1b863595555990f66b7a1174971950f05f5f74100525704e4f519d"
       },
       "no": {
         "file": "no/breath.prep.6.mp3",
-        "size": 27211,
-        "sha256": "8095e793fd9c52caa1f8e49c5c38895ea72a99e3d10310394b0a3870720fb5e5"
+        "size": 27629,
+        "sha256": "4ffd41a442eb9b74ab2f6236bf174c660b45d35639f51d6375576bcf79bc4734"
       }
     },
     {
       "id": "breath.prep.safety.1",
       "en": {
         "file": "en/breath.prep.safety.1.mp3",
-        "size": 79038,
-        "sha256": "558645add457e273d8595523c34dfbaf428e6d059c6fce9443637989ae880048"
+        "size": 76112,
+        "sha256": "60ed971f4469f4c10a85965d025ddc971bf955697a212e4d4f7760df69c58221"
       },
       "no": {
         "file": "no/breath.prep.safety.1.mp3",
-        "size": 75276,
-        "sha256": "7914b87bbe7cd03d12e829a3f70a044b65c0a3d477ce39d22ab0bb36fb798f06"
+        "size": 77784,
+        "sha256": "0da76afc54a139201cf4d3c7f714cfc38ebb86c4e94c4d1ac0e549b4333cf07c"
       }
     },
     {
       "id": "breath.recovery.1",
       "en": {
         "file": "en/breath.recovery.1.mp3",
-        "size": 41839,
-        "sha256": "ba3493ce1233de2ff803be263ee1d8eba11c13df1ed08c6d431438738ed99ee1"
+        "size": 38078,
+        "sha256": "89db95c6bd0c28f69cf5c7b9e1c9c6e09707665e8849498115a2cdce38622127"
       },
       "no": {
         "file": "no/breath.recovery.1.mp3",
         "size": 62737,
-        "sha256": "ad60a5451e75f75a0ca6dc3d633c4c789e51f16041f826f7a8bea5a61cb26c29"
+        "sha256": "449365c5252ffb582cbfe33cf7dbc146ac0023940d4b215f7ba690bc8f0eb4e2"
       }
     },
     {
       "id": "breath.recovery.2",
       "en": {
         "file": "en/breath.recovery.2.mp3",
-        "size": 36824,
-        "sha256": "23f743c06be28d8c7eabde644d8e9ac936310adbd32eb873c513aa6530e8c5bb"
+        "size": 35152,
+        "sha256": "87ad3fc93a07f0161220db374db249a4a275ed1e8c1b0882980aadb496bdb944"
       },
       "no": {
         "file": "no/breath.recovery.2.mp3",
-        "size": 35152,
-        "sha256": "baa13da2fa7d2ed8884f10b22409d7cc68c2b05deee23cb4ee8d8ffc64af2716"
+        "size": 35988,
+        "sha256": "602cbfc811ba2482b51b7f51b6d870dc82500fd12d81f5bcb85f4fa5af8ddc23"
       }
     },
     {
       "id": "breath.recovery.3",
       "en": {
         "file": "en/breath.recovery.3.mp3",
-        "size": 33898,
-        "sha256": "4e0bb32fb7c54c8b859843f7985bddcb9ac2eaa5c9157e5a30e6731b177fa5f3"
+        "size": 33062,
+        "sha256": "da62dd073de041b67f23ade3af7726dc421227cc39c6a16f28f7aa75a16eede2"
       },
       "no": {
         "file": "no/breath.recovery.3.mp3",
-        "size": 32226,
-        "sha256": "8779c2c2ea2d97337eff8160bc41478b24bae3a41a5181d9e4cccaf48f77cd4b"
+        "size": 27629,
+        "sha256": "a9573268a2d145fbbfebd646948de0f72ea0c4354a8178d513d4ceef5a6170c0"
       }
     },
     {
       "id": "breath.recovery.4",
       "en": {
         "file": "en/breath.recovery.4.mp3",
-        "size": 30137,
-        "sha256": "3172f06d2d7ef0f747a2904a2f5122a333dc608c8aa53b691aed876589f5fa95"
+        "size": 28465,
+        "sha256": "c55a51431c1682ad0eef3df97bf314f304d0bf7e1e15614d09ec67e0d7c0948e"
       },
       "no": {
         "file": "no/breath.recovery.4.mp3",
-        "size": 35988,
-        "sha256": "03053da24d9421375e5ef8ed2b82424a08f818f97110219ff9de924c72663954"
+        "size": 30973,
+        "sha256": "d8192e88cc9a89012379817bce7b15be0bcfe1a4dfbcfe6520ea4e1856ca1f0b"
       }
     },
     {
       "id": "breath.recovery.5",
       "en": {
         "file": "en/breath.recovery.5.mp3",
-        "size": 28465,
-        "sha256": "52c893a44b2ed4e8a69253b3e54704046a46c231779ef952e2f07ee91dcc0cc9"
+        "size": 29301,
+        "sha256": "69fada93c71b48ad974cbafe7bef1fe847ef25f1d5f6b46ac483976bee125379"
       },
       "no": {
         "file": "no/breath.recovery.5.mp3",
         "size": 28465,
-        "sha256": "9bdf32a50d26c750ee6917dfa2667ed183861fab83e988b32444265fdc7357f6"
+        "sha256": "6d293086d71908cb2bd9645a1944de63fdbb4e06e02c4eff468202a044933179"
       }
     },
     {
       "id": "breath.warmup.1",
       "en": {
         "file": "en/breath.warmup.1.mp3",
-        "size": 34316,
-        "sha256": "22636e71745e1e9198529d204e4aaf5ed6c056ca9f6eb0b6bafb93cecb18b6b6"
+        "size": 35988,
+        "sha256": "722dfe535d088c706d02ab71092aa12ce386efe645e2ed8fff59278207094e26"
       },
       "no": {
         "file": "no/breath.warmup.1.mp3",
-        "size": 41839,
-        "sha256": "4a3ba799e556fa3bee39f5a333107b2d56df74e3e0f383a46f532e5acca12cb4"
+        "size": 30973,
+        "sha256": "7625d953bd8a30979ab7b45b72b5ecf808021f306bec683f2847289b5b5eedca"
       }
     },
     {
       "id": "breath.warmup.2",
       "en": {
         "file": "en/breath.warmup.2.mp3",
-        "size": 28465,
-        "sha256": "d782eb3c942664f9e5d6284e6eb4084be2746f39290fc5fcb31693aa3f3be2ea"
+        "size": 29301,
+        "sha256": "84a8254fd1e7efd4dd00929f117d222bc9b427e0b20671b21d1cd1efbd076086"
       },
       "no": {
         "file": "no/breath.warmup.2.mp3",
-        "size": 28465,
-        "sha256": "0b3001f4a87dfbb2bc4a24dfc67c764db8d0000af78491cb21d10ccaafca1632"
+        "size": 37660,
+        "sha256": "9a7c73505c8b67723f54035da5a28880f33d6be09f45bb28d962e3b543fb770e"
       }
     },
     {
       "id": "breath.warmup.3",
       "en": {
         "file": "en/breath.warmup.3.mp3",
-        "size": 29301,
-        "sha256": "e4098c4405c46e23421f576f5d864dd13d1eb51604923641cf4d340177623867"
+        "size": 26375,
+        "sha256": "dccf6c48b6f464988051f6e9971e254e9cbbab2c4c35f0deecb8dd44e06f03d6"
       },
       "no": {
         "file": "no/breath.warmup.3.mp3",
-        "size": 34316,
-        "sha256": "4b1445d399de8a952d8d3a7e95dfc93f0c894f78cd098b95f0e9dfe8e77008cd"
+        "size": 32226,
+        "sha256": "93b87cb96c098ab1e0bf7611274990a3efe3355dfbf0fda3c80ba6a442f89423"
       }
     },
     {
       "id": "breath.warmup.4",
       "en": {
         "file": "en/breath.warmup.4.mp3",
-        "size": 33062,
-        "sha256": "3382d64d6add814af1081e05c55ab43175e1dac80fd80d92ff4a0d76e43d1ffa"
+        "size": 38078,
+        "sha256": "feaf9383383de82f8f013ced63a95d6761aa295d10a1b4b630bb07be9361a600"
       },
       "no": {
         "file": "no/breath.warmup.4.mp3",
-        "size": 41839,
-        "sha256": "56de999dc11fd7755044a461f04e9033a8668839af3e3d20136ea7ca4cfa528d"
+        "size": 45601,
+        "sha256": "ac136f76dd753ed18a7f1ab6b855be65d85885cd4993d0d1785c7d304a2cfbc1"
       }
     },
     {
       "id": "breath.warmup.5",
       "en": {
         "file": "en/breath.warmup.5.mp3",
-        "size": 30973,
-        "sha256": "be821c2b596c07812d1443d1265141633c991e2f57b8fdfc3bf9b9a4ae180de1"
+        "size": 31391,
+        "sha256": "5af68eed78a77f74107bc10f0a82d1b2f611faf5df2b3491a5015bee83173af5"
       },
       "no": {
         "file": "no/breath.warmup.5.mp3",
-        "size": 27211,
-        "sha256": "72ba76634d166f3bf243e8e281d200f37f62c407c1f4ee34446772e909e53a60"
+        "size": 27629,
+        "sha256": "3ce2938169e851ea1dd646921731c25af14ab68515f949c4304eac45a0775bb5"
       }
     },
     {
       "id": "coach.cooldown.1",
       "en": {
         "file": "en/coach.cooldown.1.mp3",
-        "size": 42675,
-        "sha256": "b0fac27dcfb2878b688328ad5c35141d2e88b942581256a1bd4eff9d9e4bdd9d"
+        "size": 43511,
+        "sha256": "0753a826a81084ca21f636260c98a525c988a501dd1dffcd6b73681adcd4cfec"
       },
       "no": {
         "file": "no/coach.cooldown.1.mp3",
-        "size": 54378,
-        "sha256": "9b101b3a920ded30ae7ae6b654a7e5d929cbb66a6628fa54c1c48a9d6c8be19e"
+        "size": 63573,
+        "sha256": "385441f14e3950d5e2a5377de51b00ef7178a4acacb9f9c84aee11b25b06e907"
       }
     },
     {
       "id": "coach.cooldown.2",
       "en": {
         "file": "en/coach.cooldown.2.mp3",
-        "size": 57722,
-        "sha256": "d913be10697056dcbbe3923a24f99db5322895a291a2877087cf68d80250e721"
+        "size": 51035,
+        "sha256": "2158118073807abd8b3609f75d208608aa18e8949375fd35e66efccd7300c655"
       },
       "no": {
         "file": "no/coach.cooldown.2.mp3",
-        "size": 80710,
-        "sha256": "d4f2cd1bf70542b31296ac861821c4626952afcbbb5e17da30dee91a3884898d"
+        "size": 72351,
+        "sha256": "49ad66bbd9b52bcd0ed15005b1b54bf9136dafbcc6eb82abe166bda10af1b2c6"
       }
     },
     {
       "id": "coach.cooldown.3",
       "en": {
         "file": "en/coach.cooldown.3.mp3",
-        "size": 37660,
-        "sha256": "4e299240b692bbacbc3ee932d74d92333ea1a47ad8ff70dc502964f6b0f6a30a"
+        "size": 35152,
+        "sha256": "280cc25043e5b0c4edf2197d689f7f704fe15aef69e3a44214bde0ca5e4e8505"
       },
       "no": {
         "file": "no/coach.cooldown.3.mp3",
-        "size": 41839,
-        "sha256": "e1b119f92d1771759e421b0f9513909ef842a036035937abe05a4ff8aa1427fb"
+        "size": 38914,
+        "sha256": "f43dcb20367c752779a1b13cbcfaa2fcab6f874f99c16d0fa7da4342f235e306"
       }
     },
     {
@@ -638,77 +638,77 @@
       "en": {
         "file": "en/coach.cooldown.4.mp3",
         "size": 42675,
-        "sha256": "cad690373a11215e583b1d0f38b3422ce7b67ec7c9dd51db06db25859af0874e"
+        "sha256": "7f2fbec3294f5e01580005adf58aeacf6ce836633b6f441f28c57cb0b3c2f753"
       },
       "no": {
         "file": "no/coach.cooldown.4.mp3",
-        "size": 63573,
-        "sha256": "4340421e08648be85f29c068e8ea90bb97d66850c39ad49b449d619bdb60110c"
+        "size": 58140,
+        "sha256": "2d2141b1f6e67087bce260cd5099e1f88c8fe965d2b0604e9fa32a26254e02b3"
       }
     },
     {
       "id": "coach.cooldown.5",
       "en": {
         "file": "en/coach.cooldown.5.mp3",
-        "size": 34316,
-        "sha256": "92588c80009d3038f3f82c4ffffb195475c78ff7eb336eedf8d0f820b2e4bea9"
+        "size": 38914,
+        "sha256": "9122612186fbb7ebf48dace9c8bbb72074f1e75c713598667b7bc154b02bacde"
       },
       "no": {
         "file": "no/coach.cooldown.5.mp3",
         "size": 52288,
-        "sha256": "9d3739160c0ae781d35f4466c886f933e6cec1823693e7a702128a7c485673da"
+        "sha256": "91417a6947ad580eec48cd336f8f85f426a583c090323fd82b07a3615a51b56e"
       }
     },
     {
       "id": "coach.critical.1",
       "en": {
         "file": "en/coach.critical.1.mp3",
-        "size": 38078,
-        "sha256": "ad9981964e28d5278d8e94d9a6d40745443931555d41d40b27344d62ac157d9b"
+        "size": 33062,
+        "sha256": "af3722a7c7ee043da77d697faaa6f5c1aa1881f1927da530adb8fc98b77fae9a"
       },
       "no": {
         "file": "no/coach.critical.1.mp3",
-        "size": 40586,
-        "sha256": "f1d1d78a51af8ea584167ee78eab3fec7f8b55d3c7a8ffb8fd1b919008cd97c0"
+        "size": 37660,
+        "sha256": "973fe8a539753419a7118fd7aa05fef9bfbc58191bb6c766072623cf5118fd30"
       }
     },
     {
       "id": "coach.intense.calm.1",
       "en": {
         "file": "en/coach.intense.calm.1.mp3",
-        "size": 47691,
-        "sha256": "19141bb07656c91278d5bd5d30a2ccb080c620586b357fbf902c0bb2ba7e4065"
+        "size": 49363,
+        "sha256": "5f955688edb61cf082faf76a67cf87cdd86d5f44ddd4acd6a92aefa73a55d0e0"
       },
       "no": {
         "file": "no/coach.intense.calm.1.mp3",
-        "size": 55214,
-        "sha256": "bc245b9446565854b14a8efcf22efdf5b961d2afc4ea9a290480b90d38a8ed1f"
+        "size": 67753,
+        "sha256": "b295c896f02aa221a9d1f1da75576db88083d421322339df53d0bc830f320777"
       }
     },
     {
       "id": "coach.intense.calm.2",
       "en": {
         "file": "en/coach.intense.calm.2.mp3",
-        "size": 57722,
-        "sha256": "4d73a8e0f9c6ab1442ef42eac7e608ea07a222017ec22419bf7febba6b199523"
+        "size": 56050,
+        "sha256": "c52ce6d3f4d773e5a165cac2bb4229085fb1e2dbde6bf1b87c308dcb27c35553"
       },
       "no": {
         "file": "no/coach.intense.calm.2.mp3",
-        "size": 61902,
-        "sha256": "26dbfcd12c343a1a68ee69e9b8b49332e20a4ae61cc7cbd437a2e57f0008834b"
+        "size": 54378,
+        "sha256": "dcd8b85a0b14350fa26541530630366ec7633cc82db66436cd51b9e84e487738"
       }
     },
     {
       "id": "coach.intense.calm.3",
       "en": {
         "file": "en/coach.intense.calm.3.mp3",
-        "size": 18852,
-        "sha256": "0469442cf8a7da64e34e568e3a1b7cbeaebf10a613ace3dccf674aff2b89d40e"
+        "size": 20942,
+        "sha256": "732076c425f9b986b47bff93493cb79683ddf0ac71fc97d4bad21f82a6b9ed5d"
       },
       "no": {
         "file": "no/coach.intense.calm.3.mp3",
-        "size": 21777,
-        "sha256": "97a532cd8c4bde6e3268584ca34c0544edb9b05a15dbebd6e1525a8a8d4a2bdb"
+        "size": 23449,
+        "sha256": "a3fe3b806f50d30a5d776fa9a68ff16d56105b171aa9bd23b7c66b99028dc119"
       }
     },
     {
@@ -716,90 +716,90 @@
       "en": {
         "file": "en/coach.intense.calm.4.mp3",
         "size": 16762,
-        "sha256": "ba39db3aed2a7e08eab72efc6bc8fc7c882a7657e65be78a918d24cb4523cb8b"
+        "sha256": "ccc25e23557d97edb659a49941cc544ec4416f2db5f4685f2515cb8afa343151"
       },
       "no": {
         "file": "no/coach.intense.calm.4.mp3",
-        "size": 12164,
-        "sha256": "75400113421f9c046df69700922c70fba025c46b083768efcb1e443096437ddd"
+        "size": 13836,
+        "sha256": "d502f62b586b87896936ff8f603170bcce738d98278bd0d1d93fcc058d55f4b3"
       }
     },
     {
       "id": "coach.intense.intense.1",
       "en": {
         "file": "en/coach.intense.intense.1.mp3",
-        "size": 35152,
-        "sha256": "0e067dd245801240a037ca2bdfc8cfb6fd3eb3b9c76897e11320162d4f634872"
+        "size": 37660,
+        "sha256": "a7781b0b04de7a05b5f601885d927681e5dbaa10d013f50c44fe04a6df5f9dd2"
       },
       "no": {
         "file": "no/coach.intense.intense.1.mp3",
-        "size": 36824,
-        "sha256": "040208d9c9572333e23061903dc1d6b2b6c6d2f5ce672ce89c01c8836dc26a8d"
+        "size": 27629,
+        "sha256": "b8e0384cac219c43582e1f02fb2c96faacad090be5cc40d1a9ca79fec91ac6d5"
       }
     },
     {
       "id": "coach.intense.intense.2",
       "en": {
         "file": "en/coach.intense.intense.2.mp3",
-        "size": 53960,
-        "sha256": "d9c57f09f06b21bb6cd7014cfd24627dc6d5b20ab9725572e536855d10fe18ac"
+        "size": 48527,
+        "sha256": "702c345976358a8dfa5bf2b7cfeedb2f9ebd80fb84c68143a7c87f9fef73143e"
       },
       "no": {
         "file": "no/coach.intense.intense.2.mp3",
-        "size": 41004,
-        "sha256": "6c6c82defaef23acab7c76b58b3e1e8bd45a37a058ecec45e0cf0d2083b3b29d"
+        "size": 34316,
+        "sha256": "0dd13f679c31ff34b1f51897315cc3d95ad360bdfa826d798c249baadd56cf56"
       }
     },
     {
       "id": "coach.intense.intense.3",
       "en": {
         "file": "en/coach.intense.intense.3.mp3",
-        "size": 50199,
-        "sha256": "5557131524583aa4be61ff531b0a5afea548fb205c2187658f35784f499c8133"
+        "size": 44765,
+        "sha256": "41277d9325600edc3df4b81e60e8e187b0f0975c0076e4ab228d338022ab8b99"
       },
       "no": {
         "file": "no/coach.intense.intense.3.mp3",
-        "size": 50199,
-        "sha256": "b71d3d4608dfcddd44fb7a4febccc0f45d99b5643c36aa96a5d415428dda9bd5"
+        "size": 57722,
+        "sha256": "ab42952326e438ebd55f33960a1133d529421337475227fd46ba54f58faa9bee"
       }
     },
     {
       "id": "coach.intense.intense.4",
       "en": {
         "file": "en/coach.intense.intense.4.mp3",
-        "size": 23449,
-        "sha256": "d118444c3fb1447263a9e7d149f776198e40b87e1ac6d5a7e372388d93c81b2f"
+        "size": 24285,
+        "sha256": "b6ae784eb1171ae790c975d76d414f1f9906be4540a7fe92f89717daa6bc1f95"
       },
       "no": {
         "file": "no/coach.intense.intense.4.mp3",
-        "size": 28465,
-        "sha256": "90f43155212780b528398d07ae9e243f891a1f0e4624273a3c4ede2d2d8b2073"
+        "size": 27629,
+        "sha256": "ef2039a246ee4bbbee7617a718e67d3441989eeea91aa1a74bdd352adf225fc0"
       }
     },
     {
       "id": "coach.intense.moderate.1",
       "en": {
         "file": "en/coach.intense.moderate.1.mp3",
-        "size": 51453,
-        "sha256": "99c0b6f4774d65783c5e61f457647dd3030d5477229a454b25126b7ebe83e9c2"
+        "size": 50199,
+        "sha256": "69dfaa86432e53f8f8cb2ad11364be999fb4d30eba54c6103ff26d7f405ecfa3"
       },
       "no": {
         "file": "no/coach.intense.moderate.1.mp3",
-        "size": 65663,
-        "sha256": "7a7bc41bf148627292b2f548d8f9a0d2c6022bccbbddd2c708dec3288fc1c0ea"
+        "size": 52288,
+        "sha256": "5c8fe3d97a1ace7e94e65fb7625abd68a53d32bb7fa38053a8401a6e508165df"
       }
     },
     {
       "id": "coach.intense.moderate.2",
       "en": {
         "file": "en/coach.intense.moderate.2.mp3",
-        "size": 34316,
-        "sha256": "77f1d314b824270cf1234fd081463f8f77d3819a22d8fef3791ec0c183396c34"
+        "size": 35152,
+        "sha256": "27fe135834a7f04b42e4dd02baeb125c31795ee475162a13db5937a21f98b3ca"
       },
       "no": {
         "file": "no/coach.intense.moderate.2.mp3",
-        "size": 37660,
-        "sha256": "72ac5a17ac2e433d1149a8fb1cb359860f7d7ca65fd20a7508075cd47fc72890"
+        "size": 44347,
+        "sha256": "8b433bf201865e6bd21e3cf994831c3759b14950c6a7b429f081aa26793246cb"
       }
     },
     {
@@ -807,103 +807,324 @@
       "en": {
         "file": "en/coach.intense.moderate.3.mp3",
         "size": 24703,
-        "sha256": "3369bcd18a914f73b75b03a69a8235bfc267f4d3a42281e02f26a1e21ced5453"
+        "sha256": "949af3354c62fdfee0ee78b69881a4cee2d3242cc2842743cc11b1aac72849de"
       },
       "no": {
         "file": "no/coach.intense.moderate.3.mp3",
-        "size": 27211,
-        "sha256": "eb468e1befa5febd62c961878ffa927f89ba4579645721b5909550fda1b5b935"
+        "size": 25539,
+        "sha256": "21d7fce02ba2b0dcb5fbf9f683582595a8d8cc4088cfe56aeb1dc61f571a1a99"
       }
     },
     {
       "id": "coach.intense.moderate.4",
       "en": {
         "file": "en/coach.intense.moderate.4.mp3",
-        "size": 22613,
-        "sha256": "72461c35434e7d920d045267867bd5a663e96a1f0d1e934563af9422b0e7a78e"
+        "size": 24285,
+        "sha256": "0f9a362baef3a67171b0c5d7f055cda67430bc0d0181d590ff2bfa2c999d74ea"
       },
       "no": {
         "file": "no/coach.intense.moderate.4.mp3",
+        "size": 23449,
+        "sha256": "b86d9e417c404c7140c279d1312c3c7ded3fa6eac0595bd7ba83ae59eceabe99"
+      }
+    },
+    {
+      "id": "coach.no.intense.1",
+      "en": {
+        "file": "en/coach.no.intense.1.mp3",
+        "size": 27211,
+        "sha256": "691a3fe93c535ee355683aa3ce774c7d6b4412c2d793873217994f12ebabc36a"
+      },
+      "no": {
+        "file": "no/coach.no.intense.1.mp3",
+        "size": 31391,
+        "sha256": "c4af2be4b052ddc1a09c3bc08de55370e727920555b0476e52f920b68ffd2768"
+      }
+    },
+    {
+      "id": "coach.no.intense.2",
+      "en": {
+        "file": "en/coach.no.intense.2.mp3",
+        "size": 32226,
+        "sha256": "618cf2c9efc26abe2169451aba3eb6f92e07ac23579c557046c15541d4c838e8"
+      },
+      "no": {
+        "file": "no/coach.no.intense.2.mp3",
+        "size": 35152,
+        "sha256": "985a0b20feb3702c686d4fdc169914ede0abafb4844ccc773e4cf4ed814fc66b"
+      }
+    },
+    {
+      "id": "coach.no.intense.3",
+      "en": {
+        "file": "en/coach.no.intense.3.mp3",
         "size": 20942,
-        "sha256": "fba74b5ed5140089c9998ecf5faab10063eedd3ab3463332153b3a8e28c1e346"
+        "sha256": "4719b168a8f72377225a4474259448969eb45f86cd7de8e056c8c4701b9c931b"
+      },
+      "no": {
+        "file": "no/coach.no.intense.3.mp3",
+        "size": 24285,
+        "sha256": "a200787e43b16e7a6a22a42947ce9f231267826e01633176ca926cf15be44526"
+      }
+    },
+    {
+      "id": "coach.no.intense.4",
+      "en": {
+        "file": "en/coach.no.intense.4.mp3",
+        "size": 21777,
+        "sha256": "e3a8727eb118ffdcdc1970e8b8ee0d3cb0f3ffa8407450c70aa536484ef0500a"
+      },
+      "no": {
+        "file": "no/coach.no.intense.4.mp3",
+        "size": 24703,
+        "sha256": "36d99b954e459ade37ee088541052f45294aeff325397a61fc45e282a252561e"
+      }
+    },
+    {
+      "id": "coach.no.intense.5",
+      "en": {
+        "file": "en/coach.no.intense.5.mp3",
+        "size": 30137,
+        "sha256": "586109b793e9bd8bba8d9546fab1059b4d717c492a3e1a5fe2f0a78c14881378"
+      },
+      "no": {
+        "file": "no/coach.no.intense.5.mp3",
+        "size": 29301,
+        "sha256": "b58fa66e824988f44de81d3aac5a220725abbbc607fb2aa3b4cd968a78ed871f"
+      }
+    },
+    {
+      "id": "coach.no.peak.1",
+      "en": {
+        "file": "en/coach.no.peak.1.mp3",
+        "size": 18852,
+        "sha256": "fa34955fd3b2f396220639eb777c0953182461e4c1e9c2b73f3abb5fd1ddac32"
+      },
+      "no": {
+        "file": "no/coach.no.peak.1.mp3",
+        "size": 17598,
+        "sha256": "0488dd495f02bc3b2c00003cf580ec627dcdee99835914b264c4d4b3bfc18768"
+      }
+    },
+    {
+      "id": "coach.no.peak.2",
+      "en": {
+        "file": "en/coach.no.peak.2.mp3",
+        "size": 24285,
+        "sha256": "2a8a690179f33e8088eabd18cc3203fd8f1d536197cd7948774b2a7f69cc1053"
+      },
+      "no": {
+        "file": "no/coach.no.peak.2.mp3",
+        "size": 28465,
+        "sha256": "372742b22079bd5034a5e93c5134cbd8aeddf4c8c142eda2dcdd80c851fef4d4"
+      }
+    },
+    {
+      "id": "coach.no.pressing.1",
+      "en": {
+        "file": "en/coach.no.pressing.1.mp3",
+        "size": 13836,
+        "sha256": "de17e01f40248af10ac4f39bc4294a9265838d26bf90af4e4e650df8eadc0332"
+      },
+      "no": {
+        "file": "no/coach.no.pressing.1.mp3",
+        "size": 12164,
+        "sha256": "8826495422827989e189bd589c87b9791cb5bc6a0c472d106a2e39e1d28d8363"
+      }
+    },
+    {
+      "id": "coach.no.pressing.2",
+      "en": {
+        "file": "en/coach.no.pressing.2.mp3",
+        "size": 13000,
+        "sha256": "ffdf561e38f6690612cdf9f6d1b6413421c367ff0acaf947ac4691e8c10455c0"
+      },
+      "no": {
+        "file": "no/coach.no.pressing.2.mp3",
+        "size": 10075,
+        "sha256": "6f459bce5d2844240a4d39819a6ae203d0827e23bce0ab3161222ad713c1e133"
+      }
+    },
+    {
+      "id": "coach.no.pressing.3",
+      "en": {
+        "file": "en/coach.no.pressing.3.mp3",
+        "size": 13000,
+        "sha256": "cf9ea9770a2781634df1b9682c7145b5604c1b1823772f39d0e6f74a93f62ca6"
+      },
+      "no": {
+        "file": "no/coach.no.pressing.3.mp3",
+        "size": 13000,
+        "sha256": "3fedad5968726ef2b68e8b7009c6fdbcd3d18e22877ffa392a3b0da5819220aa"
+      }
+    },
+    {
+      "id": "coach.no.pressing.4",
+      "en": {
+        "file": "en/coach.no.pressing.4.mp3",
+        "size": 34316,
+        "sha256": "9b61a72f54a663f7d42271d36d136d0136e0299bb0c6ae166c935dd52b79237d"
+      },
+      "no": {
+        "file": "no/coach.no.pressing.4.mp3",
+        "size": 35988,
+        "sha256": "63e1a0238020fd5d4754332d9022314c916e205edf30ab7366c0a21a2295a93b"
+      }
+    },
+    {
+      "id": "coach.no.supportive.1",
+      "en": {
+        "file": "en/coach.no.supportive.1.mp3",
+        "size": 31391,
+        "sha256": "2a396af0d077e73703944efe887cb86398a4ae29e3a4c9551f0bd398584f1fd9"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.1.mp3",
+        "size": 30973,
+        "sha256": "8883457cea148aada14f7914ea5e0f1a57c2dc1dbe385b1c31ebbb376b5c8bd0"
+      }
+    },
+    {
+      "id": "coach.no.supportive.2",
+      "en": {
+        "file": "en/coach.no.supportive.2.mp3",
+        "size": 15090,
+        "sha256": "f7ed28ea09c256d02d84e9962fb6e9d55ff82c97a4b7d67db3e15f16c7b529bf"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.2.mp3",
+        "size": 15926,
+        "sha256": "c6e7d7b63e5704399a2b6a4b95ef95fe4f967e4da7273233c118685f455bec6e"
+      }
+    },
+    {
+      "id": "coach.no.supportive.3",
+      "en": {
+        "file": "en/coach.no.supportive.3.mp3",
+        "size": 13836,
+        "sha256": "b17f84f6ce74da444a189083c55beeb030615af1fb1be79f3b9ee80e5e92f602"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.3.mp3",
+        "size": 14254,
+        "sha256": "8a9de4c22e23a774ed9c4599fecfdc1e4b6d0d5014ace08d525b3110df66d315"
+      }
+    },
+    {
+      "id": "coach.no.supportive.4",
+      "en": {
+        "file": "en/coach.no.supportive.4.mp3",
+        "size": 23449,
+        "sha256": "fccf50de0f0b55e2c642d33d0bd64b8a5956fccd543eca5c618a5a62bc03579a"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.4.mp3",
+        "size": 31391,
+        "sha256": "80450a310f4092b655077ffa62908bf8226612d812e78e660c7bee48cbe4195e"
+      }
+    },
+    {
+      "id": "coach.no.supportive.5",
+      "en": {
+        "file": "en/coach.no.supportive.5.mp3",
+        "size": 23449,
+        "sha256": "b78eca95d0ed50d491dd6e4c8e26def8c91b0f14d1eae01a694199033627390e"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.5.mp3",
+        "size": 41004,
+        "sha256": "73fb4fda51c64a6fbac6507cc04b07b684d513b0079e9446953ab85e3c04a361"
+      }
+    },
+    {
+      "id": "coach.no.supportive.6",
+      "en": {
+        "file": "en/coach.no.supportive.6.mp3",
+        "size": 20942,
+        "sha256": "0f1037bd8d6dacfa85c0956cc69c15710982ad9001062748504ba03dfa3c4924"
+      },
+      "no": {
+        "file": "no/coach.no.supportive.6.mp3",
+        "size": 28465,
+        "sha256": "4856dec61d952ea9e266a04f52cd21ceaa3d9e546d3863e0fad7545b6a798c5a"
       }
     },
     {
       "id": "coach.warmup.1",
       "en": {
         "file": "en/coach.warmup.1.mp3",
-        "size": 40586,
-        "sha256": "fb9edd71bcc85cc3cb3d81001b6ee2cc6b03c59e7c5b9c0878dc640a49f6eb9d"
+        "size": 38078,
+        "sha256": "a1b309c81e518620514ced8e8b99a249eb9b6c709c73354698381f965bf50148"
       },
       "no": {
         "file": "no/coach.warmup.1.mp3",
-        "size": 58140,
-        "sha256": "005717bf3b6ac14a4e03fe616ce423d5494b04c52aa8587571840861a986b162"
+        "size": 61066,
+        "sha256": "8a25d0d7ee7a7c54040e2de80bf0c9015d7135b570f695a13e8c8679cf702b4b"
       }
     },
     {
       "id": "coach.warmup.2",
       "en": {
         "file": "en/coach.warmup.2.mp3",
-        "size": 58976,
-        "sha256": "2c88dff70729228a84453c9f64b17a00b71b94f7bee26bf4d5ea7b091293a727"
+        "size": 47273,
+        "sha256": "8eedacd81db748d81074b804e4a9a8af9d34de48c11ef4cde6b1fdbc2eb6259d"
       },
       "no": {
         "file": "no/coach.warmup.2.mp3",
-        "size": 61902,
-        "sha256": "b24c37be4d08457429bce286f753b4f3ac0fcf80816779fa665ad777a793f8a1"
+        "size": 55214,
+        "sha256": "0e5098be3e8076b288c5b4271abedd06d23ea1a50762795bc3129d1106696b20"
       }
     },
     {
       "id": "coach.warmup.3",
       "en": {
         "file": "en/coach.warmup.3.mp3",
-        "size": 53960,
-        "sha256": "b1cbdae44f633d36f48378cbff51eda9fc8a66ea09747cf75e2e89e7e16dd424"
+        "size": 55214,
+        "sha256": "97040b27d5e16cacc599987b5886247214e0e79a35cba1cf156eb712807dadfd"
       },
       "no": {
         "file": "no/coach.warmup.3.mp3",
-        "size": 71515,
-        "sha256": "2e195ba57518d05c38d5ed1113edf615ec999dc645188c82231d92b479641c11"
+        "size": 74440,
+        "sha256": "58145d78c539f9abd383261f4576bcb606fb31f9903569c4de1edccadd75084b"
       }
     },
     {
       "id": "coach.warmup.4",
       "en": {
         "file": "en/coach.warmup.4.mp3",
-        "size": 44765,
-        "sha256": "33e313072e892cd126fbf007ba673184f09f14ab64d76206ea524c17b46ab025"
+        "size": 45601,
+        "sha256": "ab5da1a8a604eeb67ba12bde973a99ccef2fa689ca15c996b004ad9df272ca51"
       },
       "no": {
         "file": "no/coach.warmup.4.mp3",
-        "size": 51453,
-        "sha256": "22f69383c1bceac94a3e23c7ec4845494de405b7115fbefec3f5301d96903114"
+        "size": 43511,
+        "sha256": "72f2d783edc7bc5880b82c751d48df748a9f6187de3966ad70327f0bab7a6b8b"
       }
     },
     {
       "id": "cont.cooldown.1",
       "en": {
         "file": "en/cont.cooldown.1.mp3",
-        "size": 27629,
-        "sha256": "0b79251e50c56fa4643a84c90db0d0feab9358ae2cb16b4c7b36a74b48142c6c"
+        "size": 23449,
+        "sha256": "53d642f4441df52a89a940bfffb991bc0cd976ab23c7be158e0d58b26108bbf0"
       },
       "no": {
         "file": "no/cont.cooldown.1.mp3",
         "size": 29301,
-        "sha256": "521ff096d846772f6b09cf92625ffa9115dd8f5b82e6c6e6ca0d819b1e374158"
+        "sha256": "a2d2e57002f7db5056a7c7a8ddbb00f839d634e7f96c7c38f8971945d37ff02a"
       }
     },
     {
       "id": "cont.cooldown.2",
       "en": {
         "file": "en/cont.cooldown.2.mp3",
-        "size": 32226,
-        "sha256": "c081439b125207e81c52f73f1a5afc9438b1d952d0090da3957adc42bb1068ec"
+        "size": 28465,
+        "sha256": "9d5a5eee1f5a14df8d86b09bf93ccdd0812273d5585ecc1869a4a5b4abc44d8a"
       },
       "no": {
         "file": "no/cont.cooldown.2.mp3",
-        "size": 33062,
-        "sha256": "8a8806a0334b92f8f75cdcbdd57f3e73c0e7107a7e84f994c8ba857d6dc4be4a"
+        "size": 34316,
+        "sha256": "a99e3af0992400b4728bd28c1bb351e5730b7ced78ac153c21dee5aeaff9c1f7"
       }
     },
     {
@@ -911,116 +1132,116 @@
       "en": {
         "file": "en/cont.cooldown.3.mp3",
         "size": 24285,
-        "sha256": "5ba23f427b02157e81872a4b2ea5ca94077690329cbb720120535c4fbd33b94d"
+        "sha256": "556ef4f77314fde71cdaa3ea8a17d401379d27a87846805838874b04d9025e1d"
       },
       "no": {
         "file": "no/cont.cooldown.3.mp3",
-        "size": 23449,
-        "sha256": "b24bef2549d80815cb565679e17872a427a55fc990d2f0d2c3c908c4bb48fdd1"
+        "size": 21777,
+        "sha256": "a320e06b492847e7a5b70507206264d3d2900d8e49c0fe779f6ccd04b3ac8312"
       }
     },
     {
       "id": "cont.cooldown.4",
       "en": {
         "file": "en/cont.cooldown.4.mp3",
-        "size": 24285,
-        "sha256": "20c1b45bde0dadbfe7a462eb148dc0d040dc45f971df5859ae66ad914002e430"
+        "size": 24703,
+        "sha256": "88a591a0adeed129f6e9b39f5bbf7b8fb864c8a45ca1dd6f73360fae3f1378e8"
       },
       "no": {
         "file": "no/cont.cooldown.4.mp3",
-        "size": 27629,
-        "sha256": "eb338aabe281a4eb2bc27dae66fecab997d95c9957b531943113d677367b05e2"
+        "size": 27211,
+        "sha256": "2a4b6ca01923b1deb78e2bcc393649ad2eda9ad07a8091204a8bdbc0edf4008e"
       }
     },
     {
       "id": "cont.cooldown.5",
       "en": {
         "file": "en/cont.cooldown.5.mp3",
-        "size": 24285,
-        "sha256": "a0eb9b13dca2d5fe74879dccd01092c0d8a5ac2e969b4d154b6d6d82d0cac052"
+        "size": 26375,
+        "sha256": "faaae58222615d5ccfa93265b9a01d69ce7f55b9c7e9e2abf542ae18ae979582"
       },
       "no": {
         "file": "no/cont.cooldown.5.mp3",
-        "size": 29301,
-        "sha256": "508d7374c913fd698a31205e2a3751f7300cdbf0539ce55b22dca04e03e57072"
+        "size": 32226,
+        "sha256": "ea02ca07f9ec882e709944b8c273d0d9e69dcab05bbeeeab6117061be5caf3bd"
       }
     },
     {
       "id": "cont.critical.1",
       "en": {
         "file": "en/cont.critical.1.mp3",
-        "size": 12164,
-        "sha256": "92527144c070f02c4587ffa2e9730600dd16c4e4e8ed6ff1f7e1bce142b9ba41"
+        "size": 11328,
+        "sha256": "101e1927f75163fa3f51cfc15dba447636e8163591b543459b2f50d5b753de8c"
       },
       "no": {
         "file": "no/cont.critical.1.mp3",
-        "size": 10075,
-        "sha256": "4a7be1d1f08e1aab8b252d31c841181b6697fd7c3a688189eb19e856c8ed04be"
+        "size": 13836,
+        "sha256": "3ee85b275f13ddb08b314952c7bd81dcabe72175bfa89350930cab83a90190b6"
       }
     },
     {
       "id": "cont.critical.2",
       "en": {
         "file": "en/cont.critical.2.mp3",
-        "size": 17598,
-        "sha256": "9e89878ecdd2a5ad74280172633ae0800721096678c8b7ae3a1232274171ef8d"
+        "size": 16762,
+        "sha256": "2f25dab8ef6e1f685501a7d1ce4c5f6b42e4d0402d8fb5754161256f7104df06"
       },
       "no": {
         "file": "no/cont.critical.2.mp3",
-        "size": 15090,
-        "sha256": "399b8982226ab4e375eaab98d2ec9ed1e0eb3ac93b28c3f020fa4fdc7391f983"
+        "size": 14254,
+        "sha256": "f7b7abf3a439f154dbfa84d9f5a46f923d649e484151b278fa723704694f32f2"
       }
     },
     {
       "id": "cont.critical.3",
       "en": {
         "file": "en/cont.critical.3.mp3",
-        "size": 14254,
-        "sha256": "a1c470283d6cd52e5678c2ca779bc2e2826b706ac6577d1b3a9c7a76db7038ed"
+        "size": 15090,
+        "sha256": "e1c6619cea18ae4d2bce21f40820941e81220d1d325c1b832326282d1d2b3dd1"
       },
       "no": {
         "file": "no/cont.critical.3.mp3",
         "size": 13836,
-        "sha256": "f44df2e97dfde6278b4f2a7f49642e8ced38f41d8fcd181c160f81eb706a572c"
+        "sha256": "9cb46726758f6c508631e16339fdb8b07d6f84c8481195f189a7c6dab7e10dc5"
       }
     },
     {
       "id": "cont.critical.4",
       "en": {
         "file": "en/cont.critical.4.mp3",
-        "size": 14254,
-        "sha256": "1db370ac00c71cd670f68d3741486075f3d3890d1e1b0c5ee903ac331766235b"
+        "size": 15090,
+        "sha256": "7dcfe1935645f4d89d5b143346ff4a3ee697b4d237e2cbdc3106b286cc34a29c"
       },
       "no": {
         "file": "no/cont.critical.4.mp3",
-        "size": 15090,
-        "sha256": "8e0c9dfc222d9c9bb44086eb6c20329aa35f58d1bd7566185070d63f5de996c7"
+        "size": 14254,
+        "sha256": "5c0ee11d588740fa5f5ed907134316bd43c1526a0d589a4cfaea3624a31a9712"
       }
     },
     {
       "id": "cont.critical.5",
       "en": {
         "file": "en/cont.critical.5.mp3",
-        "size": 14254,
-        "sha256": "43216e2d7cdb744b7e6f8b84cb198ec0d0137b9f8fc76ac52241efb6b6881462"
+        "size": 15090,
+        "sha256": "b86e0546976320e6fbe3f37985d43b32e01e348279d232339889a79e84e35827"
       },
       "no": {
         "file": "no/cont.critical.5.mp3",
-        "size": 16762,
-        "sha256": "a7dc92d9bde8d56741ae35e2946bcda63f4f138677ca15aaef14ba010dbb8919"
+        "size": 14254,
+        "sha256": "ba4e936eefbf594e86313efb617dca0512292189c78c5510e61c1574a233cd6e"
       }
     },
     {
       "id": "cont.intense.calm.1",
       "en": {
         "file": "en/cont.intense.calm.1.mp3",
-        "size": 19688,
-        "sha256": "14bd3b9386ad13fe4ddfc5edcf2589cb2984112adf50244404e1523e8d4fc2dc"
+        "size": 18852,
+        "sha256": "886f52b8dcfac9dc757fd4916cb8486e52069fd0716fcb157f2976edc85efe85"
       },
       "no": {
         "file": "no/cont.intense.calm.1.mp3",
-        "size": 23449,
-        "sha256": "e6d1ba55913ab22921dc004557d88fc0e71bf1f7bb5e4e41283aca9e9326a2be"
+        "size": 22613,
+        "sha256": "8b777f7f8dfead83972aa829b25228ff64435be40ffc7c3377fb821993494b07"
       }
     },
     {
@@ -1028,12 +1249,12 @@
       "en": {
         "file": "en/cont.intense.calm.2.mp3",
         "size": 24285,
-        "sha256": "e68898f80d54d2a2a40eab3f5db4618f07b4104d2db90dae16cef8d1146ceeac"
+        "sha256": "81c0303608c81d02dec9c5fa649665cdbfcd2ea6a0b7cf712f7093f827e18daf"
       },
       "no": {
         "file": "no/cont.intense.calm.2.mp3",
-        "size": 27629,
-        "sha256": "08a5024bfe7133244c7d7fb5fa70c212b781ce60d1443883b2f415f27f08fa2a"
+        "size": 31391,
+        "sha256": "30c5257e85b8a9173d3b51130c747d5fdabd648077dddac285928d3c14f1f12d"
       }
     },
     {
@@ -1041,116 +1262,116 @@
       "en": {
         "file": "en/cont.intense.calm.3.mp3",
         "size": 16762,
-        "sha256": "c87bffa5254436dccc48301f7bdbbd7a2ebff4abaf63c6c06291f57a613f2e79"
+        "sha256": "1c7968922b6851b3c0fe7d5584a0a22ce303551c9dbd5569020995820509a092"
       },
       "no": {
         "file": "no/cont.intense.calm.3.mp3",
-        "size": 16762,
-        "sha256": "4b1dfc89355ddceeca0634277d1b8a64318aafe0f90078f5ed9f2524399650c3"
+        "size": 15090,
+        "sha256": "a6aee7011eccc43fd50b86c5cdb1c26e072622ba5397459683bd0ffdae6b19bc"
       }
     },
     {
       "id": "cont.intense.calm.4",
       "en": {
         "file": "en/cont.intense.calm.4.mp3",
-        "size": 20524,
-        "sha256": "69847feb2f4e40e25495528e0b36a586de1b6cf1adf75b8a959831b15eb52004"
+        "size": 20942,
+        "sha256": "ea9861344ad1ea7fd040f0ba8a1509ed4347ce729486532ff3350fdc3f98fb02"
       },
       "no": {
         "file": "no/cont.intense.calm.4.mp3",
-        "size": 17598,
-        "sha256": "1282b5d1a3068356f72898e5cf661c2da75d5a6f86ba00b028d442cff29dfee5"
+        "size": 18852,
+        "sha256": "d3b5d4718eb628253f50ba775b26e8b6b0594923151a580309dc82e1373cf072"
       }
     },
     {
       "id": "cont.intense.calm.5",
       "en": {
         "file": "en/cont.intense.calm.5.mp3",
-        "size": 23449,
-        "sha256": "55d1902b3f2243cff26a1a7d6b67cb9c1b038e7ca2d26b73fa61b9a123fb0db8"
+        "size": 21777,
+        "sha256": "daeffd0adb6721fbac33837a9bcbc2ea254cb94989d135eb52dd2916d916cfc0"
       },
       "no": {
         "file": "no/cont.intense.calm.5.mp3",
-        "size": 17598,
-        "sha256": "96742f11119b02106cef6d9231c0d98960acf68d939707b61a9c9ac00d4c3ff5"
+        "size": 20942,
+        "sha256": "4e068b5eb64610fe5308a44fa8e31115fba61602685c8cec1dd79bfe49af4c14"
       }
     },
     {
       "id": "cont.intense.intense.1",
       "en": {
         "file": "en/cont.intense.intense.1.mp3",
-        "size": 18016,
-        "sha256": "91014c5f78a8240d2dfbd187e9d21c4b757f0ab645b0451ae935260a89922fc7"
+        "size": 20524,
+        "sha256": "7efe9c6b89af9566d8a598016ef9692d2ed98453741ee5b7955561cceb6f60f4"
       },
       "no": {
         "file": "no/cont.intense.intense.1.mp3",
-        "size": 26375,
-        "sha256": "b937d0ee4d9ba4c0f8cb0f63d52bbefe761d0e94edc9be5d4fc3a4c3e665554b"
+        "size": 30973,
+        "sha256": "00c96b6a7e8aba28ab6f9ffdf0ef30d010d9b6313e8a4f24787bd4f2e6e6b8d6"
       }
     },
     {
       "id": "cont.intense.intense.2",
       "en": {
         "file": "en/cont.intense.intense.2.mp3",
-        "size": 18016,
-        "sha256": "49e5f8f8ce6b284c596c2a3f6f8e9c9d6415035e14698ae7c81ef7b3d59bb1b4"
+        "size": 21777,
+        "sha256": "ac1a764962346b689aefa758f990f4ce62ea842a69e3c5bb6055e5014fc4175e"
       },
       "no": {
         "file": "no/cont.intense.intense.2.mp3",
-        "size": 32226,
-        "sha256": "0f5fa716c55c47197bff9aaa3bb1cca152820ac58821e035630092457dbbc252"
+        "size": 18852,
+        "sha256": "743f6c6a474a0f9113447cf1818e137a0340f6c9c54f0da1a231904f25fd159d"
       }
     },
     {
       "id": "cont.intense.intense.3",
       "en": {
         "file": "en/cont.intense.intense.3.mp3",
-        "size": 15926,
-        "sha256": "a5e374c79bc423136f4cec516f8269dc4b92a1641ce141d4e7c13692a3f874ab"
+        "size": 13836,
+        "sha256": "70e1bf9135e13e44d726e5d9307eac8b42a587b6a3a8945a00d989944829bccd"
       },
       "no": {
         "file": "no/cont.intense.intense.3.mp3",
         "size": 15926,
-        "sha256": "e330e1ead688eb37ef27f74c740285c6d820d7fe43bc8151a86a846f98516e38"
+        "sha256": "aa17b27fc7358009b8538428e1d82befefe43e4300722f72350459bfd93da8b9"
       }
     },
     {
       "id": "cont.intense.intense.4",
       "en": {
         "file": "en/cont.intense.intense.4.mp3",
-        "size": 15926,
-        "sha256": "89449f1016bc4462b1c361598c135ce62d36798ca0dbd1d416378ee7386e62c6"
+        "size": 17598,
+        "sha256": "c7baff7d466a7d10afd17494668191ddbe6517f6e861c6054e619e6062d6e868"
       },
       "no": {
         "file": "no/cont.intense.intense.4.mp3",
-        "size": 16762,
-        "sha256": "140c044be98a51033b8e6e7730784f87619318e124dabce172192d5086ce0fda"
+        "size": 18852,
+        "sha256": "0e10463ff06bbeddd50fcb812b4b81010aa5f7cdd80711ae897cfa82a392c10d"
       }
     },
     {
       "id": "cont.intense.intense.5",
       "en": {
         "file": "en/cont.intense.intense.5.mp3",
-        "size": 18852,
-        "sha256": "deb2e13f8dd35fb4d1d9c4b9eaf4bc983f0fb6663eb4e33ddf2b75ae5496c462"
+        "size": 21777,
+        "sha256": "c2462a18fd2e9574c5be09f885a83132aca09468d61eecb7998c8e4b3e0d280f"
       },
       "no": {
         "file": "no/cont.intense.intense.5.mp3",
         "size": 18016,
-        "sha256": "701bacae311d235d7651824b6ad5c477b06194ada72de89a4cb24a2e1198e341"
+        "sha256": "0a89246390d809b03fb7b08d242fd6176aa5a7431c9be4465034d7948c446a3d"
       }
     },
     {
       "id": "cont.intense.mod.1",
       "en": {
         "file": "en/cont.intense.mod.1.mp3",
-        "size": 24285,
-        "sha256": "764c62d336bb1668581e9e1a231bc218350207841a2a68f4db1669c14c36f1a2"
+        "size": 22613,
+        "sha256": "a61e83039099603997cf23acf51217f3c7686d3afcd2672b60a65645f0d9b85c"
       },
       "no": {
         "file": "no/cont.intense.mod.1.mp3",
-        "size": 24703,
-        "sha256": "2172612a34751e9692ec6032c33965dac2ca07fb01e998f8607e3afc638830a0"
+        "size": 27211,
+        "sha256": "71e98a0c32ede2b97ed20e5c53f29d8177c28ca5f73ab8838579c405482bb1d8"
       }
     },
     {
@@ -1158,220 +1379,428 @@
       "en": {
         "file": "en/cont.intense.mod.2.mp3",
         "size": 14254,
-        "sha256": "6073c78760909bd7eb37cb4cbe5fc28fc1103b207bce39449ef1c45649293864"
+        "sha256": "5e9baaf79715179f3602168950f30b7ac845122e4a198c0db1c3e17165046b96"
       },
       "no": {
         "file": "no/cont.intense.mod.2.mp3",
-        "size": 17598,
-        "sha256": "979acbdf0b05d01d1d0477bb87562cbdb84d8d4f304d2c3c3d67e0a1095ddde7"
+        "size": 18016,
+        "sha256": "0d4f0ed454e004f3df923c56d20bea0daad7402d1e77198b3845d270a0187bcf"
       }
     },
     {
       "id": "cont.intense.mod.3",
       "en": {
         "file": "en/cont.intense.mod.3.mp3",
-        "size": 24703,
-        "sha256": "e41dd2c14686860102afb099eb282802ebdf99e03dad9a2714113960326721e3"
+        "size": 21777,
+        "sha256": "f0e8793b5d70263650ce47ebfc5841b214e77084a239a08f7f86aac2e17a9bb5"
       },
       "no": {
         "file": "no/cont.intense.mod.3.mp3",
-        "size": 14254,
-        "sha256": "a6f6f7ab97133e0b708b7bcf5288bb688c45f9d3a007d4d25a6cca2fc833f6fa"
+        "size": 15090,
+        "sha256": "07c82861af23977c700d6af4d91aa42892992bbafc4ed0f0edfde2e845542649"
       }
     },
     {
       "id": "cont.intense.mod.4",
       "en": {
         "file": "en/cont.intense.mod.4.mp3",
-        "size": 15926,
-        "sha256": "0c69a08b3b4fadc377514b1ae92d5a3b9423eb0d2ee093eeb8b7971756016ffa"
+        "size": 17598,
+        "sha256": "8ba24f484bddaaedeffa698dcf0484ea4be210ae1284e31682635339d1282b32"
       },
       "no": {
         "file": "no/cont.intense.mod.4.mp3",
-        "size": 15926,
-        "sha256": "2d9f54f3088dd30534fb75eecb1a2363db1189bacf45e313b599f6b22d004a95"
+        "size": 15090,
+        "sha256": "446ea83bd231c8b223fa29e0171b65b115fb5808e07ce639140c9078475d9b9d"
       }
     },
     {
       "id": "cont.intense.mod.5",
       "en": {
         "file": "en/cont.intense.mod.5.mp3",
-        "size": 24285,
-        "sha256": "85e395ce369d16e47609fced293fdd2f99c277005947405cc9f6da1e0845421e"
+        "size": 23449,
+        "sha256": "58ae69fdac8ee5a491601d505aadba8b48558ec26797fd58d144ab77baf5c789"
       },
       "no": {
         "file": "no/cont.intense.mod.5.mp3",
-        "size": 42675,
-        "sha256": "5bde014dce7e9c018f970ff03159b799e0aabd42a477c14f337e969232107139"
+        "size": 45601,
+        "sha256": "73afd247985c8e9cace2a84839a367e48b57fee6fd2678d6cf91ec6368e4cd04"
       }
     },
     {
       "id": "cont.warmup.1",
       "en": {
         "file": "en/cont.warmup.1.mp3",
-        "size": 24285,
-        "sha256": "1063e5682bc4696f3b246617bf6dee4beddc506d157ec666f2f24633fd771943"
+        "size": 24703,
+        "sha256": "461c93c65f7b4d767c367a4ea537568abf166a55801c4fed854c732e02595f5c"
       },
       "no": {
         "file": "no/cont.warmup.1.mp3",
-        "size": 28465,
-        "sha256": "8a01401d7b0a2ca9234c6144578ee9fa5b53112d705fc5a3a71e133c362cb21a"
+        "size": 27629,
+        "sha256": "5904ca6432966b11f2299abbafad19de979615be6c53da53ac877934d3612224"
       }
     },
     {
       "id": "cont.warmup.2",
       "en": {
         "file": "en/cont.warmup.2.mp3",
-        "size": 24703,
-        "sha256": "2856688f9cf1d5982befde889c00de8c1978c39ccc762ed77d35897f16ae82ec"
+        "size": 21777,
+        "sha256": "4b2eba7e52143d3fe380f255102b1c0feeee6a7d281843310d0301dce3f0eec2"
       },
       "no": {
         "file": "no/cont.warmup.2.mp3",
-        "size": 27211,
-        "sha256": "5a09e82fc3fe32fa5f34df305eb6953db952bf17b674e1ce6d77772ee1865ef9"
+        "size": 29301,
+        "sha256": "48b6dca10cf73831478085804ae47baff7c6dd1bdaa0c5943b6693793d460e4c"
       }
     },
     {
       "id": "cont.warmup.3",
       "en": {
         "file": "en/cont.warmup.3.mp3",
-        "size": 26375,
-        "sha256": "7e226f2da3c7ad2cc8c8dff5db4bc4c7acb493a47c48a2ae609f42a5daefd924"
+        "size": 24703,
+        "sha256": "dcc255ad001cd7cc9468cdbda27f6456f7a013fcf5aaac28cdbe3e8810e5bbd4"
       },
       "no": {
         "file": "no/cont.warmup.3.mp3",
-        "size": 27211,
-        "sha256": "ae69268f7bd7313279f4e6d476f48155070bc9ef77ff7fdf52ec92a7ce0e1a39"
+        "size": 24285,
+        "sha256": "007421016adf5259c807283b3972e8ca1a0a15e58abb1c313fa4a09c1778d9ad"
       }
     },
     {
       "id": "cont.warmup.4",
       "en": {
         "file": "en/cont.warmup.4.mp3",
-        "size": 18016,
-        "sha256": "84fbdababe97028db28363db040821d1309b0001adada890340e5c28e954eab3"
+        "size": 16762,
+        "sha256": "1d79a250e4fa090920b92bfbd9096753de4437dc2cb56e2b127a01827b4b0baf"
       },
       "no": {
         "file": "no/cont.warmup.4.mp3",
-        "size": 15926,
-        "sha256": "c38035120dde155d9fe2d2f6defc68e5bac68b633782d41159927e077d8de73c"
+        "size": 17598,
+        "sha256": "65921d671a9c30c4316177f8896c037efb17503aa5f4187e5056e677264a63be"
       }
     },
     {
       "id": "cont.warmup.5",
       "en": {
         "file": "en/cont.warmup.5.mp3",
-        "size": 24285,
-        "sha256": "997296de30e36ceb5dcf41436ab1560835c2d453e7825389250112d7cbc196c1"
+        "size": 24703,
+        "sha256": "0c4f88a384d771af6b01ba984f54877897942b3a3d5d64c0379d64b7495532e7"
       },
       "no": {
         "file": "no/cont.warmup.5.mp3",
-        "size": 24703,
-        "sha256": "73a96374b9ef33d2fff1b6be244b898c1b8d0893f5a88ad85505799744c8c95c"
+        "size": 27211,
+        "sha256": "6f4a34110d0aecdb9157a4b24184121b78879026cffc9c3bec73c0564f43d37e"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s1.1",
+      "en": {
+        "file": "en/easy_run.motivate.s1.1.mp3",
+        "size": 15090,
+        "sha256": "60d504d2bfb8007aaaf834834a2fa6d59eefb0c189d45c81990ba8cb12693059"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s1.1.mp3",
+        "size": 15090,
+        "sha256": "ee143e4dcca0eb7e00503c813872bff1e8e40a7cd74dde74cb0a3604f9a57a7e"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s1.2",
+      "en": {
+        "file": "en/easy_run.motivate.s1.2.mp3",
+        "size": 23449,
+        "sha256": "253157f424b86d63fee28eacccbfe40750ef76b130ab91e46d466d59fdee4f46"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s1.2.mp3",
+        "size": 20524,
+        "sha256": "eed0404b32ceae1bcc6a0f32180ad0293db3dc7588d53ace48221f0c7115c067"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s2.1",
+      "en": {
+        "file": "en/easy_run.motivate.s2.1.mp3",
+        "size": 33062,
+        "sha256": "726790f3df082c88db0ff059bd496b1af34f5a03457f348015585d1cb2d4f683"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s2.1.mp3",
+        "size": 35152,
+        "sha256": "b643e64858f33517b9740bcb3c24f624f585bef76d82fa3f9c9da9fd9bb5f067"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s2.2",
+      "en": {
+        "file": "en/easy_run.motivate.s2.2.mp3",
+        "size": 13000,
+        "sha256": "72d6210929d8e92b98debf04aaf435552512d9aaafcb5748b650338013d6556c"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s2.2.mp3",
+        "size": 9239,
+        "sha256": "277419c696042f0e07162b2f0fb10c254dbe1ae410157de96f3ba59cd48d2e27"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s3.1",
+      "en": {
+        "file": "en/easy_run.motivate.s3.1.mp3",
+        "size": 21777,
+        "sha256": "97e914e5db1db9f802cdc205f4320699fd20114cca53a81e395ce55bc5754c15"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s3.1.mp3",
+        "size": 24285,
+        "sha256": "995d4f0b568bd2cb4e3606fa4a382760c75422c25d7da82c1f2b50f84691bdcd"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s3.2",
+      "en": {
+        "file": "en/easy_run.motivate.s3.2.mp3",
+        "size": 27629,
+        "sha256": "8f00386d2ba9f701ef75844633fd6ea6f2e06e7af21a9fc65fa2875422f4bf76"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s3.2.mp3",
+        "size": 29301,
+        "sha256": "b6b54f2e65ece73c7cade99fd94fb9120d10c36af91624090d0ba6c2b5a344ee"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s4.1",
+      "en": {
+        "file": "en/easy_run.motivate.s4.1.mp3",
+        "size": 21777,
+        "sha256": "2a0b43b86883b8f27ecc5ac0735a4f7e4b1e7ae239adbf6e71981da36258d23e"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s4.1.mp3",
+        "size": 33062,
+        "sha256": "08c3faee15bfa6a4b1290c9528c9925a5a6243179f657c3856c69353d9d9defa"
+      }
+    },
+    {
+      "id": "easy_run.motivate.s4.2",
+      "en": {
+        "file": "en/easy_run.motivate.s4.2.mp3",
+        "size": 25539,
+        "sha256": "0dd93e30e5be9d73614f44230943f4d9e55b99d23e14a225623fd34c09439c42"
+      },
+      "no": {
+        "file": "no/easy_run.motivate.s4.2.mp3",
+        "size": 27629,
+        "sha256": "42ea17116bb4e5b572118d7a0de35cf0f6215e2dc5f084e628e6a9922405a84d"
+      }
+    },
+    {
+      "id": "interval.motivate.s1.1",
+      "en": {
+        "file": "en/interval.motivate.s1.1.mp3",
+        "size": 31391,
+        "sha256": "8e78df1ed97231b32dd82e84f44e06b13071703dfadd015f87904ae97150b75c"
+      },
+      "no": {
+        "file": "no/interval.motivate.s1.1.mp3",
+        "size": 30973,
+        "sha256": "e5aafeb28b8819be01e609ef4e6e8d9e9bb6f8b9178f463c2f5a9271bdcb6fbe"
+      }
+    },
+    {
+      "id": "interval.motivate.s1.2",
+      "en": {
+        "file": "en/interval.motivate.s1.2.mp3",
+        "size": 23449,
+        "sha256": "246f91ee97c6ab7e02783c79004904b7db36efafe156873c4a863ca2a8750180"
+      },
+      "no": {
+        "file": "no/interval.motivate.s1.2.mp3",
+        "size": 20942,
+        "sha256": "b66b8075c2bea53cd723daa50b949b294b952a2bc7f9b2199a64a74b3d9c3cab"
+      }
+    },
+    {
+      "id": "interval.motivate.s2.1",
+      "en": {
+        "file": "en/interval.motivate.s2.1.mp3",
+        "size": 12164,
+        "sha256": "550505fb70cbf2ed2a9bc89a5465556e33410031f52f58e5c9a439c18a3c84e4"
+      },
+      "no": {
+        "file": "no/interval.motivate.s2.1.mp3",
+        "size": 13000,
+        "sha256": "aa2d8768df54db9bc6b5f2be0de2a09e1b54f0a8edee1506254abbf18dd29ab6"
+      }
+    },
+    {
+      "id": "interval.motivate.s2.2",
+      "en": {
+        "file": "en/interval.motivate.s2.2.mp3",
+        "size": 13836,
+        "sha256": "8835f5a95f3b301411f1bdb2b9918fa76d6b00cffcd4c9981fc8ccecf994cc58"
+      },
+      "no": {
+        "file": "no/interval.motivate.s2.2.mp3",
+        "size": 12164,
+        "sha256": "5e8e507dcffb3d2b5752d3bb1f7e9fb561b438ac72a844e73cab0910742c6441"
+      }
+    },
+    {
+      "id": "interval.motivate.s3.1",
+      "en": {
+        "file": "en/interval.motivate.s3.1.mp3",
+        "size": 26375,
+        "sha256": "8ae796aa2764fbb3d15e46bbb61ea7741fec4ed4d3a031829a629cd6bcc1e15e"
+      },
+      "no": {
+        "file": "no/interval.motivate.s3.1.mp3",
+        "size": 34316,
+        "sha256": "1aad0ae8fc262a62e1f49043df335da51d12dc23b13d0a65d881d5b0bdf94d10"
+      }
+    },
+    {
+      "id": "interval.motivate.s3.2",
+      "en": {
+        "file": "en/interval.motivate.s3.2.mp3",
+        "size": 33062,
+        "sha256": "feaf6d219e1e66b575ec9ee6a0c032d7f8abeedf42247ad28f91a96c9c14e397"
+      },
+      "no": {
+        "file": "no/interval.motivate.s3.2.mp3",
+        "size": 43511,
+        "sha256": "b9e1a3984d1a38e061d795088a86e830d22aa07eb010a0dd21221797a58363cc"
+      }
+    },
+    {
+      "id": "interval.motivate.s4.1",
+      "en": {
+        "file": "en/interval.motivate.s4.1.mp3",
+        "size": 19688,
+        "sha256": "7f6c6bef52396e99ecc9c5e403b71ea49add1a4d2b5519a9c15acb4f1ec1b6a7"
+      },
+      "no": {
+        "file": "no/interval.motivate.s4.1.mp3",
+        "size": 19688,
+        "sha256": "cdb8b86209dd97ff7c305950831c864d59ddc39e06965a828e11c524565d61ba"
+      }
+    },
+    {
+      "id": "interval.motivate.s4.2",
+      "en": {
+        "file": "en/interval.motivate.s4.2.mp3",
+        "size": 23449,
+        "sha256": "55c28cb0c12e99c446236890e7a788d83e832c46554eebd5e385618d326abb78"
+      },
+      "no": {
+        "file": "no/interval.motivate.s4.2.mp3",
+        "size": 30137,
+        "sha256": "e2722b605219a2fbaf2f1491f08d5279e9ec005da5d10400c83c51629839ab8d"
       }
     },
     {
       "id": "motivation.1",
       "en": {
         "file": "en/motivation.1.mp3",
-        "size": 17598,
-        "sha256": "79692c9d46af43e96fd82e1414643efbafd8cce7a38ac0c18c46c577bbff90c0"
+        "size": 18016,
+        "sha256": "9ad17dffc8e1f53a409e05e3d4374eaf2b97fb7dc6af68905d4c46df6e242c3a"
       },
       "no": {
         "file": "no/motivation.1.mp3",
         "size": 18016,
-        "sha256": "a28b0865e06b777c6986c1eba930036a8f4dec83930ccaf5fb42c93c51b8ecae"
+        "sha256": "b656211b3d447f48039df82f7c20d5954200053680f045fff0a0847d624978da"
       }
     },
     {
       "id": "motivation.10",
       "en": {
         "file": "en/motivation.10.mp3",
-        "size": 22613,
-        "sha256": "92feb20a0d1c34749caaf21b35ab0c5222acbeefa17fceeecfe680168af9f87b"
+        "size": 23449,
+        "sha256": "8b2b96afd75d35eadc249253e3e29dbdc86be84bdc6284ffa60f925a52c9fb0e"
       },
       "no": {
         "file": "no/motivation.10.mp3",
-        "size": 24285,
-        "sha256": "5bb4aad5bafbcda350b8931e132b9c0b1e2a96f68dd52b28e922c6dd41d4d41d"
+        "size": 23449,
+        "sha256": "dc6186c02c62d8f2aa28059ca7d98452bf47eedd0dc8d695f4eb5bee1c655e51"
       }
     },
     {
       "id": "motivation.2",
       "en": {
         "file": "en/motivation.2.mp3",
-        "size": 27211,
-        "sha256": "d7d91236b36865e7a780824ac36da102d6eb54928d5a632aca8338d712b8f531"
+        "size": 25539,
+        "sha256": "227c3a8a01b9e12c3682cc7af577ca2c21fe45c5c53b127193807164ce9d298b"
       },
       "no": {
         "file": "no/motivation.2.mp3",
-        "size": 27629,
-        "sha256": "eee862d08560643c54f8dec7d0b97f7960ef3d29ee54c909ed10d186b40a24c1"
+        "size": 28465,
+        "sha256": "2d26b299db35acc7bf4f6ca11cf18929b8d997016ca023b73b4d060d4f5fd281"
       }
     },
     {
       "id": "motivation.3",
       "en": {
         "file": "en/motivation.3.mp3",
-        "size": 27211,
-        "sha256": "7fac80307b4e71e9913f4a6bc75d3ec993d9aaa9d23d00bc1d70b4ffad6080dd"
+        "size": 29301,
+        "sha256": "934001834c538aaaa5473f9252c4336c63ca19340c57e3e55e70102ecb64a346"
       },
       "no": {
         "file": "no/motivation.3.mp3",
-        "size": 24285,
-        "sha256": "6f8b2947b134ce8ea4341f03a950a2443615d89e488a110f40cb7c4baf7db3c2"
+        "size": 23449,
+        "sha256": "d2ae0b5807e9a50dd8dca77a19c497d57826cacbc2ab00d6b918e5a499ab0319"
       }
     },
     {
       "id": "motivation.4",
       "en": {
         "file": "en/motivation.4.mp3",
-        "size": 31391,
-        "sha256": "7cb34a8a7ce10e9ffe83ce8decf2abf3d012d09ea4377bd2b53bfe7319bea8bd"
+        "size": 30137,
+        "sha256": "1d7882a7234079084804bd1166762fff17e120a1d90074d58fff4b9a105494c8"
       },
       "no": {
         "file": "no/motivation.4.mp3",
-        "size": 43511,
-        "sha256": "747311d46f747cf4f284013a5d059fa951d5f5c06f812924f3b637153d60ac9d"
+        "size": 34316,
+        "sha256": "5389bf95765ea73b491c1930afc2f8e766b1788eea19114fcf780eadfd9ae008"
       }
     },
     {
       "id": "motivation.5",
       "en": {
         "file": "en/motivation.5.mp3",
-        "size": 43511,
-        "sha256": "1828f03c471d85153fecd7584daa60a37c1a67fec25d100ea098229270e7fb11"
+        "size": 41004,
+        "sha256": "1e9e36fe1e2880f7c85d5ccc9fac0ee5133d1bafb3e6703e889da1a1b5729764"
       },
       "no": {
         "file": "no/motivation.5.mp3",
-        "size": 40586,
-        "sha256": "710abd0329615dc6d733ea92b1edb6f420c4dcac97398e1f40da9c372989c6e7"
+        "size": 56886,
+        "sha256": "58c8616b58b57cf24ec62bae2d5d67ea3d0832232c5f0ddb337577b5e45e09de"
       }
     },
     {
       "id": "motivation.6",
       "en": {
         "file": "en/motivation.6.mp3",
-        "size": 21777,
-        "sha256": "1754b1fe39bc514f19975e1b736d93de68162e0868b3b812b7cff52fe6f11846"
+        "size": 24285,
+        "sha256": "e927c469df1826f161ee784092b059c9244b99700905d627299b08ed2b1a0d32"
       },
       "no": {
         "file": "no/motivation.6.mp3",
-        "size": 19688,
-        "sha256": "cedf630ea3c4e10e776823850ffe3febbdccf8b45876bd848bd5122503f0db25"
+        "size": 20524,
+        "sha256": "215db90fb65fde811967db76fca96671b4d5f90ca88f57bb1d4796fb3963b69a"
       }
     },
     {
       "id": "motivation.7",
       "en": {
         "file": "en/motivation.7.mp3",
-        "size": 29301,
-        "sha256": "e882a8127a39dbb8fcf158e00db2540958257823541d3daaf23b82a9f9ad3c91"
+        "size": 27629,
+        "sha256": "28fe9b715850d4eca0a384bf2afeb87faf664ac5442cadb0b92aecd2bffacce4"
       },
       "no": {
         "file": "no/motivation.7.mp3",
-        "size": 41004,
-        "sha256": "c6d7bb53a02eb8ac701b42ccd98af6d20c0e17d283cb70b575f0170ef04c0243"
+        "size": 44347,
+        "sha256": "d1759e05ac68dd9d20da00798874d6e14d8847e0f1d74e6a9fbb967307f085f8"
       }
     },
     {
@@ -1379,12 +1808,12 @@
       "en": {
         "file": "en/motivation.8.mp3",
         "size": 21777,
-        "sha256": "949d2eba9bb13f6c58439f46bbe05e0c719ad9b4d3b59bef08f29f43e68df661"
+        "sha256": "cc858e2384354be209dbfcfa1cff46f7568a663c7ccb6e5a1a536e608af490a9"
       },
       "no": {
         "file": "no/motivation.8.mp3",
-        "size": 19688,
-        "sha256": "ee6c8a4169ce8485697c0316b03f1ade22d090f3b7c0e34832ee58a5e7182edd"
+        "size": 20524,
+        "sha256": "32b26786e5f6abfec026fdbf26f0c9699e89bbc2268114c83b79176e000e9b3d"
       }
     },
     {
@@ -1392,38 +1821,38 @@
       "en": {
         "file": "en/motivation.9.mp3",
         "size": 20942,
-        "sha256": "a051e750d6844f1d80096fe1475b6bb920d32a19195aac806de1c69b27532591"
+        "sha256": "8d6c1c70f13ed48aa3df49c903494b28b3321c6a3f1f7f6f5b232aab8f59e2f0"
       },
       "no": {
         "file": "no/motivation.9.mp3",
-        "size": 19688,
-        "sha256": "608aa37c1eeb60970cd53010a99304decf0b9148a75c44ff52526bd8e5e0c6b0"
+        "size": 22613,
+        "sha256": "1a1d57672e8d5753449a588b954beb16698950399c5b34dbbc369ef8bb066a48"
       }
     },
     {
       "id": "toxic.cooldown.1",
       "en": {
         "file": "en/toxic.cooldown.1.mp3",
-        "size": 39750,
-        "sha256": "6964d73557fae7063ab4c4d463392968b70b58757b52afd95596d545f58b9bcd"
+        "size": 36824,
+        "sha256": "780a7fe4ef60579cd4cfd85effb4378203509ccf0bf03629a6cbc80496cb05a3"
       },
       "no": {
         "file": "no/toxic.cooldown.1.mp3",
-        "size": 68589,
-        "sha256": "e9a72e88c7faa49674c43e0cf17e9a32c7b2a79d7461a3b15fae24ec2ffae040"
+        "size": 71097,
+        "sha256": "12a66306b9b3c477bd623c8cb5264da6ae74126853c611bc79615e562fd3b31e"
       }
     },
     {
       "id": "toxic.cooldown.2",
       "en": {
         "file": "en/toxic.cooldown.2.mp3",
-        "size": 33898,
-        "sha256": "9ace2c6514a4e3dc3b83e79e1a4d46c9bdbf2d43d159cbc93e5a70dee5ecedaf"
+        "size": 35152,
+        "sha256": "f6fca4c9da1b624271ef0c7ae20a65e8013815eee42a001b9e37e0e6b73d8fc8"
       },
       "no": {
         "file": "no/toxic.cooldown.2.mp3",
         "size": 49363,
-        "sha256": "29bb8c3a1a09f52db6eb40e00f9659978fdd20d477de3f30cd2affb0eec62a87"
+        "sha256": "54f66929b93376fa792a0881b99ccabb8bb43cac02c16ab68f0b3b2c33843765"
       }
     },
     {
@@ -1431,12 +1860,12 @@
       "en": {
         "file": "en/toxic.cooldown.3.mp3",
         "size": 30137,
-        "sha256": "b4f089d61d08435a7739c49cc4dff1cee598e2ee2d52fae55a76523a01f1d423"
+        "sha256": "4045b4d7c6a06d265c68e3c70be8494140a8b5c14e3a7f470d4b758cfedcc6f2"
       },
       "no": {
         "file": "no/toxic.cooldown.3.mp3",
         "size": 35988,
-        "sha256": "91aa3aa98539d0079deb71e92395afcfd4e07f86c3a6c87290d182b8aea02001"
+        "sha256": "93008c53660062340b95738967e3536523691073637ac1d3b2820ef133994bec"
       }
     },
     {
@@ -1444,12 +1873,12 @@
       "en": {
         "file": "en/toxic.cooldown.4.mp3",
         "size": 41004,
-        "sha256": "9ede7ac329c16e617f6b61199b15340b32bd66221539ffabe03e24d2368073fa"
+        "sha256": "9ba423701f116790b743604a7867cd5be02d66eb58ebef2896418819b44ee74f"
       },
       "no": {
         "file": "no/toxic.cooldown.4.mp3",
-        "size": 44765,
-        "sha256": "f8418090c3e9bc68e72e1d3766611d8b41957d673a9de9e68062aabcda87a230"
+        "size": 58140,
+        "sha256": "4d638f4c1099d0f2b2187ced9ee41095168f8d3133fb7ce88c50e1fa08f2d67b"
       }
     },
     {
@@ -1457,103 +1886,103 @@
       "en": {
         "file": "en/toxic.cooldown.5.mp3",
         "size": 36824,
-        "sha256": "cbc8a7e622331dc53ec8702bc0fef3f7fd101335a0e56788d2e57c5d891a263a"
+        "sha256": "762587eec71c4d6ac34a52e1c43a833a91bbafa9e1dcd28f91a85974e12c7aee"
       },
       "no": {
         "file": "no/toxic.cooldown.5.mp3",
-        "size": 44765,
-        "sha256": "2848860db8012edc30bc076730242e6153e24b40b28516b22399380f7e6bc0c0"
+        "size": 45601,
+        "sha256": "068cdf348311c806c386f0fb11fa7def0366922b2ea3c8b13705d1a5f5959c92"
       }
     },
     {
       "id": "toxic.critical.1",
       "en": {
         "file": "en/toxic.critical.1.mp3",
-        "size": 37660,
-        "sha256": "2ca3394e229277aca5162542ceaea2b5d77b5b2bbbd061c7d5fdb7069fe2b557"
+        "size": 40586,
+        "sha256": "b8fda3ce7d3ac7083192747d0fc43e00d39be9e2f335894f2ea33952a86c4878"
       },
       "no": {
         "file": "no/toxic.critical.1.mp3",
-        "size": 56886,
-        "sha256": "17a9b674090ab363c0911c377238b2918c66c13219b62b857865ea0fd7627cf1"
+        "size": 55214,
+        "sha256": "8ef818d58a9bc0c887c92705e65eadbea7291b79c6c4282e3a3ac9c6c0019c26"
       }
     },
     {
       "id": "toxic.critical.2",
       "en": {
         "file": "en/toxic.critical.2.mp3",
-        "size": 38914,
-        "sha256": "470081aced9f8e07a65f1ab1dee101b7ed36449c8a300ff8c1c22ae66f8ed8f9"
+        "size": 37660,
+        "sha256": "986551ab3b3018e5ae8b703b66557b9eee41813b2c8bcf5793671ffff0a6b366"
       },
       "no": {
         "file": "no/toxic.critical.2.mp3",
-        "size": 49363,
-        "sha256": "25e0eabb36195a97a4dcd8a00784ecb9b24d6dddaeb09f0eaf121a409cee57e0"
+        "size": 56886,
+        "sha256": "9dbac0dde299cc27cb3d3e397a953852eaa8e5341bd4d9fbba5d906e8198ca8e"
       }
     },
     {
       "id": "toxic.critical.3",
       "en": {
         "file": "en/toxic.critical.3.mp3",
-        "size": 35152,
-        "sha256": "047b50efbf3f34521a134d14ba60b7f6bd7a4fadd8471930af30119f4cf2fd91"
+        "size": 39750,
+        "sha256": "6daf93b30f0f82299c9acf252a3e35a58df828abd7ad838e31d820bfe943235a"
       },
       "no": {
         "file": "no/toxic.critical.3.mp3",
-        "size": 60648,
-        "sha256": "8ecd6089dcf8184c731d3422832f33c20f2e88a9015909f6e9c0db0ada540ae6"
+        "size": 77784,
+        "sha256": "9ef309ff465753631367527a46494766cf4ae08e988b8527194d07e5662b5829"
       }
     },
     {
       "id": "toxic.intense.calm.1",
       "en": {
         "file": "en/toxic.intense.calm.1.mp3",
-        "size": 33062,
-        "sha256": "d2b8655f9e086867f9bfcc97bb9db30b0ec91bb86e7b7e602ba3d52345686acc"
+        "size": 33898,
+        "sha256": "9828734fa2f8d5453b44b08c9ba5bdfb7a55fe58797b287f54804a29eb8d01f5"
       },
       "no": {
         "file": "no/toxic.intense.calm.1.mp3",
-        "size": 41839,
-        "sha256": "fce0901a3309be4fbfe28714173f0c4eced9841133826019e70aef85bbf108f5"
+        "size": 42675,
+        "sha256": "6d6dc20ed57b9dcd1d19b9df18feb75478af9ab64739f55f898bc9e67d80328e"
       }
     },
     {
       "id": "toxic.intense.calm.2",
       "en": {
         "file": "en/toxic.intense.calm.2.mp3",
-        "size": 30137,
-        "sha256": "f60cf5320725c53c5648acc5408097cd99ae63530e5c1954bb64b2662a891db2"
+        "size": 27211,
+        "sha256": "0ea9d87f7c1986ab8725b9b93cb16a87a6793e156f93426eb09e7381088b7662"
       },
       "no": {
         "file": "no/toxic.intense.calm.2.mp3",
-        "size": 38914,
-        "sha256": "80716ca16c9c7bf2097c5672fd9651f25bf4ec443328536066933cd335ce0be4"
+        "size": 35988,
+        "sha256": "a3ec6cf506947ba2bb5b8552284ffc713429e7265915ef5635916dcfd96d25ad"
       }
     },
     {
       "id": "toxic.intense.calm.3",
       "en": {
         "file": "en/toxic.intense.calm.3.mp3",
-        "size": 32226,
-        "sha256": "7744cbf976504e1d9eebded99b5ffb9a104534444cf8523e46417bbdbe694120"
+        "size": 33062,
+        "sha256": "759f4a82b0f3bd98e27ef2a5bff119d8d8de6063f16387ca81c241074a560c5e"
       },
       "no": {
         "file": "no/toxic.intense.calm.3.mp3",
-        "size": 38914,
-        "sha256": "58f51c028d1c79e43f0d5d25af4f4e96438f12710979f3ac0d3fa84b34062b59"
+        "size": 37660,
+        "sha256": "0f6f4f227d2d2c1a51d777c1271e9ef68b9a9450b55e4961575cdc146ad334fa"
       }
     },
     {
       "id": "toxic.intense.calm.4",
       "en": {
         "file": "en/toxic.intense.calm.4.mp3",
-        "size": 32226,
-        "sha256": "0c157096fd9974a9067534c1796c060b49f0c27441160b175dbd5f3e99981f67"
+        "size": 30973,
+        "sha256": "ea816bc2c789325fdaad320a0e55a9a745b6803f8b5572af86195fa22a7c52d6"
       },
       "no": {
         "file": "no/toxic.intense.calm.4.mp3",
-        "size": 38078,
-        "sha256": "49c529005535140a5c26644038fc1de0c4a7a5299291e0342ca349a52d91e5f4"
+        "size": 34316,
+        "sha256": "35552115a90040f3bdfde03c6ab5680837290b20308f7b6dc6f4007cccec35ec"
       }
     },
     {
@@ -1561,90 +1990,90 @@
       "en": {
         "file": "en/toxic.intense.calm.5.mp3",
         "size": 29301,
-        "sha256": "80366de94fcf213e6890c59e18f7a4460db371210a5140bdd3551badb1a80fc1"
+        "sha256": "dacca6c09c581d8beb82e276c040f2c219edc27a61d25a2d3c805d7689c96ba5"
       },
       "no": {
         "file": "no/toxic.intense.calm.5.mp3",
-        "size": 38078,
-        "sha256": "faf2a7c6bf5d1989be813cbb5527ae62f472f45651d072f90c37c85fe5b286e0"
+        "size": 37660,
+        "sha256": "abc2c8d7f57f28c50d3cf4049f9d4a1df3304f81bb3606d86d0516eb8e4ea56e"
       }
     },
     {
       "id": "toxic.intense.intense.1",
       "en": {
         "file": "en/toxic.intense.intense.1.mp3",
-        "size": 27629,
-        "sha256": "df1bdc1b1289502607ad9d10f69e5608f0e8b199992ee4ad94b4c73a8e4f20f7"
+        "size": 29301,
+        "sha256": "1e12589e7196fd0dd691ff95c65b6ecaec98701e98950db1ce91bf18af966687"
       },
       "no": {
         "file": "no/toxic.intense.intense.1.mp3",
-        "size": 31391,
-        "sha256": "13f52604245cb7b4aba884e8cf9c5449e4c3020e8049f66c7e059508ad7d252c"
+        "size": 32226,
+        "sha256": "c69c0034d2c215f34d35b428345b56aa6c1887c298f5f1170cd977ac4bd00b8f"
       }
     },
     {
       "id": "toxic.intense.intense.2",
       "en": {
         "file": "en/toxic.intense.intense.2.mp3",
-        "size": 37660,
-        "sha256": "1b838c0068e552b70f2b5cb7c6a6abc8e34345e6717168f85760e3e24ab24c76"
+        "size": 35988,
+        "sha256": "67873f2c94cf3dea981da4eb7b4e7655e9f376095b1b8cc08f8b0975845ba20a"
       },
       "no": {
         "file": "no/toxic.intense.intense.2.mp3",
-        "size": 50199,
-        "sha256": "b84be86e152ba91d18971c5e8bcb293036ec493f6356fdf5a4edecc3ad593ee2"
+        "size": 51035,
+        "sha256": "d90080d19be5cfe2162de86ae55815132027b4ebc89b1a74aec1520a5126c4d7"
       }
     },
     {
       "id": "toxic.intense.intense.3",
       "en": {
         "file": "en/toxic.intense.intense.3.mp3",
-        "size": 23449,
-        "sha256": "06c3df7b5667621cc0062d7d4f5418dda68716bfc0c195a45fc355ff69b539fc"
+        "size": 22613,
+        "sha256": "faf7063752689a826128003cf7cb00116d672592066fba6d59aae4324b84fb49"
       },
       "no": {
         "file": "no/toxic.intense.intense.3.mp3",
-        "size": 23449,
-        "sha256": "e2c7d6b0b5be017a6864d9496c5401ab7a63a54ba8c7fff23adb824f6cde07c0"
+        "size": 22613,
+        "sha256": "2d96c5dd7c2e69a1329557a86f7ee58134dce53495fb3bfd502ad568c86b06fc"
       }
     },
     {
       "id": "toxic.intense.intense.4",
       "en": {
         "file": "en/toxic.intense.intense.4.mp3",
-        "size": 27211,
-        "sha256": "876fd052c8c92f8f6881766e687d3e619b238bd72e76545a1dac25fded1207e2"
+        "size": 25539,
+        "sha256": "8408eb605f2145da99f62f747f689318d35388cb507b0fdc921706ec7609d9ac"
       },
       "no": {
         "file": "no/toxic.intense.intense.4.mp3",
-        "size": 46437,
-        "sha256": "8077b85e5dc7fb196a7c9af98907cf44d016ae92ce76deb3cdee4717a4455865"
+        "size": 37660,
+        "sha256": "a2848505083acb11c112877b02786a55a02ff0ebcfa5a93ef098addf649e0586"
       }
     },
     {
       "id": "toxic.intense.intense.5",
       "en": {
         "file": "en/toxic.intense.intense.5.mp3",
-        "size": 28465,
-        "sha256": "29488b8317b7fd9152fbfb213cc7bdcdee5808ee0213f4c42fb2215284b90a9a"
+        "size": 27629,
+        "sha256": "959d2df6d65257f2f3f0e226f3760b216da575c0eed3c4bcb03b4173aa0b8e58"
       },
       "no": {
         "file": "no/toxic.intense.intense.5.mp3",
-        "size": 41839,
-        "sha256": "26f7df1bf28a53e023a471aabb10e56aa90f44a6cd85911fe29ae4f482f2838e"
+        "size": 47691,
+        "sha256": "ccf204e632e19d1d2497fd9e804874f56cc5129c53f1f9100147c6865ac3c540"
       }
     },
     {
       "id": "toxic.intense.mod.1",
       "en": {
         "file": "en/toxic.intense.mod.1.mp3",
-        "size": 35152,
-        "sha256": "7e1285d3af0b4540490b294931578a75eb02954bf18bb03b262f6a69418fc5ab"
+        "size": 30137,
+        "sha256": "791acd311722702800de149fc97578c268a9262714272066f636942ef28b50c2"
       },
       "no": {
         "file": "no/toxic.intense.mod.1.mp3",
-        "size": 30973,
-        "sha256": "09302751ef6c33eea4b19ae15d58e0c3caf83c35762c08d8c3d14c132a42dfaf"
+        "size": 30137,
+        "sha256": "c7cc9c11b418af9a96c322389214a886c149ffc2142d9a33b78e33cb5178fb83"
       }
     },
     {
@@ -1652,116 +2081,116 @@
       "en": {
         "file": "en/toxic.intense.mod.2.mp3",
         "size": 21777,
-        "sha256": "fcda98b2bfc638007c8d068f552a63edecd72e431d74affc699d6153333a890b"
+        "sha256": "95978bf506c6d3ab41bfe5b59f035563c28d22bc7323c506abf953ae128dd994"
       },
       "no": {
         "file": "no/toxic.intense.mod.2.mp3",
-        "size": 21777,
-        "sha256": "3c12bb3fc51a0d99b9f19c7190b5c60458ccf690562e803f6c85a322e76daa6e"
+        "size": 19688,
+        "sha256": "2f39b09e6fbf8bafeb9ea5ff454ba3008079a54b36bf1fb012360504745ac785"
       }
     },
     {
       "id": "toxic.intense.mod.3",
       "en": {
         "file": "en/toxic.intense.mod.3.mp3",
-        "size": 25539,
-        "sha256": "d7ee2b376e893d37b3b4c39b5c946643a437e9d5999909beab1bb4a1ee5ecb32"
+        "size": 27211,
+        "sha256": "79078e20cc0475ee2bec41499410cec6a5286922886c5bde017702ff3835b50f"
       },
       "no": {
         "file": "no/toxic.intense.mod.3.mp3",
-        "size": 33898,
-        "sha256": "99a63fa0948fb30fa09735270627d574ed4c578bc02ebc9e8f32e4173f14ec10"
+        "size": 36824,
+        "sha256": "8303b05714e15912d108188089d7ded16a7704a9889a7eea45e877771ec6d9ca"
       }
     },
     {
       "id": "toxic.intense.mod.4",
       "en": {
         "file": "en/toxic.intense.mod.4.mp3",
-        "size": 25539,
-        "sha256": "b955c7ca140fe9c34c04efa2b5f2aa1ae1e50051addbdadda159ee3c945cce24"
+        "size": 22613,
+        "sha256": "d64afc9566aa5ca974d2acddcbe99f01658fe95443c6a4e876636ea84ab0f293"
       },
       "no": {
         "file": "no/toxic.intense.mod.4.mp3",
-        "size": 30973,
-        "sha256": "68d4c5753f6194c93c3c0f8521d1be9c06ec0de45ee621823dbee07a1497dd5c"
+        "size": 23449,
+        "sha256": "a3bf2f98f0458ad6e6bc716bc5221469fe95843b6c3d38cab5ef8d29c8999fd0"
       }
     },
     {
       "id": "toxic.intense.mod.5",
       "en": {
         "file": "en/toxic.intense.mod.5.mp3",
-        "size": 25539,
-        "sha256": "d2a65b3a1c72a8a665c5033483fdcb5dac561ccab7535227be7239dab80024a9"
+        "size": 26375,
+        "sha256": "dc0de1b1ef55819e459fb030eabee3c9fd1a488393aaee4a964cea90fc5a1e48"
       },
       "no": {
         "file": "no/toxic.intense.mod.5.mp3",
-        "size": 30973,
-        "sha256": "97a5d188e915d47eb3d58c341f86a9209d341ecfc70b0f46dbff6ac9b386f48f"
+        "size": 30137,
+        "sha256": "d8a61c55ee700a60baf8ccc9bc54d9c16054e4408d2b4d2467bdbfff363e422f"
       }
     },
     {
       "id": "toxic.warmup.1",
       "en": {
         "file": "en/toxic.warmup.1.mp3",
-        "size": 30137,
-        "sha256": "2cfae723f2fc40068863428673d29ef11ee39ca4151236a170173e96af3e7f7a"
+        "size": 27629,
+        "sha256": "c96b273569044362e9e6ffa2e7d6e42d49162f4bbf41041675f7a41242f1616f"
       },
       "no": {
         "file": "no/toxic.warmup.1.mp3",
-        "size": 36824,
-        "sha256": "43bc1fe033338f5b1d9e0b8c3201065361d59c0ec849361afb447528d4470fdd"
+        "size": 35152,
+        "sha256": "93615b813e8f342e0ec59fb8fca6e70c9ed29a9314a4089794abc0fd459f1698"
       }
     },
     {
       "id": "toxic.warmup.2",
       "en": {
         "file": "en/toxic.warmup.2.mp3",
-        "size": 24285,
-        "sha256": "f52a05b6a1c23c7c845d053c6c9c967c3c7aaa7b772e82fa2621f0211cf80d4c"
+        "size": 27211,
+        "sha256": "6ae40edaf6badd3bd297f016b14e60a5ad2486191b010a178b2342e927591436"
       },
       "no": {
         "file": "no/toxic.warmup.2.mp3",
-        "size": 29301,
-        "sha256": "fd3c5c50a498523403863a49494950bc979da3ef95495004e1ac2ca4abac4544"
+        "size": 33898,
+        "sha256": "06ab5d857564f04143fe8d3b8b98f193da1aea061bc1dfe8c5bd41d9e55b012c"
       }
     },
     {
       "id": "toxic.warmup.3",
       "en": {
         "file": "en/toxic.warmup.3.mp3",
-        "size": 27629,
-        "sha256": "28e991dcf645f9a8fff87bb4e1f283b99dc2d20164feb1fa494b6a97dc036c11"
+        "size": 28465,
+        "sha256": "3903f5e11a73b5f4f6ecba9ab7031ee0dc68b3d9a07ad3a1e2f309f94265cc19"
       },
       "no": {
         "file": "no/toxic.warmup.3.mp3",
-        "size": 29301,
-        "sha256": "62a18fc8349f6b85451f02f02f190690a8dbebf6dc5361a8cf028cf192469a79"
+        "size": 30137,
+        "sha256": "d6c2100fe3d8d3392b3170646c4a3e2aa7d2342e3755cea505ec31040a8cbf94"
       }
     },
     {
       "id": "toxic.warmup.4",
       "en": {
         "file": "en/toxic.warmup.4.mp3",
-        "size": 25539,
-        "sha256": "44d2698bda3eee35ca9e66dee069c2fa4f96eb7f4471c29e3f232ddb0521a4dd"
+        "size": 26375,
+        "sha256": "b0791a0f8d08917227e03d6f3a1ee258e566398e6dfe3fca14efa611d740bbbc"
       },
       "no": {
         "file": "no/toxic.warmup.4.mp3",
-        "size": 35152,
-        "sha256": "3a90f93968318c064e36c258b0bfbc293a0c75fffb58ee16c6b5210d262315af"
+        "size": 46437,
+        "sha256": "8346017a5d1210129b566223f592243d88b8dd59f33aec00375203adecdce715"
       }
     },
     {
       "id": "toxic.warmup.5",
       "en": {
         "file": "en/toxic.warmup.5.mp3",
-        "size": 38078,
-        "sha256": "963156f9ca6a9c4fba10b1f9af66e713907689cbee8711c2dd9bbc8df1148d54"
+        "size": 35152,
+        "sha256": "33cd34d5ff11f7ac39f88612929b6cc23c70fae019ad51db34bb5ab852bef718"
       },
       "no": {
         "file": "no/toxic.warmup.5.mp3",
-        "size": 60648,
-        "sha256": "5d18508c6c4c41ca6177305592977660ed5447e59e5f2c40b2c1f35af7afdeaa"
+        "size": 62737,
+        "sha256": "6a4d349399220e3d0a523adf140d10a95b50240f0c080bc4007bdb654b4e91c2"
       }
     },
     {
@@ -1769,181 +2198,181 @@
       "en": {
         "file": "en/welcome.beginner.1.mp3",
         "size": 51453,
-        "sha256": "b06ef724ca5b87596c445077597c017f01f63dae0e2692231187379d790c9291"
+        "sha256": "f8870a1b46d5aedb92fb129a4c755fde3d41c8b5f09f705e4081a49a2fbe2898"
       },
       "no": {
         "file": "no/welcome.beginner.1.mp3",
-        "size": 55214,
-        "sha256": "3924464414cebc6c2ef83c57adcbb97c36c1ac85f6aca8a72f003e7be26ec08d"
+        "size": 53960,
+        "sha256": "ea1080175bf985270cfd172388f72e4f835e258cbad8b1d61e5389209b223434"
       }
     },
     {
       "id": "welcome.beginner.2",
       "en": {
         "file": "en/welcome.beginner.2.mp3",
-        "size": 56050,
-        "sha256": "dc9566c81f988efeaeca26074a0df9e493c3f787593de72ad4e051734940da8c"
+        "size": 58140,
+        "sha256": "3d88e07b83121927075ecc1943aa9acd336320d4f1d21e89cd525ec004548086"
       },
       "no": {
         "file": "no/welcome.beginner.2.mp3",
-        "size": 78202,
-        "sha256": "442812739f2e81956791e593ac509f1bb8239912e31f478ef4e94d1fafaa4501"
+        "size": 72351,
+        "sha256": "c7119bb7dcff4b0307247e4c5af3aebacf9c77d769f90d850603b45282bd5424"
       }
     },
     {
       "id": "welcome.beginner.3",
       "en": {
         "file": "en/welcome.beginner.3.mp3",
-        "size": 58140,
-        "sha256": "9f7d8a96229c0f4e4575de58413ae1dc3cf2e954704de894f3317e4ef6023985"
+        "size": 55214,
+        "sha256": "28abbe4a876f65f9e68f8f980194bb8b88cf39900a5df5914e7a2ed1a20d4a2f"
       },
       "no": {
         "file": "no/welcome.beginner.3.mp3",
-        "size": 55214,
-        "sha256": "691ac37508838117b785409a5e29f10a45aab7a0cf347fe2f81972c1f83b8bac"
+        "size": 57722,
+        "sha256": "fa5dfa05beafc4225233b6ee6e5b88963e043d96e7992c2bb5a13fc2d01c4a6c"
       }
     },
     {
       "id": "welcome.beginner.4",
       "en": {
         "file": "en/welcome.beginner.4.mp3",
-        "size": 61902,
-        "sha256": "5b6794af50f04c3374c1ef6e0cb83035067098cbde4945e83dc63955565b289c"
+        "size": 62737,
+        "sha256": "9cf004329d2026208f8cf93d56fb5c8cb8f586b127496da678db77551f9e7d07"
       },
       "no": {
         "file": "no/welcome.beginner.4.mp3",
-        "size": 66499,
-        "sha256": "9b6c39ac09e7620b0f68243dd882d6b91aebc0f59f2152798645540bb9ab464a"
+        "size": 74022,
+        "sha256": "8562df2588c5746f5ac8730ae16649fdf4ef12f3ce97f6244a03e0479de98d23"
       }
     },
     {
       "id": "welcome.beginner.5",
       "en": {
         "file": "en/welcome.beginner.5.mp3",
-        "size": 70261,
-        "sha256": "6f5ee12a0dca93523fd24dfb850c52a287861288bac6657c1c6f750565cad069"
+        "size": 71097,
+        "sha256": "ac7b3dc95d66d250e3b12736c3484ef20317671579d13daf74953a1f3a9d3428"
       },
       "no": {
         "file": "no/welcome.beginner.5.mp3",
         "size": 67335,
-        "sha256": "251396faaa234ec38edf168724a133bc0b2c1dd3c0dd2ce137517efa762b5a45"
+        "sha256": "1014dcb7a18939ed7c1fdfe6ff25ad61a86f5438989e729a66a0b5d9687f9f96"
       }
     },
     {
       "id": "welcome.breath.1",
       "en": {
         "file": "en/welcome.breath.1.mp3",
-        "size": 79874,
-        "sha256": "36527a4b210c58b4d189eef8bf22b15b6804dc3008b171b2bef775d9576ef7ab"
+        "size": 70261,
+        "sha256": "0c11298718bb82982f9a360d5d3a70914644791d8bed0772c7a04bb0af6dd459"
       },
       "no": {
         "file": "no/welcome.breath.1.mp3",
-        "size": 94084,
-        "sha256": "de0bc4c112cff92d70fba573c4cbe946507080b3908b2cf653489da71cc11d30"
+        "size": 96174,
+        "sha256": "936f787ae2c816baf63e8cd955ae91f588b3df5b9a41d154a4e2510bad05b836"
       }
     },
     {
       "id": "welcome.breath.2",
       "en": {
         "file": "en/welcome.breath.2.mp3",
-        "size": 84889,
-        "sha256": "47a18b2bf3d0c931530826003ad60149fa958ca18b752bc137c6232cef1a3ec7"
+        "size": 69425,
+        "sha256": "0a11143f3d2d20312cca16ffbceac34e9ce4277e9ade10d21ab4bc5b1616ad16"
       },
       "no": {
         "file": "no/welcome.breath.2.mp3",
-        "size": 84889,
-        "sha256": "bd1e970996f524d29b5ed726ec5139632f33c553cedd8e14864915eff2f7cb78"
+        "size": 75276,
+        "sha256": "eae7cf82c5b90c3dfac6b06d6403b7819482ed3b39a04081f34078b2f6efd9ab"
       }
     },
     {
       "id": "welcome.breath.3",
       "en": {
         "file": "en/welcome.breath.3.mp3",
-        "size": 64827,
-        "sha256": "1d96e5903953027b60417ff368780e9c81b7c9fd3f25a90704ab46b8e33dd3e9"
+        "size": 66499,
+        "sha256": "7cf7fde31081603bd8acb6bbccfb7c70cbc20a80491ef1f1d8b68a08dc374cc2"
       },
       "no": {
         "file": "no/welcome.breath.3.mp3",
-        "size": 56050,
-        "sha256": "a08679ee4013bea16b0fddc599bffa01bd72ba1682f07ccfc8bd7189a2befbc0"
+        "size": 58140,
+        "sha256": "80a898ca93439e93e856f03febb1874560bea47e6b18bd5fdd4cb65f1bba2175"
       }
     },
     {
       "id": "welcome.breath.4",
       "en": {
         "file": "en/welcome.breath.4.mp3",
-        "size": 73186,
-        "sha256": "915a177b3600f38978aca3880207a522bfdeaffb29e341f94f0d6cd99169fe82"
+        "size": 72351,
+        "sha256": "0e3ad244e526b6223c6f3398b67f81e248068c3b89abca60978b3f1678e64ba0"
       },
       "no": {
         "file": "no/welcome.breath.4.mp3",
-        "size": 98264,
-        "sha256": "83eca568f4f25fcc8f8ef2763c84372dd094e6906c8c26764a5fe9843fc814c5"
+        "size": 83635,
+        "sha256": "8e02f787ad34a87fb28487159b351486c83e1cb744c9eca60d364393054c589c"
       }
     },
     {
       "id": "welcome.standard.1",
       "en": {
         "file": "en/welcome.standard.1.mp3",
-        "size": 57722,
-        "sha256": "0bfb538cf788716ed17e9be91afb71acc7c7b07617a080e07ea48bb7f70d1e69"
+        "size": 64827,
+        "sha256": "aabab863d57cfe0b59bbe728cba91c005cc7f8f0aea3871bfc841bbf7d61975d"
       },
       "no": {
         "file": "no/welcome.standard.1.mp3",
-        "size": 56886,
-        "sha256": "7453330fe45ff28effee2a61fac8e3b6e4ae61d7237ce427cc05337552f1c9ca"
+        "size": 55214,
+        "sha256": "cb6b5ddcb5acaf557492db6c4259aa026a4e2af719817f0c4e351b8a85cdcb34"
       }
     },
     {
       "id": "welcome.standard.2",
       "en": {
         "file": "en/welcome.standard.2.mp3",
-        "size": 63573,
-        "sha256": "92f6d91084b5e39f5b1e59555c1b3377c31f3c8159d6037a00f650e857f88b77"
+        "size": 65663,
+        "sha256": "b30c7a19a7736c4e3d4576026ed51908e1292078c04abcbde5d663114a7ffdc2"
       },
       "no": {
         "file": "no/welcome.standard.2.mp3",
-        "size": 71515,
-        "sha256": "4bf95382f481fc79f18c5f476456b84cb2de945f5c7532a3f4be78c81587bd71"
+        "size": 72351,
+        "sha256": "5dd885075bf16551117b7b178d6a215f9f0ef373fda4984b430b18ff7490ce73"
       }
     },
     {
       "id": "welcome.standard.3",
       "en": {
         "file": "en/welcome.standard.3.mp3",
-        "size": 61066,
-        "sha256": "0d0df85e69ed7638c8f243c19f73bb97517706f1e70fcdd00d895329f04af941"
+        "size": 62737,
+        "sha256": "7502f4a6f80a1df7fc57f06676e51b275285b90e85232d341263af6653bd2b53"
       },
       "no": {
         "file": "no/welcome.standard.3.mp3",
-        "size": 61066,
-        "sha256": "44e1b6b739622af96d8482cd6fc870d5a58345a605f044fbcc5f49a7bc49c800"
+        "size": 61902,
+        "sha256": "a0ab5fa2dad63ef56de4cf688f15bb206b89075514f02eb7f470ed383ebbae71"
       }
     },
     {
       "id": "welcome.standard.4",
       "en": {
         "file": "en/welcome.standard.4.mp3",
-        "size": 58976,
-        "sha256": "60011a6d4a7bc9be1352ae3fc53b71694786e1fb9279b04ec6a6f65f44b661df"
+        "size": 61066,
+        "sha256": "e190adf3f7ec14f289f87e60eef516c3508bb7d75fadde6579170ad05a0e4c86"
       },
       "no": {
         "file": "no/welcome.standard.4.mp3",
-        "size": 53960,
-        "sha256": "b110e8e5efa92dcc4794a655e22ca40df2246499d7041748b92472771273ec36"
+        "size": 56050,
+        "sha256": "6ae6d1dd00eb26d4d59b53aaeb4ac6cdec8f318ce476389ac623cb6c5b597418"
       }
     },
     {
       "id": "welcome.standard.5",
       "en": {
         "file": "en/welcome.standard.5.mp3",
-        "size": 64409,
-        "sha256": "e34ceb83553573a1e5f45f6e5e04dfecec1866c697af29910d17408d856c8c80"
+        "size": 62737,
+        "sha256": "dee9f3554abf086d17521c8c4c76ac59d29c2595e0ed8430dc110a9585fd290c"
       },
       "no": {
         "file": "no/welcome.standard.5.mp3",
-        "size": 63573,
-        "sha256": "4bc385432c3f216f16169e5192637f547ddbdb796dda46e84de828fccbeaaa84"
+        "size": 55214,
+        "sha256": "8fc62b6ac7d953a6c67222b4adf7e86abd2bbf7df8c2065d706be65ba75ad95a"
       }
     },
     {
@@ -1951,25 +2380,25 @@
       "en": {
         "file": "en/welcome.standard.6.mp3",
         "size": 45601,
-        "sha256": "baac6fdd30d094f72f3da4bba923e187252750c5f1adc00c79179c211ed6b42a"
+        "sha256": "648a047159101997b90917e1547b71d72af36a5010e9dbb39a1dd828476f9de5"
       },
       "no": {
         "file": "no/welcome.standard.6.mp3",
-        "size": 64409,
-        "sha256": "1da7a96c3248a508221ce1c4c9c49a945059594940f8683c916a33954ae0e0a0"
+        "size": 69425,
+        "sha256": "e38d2342f7f58d1b419d0623f96da2d4bf26290fd0fd6e358720c73f61e600fe"
       }
     },
     {
       "id": "welcome.standard.7",
       "en": {
         "file": "en/welcome.standard.7.mp3",
-        "size": 64409,
-        "sha256": "c383f1c492ca40a7315c8ec43785bacf210edccf52e6cda0e011648a81c45611"
+        "size": 66499,
+        "sha256": "36114c1a497814af7ff782647f8633bf8021da1470c79b45dd46e927b9aa5dc7"
       },
       "no": {
         "file": "no/welcome.standard.7.mp3",
-        "size": 67335,
-        "sha256": "14f73275daf975a565add67bb00eb2b2279e4623ae4de1ef10ef3c4a260b96bc"
+        "size": 74022,
+        "sha256": "7a5e56ee485b886b01951d714e1d832f0a918b9bda633e8e7b6111add4d26729"
       }
     },
     {
@@ -1977,64 +2406,64 @@
       "en": {
         "file": "en/zone.above.bpm.1.120_135.mp3",
         "size": 42675,
-        "sha256": "7d001e71009735e76e0bb32d4f916dd0cdeda224910651d9db1aa5798dcb5337"
+        "sha256": "bf4e8c0b973f06f11dce58841afadf94a9b15caacc786e6c7b5481611324d2fb"
       },
       "no": {
         "file": "no/zone.above.bpm.1.120_135.mp3",
-        "size": 41839,
-        "sha256": "b6ef999d58dc15a14150be55574abe43f51cc1ec4285b12af8ba1d0820e38340"
+        "size": 39750,
+        "sha256": "2dc2a359aaeacd926fcf0ba8690fc824f93bcdbae1b4df941e00a6e2cac54ac8"
       }
     },
     {
       "id": "zone.above.bpm.1.130_145",
       "en": {
         "file": "en/zone.above.bpm.1.130_145.mp3",
-        "size": 44765,
-        "sha256": "25fee9af765ee2c2843df0dd231eca11db201922bea5fa630199390f714e561a"
+        "size": 48527,
+        "sha256": "5436ffcab5440fc188a8db29c5d728cfd006cc6011ae4728d4c2d3c851da27d3"
       },
       "no": {
         "file": "no/zone.above.bpm.1.130_145.mp3",
-        "size": 45601,
-        "sha256": "f3bc6666843dab641a0cbb3471e7401d489fbc20b4adf5c407ecefd9c23c3d8d"
+        "size": 41839,
+        "sha256": "cd698e669aca046482609aa8bb4f96ab326bbd1e9080b4904fd080d1fbdcccb1"
       }
     },
     {
       "id": "zone.above.bpm.1.140_155",
       "en": {
         "file": "en/zone.above.bpm.1.140_155.mp3",
-        "size": 43511,
-        "sha256": "67ea50dabd713b634dc46dbccb9988c9f89df6228f459fa94aa905d89c50bb60"
+        "size": 45601,
+        "sha256": "c0d0bd0e42b8f3dd8acad215edc408d8d7ea2c4f042776676ae53e518f9f8263"
       },
       "no": {
         "file": "no/zone.above.bpm.1.140_155.mp3",
-        "size": 48527,
-        "sha256": "77dca67cae7dd6b31d8f8629b4d818fd65a5096e605badc762f8019f9c7ed05a"
+        "size": 49363,
+        "sha256": "a3ed7e6b808296cde24356f78f311b93af420173772b4c0233dd5614506269c4"
       }
     },
     {
       "id": "zone.above.bpm.1.150_165",
       "en": {
         "file": "en/zone.above.bpm.1.150_165.mp3",
-        "size": 49363,
-        "sha256": "da682de7a96fedce6bef9d1570eaf093e4d3791935aba2eb4945841b194130e1"
+        "size": 57722,
+        "sha256": "c29ebcb8f45a26121d4d40f00a68c3784e21b33d4dfdc93ad7614ac21bb8de7a"
       },
       "no": {
         "file": "no/zone.above.bpm.1.150_165.mp3",
-        "size": 45601,
-        "sha256": "2fc9053ebf9b25c80f666ea539229d349db67437ac47b76b4ebb5e309d5d58b4"
+        "size": 44347,
+        "sha256": "55f533934748125d0f44f194b17b0b88609f95af4e4cb0922eacebc2fa3c1de2"
       }
     },
     {
       "id": "zone.above.default.1",
       "en": {
         "file": "en/zone.above.default.1.mp3",
-        "size": 29301,
-        "sha256": "5f3d90637fc74d32998f2bb6d2209ee8871f1ba90445e971a835a07446917775"
+        "size": 30973,
+        "sha256": "825eabb8e51258c1e0cc69f67696a603aa119110ec72911ffca040f0081a9df2"
       },
       "no": {
         "file": "no/zone.above.default.1.mp3",
-        "size": 42675,
-        "sha256": "105dbd7123cefca63b5014c0cbbaaaa19a9fbc18da09c43c78c845d2cf7576f7"
+        "size": 43511,
+        "sha256": "18f850dba39c4c1c324d67f2db885e0d627ba42c6a03bf8d6a52badccc7b2017"
       }
     },
     {
@@ -2042,51 +2471,51 @@
       "en": {
         "file": "en/zone.above.minimal.1.mp3",
         "size": 30137,
-        "sha256": "ce3b1e82228ac0bb49ad5e678839160965ac2bb0764cb35e835eec7592470b52"
+        "sha256": "84b22465b5de1a4e119964380512da75ad821d90e14b7c18fad2a3ef66a4aca9"
       },
       "no": {
         "file": "no/zone.above.minimal.1.mp3",
-        "size": 25539,
-        "sha256": "df8e0eba8a1080d1ae6d624b18898dd1364c4be356064dd7053dcaebd66a6bc5"
+        "size": 27211,
+        "sha256": "0e49cb6c47ca592305dd0b9697b880d677f1323b1249123afc26ca8ae8a6b117"
       }
     },
     {
       "id": "zone.above_ease.default.1",
       "en": {
         "file": "en/zone.above_ease.default.1.mp3",
-        "size": 56050,
-        "sha256": "b8bc830a95c02ab53e6ac97a75f1ff3852ef6667f38bdfa113627ba5cbcb3801"
+        "size": 59812,
+        "sha256": "fec8a81e876381fc3b53b5c1738be6c4dce014d9003bb72518019dae36c9a288"
       },
       "no": {
         "file": "no/zone.above_ease.default.1.mp3",
-        "size": 50199,
-        "sha256": "5ce3564ebc7d936bace6bebecccae8f7baf5282f9c7fe03e87b45806a411d0d9"
+        "size": 44347,
+        "sha256": "17483fad59bb52470e097213b30258cc7c455c970bb50aac160fd4593b564b4b"
       }
     },
     {
       "id": "zone.above_ease.minimal.1",
       "en": {
         "file": "en/zone.above_ease.minimal.1.mp3",
-        "size": 38914,
-        "sha256": "ca95c8434a29bf01c132d1546679b0d024b3af3242ac241f21c7eef7c6200aab"
+        "size": 35988,
+        "sha256": "b12de2810bf7d9fd39e9316324d2be9f3ba846d4e05e7b75e2026474e40eb511"
       },
       "no": {
         "file": "no/zone.above_ease.minimal.1.mp3",
-        "size": 33898,
-        "sha256": "26b9a031397ba7b4d54d0c55db057ea0f4ebd36d72271a2d6944af224e6c0e6d"
+        "size": 30137,
+        "sha256": "4e31045751c5a34d04a544c1de321acad299f3011f99a1f094160cde8dafee99"
       }
     },
     {
       "id": "zone.below.bpm.1.120_135",
       "en": {
         "file": "en/zone.below.bpm.1.120_135.mp3",
-        "size": 47273,
-        "sha256": "0ef274f8d3afb0b69fdcdeea46f3c461787ca47d7d1e178076bb0583e07f35bd"
+        "size": 44347,
+        "sha256": "51680ec79a6c555d8b69cebda8eccebc8d14584f09fce36c0d605f4fcd3967a2"
       },
       "no": {
         "file": "no/zone.below.bpm.1.120_135.mp3",
-        "size": 41004,
-        "sha256": "9acc93a8c09765f4ec9d178e0c0cfed8fb339bdb9895cca292372caef0839775"
+        "size": 43511,
+        "sha256": "318a77681d69dea50c03b486069ecd5c1627aef3aa7a1d10f3602efbf2cc1227"
       }
     },
     {
@@ -2094,25 +2523,25 @@
       "en": {
         "file": "en/zone.below.bpm.1.130_145.mp3",
         "size": 49363,
-        "sha256": "5ba4a5bdb784a48d23652bd6d947aa81dbaa4170606a612b4ac15b3a86d5d801"
+        "sha256": "180d58e1e4c6e82dce3f6306d23b53f1b95048a42cf4f68f744b45562a3944aa"
       },
       "no": {
         "file": "no/zone.below.bpm.1.130_145.mp3",
-        "size": 45601,
-        "sha256": "14f4a48f645e9f02ea5c50c6bcc60c3fbf6e9d56c1348908c4fbe9a00afed8a8"
+        "size": 42675,
+        "sha256": "c1d109dfcf725735d82b50c1011ba24c51c2ab8da7b46506e22a54906b660bf1"
       }
     },
     {
       "id": "zone.below.bpm.1.140_155",
       "en": {
         "file": "en/zone.below.bpm.1.140_155.mp3",
-        "size": 44765,
-        "sha256": "8de9a343a8c356f1898f63b14bf73f3eeb072a0e39d3b9e26da65f12f7a24042"
+        "size": 45601,
+        "sha256": "88b888f52488e566fdc9520f66122841fccf82196a679b03e8e58898214184bc"
       },
       "no": {
         "file": "no/zone.below.bpm.1.140_155.mp3",
         "size": 46437,
-        "sha256": "753b088f81bbff8b8ca2d87c1a1ff263acbd75a9f4290735938b1fccf4618ac7"
+        "sha256": "e521eb97918e20e37ee1abfc358e758f96674c1787d1044affa0b6f50dfe5603"
       }
     },
     {
@@ -2120,363 +2549,506 @@
       "en": {
         "file": "en/zone.below.bpm.1.150_165.mp3",
         "size": 51453,
-        "sha256": "dbf8702559aba4f3ba86b99c0de45b967f47a9fd7a39400edfa78a877481549d"
+        "sha256": "385150bd2aa8683cf5c4839b5fe110dd79040330e1ffb1295008472df4c2be5c"
       },
       "no": {
         "file": "no/zone.below.bpm.1.150_165.mp3",
-        "size": 43511,
-        "sha256": "621a1290def73a254f6bf94dc5234da0946b1d1f43aa6d452ec2b3fd9bd8c87c"
+        "size": 50199,
+        "sha256": "f6019d27182cdb767a94485f2fac5b2411ab043abc41de82064300bd64fd1078"
       }
     },
     {
       "id": "zone.below.default.1",
       "en": {
         "file": "en/zone.below.default.1.mp3",
-        "size": 24703,
-        "sha256": "6e2b21764edd8bbbc2ed3a9f2b50239adc52c85e6b565065f8e4fe3c366914ff"
+        "size": 25539,
+        "sha256": "408be6871a5d97e314b02e879376693b4688fc695ca44c914e63dda525c03813"
       },
       "no": {
         "file": "no/zone.below.default.1.mp3",
-        "size": 24285,
-        "sha256": "09ab46ad134d25ef7340f3a655f443bb4829bbeeb88c0af72455f2cfe9562e77"
+        "size": 25539,
+        "sha256": "aa6fc6cac3a8c8a8266570c6654cccb2aea06860be20c433d15bdd92610ba180"
       }
     },
     {
       "id": "zone.below.minimal.1",
       "en": {
         "file": "en/zone.below.minimal.1.mp3",
-        "size": 20524,
-        "sha256": "e66bd022fa75152307476f1487d398aa9f8093a219b74eddb0979d01bfbcd972"
+        "size": 19688,
+        "sha256": "38cb623bac63901396e59bbcde6fbcac09042a3d56b04aa96f597dd3a4d891fb"
       },
       "no": {
         "file": "no/zone.below.minimal.1.mp3",
-        "size": 18016,
-        "sha256": "635f15e76d6252d2a0467659eb3ce558be6404846a95dc442f33c50f88763168"
+        "size": 17598,
+        "sha256": "7097a95b353298f5e643b3d75f7b2f10225096f55f04a581eb01b829dfd34cbd"
       }
     },
     {
       "id": "zone.below_push.default.1",
       "en": {
         "file": "en/zone.below_push.default.1.mp3",
-        "size": 53960,
-        "sha256": "df4700b5fcbf09b822c5ef0d7f543a9fdde1ef3bb02d2fe05ded9be7ff7496cd"
+        "size": 51035,
+        "sha256": "c39b40a8e80f4911130f2220fd291f8c0c4568c02435e64c86f9d187e95dddc4"
       },
       "no": {
         "file": "no/zone.below_push.default.1.mp3",
-        "size": 52288,
-        "sha256": "ba670a9912358ca1064008e596c6c00c6f4e08ea265e396c511ac071b605d31d"
+        "size": 53960,
+        "sha256": "087c0d654849ce614dcfbcdfd03d01d74b5bb0180d4600a1b65806fa4c6dbc95"
       }
     },
     {
       "id": "zone.below_push.minimal.1",
       "en": {
         "file": "en/zone.below_push.minimal.1.mp3",
-        "size": 25539,
-        "sha256": "42904b8c61c33fe51fa8cc3870485ec33b835205ab0631925bdb51a5712dd5ea"
+        "size": 26375,
+        "sha256": "fb7137ecb13d03e7ca1b85625a81190ea9295aa4a2a8ffb116ba03467df5cb35"
       },
       "no": {
         "file": "no/zone.below_push.minimal.1.mp3",
-        "size": 24285,
-        "sha256": "d479c442f3c27d7cb7f796dc73e1929dbf289fc9d7b7a768f7e9bf361ebc9481"
+        "size": 22613,
+        "sha256": "44dad2fdb920553371843dc6f5d76959a86aeaffd84f9603bd61ad5aa9dab9df"
+      }
+    },
+    {
+      "id": "zone.breath.easy_run.1",
+      "en": {
+        "file": "en/zone.breath.easy_run.1.mp3",
+        "size": 30137,
+        "sha256": "e6bf255e9fd8f4b390c8c4873763fec796c291da79a3c862190f4b0ef26bda81"
+      },
+      "no": {
+        "file": "no/zone.breath.easy_run.1.mp3",
+        "size": 27211,
+        "sha256": "5915db9b464f9e72d445d7dd78dd7f183f09a7111add4fbaef23ec3d111bafcb"
+      }
+    },
+    {
+      "id": "zone.breath.easy_run.2",
+      "en": {
+        "file": "en/zone.breath.easy_run.2.mp3",
+        "size": 33062,
+        "sha256": "a702de02575c1ff5524286717cf379e86b3315c472b81902dda05a7f755914e2"
+      },
+      "no": {
+        "file": "no/zone.breath.easy_run.2.mp3",
+        "size": 28465,
+        "sha256": "252824ca3f1fe19fa3bf49b29b3522977ab343089486573bcab5ea7857b2b2a1"
+      }
+    },
+    {
+      "id": "zone.breath.recovery.1",
+      "en": {
+        "file": "en/zone.breath.recovery.1.mp3",
+        "size": 24703,
+        "sha256": "9d1d468e6b3f40233710c1e30e35bffb2ac2c3994a0873fede0d896982c434af"
+      },
+      "no": {
+        "file": "no/zone.breath.recovery.1.mp3",
+        "size": 19688,
+        "sha256": "492d1a02019c3d0bdf2c9533866d521698a0bea8bbd3948407d5e5c59db257c9"
+      }
+    },
+    {
+      "id": "zone.breath.work.1",
+      "en": {
+        "file": "en/zone.breath.work.1.mp3",
+        "size": 24703,
+        "sha256": "4e4d96d019e3d7311d23c36c9804f02c92a9d15ef6426e8201d6fff66c9abda7"
+      },
+      "no": {
+        "file": "no/zone.breath.work.1.mp3",
+        "size": 21777,
+        "sha256": "09fda4a1856383d8819d4b0341b5139d6e7da33c9cef006c4e3e974e41f8a41a"
       }
     },
     {
       "id": "zone.countdown.15",
       "en": {
         "file": "en/zone.countdown.15.mp3",
-        "size": 24703,
-        "sha256": "d220603905644e81024579d291c35eeee728da52cfcdedf526d2f1cd3f94aa98"
+        "size": 22613,
+        "sha256": "82aee78ad3721cffb87271955ca749b4ef2d3ff5db7671d77d1d0c9c8d8e955c"
       },
       "no": {
         "file": "no/zone.countdown.15.mp3",
-        "size": 20942,
-        "sha256": "ba901d3f4963f092bf3d6d0a793051c5174141708780233d069d7e0c32a21c81"
+        "size": 20524,
+        "sha256": "2e6f374beb87d1a67f70b1bb6d74adffd7bcc90e6a707e068a379f5b2aed30db"
       }
     },
     {
       "id": "zone.countdown.30",
       "en": {
         "file": "en/zone.countdown.30.mp3",
-        "size": 22613,
-        "sha256": "e5e0f2387e37cf1cd31ba1fe5a71d43e87cd9ade8c9cae518f7e23fa5ad587c2"
+        "size": 20942,
+        "sha256": "0965151a1c3ae6dffd2dcc7fbc4b9d361321233d9382d4277009dc260123233d"
       },
       "no": {
         "file": "no/zone.countdown.30.mp3",
         "size": 20524,
-        "sha256": "191fc0ee93a1086352b0bd407349d1be467f234b95e9db6baf913a7acf48728d"
+        "sha256": "2d7ea4c0b833adddf88c8684c063d4e8f773ae0c033619ff10f146bad4d0badb"
       }
     },
     {
       "id": "zone.countdown.5",
       "en": {
         "file": "en/zone.countdown.5.mp3",
-        "size": 19688,
-        "sha256": "8feb884a81442b12836218bfa9d87548088f0c07ea24511c48ce141591f89f78"
+        "size": 20524,
+        "sha256": "3a3b3c2649b280c300823c373ef6ccf81e2d169c1c659a9abac09ab043815a89"
       },
       "no": {
         "file": "no/zone.countdown.5.mp3",
         "size": 19688,
-        "sha256": "1aad578d5b700c517e0fb4adbf7f5d4b29b8a7a2ac84520df42d4186f62d7ea8"
+        "sha256": "c8b6de88c6a172bb1cb4542acded6cb7ce4756192897bb56ab88b6d7fbc3b2a6"
       }
     },
     {
       "id": "zone.countdown.start",
       "en": {
         "file": "en/zone.countdown.start.mp3",
-        "size": 18852,
-        "sha256": "2575b1d18c4fd3e60532bc7d07e1c692eb3a3ea837fa5284f2b5c6cda14f6d8d"
+        "size": 20524,
+        "sha256": "a8d5ad99c10d69253a9896d08c3281594c5aa4a5f182ea816573fcb100771124"
       },
       "no": {
         "file": "no/zone.countdown.start.mp3",
         "size": 16762,
-        "sha256": "40c2e176a33ad6d585592bf899a57dd18d788a08cf0127ef2fe37867d27f6e40"
+        "sha256": "946395e6f6342b937220c715f0513181129d513754726a93bf9de45835ff6f4c"
+      }
+    },
+    {
+      "id": "zone.feel.easy_run.1",
+      "en": {
+        "file": "en/zone.feel.easy_run.1.mp3",
+        "size": 33898,
+        "sha256": "ce995e4f6eaebd2881e3d76ee951d4b1dfb1e8dda077af3c29ca467ba875df44"
+      },
+      "no": {
+        "file": "no/zone.feel.easy_run.1.mp3",
+        "size": 35988,
+        "sha256": "36ca33b7f436e339141c1a62820892950772b94e97d24050f39905fea26500d4"
+      }
+    },
+    {
+      "id": "zone.feel.easy_run.2",
+      "en": {
+        "file": "en/zone.feel.easy_run.2.mp3",
+        "size": 30137,
+        "sha256": "51d86c68dac6ea39323cd98f94c37b0d1d01ee7d4372cc7775939d1ceb7f621a"
+      },
+      "no": {
+        "file": "no/zone.feel.easy_run.2.mp3",
+        "size": 28465,
+        "sha256": "65872997a44b682ac1819fd51963a36f5fd0d8096184a493c94b27beea56c5f0"
+      }
+    },
+    {
+      "id": "zone.feel.easy_run.3",
+      "en": {
+        "file": "en/zone.feel.easy_run.3.mp3",
+        "size": 38914,
+        "sha256": "ba44d5d1d1e63fd50e8894f97e5dd608781f9e116f7c4662d0d489d7d26d3b85"
+      },
+      "no": {
+        "file": "no/zone.feel.easy_run.3.mp3",
+        "size": 39750,
+        "sha256": "3d5bfe11a5b8761050b6d23b423c85f926127741efbaf70fe4baeab678b73883"
+      }
+    },
+    {
+      "id": "zone.feel.recovery.1",
+      "en": {
+        "file": "en/zone.feel.recovery.1.mp3",
+        "size": 35152,
+        "sha256": "b1d30232fd29ec52852a025945ea30d742b4473dc0cbf5811d0e4fed4778ed24"
+      },
+      "no": {
+        "file": "no/zone.feel.recovery.1.mp3",
+        "size": 49363,
+        "sha256": "73f096e828cb06542505cb02b6e0977ab98a2264f66ded8f055b0f6378d974f7"
+      }
+    },
+    {
+      "id": "zone.feel.recovery.2",
+      "en": {
+        "file": "en/zone.feel.recovery.2.mp3",
+        "size": 41839,
+        "sha256": "875790aea06f03a60a1aea4666dd61928aaf501bc39c62dadfe23f547a11ca49"
+      },
+      "no": {
+        "file": "no/zone.feel.recovery.2.mp3",
+        "size": 40586,
+        "sha256": "f3e4c63ae64dd1d4a868147ea7ed2f7219cdbdc9dcf1a3b90c0b843ddf096e77"
+      }
+    },
+    {
+      "id": "zone.feel.work.1",
+      "en": {
+        "file": "en/zone.feel.work.1.mp3",
+        "size": 24703,
+        "sha256": "408cd1085bcf1f649180ffc78618d8b438b2de78196f3de7cc0f3bd0a2d2646e"
+      },
+      "no": {
+        "file": "no/zone.feel.work.1.mp3",
+        "size": 30137,
+        "sha256": "a988d9173488552fe7860cbf3a3928e8342a8501e7a6c6d06c21882968c5871b"
+      }
+    },
+    {
+      "id": "zone.feel.work.2",
+      "en": {
+        "file": "en/zone.feel.work.2.mp3",
+        "size": 30137,
+        "sha256": "20e548e43ce76f7a475edf2d13263cbcf5c03c070f78375f396b4bf25be4ea03"
+      },
+      "no": {
+        "file": "no/zone.feel.work.2.mp3",
+        "size": 35152,
+        "sha256": "2fe04b3276bec8f19d12b3851e69b06e7c6cfe15e710f31f7b9a48a58464a54a"
       }
     },
     {
       "id": "zone.hr_poor_enter.1",
       "en": {
         "file": "en/zone.hr_poor_enter.1.mp3",
-        "size": 110385,
-        "sha256": "0dd80088db062d54ada599765830dabfb7436392d9edea6d411be8e8bc858f65"
+        "size": 115400,
+        "sha256": "c43d17440a01dd903b3d86bc32b4863eb2d22cbeb71ac0ba8e5d8de50513309a"
       },
       "no": {
         "file": "no/zone.hr_poor_enter.1.mp3",
-        "size": 170571,
-        "sha256": "9b04532d0328db8c5cca96c6c9445e99a387f4fe77e995e16f37abdd1439ba8f"
+        "size": 148837,
+        "sha256": "538619f8eb58011821c48b708029eb6ce5700f1a92adeb7d8439bc3fe506d425"
       }
     },
     {
       "id": "zone.hr_poor_exit.1",
       "en": {
         "file": "en/zone.hr_poor_exit.1.mp3",
-        "size": 67335,
-        "sha256": "d54ded5687be716ff6b1586223e79b2910d50aec3d1c9d45d594e91d88400006"
+        "size": 64827,
+        "sha256": "3a28f68ddcff7ea4301799a143c5ad4d0839a50c211b2053f15706c403a8d7cd"
       },
       "no": {
         "file": "no/zone.hr_poor_exit.1.mp3",
-        "size": 76948,
-        "sha256": "ffb9ee93373b059526f6aaded274975b1e8ed34e2d0ac63a590155f38705af00"
+        "size": 73186,
+        "sha256": "1019db9bce054cab9ec78bc58de7b121eeb25d047d9df1475412d523a5117160"
       }
     },
     {
       "id": "zone.in_zone.default.1",
       "en": {
         "file": "en/zone.in_zone.default.1.mp3",
-        "size": 24703,
-        "sha256": "7cc525bd829ed7ccc670c3e782b5e80d55fc8553713b033f551b6b530739c5db"
+        "size": 27211,
+        "sha256": "6c5c06269ef32a073b0f622a59b986e49f83b7a1ebb37754894a9b045c710a18"
       },
       "no": {
         "file": "no/zone.in_zone.default.1.mp3",
-        "size": 41839,
-        "sha256": "079ffb7e88775570e3376f63b595ccbd80bee7c6bf27d4925b650e5e3dffa813"
+        "size": 40586,
+        "sha256": "2aa2cabb801f8a5248c36fb32c0940719b985ee35efb85f21cb50188a1066d45"
       }
     },
     {
       "id": "zone.in_zone.minimal.1",
       "en": {
         "file": "en/zone.in_zone.minimal.1.mp3",
-        "size": 17598,
-        "sha256": "a4d9549edd3d0c953cb9355e436955689cac6ba2de6e063200c3c16daeff663f"
+        "size": 20524,
+        "sha256": "866e43daf15bfe046e36e74001d401888ae947fee2b44265b09f7af312332c01"
       },
       "no": {
         "file": "no/zone.in_zone.minimal.1.mp3",
-        "size": 22613,
-        "sha256": "bc3446de5e1cae8921dc4f276932fabf6075dfddac6081b6ff75004b6d7268f7"
+        "size": 21777,
+        "sha256": "45bbc6612e0cf05420fe5b07eccc88d97a44e3fa3d8f172a9eb7ad9c47c68c74"
       }
     },
     {
       "id": "zone.main_started.1",
       "en": {
         "file": "en/zone.main_started.1.mp3",
-        "size": 30973,
-        "sha256": "3430fb37a0aa7e31e7379adcfdbb963e5bbaa0e7051a2d397919e580d9b1eee4"
+        "size": 33062,
+        "sha256": "21020a332bd64b4d281bbbbea1eb7d36739d99a5114bee7e3a179b4f903ea0cc"
       },
       "no": {
         "file": "no/zone.main_started.1.mp3",
-        "size": 29301,
-        "sha256": "7d792e5a1ee731ec3236c08c12ed8dc231c3f72fb2fc849b465b8a61ca8eb85c"
+        "size": 39750,
+        "sha256": "69544cb0196dd6cdf4d016c4a244d3f08df9af95eaf853c119d812d4854e247c"
       }
     },
     {
       "id": "zone.no_sensors.1",
       "en": {
         "file": "en/zone.no_sensors.1.mp3",
-        "size": 30973,
-        "sha256": "74557b84956fe84fdec1807aba383830969b341af897c2fca41957cb4ede8251"
+        "size": 33062,
+        "sha256": "7dad784f97a86f6e5e40e3f5a9c1270302cf3dc8173762ccd2b6b6612f07f916"
       },
       "no": {
         "file": "no/zone.no_sensors.1.mp3",
-        "size": 49363,
-        "sha256": "5b4976f87929ab0b4122599d1e1fba5a34c70b60469f75373e40e426550c7125"
+        "size": 53960,
+        "sha256": "6600a74cc21e45eb4c2967bfd25a377208b24f69341a145ab609fc0d906c1c67"
       }
     },
     {
       "id": "zone.pause.detected.1",
       "en": {
         "file": "en/zone.pause.detected.1.mp3",
-        "size": 52288,
-        "sha256": "bf757357457bca6ee907a80ba6fa3da7419cc4c54900f65ea083de072c6a2693"
+        "size": 48527,
+        "sha256": "aef27510a9d3d0c3a9ff58e2072d84eaf5fed525b15e67c2475aba243a45f233"
       },
       "no": {
         "file": "no/zone.pause.detected.1.mp3",
-        "size": 58976,
-        "sha256": "d5eab2b84b815df9da167fb8f7e17921ac42de996606f7f137a9e4cc75c6b3ad"
+        "size": 71097,
+        "sha256": "a6a88a75837bc9c0cf74fd8c13db09c98114594b3b860f79b728c19146546be1"
       }
     },
     {
       "id": "zone.pause.resumed.1",
       "en": {
         "file": "en/zone.pause.resumed.1.mp3",
-        "size": 43511,
-        "sha256": "7898bac351aa1bb4ead512ae98d6d0c2b0547f503df62bf2fd38b79ee8843976"
+        "size": 39750,
+        "sha256": "579e917d2816c52f2e4b4d7c610cd3af1ef9e04f146e0a18c622f748ea38f96a"
       },
       "no": {
         "file": "no/zone.pause.resumed.1.mp3",
-        "size": 136298,
-        "sha256": "09745b3eb2480fcc591940040e8853f175f0cdf868ff86ef6c1f28964f6011f5"
+        "size": 109549,
+        "sha256": "cd319f7702b983278aeac719b68fa7a795f1be514fe1bcb2d6ec2422825b468a"
       }
     },
     {
       "id": "zone.phase.cooldown.1",
       "en": {
         "file": "en/zone.phase.cooldown.1.mp3",
-        "size": 38078,
-        "sha256": "53064279aeb1b8b1350ff207aa8bb1a8fe5d47c3f1b18cf85b10d6899f6df88a"
+        "size": 35152,
+        "sha256": "7196ffaed37ae9850eeafee09f7e260de131dff04fb18e147c64b598175464ca"
       },
       "no": {
         "file": "no/zone.phase.cooldown.1.mp3",
-        "size": 38078,
-        "sha256": "14c63f2aa26ebcb338a70d27c23eac615309e77bcb978a166286a13917a77e24"
+        "size": 44765,
+        "sha256": "7fe4f956c91ee3dc1f8afa14aab273290939b609e7de764c5b91ce00a12cf453"
       }
     },
     {
       "id": "zone.phase.rest.1",
       "en": {
         "file": "en/zone.phase.rest.1.mp3",
-        "size": 33898,
-        "sha256": "e4166a312b8b31acd0b2fc9a448cb768d9209c28973453fba1263180700ed460"
+        "size": 28465,
+        "sha256": "e92def8909ddf345ab07d427d17d2f8674531ce9c1ae4b94a55dfe53fe4177dc"
       },
       "no": {
         "file": "no/zone.phase.rest.1.mp3",
-        "size": 39750,
-        "sha256": "2b669775b49bddca9bce0a475802e4521b172e5e845eca0e65b4a8c7321b707b"
+        "size": 28465,
+        "sha256": "a7f9c794c8915fff92911246df0dfb0ddee4674c3eec5dd5ea9a2936a4618d77"
       }
     },
     {
       "id": "zone.phase.warmup.1",
       "en": {
         "file": "en/zone.phase.warmup.1.mp3",
-        "size": 27629,
-        "sha256": "5df2568962d6916c5bf59e3bdcd324ec9e2c272f5ffac49a86ce073bedb13216"
+        "size": 26375,
+        "sha256": "a32c4283f34c8534b6a11c1a49cabe8027ac2fedb45d8f01561a238517adcf09"
       },
       "no": {
         "file": "no/zone.phase.warmup.1.mp3",
-        "size": 29301,
-        "sha256": "161e3d085d451a95d8713ff6b0b85c5f4019b70fa8ac33cb77ddd521b6632f68"
+        "size": 30973,
+        "sha256": "76f69da054ea8db4f6035340115a73034c71327ec75bd7f0485cb9014e1c1027"
       }
     },
     {
       "id": "zone.phase.work.default.1",
       "en": {
         "file": "en/zone.phase.work.default.1.mp3",
-        "size": 29301,
-        "sha256": "14a1dbd949da2cc7a35d5237f37f46e5b926c733069046c33228a2a8dada70b3"
+        "size": 30973,
+        "sha256": "ba82ad3c17dfbb6ee93d43636a1356ace910ef0e91a1e3f48e875f2286b149d8"
       },
       "no": {
         "file": "no/zone.phase.work.default.1.mp3",
-        "size": 35152,
-        "sha256": "cabab232aba7121a720d910b8880302c1717b1e1c183c528baf699e84ac50b37"
+        "size": 31391,
+        "sha256": "7829c9afb562f0040d84ee809eff6bdf0150c97b920362bed7b1b224df285184"
       }
     },
     {
       "id": "zone.phase.work.motivational.1",
       "en": {
         "file": "en/zone.phase.work.motivational.1.mp3",
-        "size": 35152,
-        "sha256": "003fe7cfe2939b9017d4137dafbe1460877a5f200e7c3bbae6addb2b0d261e37"
+        "size": 33898,
+        "sha256": "badf1cb576740192bfcc5a576da195aa7cbb32e3467e72670bdc6261a255acc4"
       },
       "no": {
         "file": "no/zone.phase.work.motivational.1.mp3",
-        "size": 74022,
-        "sha256": "1e359d9651da67d7d3a5656f924bd8dd7b8abf7ff9239484f6e58a666365518a"
+        "size": 47273,
+        "sha256": "3c1ffdfe43810354de98aa45212cbcb0242bf25a759655afd2731779916a655d"
       }
     },
     {
       "id": "zone.silence.default.1",
       "en": {
         "file": "en/zone.silence.default.1.mp3",
-        "size": 20524,
-        "sha256": "d8ef98050448f54e427d8191e9584c50d054d405155d98263644eb1fe699cf57"
+        "size": 19688,
+        "sha256": "82c5790091c3474cb5a5ad3def8f856e731a671e52a1b112a4bd2a5d52a10527"
       },
       "no": {
         "file": "no/zone.silence.default.1.mp3",
-        "size": 17598,
-        "sha256": "ca3dc9a4a4a793b4d858b6eabddb0e71c1b8e15509b90bb51d5006441bf81189"
+        "size": 18016,
+        "sha256": "b65ee7f797803c1cb6b9ebf243487ed7c074a70b92eab663e02963c4f5112976"
       }
     },
     {
       "id": "zone.silence.rest.1",
       "en": {
         "file": "en/zone.silence.rest.1.mp3",
-        "size": 27211,
-        "sha256": "ce369112a7e1176e4625c4c591ba14b042e6e2130c5de98590a7801d79aca681"
+        "size": 25539,
+        "sha256": "3ca6d99afc549dde6e7e891769190b1a567dde6322688388afbd9660c0f5507d"
       },
       "no": {
         "file": "no/zone.silence.rest.1.mp3",
         "size": 20524,
-        "sha256": "5b8716025fdda63db741f4da80a54b58c5e5c5ce21170d42a6d0da41f16c453c"
+        "sha256": "b682fee5dfb8afefa5942a7c4da6f179c1af756aa5f496e6dbb780feabbc9183"
       }
     },
     {
       "id": "zone.silence.work.1",
       "en": {
         "file": "en/zone.silence.work.1.mp3",
-        "size": 40586,
-        "sha256": "5610f5482b36944a8948b9762a783d9831cc13e57aa69dcd3aceb85a0f024ade"
+        "size": 35988,
+        "sha256": "8f310943602506f138b1f1ad62f880c61990e920cb11cf7465239951da636499"
       },
       "no": {
         "file": "no/zone.silence.work.1.mp3",
-        "size": 41839,
-        "sha256": "f0d9a4c5b4343321012df29f806b3e05d460db8de5e31acbcb15d03d212e06cc"
+        "size": 42675,
+        "sha256": "2b3fa15a7f2757c3e822fc8a1f121cb19a98521a66de8013b04d9b2f16e717d6"
       }
     },
     {
       "id": "zone.watch_disconnected.1",
       "en": {
         "file": "en/zone.watch_disconnected.1.mp3",
-        "size": 53124,
-        "sha256": "d9dc90a4a4ee264eaeb0cfe6b4efaa99e38d474490ff103b66553007d2b4d7da"
+        "size": 58140,
+        "sha256": "10f1875bd6af16244c8acf55d19454e971f5d1a123eeba6ef06d24306319b2b5"
       },
       "no": {
         "file": "no/zone.watch_disconnected.1.mp3",
-        "size": 59812,
-        "sha256": "4683bb10c1bc3921d7669b795bff56c4247416b6326578e3739288f122595a93"
+        "size": 64827,
+        "sha256": "75184efb7c86878f5a3a0ed648e1e2f3963b75b9879bc25c1e37a8f32263bf4e"
       }
     },
     {
       "id": "zone.watch_restored.1",
       "en": {
         "file": "en/zone.watch_restored.1.mp3",
-        "size": 45601,
-        "sha256": "bb4c461104f971ff6782949ffaccbd3bc17bc94036aef44aa87d958db082b318"
+        "size": 41839,
+        "sha256": "c48a3953026e1680fee58835a19d6a1b333852b06fa3c51163306afc9ce61efc"
       },
       "no": {
         "file": "no/zone.watch_restored.1.mp3",
-        "size": 62737,
-        "sha256": "0b82cbadf0f83d1ba09441556c1e90fc84f42e6fbf0b1f5e3d7f849a38931e52"
+        "size": 47273,
+        "sha256": "b5d7f0a99ff61cbde0a25db918799a7501edd4257704ff49e4c6e35d0fccd1fe"
       }
     },
     {
       "id": "zone.workout_finished.1",
       "en": {
         "file": "en/zone.workout_finished.1.mp3",
-        "size": 31391,
-        "sha256": "8efc71c7b6d971071d2acadd688386ba8811175b84a6d80b7094e10f6bdb02c2"
+        "size": 30137,
+        "sha256": "18bcc734eb7993b2ed613462041c6065819f72a837e3e739d0343357bedd011b"
       },
       "no": {
         "file": "no/zone.workout_finished.1.mp3",
-        "size": 38078,
-        "sha256": "8d520a69ef489e14fe529b7a34e0e2f78a10ee5382ef8a4e3c54c805dad5e424"
+        "size": 47691,
+        "sha256": "7e6ff2f1174d5c5f16ad716bda774636d009a2f8b81ff19ebb11f42cd84cd12a"
       }
     }
   ]

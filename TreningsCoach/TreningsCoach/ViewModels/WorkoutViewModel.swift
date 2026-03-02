@@ -1458,11 +1458,18 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private func resolvedEventPriority(for event: CoachingEvent) -> (value: Int, source: String) {
+        if let backendPriority = event.priority {
+            return (backendPriority, "backend")
+        }
+        return (eventPriority(for: event.eventType), "local_fallback")
+    }
+
     private func selectHighestPriorityEvent(from events: [CoachingEvent]) -> CoachingEvent? {
         guard !events.isEmpty else { return nil }
         return events.sorted { lhs, rhs in
-            let l = eventPriority(for: lhs.eventType)
-            let r = eventPriority(for: rhs.eventType)
+            let l = resolvedEventPriority(for: lhs).value
+            let r = resolvedEventPriority(for: rhs).value
             if l == r {
                 return lhs.ts < rhs.ts
             }
@@ -1507,7 +1514,16 @@ class WorkoutViewModel: ObservableObject {
         }
 
         // Resolve utterance ID: prefer backend-provided phrase_id, fall back to local mapping.
-        let resolvedUtterance = selected.phraseId ?? utteranceID(for: selected)
+        let payloadPhraseID = selected.phraseId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedUtterance: String?
+        if let payloadPhraseID, !payloadPhraseID.isEmpty {
+            resolvedUtterance = payloadPhraseID
+        } else {
+            resolvedUtterance = utteranceID(for: selected)
+            if let fallbackUtterance = resolvedUtterance {
+                print("🧭 EVENT_PHRASE_FALLBACK event=\(selected.eventType) utterance=\(fallbackUtterance) source=ios_mapping")
+            }
+        }
         guard let utteranceID = resolvedUtterance else {
             print("🔇 EVENT_SUPPRESSED reason=no_utterance event=\(selected.eventType)")
             lastResolvedUtteranceID = nil
@@ -1517,12 +1533,13 @@ class WorkoutViewModel: ObservableObject {
         }
 
         // Collision window: legitimate audio dedup to prevent overlapping playback.
-        let selectedPriority = selected.priority ?? eventPriority(for: selected.eventType)
+        let selectedPriorityInfo = resolvedEventPriority(for: selected)
+        let selectedPriority = selectedPriorityInfo.value
         let now = Date()
         if let lastAt = lastEventSpeechAt,
            now.timeIntervalSince(lastAt) < eventSpeechCollisionWindowSeconds,
            selectedPriority <= lastEventSpeechPriority {
-            print("🔇 EVENT_SUPPRESSED reason=collision event=\(selected.eventType) priority=\(selectedPriority) last_priority=\(lastEventSpeechPriority)")
+            print("🔇 EVENT_SUPPRESSED reason=collision event=\(selected.eventType) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source) last_priority=\(lastEventSpeechPriority)")
             return (false, "event_router_collision")
         }
 
@@ -1536,7 +1553,7 @@ class WorkoutViewModel: ObservableObject {
         }
         lastResolvedUtteranceID = utteranceID
         lastResolvedEventType = selected.eventType
-        print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority)")
+        print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source)")
         return (true, "event_router")
     }
 
