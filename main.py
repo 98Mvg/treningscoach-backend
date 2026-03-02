@@ -31,6 +31,7 @@ from auth import require_auth
 from norwegian_phrase_quality import rewrite_norwegian_phrase
 from coaching_engine import validate_coaching_text, get_template_message
 from breathing_timeline import BreathingTimeline
+from breath_reliability import summarize_breath_quality, derive_breath_quality_samples
 from running_personalization import RunningPersonalizationStore
 from zone_event_motor import (
     evaluate_zone_tick,
@@ -75,7 +76,8 @@ session_manager = SessionManager()
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
 breath_analyzer = BreathAnalyzer(
-    sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100)
+    sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100),
+    enable_mfcc=bool(getattr(config, "BREATH_ANALYSIS_ENABLE_MFCC", False)),
 )  # Advanced breath analysis with DSP + spectral features
 running_personalization = RunningPersonalizationStore(
     storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json"),
@@ -385,16 +387,11 @@ def _median(values):
 
 
 def _derive_breath_quality_samples(breath_data: dict, breath_quality_samples):
-    samples = []
-    if isinstance(breath_quality_samples, (list, tuple)):
-        for value in breath_quality_samples:
-            parsed = _coerce_float(value)
-            if parsed is not None:
-                samples.append(max(0.0, min(1.0, parsed)))
-    signal_quality = _coerce_float((breath_data or {}).get("signal_quality"))
-    if signal_quality is not None:
-        samples.append(max(0.0, min(1.0, signal_quality)))
-    return samples
+    return derive_breath_quality_samples(
+        breath_data=breath_data,
+        recent_samples=breath_quality_samples,
+        include_current_signal=True,
+    )
 
 
 def _interval_zone_compliance(zone_tick: dict):
@@ -642,16 +639,15 @@ def _compute_layered_coach_score_v2(
     breath_confidence = _normalized_fraction((breath_data or {}).get("intensity_confidence"))
     breath_score = float(_breath_score_component(breath_data))
     breath_in_play = bool(breath_enabled_by_user) and bool(mic_permission_granted)
-    quality_samples = _derive_breath_quality_samples(breath_data, breath_quality_samples)
-    breath_sample_count = len(quality_samples)
-    breath_median_quality = _median(quality_samples)
-
-    breath_available_reliable = (
-        breath_in_play
-        and breath_sample_count >= int(getattr(config, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6))
-        and breath_median_quality is not None
-        and breath_median_quality >= float(getattr(config, "CS_BREATH_MIN_RELIABLE_QUALITY", 0.35))
+    quality_summary = summarize_breath_quality(
+        breath_data=breath_data,
+        recent_samples=breath_quality_samples,
+        config_module=config,
+        include_current_signal=True,
     )
+    breath_sample_count = int(quality_summary.get("sample_count", 0))
+    breath_median_quality = quality_summary.get("median_quality")
+    breath_available_reliable = bool(breath_in_play and quality_summary.get("reliable"))
     breath_pass = (
         breath_available_reliable
         and breath_confidence >= float(getattr(config, "CS_BREATH_PASS_MIN_CONFIDENCE", 0.60))
@@ -1183,26 +1179,13 @@ def _resolve_breath_quality_state(breath_data: dict, recent_samples) -> str:
     - degraded: some signal exists but not reliable
     - unavailable: no usable signal
     """
-    samples = _derive_breath_quality_samples(breath_data, recent_samples)
-    median_quality = _median(samples)
-    sample_count = len(samples)
-    reliable_min_samples = int(getattr(config, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6))
-    reliable_min_quality = float(getattr(config, "CS_BREATH_MIN_RELIABLE_QUALITY", 0.35))
-    degraded_floor = max(0.05, min(0.30, reliable_min_quality - 0.15))
-
-    if (
-        sample_count >= reliable_min_samples
-        and median_quality is not None
-        and median_quality >= reliable_min_quality
-    ):
-        return "reliable"
-
-    current_quality = _coerce_float((breath_data or {}).get("signal_quality"))
-    if (median_quality is not None and median_quality >= degraded_floor) or (
-        current_quality is not None and current_quality >= degraded_floor
-    ):
-        return "degraded"
-    return "unavailable"
+    quality_summary = summarize_breath_quality(
+        breath_data=breath_data,
+        recent_samples=recent_samples,
+        config_module=config,
+        include_current_signal=True,
+    )
+    return str(quality_summary.get("quality_state") or "unavailable")
 
 
 def _phase_fallback_text(language: str, phase: str, elapsed_seconds: int) -> str:
@@ -2166,6 +2149,41 @@ def coach_continuous():
             "alpha": getattr(config, "BREATH_SMOOTHING_ALPHA", 0.5),
             "window": getattr(config, "BREATH_SMOOTHING_WINDOW", 4)
         }
+        recent_breath_quality_samples = [
+            item.get("signal_quality")
+            for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
+            if isinstance(item, dict) and item.get("signal_quality") is not None
+        ]
+        timeline_shadow = bool(getattr(config, "BREATHING_TIMELINE_SHADOW_MODE", True))
+        timeline_enforce = bool(getattr(config, "BREATHING_TIMELINE_ENFORCE", False))
+        timeline = None
+        breath_timeline_summary = None
+        if timeline_shadow or timeline_enforce:
+            timeline = _get_or_create_session_timeline(session_id)
+            if timeline is not None:
+                breath_timeline_summary = timeline.get_recent_summary(
+                    phase=phase,
+                    elapsed_seconds=elapsed_seconds,
+                    language=language,
+                )
+                quality_summary = summarize_breath_quality(
+                    breath_data=breath_data,
+                    recent_samples=recent_breath_quality_samples,
+                    config_module=config,
+                    include_current_signal=True,
+                )
+                breath_timeline_summary.update(
+                    {
+                        "quality_sample_count": int(quality_summary.get("sample_count", 0)),
+                        "quality_median": (
+                            float(quality_summary.get("median_quality"))
+                            if quality_summary.get("median_quality") is not None
+                            else None
+                        ),
+                        "quality_reliable": bool(quality_summary.get("reliable")),
+                    }
+                )
+                breath_data["timeline_summary"] = dict(breath_timeline_summary)
 
         # Unified runtime path: all continuous workout ticks are event-driven.
         # This removes dual ownership between legacy breath pipeline and zone events.
@@ -2198,6 +2216,7 @@ def coach_continuous():
                 config_module=config,
                 breath_intensity=breath_data.get("intensity"),
                 breath_signal_quality=breath_data.get("signal_quality"),
+                breath_summary=breath_timeline_summary,
                 session_id=session_id,
                 paused=request.form.get("paused"),
             )
@@ -2243,11 +2262,6 @@ def coach_continuous():
 
         decision_started = time.perf_counter()
         rich_followup_forced = False
-        recent_breath_quality_samples = [
-            item.get("signal_quality")
-            for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
-            if isinstance(item, dict) and item.get("signal_quality") is not None
-        ]
         breath_quality_state = _resolve_breath_quality_state(
             breath_data=breath_data,
             recent_samples=recent_breath_quality_samples,
@@ -2341,10 +2355,9 @@ def coach_continuous():
             limit=getattr(config, "BRAIN_RECENT_CUE_WINDOW", 4),
         )
         timeline_cue = None
-        timeline_shadow = bool(getattr(config, "BREATHING_TIMELINE_SHADOW_MODE", True))
-        timeline_enforce = bool(getattr(config, "BREATHING_TIMELINE_ENFORCE", False))
         if timeline_shadow or timeline_enforce:
-            timeline = _get_or_create_session_timeline(session_id)
+            if timeline is None:
+                timeline = _get_or_create_session_timeline(session_id)
             if timeline is not None:
                 timeline_cue = timeline.get_breathing_cue(
                     phase=phase,
@@ -2521,11 +2534,7 @@ def coach_continuous():
             hr_quality=hr_quality_raw,
             breath_enabled_by_user=breath_enabled_by_user,
             mic_permission_granted=mic_permission_granted,
-            breath_quality_samples=[
-                item.get("signal_quality")
-                for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
-                if isinstance(item, dict) and item.get("signal_quality") is not None
-            ],
+            breath_quality_samples=recent_breath_quality_samples,
         )
         _log_coach_score_debug_summary(
             session_id=session_id,

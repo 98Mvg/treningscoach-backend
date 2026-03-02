@@ -36,8 +36,9 @@ class BreathAnalyzer:
     7. Summary metrics (respiratory rate, regularity, I:E ratio)
     """
 
-    def __init__(self, sample_rate=44100):
+    def __init__(self, sample_rate=44100, enable_mfcc: bool = False):
         self.sample_rate = sample_rate
+        self.enable_mfcc = bool(enable_mfcc)
 
         # Frame parameters: 25ms windows, 10ms hop
         self.frame_length = int(0.025 * sample_rate)   # 1102 samples
@@ -62,8 +63,13 @@ class BreathAnalyzer:
         self.rms_smoothing_kernel = 15        # median filter kernel (~150ms at 10ms hop)
         self.energy_threshold_factor = 0.5    # fraction of mean RMS for event detection
 
-        logger.info("BreathAnalyzer initialized (sr=%d, frame=%d, hop=%d)",
-                     sample_rate, self.frame_length, self.hop_length)
+        logger.info(
+            "BreathAnalyzer initialized (sr=%d, frame=%d, hop=%d, mfcc=%s)",
+            sample_rate,
+            self.frame_length,
+            self.hop_length,
+            self.enable_mfcc,
+        )
 
     # ============================================
     # MAIN ENTRY POINT
@@ -237,14 +243,10 @@ class BreathAnalyzer:
             hop_length=self.hop_length
         )[0]
 
-        # 13 MFCCs (for future ML use + spectral shape analysis)
-        mfcc = librosa.feature.mfcc(
-            y=signal,
-            sr=self.sample_rate,
-            n_mfcc=13,
-            n_fft=self.frame_length,
-            hop_length=self.hop_length
-        )
+        # Optional MFCC extraction (kept behind flag for CPU savings).
+        mfcc = None
+        if self.enable_mfcc:
+            mfcc = self._compute_mfcc(signal)
 
         # Spectral centroid — key discriminator for inhale vs exhale
         spectral_centroid = librosa.feature.spectral_centroid(
@@ -276,6 +278,15 @@ class BreathAnalyzer:
             'zcr': zcr,
             'rolloff': rolloff,
         }
+
+    def _compute_mfcc(self, signal: np.ndarray):
+        return librosa.feature.mfcc(
+            y=signal,
+            sr=self.sample_rate,
+            n_mfcc=13,
+            n_fft=self.frame_length,
+            hop_length=self.hop_length
+        )
 
     # ============================================
     # BREATH EVENT DETECTION

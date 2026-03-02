@@ -284,6 +284,37 @@ class BreathingTimeline:
             "cue_interval": timeline["cue_interval"],
         }
 
+    def get_recent_summary(
+        self,
+        phase: str,
+        elapsed_seconds: int,
+        language: str = "en",
+    ) -> Dict:
+        """
+        Return a deterministic, non-mutating breathing summary for the current tick.
+
+        This is designed for event engines that need stable breath context without
+        consuming/advancing timeline cues.
+        """
+        timeline = BREATHING_TIMELINE.get(phase, BREATHING_TIMELINE["intense"])
+        cue_interval = int(timeline.get("cue_interval", 60))
+        elapsed = max(0, int(elapsed_seconds or 0))
+        last_cue = max(0, int(self.last_cue_time or 0))
+        time_since_last_cue = max(0, elapsed - last_cue)
+        cue_due = (self.cues_given == 0) or (time_since_last_cue >= cue_interval)
+
+        return {
+            "phase": phase,
+            "language": language if language in {"en", "no"} else "en",
+            "pattern": timeline.get("pattern", "natural"),
+            "cue_interval_seconds": cue_interval,
+            "time_since_last_cue_seconds": time_since_last_cue,
+            "cue_due": bool(cue_due),
+            "cues_given": int(self.cues_given or 0),
+            "prep_safety_given": bool(self.prep_safety_given),
+            "last_cue_time_seconds": last_cue,
+        }
+
     def reset(self):
         """Reset for a new session."""
         self.last_cue_time = 0

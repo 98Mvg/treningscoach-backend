@@ -393,3 +393,59 @@ def test_easy_run_max_silence_budget_blocks_repeated_forced_cue():
     )
     assert second_forced_attempt["should_speak"] is False
     assert second_forced_attempt["event_type"] != "max_silence_motivation"
+
+
+def test_timeline_summary_caps_max_silence_when_hr_missing():
+    state = {}
+
+    # First tick: stable HR so we get an initial spoken event and anchor silence timing.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=0.8,
+        )
+    )
+
+    # Lose HR while passing reliable breath summary from timeline.
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=0.8,
+                breath_summary={
+                    "cue_interval_seconds": 20,
+                    "cue_due": False,
+                    "quality_sample_count": 8,
+                    "quality_median": 0.62,
+                    "quality_reliable": True,
+                },
+            )
+        )
+
+    forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=34,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary={
+                "cue_interval_seconds": 20,
+                "cue_due": True,
+                "quality_sample_count": 8,
+                "quality_median": 0.62,
+                "quality_reliable": True,
+            },
+        )
+    )
+    assert forced["should_speak"] is True
+    assert forced["event_type"] == "max_silence_breath_guide"

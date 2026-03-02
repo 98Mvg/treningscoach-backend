@@ -14,6 +14,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from breath_reliability import summarize_breath_quality, is_breath_quality_reliable
+
 
 logger = logging.getLogger(__name__)
 
@@ -775,6 +777,7 @@ def _update_breath_reliability(
     *,
     state: Dict[str, Any],
     breath_signal_quality: Any,
+    breath_summary: Any,
     dt_seconds: float,
     config_module,
 ) -> bool:
@@ -786,14 +789,37 @@ def _update_breath_reliability(
     if len(samples) > max(12, max_samples):
         del samples[:-max(12, max_samples)]
 
-    required_samples = int(getattr(config_module, "CS_BREATH_MIN_RELIABLE_SAMPLES", 6))
-    required_quality = float(getattr(config_module, "CS_BREATH_MIN_RELIABLE_QUALITY", 0.35))
-    median_quality = _median(samples[-max(required_samples, 6):])
+    quality_summary = summarize_breath_quality(
+        breath_data={"signal_quality": current_quality} if current_quality is not None else {},
+        recent_samples=samples,
+        config_module=config_module,
+        include_current_signal=False,
+    )
+    required_samples = int(quality_summary.get("required_samples", 6))
+    required_quality = float(quality_summary.get("required_quality", 0.35))
+    median_quality = quality_summary.get("median_quality")
+    summary_data = breath_summary if isinstance(breath_summary, dict) else {}
+    summary_sample_count = _safe_int(summary_data.get("quality_sample_count"))
+    summary_median_quality = _safe_float(summary_data.get("quality_median"))
+    summary_reliable_hint = summary_data.get("quality_reliable")
+    summary_reliable = (
+        bool(summary_reliable_hint)
+        if isinstance(summary_reliable_hint, bool)
+        else (
+            summary_sample_count is not None
+            and is_breath_quality_reliable(
+                sample_count=summary_sample_count,
+                median_quality=summary_median_quality,
+                config_module=config_module,
+            )
+        )
+    )
     reliable_now = (
         len(samples) >= required_samples
         and median_quality is not None
         and median_quality >= required_quality
     )
+    reliable_now = bool(reliable_now or summary_reliable)
 
     reliable_streak = float(state.get("breath_reliable_streak_seconds", 0.0))
     unreliable_streak = float(state.get("breath_unreliable_streak_seconds", 0.0))
@@ -1932,6 +1958,7 @@ def evaluate_zone_tick(
     config_module,
     breath_intensity: Any = None,
     breath_signal_quality: Any = None,
+    breath_summary: Any = None,
     session_id: Optional[str] = None,
     paused: Any = None,
 ) -> Dict[str, Any]:
@@ -1977,6 +2004,7 @@ def evaluate_zone_tick(
     breath_reliable = _update_breath_reliability(
         state=state,
         breath_signal_quality=breath_signal_quality,
+        breath_summary=breath_summary,
         dt_seconds=dt_seconds,
         config_module=config_module,
     )
@@ -1988,6 +2016,12 @@ def evaluate_zone_tick(
         config_module=config_module,
     )
     sensor_mode = str(state.get("sensor_mode") or "NO_SENSORS")
+    breath_summary_data = breath_summary if isinstance(breath_summary, dict) else {}
+    breath_cue_due = bool(breath_summary_data.get("cue_due"))
+    breath_cue_interval_seconds = _safe_int(breath_summary_data.get("cue_interval_seconds"))
+    breath_quality_median = _safe_float(breath_summary_data.get("quality_median"))
+    breath_quality_sample_count = _safe_int(breath_summary_data.get("quality_sample_count"))
+    breath_quality_reliable = bool(breath_summary_data.get("quality_reliable"))
 
     target = _resolve_target(
         workout_mode=workout_mode,
@@ -2213,6 +2247,17 @@ def evaluate_zone_tick(
                 hr_missing=not hr_available,
                 config_module=config_module,
             )
+        if (
+            sensor_mode in {"BREATH_FALLBACK", "NO_SENSORS"}
+            and breath_cue_interval_seconds is not None
+            and breath_cue_interval_seconds > 0
+        ):
+            # Align no-HR fallback cadence with breathing timeline to avoid long generic silence.
+            timeline_cap = max(8, int(breath_cue_interval_seconds))
+            if breath_cue_due:
+                max_silence_seconds = min(max_silence_seconds, timeline_cap)
+            else:
+                max_silence_seconds = min(max_silence_seconds, timeline_cap + 8)
 
         last_spoken_elapsed = _safe_float(state.get("last_spoken_elapsed"))
         if last_spoken_elapsed is not None:
@@ -2433,6 +2478,11 @@ def evaluate_zone_tick(
                 "reason": reason,
                 "silence_seconds": _silence_secs,
                 "sensor_mode": sensor_mode,
+                "breath_cue_due": breath_cue_due,
+                "breath_cue_interval_seconds": breath_cue_interval_seconds,
+                "breath_quality_median": breath_quality_median,
+                "breath_quality_sample_count": breath_quality_sample_count,
+                "breath_quality_reliable": breath_quality_reliable,
                 "workout_type": canonical_workout_type,
                 "phase": canonical_phase,
                 "coaching_style": style,
@@ -2459,6 +2509,11 @@ def evaluate_zone_tick(
             "workout_type": canonical_workout_type,
             "phase": canonical_phase,
             "elapsed_seconds": int(elapsed_seconds),
+            "breath_cue_due": breath_cue_due,
+            "breath_cue_interval_seconds": breath_cue_interval_seconds,
+            "breath_quality_median": breath_quality_median,
+            "breath_quality_sample_count": breath_quality_sample_count,
+            "breath_quality_reliable": breath_quality_reliable,
         },
         "phase_id": phase_id_value,
         "sensor_mode": sensor_mode,
@@ -2482,6 +2537,11 @@ def evaluate_zone_tick(
         "cadence_spm": movement_signal.get("cadence_spm"),
         "movement_source": movement_signal.get("movement_source"),
         "movement_state": movement_state,
+        "breath_cue_due": breath_cue_due,
+        "breath_cue_interval_seconds": breath_cue_interval_seconds,
+        "breath_quality_median": breath_quality_median,
+        "breath_quality_sample_count": breath_quality_sample_count,
+        "breath_quality_reliable": breath_quality_reliable,
         "coaching_style": style,
         "score": score_payload["score"],
         "score_line": score_payload["score_line"],

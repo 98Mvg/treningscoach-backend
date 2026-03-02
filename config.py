@@ -147,6 +147,9 @@ AUDIO_PACK_VERSION = (os.getenv("AUDIO_PACK_VERSION", "v1") or "v1").strip()
 # ============================================
 # Downsample to reduce CPU and improve stability
 BREATH_ANALYSIS_SAMPLE_RATE = 16000
+# MFCC extraction is disabled by default in runtime because current coaching
+# decisions do not consume MFCC vectors.
+BREATH_ANALYSIS_ENABLE_MFCC = _env_bool("BREATH_ANALYSIS_ENABLE_MFCC", False)
 # Minimum upload size (bytes) to treat as valid audio
 BREATH_MIN_AUDIO_BYTES = 8000
 # Smoothing for breath metrics (EMA over recent history)
