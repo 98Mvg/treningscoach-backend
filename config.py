@@ -155,6 +155,33 @@ BREATH_SMOOTHING_WINDOW = 4
 # Maximum silence before forcing a coach cue (seconds)
 # 30s ensures coach doesn't disappear — users expect active coaching
 MAX_SILENCE_SECONDS = 30
+# Context-aware max-silence tuning (zone-event runtime path)
+# Keep MAX_SILENCE_SECONDS for legacy/non-event compatibility.
+CONTEXT_AWARE_MAX_SILENCE_ENABLED = _env_bool("CONTEXT_AWARE_MAX_SILENCE_ENABLED", True)
+MAX_SILENCE_EASY_RUN_BASE = _env_int("MAX_SILENCE_EASY_RUN_BASE", 60)
+MAX_SILENCE_INTERVALS_WORK = _env_int("MAX_SILENCE_INTERVALS_WORK", 30)
+MAX_SILENCE_INTERVALS_RECOVERY = _env_int("MAX_SILENCE_INTERVALS_RECOVERY", 45)
+MAX_SILENCE_RAMP_PER_10MIN = _env_int("MAX_SILENCE_RAMP_PER_10MIN", 15)
+MAX_SILENCE_HR_MISSING_MULTIPLIER = _env_float("MAX_SILENCE_HR_MISSING_MULTIPLIER", 1.5)
+MAX_SILENCE_BUDGET_EASY_RUN_SECONDS = _env_int("MAX_SILENCE_BUDGET_EASY_RUN_SECONDS", 90)
+MAX_SILENCE_INTERVAL_SUPPRESS_REMAINING = _env_int("MAX_SILENCE_INTERVAL_SUPPRESS_REMAINING", 35)
+MAX_SILENCE_INTERVAL_WORK_RAMP_SECONDS = _env_int("MAX_SILENCE_INTERVAL_WORK_RAMP_SECONDS", 12)
+
+# Motivation cooldown barrier (Tier D anti-spam)
+MOTIVATION_BARRIER_SECONDS_INTERVALS = _env_int("MOTIVATION_BARRIER_SECONDS_INTERVALS", 25)
+MOTIVATION_BARRIER_SECONDS_EASY_RUN = _env_int("MOTIVATION_BARRIER_SECONDS_EASY_RUN", 45)
+MOTIVATION_MIN_SPACING_INTERVALS = _env_int("MOTIVATION_MIN_SPACING_INTERVALS", 60)
+MOTIVATION_MIN_SPACING_EASY_RUN = _env_int("MOTIVATION_MIN_SPACING_EASY_RUN", 120)
+
+# Stage-based motivation (interval_in_target_sustained / easy_run_in_target_sustained)
+MOTIVATION_SUSTAIN_SEC_EASY = _env_int("MOTIVATION_SUSTAIN_SEC_EASY", 45)
+MOTIVATION_WORK_MIN_ELAPSED = _env_int("MOTIVATION_WORK_MIN_ELAPSED", 10)
+MOTIVATION_BARRIER_SEC = _env_int("MOTIVATION_BARRIER_SEC", 20)
+EASY_RUN_MOTIVATION_COOLDOWN = _env_int("EASY_RUN_MOTIVATION_COOLDOWN", 120)
+
+# Easy-run stage thresholds (minutes into main phase)
+EASY_RUN_STAGE_THRESHOLDS = [20, 40, 60]  # stage 1: 0-20, stage 2: 20-40, stage 3: 40-60, stage 4: 60+
+
 EARLY_WORKOUT_GRACE_SECONDS = 30  # Force coaching output during early workout
 # Minimum signal quality required to force a cue after max silence
 # Set to 0.0 so the override ALWAYS fires — phone mics are noisy during workouts
@@ -400,7 +427,7 @@ BREATHING_TIMELINE_ENFORCE = _env_bool("BREATHING_TIMELINE_ENFORCE", True)
 # ============================================
 SUPPORTED_WORKOUT_MODES = ["standard", "interval", "easy_run"]
 DEFAULT_WORKOUT_MODE = "standard"
-ZONE_COACHING_WORKOUT_MODES = ["easy_run", "interval"]
+ZONE_COACHING_WORKOUT_MODES = ["standard", "easy_run", "interval"]
 
 # Coach score rollout switch:
 # - cs_v2: new layered score (default)
