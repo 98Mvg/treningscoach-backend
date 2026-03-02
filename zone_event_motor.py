@@ -17,6 +17,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Event types that use phrase_id-based cached audio (no backend coach_text needed).
+_MOTIVATION_EVENT_TYPES = ("interval_in_target_sustained", "easy_run_in_target_sustained")
 
 _STYLE_ALIASES = {
     "easy": "minimal",
@@ -1335,6 +1337,194 @@ def _motivation_phrase_id(workout_type: str, stage: int, variant: int) -> str:
     return f"{prefix}.motivate.s{s}.{v}"
 
 
+def _evaluate_motivation_event(
+    *,
+    state: Dict[str, Any],
+    canonical_workout_type: str,
+    canonical_phase: str,
+    zone_status: str,
+    target: Dict[str, Any],
+    elapsed_seconds: int,
+    pause_flag: bool,
+    hr_ok_for_zone_events: bool,
+    target_enforced: bool,
+    sensor_mode: str,
+    event_types: List[str],
+    config_module,
+) -> Optional[str]:
+    """Evaluate whether a stage-based motivation event should fire."""
+    if pause_flag:
+        return None
+
+    is_intervals = canonical_workout_type == "intervals"
+    is_easy_run = canonical_workout_type == "easy_run"
+
+    if not (is_intervals or is_easy_run):
+        return None
+
+    # Intervals: only in work phase
+    if is_intervals and canonical_phase != "work":
+        return None
+    # Easy run: only in main phase
+    if is_easy_run and canonical_phase not in ("main", "work"):
+        return None
+
+    # Must be in-zone
+    if zone_status != "in_zone":
+        # Reset sustained counter on zone exit
+        state["motivation_in_zone_since"] = None
+        return None
+
+    # Must have HR-based zone enforcement active
+    if not (hr_ok_for_zone_events and target_enforced and sensor_mode == "FULL_HR"):
+        return None
+
+    # --- Sustained in-zone tracking ---
+    in_zone_since = _safe_float(state.get("motivation_in_zone_since"))
+    if in_zone_since is None:
+        state["motivation_in_zone_since"] = float(elapsed_seconds)
+        return None
+    sustained_seconds = float(elapsed_seconds) - in_zone_since
+
+    # --- Barrier: no high-priority event recently ---
+    barrier_sec = int(getattr(config_module, "MOTIVATION_BARRIER_SEC", 20))
+    last_high = _safe_float(state.get("last_high_priority_spoken_elapsed"))
+    if last_high is not None and (float(elapsed_seconds) - last_high) < float(barrier_sec):
+        return None
+
+    # --- Higher-priority events in this tick block motivation ---
+    motivation_priority = _event_priority("interval_in_target_sustained")
+    if any(_event_priority(e) > motivation_priority for e in event_types if e):
+        return None
+
+    if is_intervals:
+        return _evaluate_interval_motivation(
+            state=state,
+            target=target,
+            sustained_seconds=sustained_seconds,
+            elapsed_seconds=elapsed_seconds,
+            config_module=config_module,
+        )
+    else:
+        return _evaluate_easy_run_motivation(
+            state=state,
+            sustained_seconds=sustained_seconds,
+            elapsed_seconds=elapsed_seconds,
+            config_module=config_module,
+        )
+
+
+def _evaluate_interval_motivation(
+    *,
+    state: Dict[str, Any],
+    target: Dict[str, Any],
+    sustained_seconds: float,
+    elapsed_seconds: int,
+    config_module,
+) -> Optional[str]:
+    """Check slot scheduling and budget for interval work phase motivation."""
+    work_seconds = int(target.get("work_seconds") or 240)
+    segment_elapsed = int(target.get("segment_elapsed_seconds") or 0)
+    phase_id = int(state.get("phase_id", 1))
+    rep_index = int(target.get("rep_index") or 1)
+
+    # Guard: no motivation in first 10s of work (HR lag)
+    min_elapsed = int(getattr(config_module, "MOTIVATION_WORK_MIN_ELAPSED", 10))
+    if segment_elapsed < min_elapsed:
+        return None
+
+    # Sustain threshold: dynamic based on work duration
+    sustain_threshold = max(12, min(30, round(0.30 * work_seconds)))
+    if sustained_seconds < sustain_threshold:
+        return None
+
+    # Budget
+    budget = _motivation_budget(work_seconds)
+
+    # State per phase_id
+    phase_key = f"motivation_phase_{phase_id}"
+    phase_state = state.setdefault(phase_key, {"count": 0, "used_slots": set()})
+
+    # Reset if phase_id changed
+    last_motivation_phase_id = _safe_int(state.get("last_motivation_phase_id"))
+    if last_motivation_phase_id != phase_id:
+        state[phase_key] = {"count": 0, "used_slots": set()}
+        phase_state = state[phase_key]
+        state["last_motivation_phase_id"] = phase_id
+
+    if phase_state["count"] >= budget:
+        return None
+
+    # Slot check
+    slots = _motivation_slots(budget)
+    eligible_slot = None
+    for idx, frac in enumerate(slots):
+        slot_time = frac * work_seconds
+        if segment_elapsed >= slot_time and idx not in phase_state["used_slots"]:
+            eligible_slot = idx
+            break  # Take first eligible unused slot
+
+    if eligible_slot is None:
+        return None
+
+    # Fire!
+    phase_state["count"] += 1
+    phase_state["used_slots"].add(eligible_slot)
+    state["last_motivation_phase_id"] = phase_id
+
+    # Compute stage and variant
+    stage = _motivation_stage_from_rep(rep_index)
+    variant = 1 if (phase_state["count"] % 2) == 1 else 2
+    phrase_id = _motivation_phrase_id("intervals", stage=stage, variant=variant)
+
+    # Store for phrase_id resolution in event payload
+    state["_pending_motivation_phrase_id"] = phrase_id
+    state["_pending_motivation_stage"] = stage
+    state["motivation_in_zone_since"] = None  # Reset for next sustained window
+
+    return "interval_in_target_sustained"
+
+
+def _evaluate_easy_run_motivation(
+    *,
+    state: Dict[str, Any],
+    sustained_seconds: float,
+    elapsed_seconds: int,
+    config_module,
+) -> Optional[str]:
+    """Check cooldown and sustain for easy_run motivation."""
+    sustain_sec = int(getattr(config_module, "MOTIVATION_SUSTAIN_SEC_EASY", 45))
+    cooldown_sec = int(getattr(config_module, "EASY_RUN_MOTIVATION_COOLDOWN", 120))
+
+    if sustained_seconds < sustain_sec:
+        return None
+
+    # Cooldown
+    last_easy_motivation = _safe_float(state.get("last_easy_run_motivation_elapsed"))
+    if last_easy_motivation is not None and (float(elapsed_seconds) - last_easy_motivation) < float(cooldown_sec):
+        return None
+
+    # Fire!
+    state["last_easy_run_motivation_elapsed"] = float(elapsed_seconds)
+
+    # Stage from elapsed minutes
+    elapsed_minutes = max(0, elapsed_seconds // 60)
+    stage = _motivation_stage_from_elapsed(elapsed_minutes, config_module)
+
+    # Variant alternation
+    easy_run_motivation_count = int(state.get("easy_run_motivation_count", 0)) + 1
+    state["easy_run_motivation_count"] = easy_run_motivation_count
+    variant = 1 if (easy_run_motivation_count % 2) == 1 else 2
+
+    phrase_id = _motivation_phrase_id("easy_run", stage=stage, variant=variant)
+
+    state["_pending_motivation_phrase_id"] = phrase_id
+    state["_pending_motivation_stage"] = stage
+    state["motivation_in_zone_since"] = None  # Reset for next sustained window
+
+    return "easy_run_in_target_sustained"
+
+
 def _update_metrics(
     *,
     state: Dict[str, Any],
@@ -1948,6 +2138,25 @@ def evaluate_zone_tick(
         elif transition_event == "in_zone_recovered":
             event_types.append("entered_target")
 
+    # ---- Stage-based motivation events ----
+    # Fires when user holds target zone during work (intervals) or main (easy_run).
+    _motivation_event = _evaluate_motivation_event(
+        state=state,
+        canonical_workout_type=canonical_workout_type,
+        canonical_phase=canonical_phase,
+        zone_status=zone_status,
+        target=target,
+        elapsed_seconds=int(elapsed_seconds),
+        pause_flag=pause_flag,
+        hr_ok_for_zone_events=hr_ok_for_zone_events,
+        target_enforced=target_enforced,
+        sensor_mode=sensor_mode,
+        event_types=event_types,
+        config_module=config_module,
+    )
+    if _motivation_event:
+        event_types.append(_motivation_event)
+
     event_types = [event for event in event_types if event]
     event_types = sorted(event_types, key=_event_priority, reverse=True)
 
@@ -2120,8 +2329,11 @@ def evaluate_zone_tick(
                 segment=str(target.get("segment", "")),
             )
         if not coach_text:
-            should_speak = False
-            reason = "zone_no_text"
+            # Motivation events use phrase_id-based cached audio on iOS.
+            # They don't need backend-generated coach_text.
+            if primary_event not in _MOTIVATION_EVENT_TYPES:
+                should_speak = False
+                reason = "zone_no_text"
 
     max_silence_text = _event_text(
         event_type="max_silence_override",
@@ -2180,19 +2392,30 @@ def evaluate_zone_tick(
         "remaining_phase_seconds": int(remaining_phase_seconds) if remaining_phase_seconds is not None else None,
         "phase_id": phase_id_value,
     }
-    events_payload = [
-        {
+    events_payload = []
+    for event_name in event_types:
+        if event_name in _MOTIVATION_EVENT_TYPES:
+            _phrase = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
+        else:
+            _phrase = _resolve_phrase_id(event_name, canonical_phase)
+        events_payload.append({
             "event_type": event_name,
             "priority": _event_priority(event_name),
-            "phrase_id": _resolve_phrase_id(event_name, canonical_phase),
+            "phrase_id": _phrase,
             "ts": now_ts,
             "payload": dict(event_payload_base),
-        }
-        for event_name in event_types
-    ]
+        })
 
     resolved_priority = _event_priority(primary_event) if primary_event else 0
-    resolved_phrase_id = _resolve_phrase_id(primary_event, canonical_phase) if primary_event else None
+    resolved_phrase_id = (
+        state.get("_pending_motivation_phrase_id")
+        if primary_event in _MOTIVATION_EVENT_TYPES
+        else _resolve_phrase_id(primary_event, canonical_phase)
+    ) if primary_event else None
+
+    # Clean up pending motivation state
+    state.pop("_pending_motivation_phrase_id", None)
+    state.pop("_pending_motivation_stage", None)
 
     # Structured observability log — one JSON line per evaluate_zone_tick() call.
     _last_spoken = _safe_float(state.get("last_spoken_elapsed"))

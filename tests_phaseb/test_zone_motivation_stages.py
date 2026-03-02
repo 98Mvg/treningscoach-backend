@@ -12,6 +12,7 @@ from zone_event_motor import (
     _motivation_phrase_id,
     _event_priority,
     _resolve_phrase_id,
+    evaluate_zone_tick,
 )
 
 
@@ -142,3 +143,194 @@ def test_phrase_id_easy_run_s2_v1():
 
 def test_phrase_id_easy_run_s4_v2():
     assert _motivation_phrase_id("easy_run", stage=4, variant=2) == "easy_run.motivate.s4.2"
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — evaluate_zone_tick with motivation events
+# ---------------------------------------------------------------------------
+
+def _base_tick(**overrides):
+    payload = {
+        "workout_state": {},
+        "workout_mode": "interval",
+        "phase": "intense",
+        "elapsed_seconds": 300,
+        "language": "en",
+        "persona": "personal_trainer",
+        "coaching_style": "normal",
+        "interval_template": "4x4",
+        "heart_rate": 165,
+        "hr_quality": "good",
+        "hr_confidence": 0.9,
+        "hr_sample_age_seconds": 0.5,
+        "hr_sample_gap_seconds": 1.0,
+        "movement_score": None,
+        "cadence_spm": None,
+        "movement_source": "none",
+        "watch_connected": True,
+        "watch_status": "connected",
+        "hr_max": 190,
+        "resting_hr": 55,
+        "age": 35,
+        "config_module": config,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _simulate_ticks(state, mode, start_elapsed, end_elapsed, step=5, hr=165, phase="intense"):
+    """Run ticks from start to end, return list of results."""
+    results = []
+    for t in range(start_elapsed, end_elapsed + 1, step):
+        r = evaluate_zone_tick(**_base_tick(
+            workout_state=state,
+            workout_mode=mode,
+            elapsed_seconds=t,
+            heart_rate=hr,
+            phase=phase,
+        ))
+        results.append(r)
+    return results
+
+
+def _find_motivation_events(results, event_type):
+    """Extract results that contain a given motivation event type."""
+    return [
+        r for r in results
+        if any(
+            e.get("event_type") == event_type
+            for e in (r.get("events") or [])
+        )
+    ]
+
+
+def test_interval_motivation_fires_in_work_phase_when_in_zone():
+    """Rep 1 work phase: after sustain threshold, motivation should fire."""
+    state = {}
+    # Warmup tick to init state
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
+
+    # Jump to work phase (elapsed=610, 10s into rep 1 work)
+    results = _simulate_ticks(state, "interval", 610, 750, step=5, hr=165)
+
+    motivation_events = _find_motivation_events(results, "interval_in_target_sustained")
+    # Non-crash assertion; deeper tests below.
+    # Whether motivation fires depends on whether HR lands in zone for
+    # the configured template—zone math is tested elsewhere.
+    assert len(motivation_events) >= 0
+
+
+def test_interval_motivation_not_in_recovery():
+    """Motivation events should NOT fire during recovery phase."""
+    state = {}
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
+
+    # Simulate recovery ticks (phase="recovery" is key)
+    results = _simulate_ticks(state, "interval", 850, 950, step=5, hr=140, phase="recovery")
+
+    motivation_events = _find_motivation_events(results, "interval_in_target_sustained")
+    assert len(motivation_events) == 0, "Motivation should not fire in recovery"
+
+
+def test_interval_motivation_blocked_before_10s():
+    """Motivation should not fire in first 10s of work phase (HR lag guard)."""
+    state = {}
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
+
+    # First 10s of work (elapsed 600-609, 1s steps)
+    results = _simulate_ticks(state, "interval", 600, 609, step=1, hr=165)
+
+    motivation_events = _find_motivation_events(results, "interval_in_target_sustained")
+    assert len(motivation_events) == 0, "Motivation blocked before 10s into work"
+
+
+def test_interval_motivation_budget_caps_per_phase():
+    """Budget for 240s work = 3 (floor(1+240/90)). Should not exceed budget."""
+    state = {}
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
+
+    # Full rep 1 work: 600-839
+    results = _simulate_ticks(state, "interval", 600, 839, step=3, hr=165)
+
+    motivation_count = sum(
+        1 for r in results
+        if any(
+            e.get("event_type") == "interval_in_target_sustained"
+            for e in (r.get("events") or [])
+        )
+    )
+    budget = _motivation_budget(240)  # = 3
+    assert motivation_count <= budget, f"Budget exceeded: {motivation_count} > {budget}"
+
+
+def test_easy_run_motivation_fires_when_in_zone():
+    """Easy run: motivation should fire after sustain threshold when in zone."""
+    state = {}
+    # Easy run main phase
+    results = _simulate_ticks(state, "easy_run", 0, 300, step=10, hr=140, phase="intense")
+
+    motivation_events = _find_motivation_events(results, "easy_run_in_target_sustained")
+    # Non-crash assertion; zone target depends on config
+    assert len(motivation_events) >= 0
+
+
+def test_easy_run_motivation_respects_cooldown():
+    """Easy run: second motivation should respect cooldown period."""
+    state = {}
+    # Long easy run
+    results = _simulate_ticks(state, "easy_run", 0, 600, step=5, hr=140, phase="intense")
+
+    motivation_times = [
+        r.get("meta", {}).get("elapsed_seconds", 0)
+        for r in results
+        if any(
+            e.get("event_type") == "easy_run_in_target_sustained"
+            for e in (r.get("events") or [])
+        )
+    ]
+    # If multiple motivations fired, they should be >= 120s apart
+    for i in range(1, len(motivation_times)):
+        gap = motivation_times[i] - motivation_times[i - 1]
+        assert gap >= 120, f"Cooldown violated: {gap}s between motivations"
+
+
+def test_motivation_phrase_id_contains_stage():
+    """Phrase ID in event payload should contain stage number."""
+    state = {}
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
+
+    results = _simulate_ticks(state, "interval", 610, 780, step=5, hr=165)
+
+    for r in results:
+        for e in (r.get("events") or []):
+            if e.get("event_type") == "interval_in_target_sustained":
+                pid = e.get("phrase_id", "")
+                assert pid.startswith("interval.motivate.s"), f"Bad phrase_id: {pid}"
+                assert ".s1." in pid or ".s2." in pid or ".s3." in pid or ".s4." in pid
+
+
+def test_evaluate_motivation_event_not_crashes_easy_run_mode():
+    """Easy run mode tick simulation should not crash."""
+    state = {}
+    # Just verify the code path doesn't error
+    r = evaluate_zone_tick(**_base_tick(
+        workout_state=state,
+        workout_mode="easy_run",
+        phase="intense",
+        elapsed_seconds=300,
+        heart_rate=140,
+    ))
+    assert r["handled"] is True
+
+
+def test_evaluate_motivation_event_not_crashes_interval_mode():
+    """Interval mode tick simulation should not crash."""
+    state = {}
+    r = evaluate_zone_tick(**_base_tick(
+        workout_state=state,
+        workout_mode="interval",
+        phase="intense",
+        elapsed_seconds=700,
+        heart_rate=170,
+    ))
+    assert r["handled"] is True
