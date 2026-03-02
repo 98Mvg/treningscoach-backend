@@ -2220,26 +2220,29 @@ def coach_continuous():
                 session_id=session_id,
                 paused=request.form.get("paused"),
             )
-            zone_forced_text = zone_tick.get("coach_text")
-            breath_data["heart_rate"] = zone_tick.get("heart_rate")
-            breath_data["zone_status"] = zone_tick.get("zone_status")
-            breath_data["target_zone_label"] = zone_tick.get("target_zone_label")
-            breath_data["target_hr_low"] = zone_tick.get("target_hr_low")
-            breath_data["target_hr_high"] = zone_tick.get("target_hr_high")
-            breath_data["target_source"] = zone_tick.get("target_source")
-            breath_data["target_hr_enforced"] = zone_tick.get("target_hr_enforced")
-            breath_data["hr_quality"] = zone_tick.get("hr_quality")
-            breath_data["hr_quality_reasons"] = zone_tick.get("hr_quality_reasons")
-            breath_data["hr_delta_bpm"] = zone_tick.get("hr_delta_bpm")
-            breath_data["zone_duration_seconds"] = zone_tick.get("zone_duration_seconds")
-            breath_data["movement_score"] = zone_tick.get("movement_score")
-            breath_data["cadence_spm"] = zone_tick.get("cadence_spm")
-            breath_data["movement_source"] = zone_tick.get("movement_source")
-            breath_data["movement_state"] = zone_tick.get("movement_state")
-            breath_data["coaching_style"] = zone_tick.get("coaching_style")
-            breath_data["interval_template"] = zone_tick.get("interval_template")
-            breath_data["recovery_seconds"] = zone_tick.get("recovery_seconds")
-            breath_data["recovery_avg_seconds"] = zone_tick.get("recovery_avg_seconds")
+            if isinstance(zone_tick, dict):
+                zone_forced_text = zone_tick.get("coach_text")
+                breath_data["heart_rate"] = zone_tick.get("heart_rate")
+                breath_data["zone_status"] = zone_tick.get("zone_status")
+                breath_data["target_zone_label"] = zone_tick.get("target_zone_label")
+                breath_data["target_hr_low"] = zone_tick.get("target_hr_low")
+                breath_data["target_hr_high"] = zone_tick.get("target_hr_high")
+                breath_data["target_source"] = zone_tick.get("target_source")
+                breath_data["target_hr_enforced"] = zone_tick.get("target_hr_enforced")
+                breath_data["hr_quality"] = zone_tick.get("hr_quality")
+                breath_data["hr_quality_reasons"] = zone_tick.get("hr_quality_reasons")
+                breath_data["hr_delta_bpm"] = zone_tick.get("hr_delta_bpm")
+                breath_data["zone_duration_seconds"] = zone_tick.get("zone_duration_seconds")
+                breath_data["movement_score"] = zone_tick.get("movement_score")
+                breath_data["cadence_spm"] = zone_tick.get("cadence_spm")
+                breath_data["movement_source"] = zone_tick.get("movement_source")
+                breath_data["movement_state"] = zone_tick.get("movement_state")
+                breath_data["coaching_style"] = zone_tick.get("coaching_style")
+                breath_data["interval_template"] = zone_tick.get("interval_template")
+                breath_data["recovery_seconds"] = zone_tick.get("recovery_seconds")
+                breath_data["recovery_avg_seconds"] = zone_tick.get("recovery_avg_seconds")
+            else:
+                zone_tick = None
 
         # Check if this is the very first breath (welcome message)
         is_first_breath = workout_state.get("is_first_breath", False)
@@ -2276,6 +2279,7 @@ def coach_continuous():
                 zone_tick.get("reason"),
                 zone_tick.get("should_speak"),
             )
+        zone_tick_guard_silent_safe = False
         if zone_tick is not None:
             speak_decision = bool(zone_tick.get("should_speak"))
             reason = str(zone_tick.get("reason") or "zone_no_change")
@@ -2287,12 +2291,13 @@ def coach_continuous():
             )
         else:
             speak_decision = False
-            reason = "event_router_missing_zone_tick"
+            reason = "zone_tick_missing_silent_safe"
             decision_owner = "zone_event"
             zone_forced_text = None
             max_silence_override_used = False
+            zone_tick_guard_silent_safe = True
             logger.warning(
-                "Zone-event decision missing for workout tick (session=%s mode=%s phase=%s)",
+                "ZONE_GUARD silent-safe: zone_tick missing; legacy fallback disabled (session=%s mode=%s phase=%s)",
                 session_id,
                 workout_mode,
                 phase,
@@ -2608,6 +2613,7 @@ def coach_continuous():
             "reason": reason,  # For debugging
             "decision_owner": decision_owner,
             "decision_reason": reason,
+            "zone_tick_guard_silent_safe": zone_tick_guard_silent_safe,
             "breath_quality_state": breath_quality_state,
             "coach_score": coach_score,
             "coach_score_line": coach_score_line,
