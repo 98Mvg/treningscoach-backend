@@ -10,6 +10,8 @@ from zone_event_motor import (
     _motivation_budget,
     _motivation_slots,
     _motivation_phrase_id,
+    _event_priority,
+    _resolve_phrase_id,
 )
 
 
@@ -102,6 +104,32 @@ def test_slots_budget_4():
 
 
 # --- Phrase ID resolution ---
+
+# --- Event priority ---
+
+def test_interval_in_target_sustained_priority_is_55():
+    assert _event_priority("interval_in_target_sustained") == 55
+
+def test_easy_run_in_target_sustained_priority_is_55():
+    assert _event_priority("easy_run_in_target_sustained") == 55
+
+def test_motivation_priority_below_entered_target():
+    assert _event_priority("interval_in_target_sustained") < _event_priority("entered_target")
+
+def test_motivation_priority_above_max_silence_motivation():
+    assert _event_priority("interval_in_target_sustained") > _event_priority("max_silence_motivation")
+
+
+# --- Phrase ID resolution fallback ---
+
+def test_resolve_phrase_id_interval_sustained_fallback():
+    assert _resolve_phrase_id("interval_in_target_sustained", "work") == "interval.motivate.s2.1"
+
+def test_resolve_phrase_id_easy_run_sustained_fallback():
+    assert _resolve_phrase_id("easy_run_in_target_sustained", "main") == "interval.motivate.s2.1"
+
+
+# --- Phrase ID builder ---
 
 def test_phrase_id_interval_s1_v1():
     assert _motivation_phrase_id("intervals", stage=1, variant=1) == "interval.motivate.s1.1"

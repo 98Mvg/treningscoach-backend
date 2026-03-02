@@ -196,6 +196,10 @@ def _event_priority(event_type: str) -> int:
         "recovery_hr_ok_relax": 64,
         "entered_target": 60,
 
+        # Tier C.5 — stage-based motivation (positive reinforcement)
+        "interval_in_target_sustained": 55,
+        "easy_run_in_target_sustained": 55,
+
         # Tier D — motivational filler
         "max_silence_motivation": 10,
     }
@@ -275,6 +279,10 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
         return "zone.breath.easy_run.1"
     if event_type == "max_silence_motivation":
         return "motivation.1"
+    if event_type in ("interval_in_target_sustained", "easy_run_in_target_sustained"):
+        # Dynamic phrase_id is computed at emission time and stored in state.
+        # This is a static fallback for the mapping path.
+        return "interval.motivate.s2.1"
     return None
 
 
