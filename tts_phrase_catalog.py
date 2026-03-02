@@ -310,6 +310,79 @@ PHRASE_CATALOG = [
     {"id": "motivation.8", "en": "Trust the process.", "no": "Stol på prosessen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.9", "en": "Every rep matters.", "no": "Hvert steg teller.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.10", "en": "Finish what you started.", "no": "Fullfør det du begynte på.", "persona": "personal_trainer", "priority": "core"},
+
+    # -----------------------------------------------------------------
+    # NORWEGIAN-NATIVE COACHING — signature phrases from persona_manager
+    # Grouped by emotional mode: supportive → pressing → intense → peak
+    # English equivalents are tone-matched, not literal translations.
+    # -----------------------------------------------------------------
+
+    # supportive (steady, grounded)
+    {"id": "coach.no.supportive.1", "en": "Beautiful. Smooth and steady.", "no": "Nydelig. Jevnt og rolig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.2", "en": "Go for it!", "no": "Kjør på!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.3", "en": "Come on now.", "no": "Kom igjen nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.4", "en": "Good. Breathe easy.", "no": "Bra. Pust rolig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.5", "en": "Ease the pace. Good.", "no": "Senk tempoet. Godt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.6", "en": "Relax. You earned it.", "no": "Slapp av. Du fortjener det.", "persona": "personal_trainer", "priority": "core"},
+
+    # pressing (challenge, direct)
+    {"id": "coach.no.pressing.1", "en": "Come on!", "no": "Kom igjen!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.2", "en": "YES!", "no": "JA!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.3", "en": "Lovely!", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.4", "en": "Steady pressure. Stay in control.", "no": "Hold trykket jevnt. Hold kontrollen.", "persona": "personal_trainer", "priority": "core"},
+
+    # intense (demanding, short commands)
+    {"id": "coach.no.intense.1", "en": "All the way! Drive your legs!", "no": "Helt inn nå! Trøkk i beina!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.intense.2", "en": "Time to work! Smooth and strong.", "no": "Nå må du jobbe! Jevnt og godt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.intense.3", "en": "One more. Don't stop.", "no": "En til. Ikke stopp.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.intense.4", "en": "Finish the rep. Now.", "no": "Fullfør draget. Nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.intense.5", "en": "Discipline. Execute.", "no": "Disiplin. Gjennomfør.", "persona": "personal_trainer", "priority": "core"},
+
+    # peak (maximum urgency, ultra-short)
+    {"id": "coach.no.peak.1", "en": "EVERYTHING. NOW.", "no": "ALT. NÅ.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.peak.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
+
+    # -----------------------------------------------------------------
+    # INTERVAL MOTIVATION — stage-based (rep_index determines stage)
+    # Used by interval_in_target_sustained event in zone_event_motor.
+    # -----------------------------------------------------------------
+
+    # stage 1: supportive (rep 1)
+    {"id": "interval.motivate.s1.1", "en": "Beautiful. Smooth and steady.", "no": "Nydelig. Jevnt og rolig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s1.2", "en": "Good. Breathe easy.", "no": "Bra. Pust rolig.", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 2: pressing (rep 2)
+    {"id": "interval.motivate.s2.1", "en": "Come on!", "no": "Kom igjen!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s2.2", "en": "Lovely!", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 3: intense (rep 3)
+    {"id": "interval.motivate.s3.1", "en": "All the way! Drive your legs!", "no": "Helt inn nå! Trøkk i beina!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s3.2", "en": "Time to work! Smooth and strong.", "no": "Nå må du jobbe! Jevnt og godt.", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 4: peak (rep >= 4)
+    {"id": "interval.motivate.s4.1", "en": "EVERYTHING. NOW.", "no": "ALT. NÅ.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s4.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
+
+    # -----------------------------------------------------------------
+    # EASY-RUN MOTIVATION — stage-based (elapsed minutes determines stage)
+    # Used by easy_run_in_target_sustained event in zone_event_motor.
+    # -----------------------------------------------------------------
+
+    # stage 1: supportive (0–20 min)
+    {"id": "easy_run.motivate.s1.1", "en": "Go for it!", "no": "Kjør på!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s1.2", "en": "Ease the pace. Good.", "no": "Senk tempoet. Godt.", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 2: pressing (20–40 min)
+    {"id": "easy_run.motivate.s2.1", "en": "Steady pressure. Stay in control.", "no": "Hold trykket jevnt. Hold kontrollen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s2.2", "en": "YES!", "no": "JA!", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 3: intense (40–60 min)
+    {"id": "easy_run.motivate.s3.1", "en": "One more. Don't stop.", "no": "En til. Ikke stopp.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s3.2", "en": "Discipline. Execute.", "no": "Disiplin. Gjennomfør.", "persona": "personal_trainer", "priority": "core"},
+
+    # stage 4: peak (60+ min)
+    {"id": "easy_run.motivate.s4.1", "en": "Finish the rep. Now.", "no": "Fullfør draget. Nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s4.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
 ]
 
 
@@ -350,6 +423,7 @@ def get_all_static_phrases(language: str = None) -> list:
         if language:
             results.append({
                 "id": phrase["id"],
+                "language": language,
                 "text": phrase[language],
                 "persona": phrase["persona"],
                 "priority": phrase["priority"],
@@ -358,8 +432,8 @@ def get_all_static_phrases(language: str = None) -> list:
             for lang in ("en", "no"):
                 results.append({
                     "id": phrase["id"],
-                    "text": phrase[lang],
                     "language": lang,
+                    "text": phrase[lang],
                     "persona": phrase["persona"],
                     "priority": phrase["priority"],
                 })
