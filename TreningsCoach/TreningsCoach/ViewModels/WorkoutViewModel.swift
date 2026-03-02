@@ -1378,6 +1378,8 @@ class WorkoutViewModel: ObservableObject {
             return 70
         case "entered_target":
             return 60
+        case "interval_in_target_sustained", "easy_run_in_target_sustained":
+            return 55
         case "max_silence_motivation":
             return 10
         default:
@@ -1448,6 +1450,9 @@ class WorkoutViewModel: ObservableObject {
             return "zone.breath.easy_run.1"
         case "max_silence_motivation":
             return "motivation.1"
+        case "interval_in_target_sustained", "easy_run_in_target_sustained":
+            // Backend sends dynamic phrase_id via event payload; this is fallback only
+            return "interval.motivate.s2.1"
         default:
             return nil
         }
@@ -1473,33 +1478,46 @@ class WorkoutViewModel: ObservableObject {
         }
 
         // Event-capable contract:
-        // - If `events` is present (even empty), event system owns speech.
-        // - Legacy fallback is only for old payloads where `events` is missing.
+        // - Backend owns the speech/no-speech decision via should_speak.
+        // - If events array is missing, fall back to legacy audio path.
         guard let events = response.events else {
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
         }
+
+        // Backend said don't speak — respect it unconditionally.
+        guard response.shouldSpeak else {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
+            return (false, "backend_silent")
+        }
+
         guard !events.isEmpty else {
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
-            return (false, "event_router_empty")
+            // Backend says speak but no events — fall back to audio URL if available.
+            return (response.audioURL != nil, "backend_speak_no_events")
         }
 
         guard let selected = selectHighestPriorityEvent(from: events) else {
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
-            return (false, "event_router_no_event")
+            return (response.audioURL != nil, "event_router_no_event")
         }
 
-        guard let utteranceID = utteranceID(for: selected) else {
+        // Resolve utterance ID: prefer backend-provided phrase_id, fall back to local mapping.
+        let resolvedUtterance = selected.phraseId ?? utteranceID(for: selected)
+        guard let utteranceID = resolvedUtterance else {
             print("🔇 EVENT_SUPPRESSED reason=no_utterance event=\(selected.eventType)")
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
-            return (false, "event_router_no_utterance")
+            // Backend says speak — still allow audio URL fallback even without utterance mapping.
+            return (response.audioURL != nil, "event_router_no_utterance_audio_fallback")
         }
 
-        let selectedPriority = eventPriority(for: selected.eventType)
+        // Collision window: legitimate audio dedup to prevent overlapping playback.
+        let selectedPriority = selected.priority ?? eventPriority(for: selected.eventType)
         let now = Date()
         if let lastAt = lastEventSpeechAt,
            now.timeIntervalSince(lastAt) < eventSpeechCollisionWindowSeconds,
