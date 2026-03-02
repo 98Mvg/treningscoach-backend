@@ -1,5 +1,10 @@
 # 2026-02-27 Session Learnings — R2 Audio Pack Execution + Voice Safety
 
+## Follow-up (2026-03-01)
+- Manifest-sync implementation details and final operating rules now live in:
+  - [`2026-03-01-manifest-sync-audio-pack-learnings.md`](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-01-manifest-sync-audio-pack-learnings.md)
+- Treat the 2026-03-01 document as the latest source of truth for audio-pack sync behavior.
+
 ## What shipped today
 - Completed and pushed R2 audio-pack rollout artifacts:
   - `tts_phrase_catalog.py` motivation cues (`motivation.1` to `motivation.10`)

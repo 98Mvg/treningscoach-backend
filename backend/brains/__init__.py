@@ -1,8 +1,13 @@
-# Brains package
-from .base_brain import BaseBrain
-from .claude_brain import ClaudeBrain
-from .openai_brain import OpenAIBrain
-from .grok_brain import GrokBrain
-from .gemini_brain import GeminiBrain
+"""Compatibility package for root `brains` modules."""
 
-__all__ = ['BaseBrain', 'ClaudeBrain', 'OpenAIBrain', 'GrokBrain', 'GeminiBrain']
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_PATH = str(ROOT_DIR)
+if ROOT_PATH not in sys.path:
+    sys.path.insert(0, ROOT_PATH)
+
+from brains import *  # noqa: F401,F403

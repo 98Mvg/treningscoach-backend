@@ -62,7 +62,7 @@ def _fake_zone_tick(event_text: str):
         "movement_state": "moving",
         "coaching_style": "normal",
         "score": 84,
-        "score_line": "CoachScore: 84 - Solid.",
+        "score_line": "Coach score: 84 - Solid.",
         "score_confidence": "high",
         "time_in_target_pct": 78.0,
         "overshoots": 2,

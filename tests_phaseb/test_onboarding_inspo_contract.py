@@ -1,0 +1,80 @@
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ONBOARDING_VIEW = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Views"
+    / "Onboarding"
+    / "OnboardingContainerView.swift"
+)
+APP_VIEW_MODEL = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "ViewModels"
+    / "AppViewModel.swift"
+)
+
+
+def _onboarding_text() -> str:
+    return ONBOARDING_VIEW.read_text(encoding="utf-8")
+
+
+def _app_viewmodel_text() -> str:
+    return APP_VIEW_MODEL.read_text(encoding="utf-8")
+
+
+def test_onboarding_includes_full_profile_and_hr_steps() -> None:
+    text = _onboarding_text()
+    assert "case birthAndGender" in text
+    assert "case dataPurpose" in text
+    assert "case bodyMetrics" in text
+    assert "case maxHeartRate" in text
+    assert "case restingHeartRate" in text
+    assert "case enduranceHabits" in text
+    assert "case frequencyAndDuration" in text
+    assert "case summary" in text
+    assert "case result" in text
+    assert "case noSensorFallback" in text
+    assert "case notificationPermission" in text
+    assert "OnboardingFlowProgressView(" in text
+    assert "Step \\(current) of \\(total)" in text
+
+
+def test_onboarding_routes_to_profile_completion_path() -> None:
+    text = _onboarding_text()
+    assert "move(to: .dataPurpose)" in text
+    assert "onContinue: { move(to: .identity) }" in text
+    assert "onContinue: { move(to: .birthAndGender) }" in text
+    assert "let profileDraft = formState.toDraft(" in text
+    assert "appViewModel.completeOnboarding(profile: profileDraft)" in text
+
+
+def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:
+    text = _app_viewmodel_text()
+    assert "func completeOnboarding(profile: OnboardingProfileDraft)" in text
+    assert 'defaults.set(profile.hrMax, forKey: "hr_max")' in text
+    assert 'defaults.set(profile.restingHR, forKey: "resting_hr")' in text
+    assert 'defaults.set(profile.age, forKey: "user_age")' in text
+    assert 'defaults.set(profile.trainingLevel, forKey: "training_level")' in text
+    assert 'defaults.set(profile.languageCode, forKey: "app_language")' in text
+
+
+def test_app_viewmodel_retains_onboarding_optional_future_keys() -> None:
+    text = _app_viewmodel_text()
+    assert 'defaults.set(profile.heightCm, forKey: "user_height_cm")' in text
+    assert 'defaults.set(profile.weightKg, forKey: "user_weight_kg")' in text
+    assert 'defaults.set(profile.gender, forKey: "user_gender")' in text
+    assert 'defaults.set(profile.notificationsOptIn, forKey: "notifications_opt_in")' in text
+
+
+def test_reset_onboarding_clears_profile_and_hr_defaults() -> None:
+    text = _app_viewmodel_text()
+    assert 'keysToClear = [' in text
+    assert '"hr_max"' in text
+    assert '"resting_hr"' in text
+    assert '"user_age"' in text
+    assert 'keysToClear.forEach { defaults.removeObject(forKey: $0) }' in text

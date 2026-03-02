@@ -6,8 +6,10 @@ Issues JWT tokens for session management
 
 import os
 import logging
+import secrets
 import jwt
 import requests
+from pathlib import Path
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, g
@@ -15,7 +17,7 @@ from flask import request, jsonify, g
 logger = logging.getLogger(__name__)
 
 # JWT Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "treningscoach-dev-secret-change-in-production")
+DEFAULT_INSECURE_JWT_SECRET = "treningscoach-dev-secret-change-in-production"
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 30
 
@@ -23,6 +25,59 @@ JWT_EXPIRY_DAYS = 30
 # ============================================
 # JWT TOKEN MANAGEMENT
 # ============================================
+
+def _persist_runtime_jwt_secret(secret_path: Path) -> str:
+    """
+    Load a shared runtime JWT secret from disk, creating one when missing.
+
+    This keeps workers consistent without relying on a predictable default.
+    """
+    try:
+        existing = secret_path.read_text(encoding="utf-8").strip()
+        if existing:
+            return existing
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        logger.warning("Could not read JWT secret file %s: %s", secret_path, exc)
+
+    secret = secrets.token_urlsafe(48)
+
+    try:
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(secret_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(secret)
+    except FileExistsError:
+        # Another worker created it first; read canonical value.
+        try:
+            existing = secret_path.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing
+        except OSError:
+            pass
+    except OSError as exc:
+        logger.warning("Could not persist JWT secret file %s: %s", secret_path, exc)
+
+    return secret
+
+
+def _resolve_jwt_secret() -> str:
+    configured = (os.getenv("JWT_SECRET") or "").strip()
+    if configured and configured != DEFAULT_INSECURE_JWT_SECRET:
+        return configured
+
+    if configured == DEFAULT_INSECURE_JWT_SECRET:
+        logger.warning("Ignoring insecure default JWT secret from JWT_SECRET env var")
+
+    secret_file = Path((os.getenv("JWT_SECRET_FILE") or "/tmp/treningscoach_jwt_secret").strip())
+    resolved = _persist_runtime_jwt_secret(secret_file)
+    logger.warning("JWT_SECRET missing; using persisted runtime secret from %s", secret_file)
+    return resolved
+
+
+JWT_SECRET = _resolve_jwt_secret()
+
 
 def create_jwt(user_id: str, email: str = None) -> str:
     """

@@ -20,6 +20,18 @@ class _RepeatBrain:
         return "Push harder."
 
 
+class _QuestionBrain:
+    async def chat(self, messages, system_prompt=None, **kwargs):
+        _ = (messages, system_prompt, kwargs)
+        return "Training builds endurance. It strengthens your heart. It improves mood. It helps recovery too."
+
+
+class _QuestionErrorBrain:
+    async def chat(self, messages, system_prompt=None, **kwargs):
+        _ = (messages, system_prompt, kwargs)
+        return "[Error: provider timeout]"
+
+
 def test_per_brain_timeout_override_for_grok(monkeypatch):
     monkeypatch.setattr(config, "BRAIN_TIMEOUT", 1.2, raising=False)
     monkeypatch.setattr(config, "BRAIN_TIMEOUTS", {"grok": 6.0}, raising=False)
@@ -177,3 +189,79 @@ def test_fast_fallback_response_sets_route_metadata():
     assert meta["provider"] == "system"
     assert meta["source"] == "latency_fast_fallback"
     assert meta["status"] == "fast_fallback"
+
+
+def test_question_response_allows_up_to_five_sentences_when_needed(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(router, "_get_brain_instance", lambda _: _QuestionBrain())
+    monkeypatch.setattr(config, "COACH_QA_TIMEOUT_SECONDS", 2.0, raising=False)
+    monkeypatch.setattr(config, "COACH_QA_MAX_SENTENCES", 5, raising=False)
+
+    text = router.get_question_response(
+        "Why should I train?",
+        language="en",
+        persona="personal_trainer",
+        context="chat",
+    )
+    meta = router.get_last_route_meta()
+
+    assert text.count(".") <= 5
+    assert "helps recovery too" in text
+    assert meta["provider"] == "grok"
+    assert meta["source"] == "ai_qna"
+    assert meta["mode"] == "question_qa"
+
+
+def test_question_response_falls_back_when_provider_returns_error_text(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(router, "_get_brain_instance", lambda _: _QuestionErrorBrain())
+    monkeypatch.setattr(config, "COACH_QA_TIMEOUT_SECONDS", 2.0, raising=False)
+
+    text = router.get_question_response("Why train?", language="en")
+    meta = router.get_last_route_meta()
+
+    assert text.startswith("Training improves endurance")
+    assert meta["provider"] == "config"
+    assert meta["status"] == "all_question_brains_failed_or_skipped"
+
+
+def test_question_response_refuses_off_topic_questions_without_calling_ai(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(router, "_get_brain_instance", lambda _: (_ for _ in ()).throw(AssertionError("AI should not be called")))
+
+    text = router.get_question_response("Who is the president of France?", language="en")
+    meta = router.get_last_route_meta()
+
+    assert text.startswith("I stay focused on training and health")
+    assert meta["provider"] == "policy"
+    assert meta["source"] == "domain_guard"
+    assert meta["status"] == "policy_refusal_off_topic"
+
+
+def test_question_response_refuses_sexual_or_harassing_content(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "config"]
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(router, "_get_brain_instance", lambda _: (_ for _ in ()).throw(AssertionError("AI should not be called")))
+
+    text = router.get_question_response("Give me sexual tips", language="en")
+    meta = router.get_last_route_meta()
+
+    assert text.startswith("I can't help with sexual or harassing content")
+    assert meta["provider"] == "policy"
+    assert meta["source"] == "domain_guard"
+    assert meta["status"] == "policy_refusal_disallowed_topic"

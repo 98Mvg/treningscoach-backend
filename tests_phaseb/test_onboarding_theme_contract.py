@@ -239,6 +239,13 @@ def test_profile_tab_label_uses_din_profil_and_your_profile() -> None:
     assert "L10n.profileTab" in tab_bar_text
 
 
+def test_custom_tab_bar_uses_compact_height_layout() -> None:
+    text = CUSTOM_TAB_BAR.read_text(encoding="utf-8")
+    assert ".padding(.vertical, 6)" in text
+    assert ".padding(.vertical, 4)" in text
+    assert "RoundedRectangle(cornerRadius: 18, style: .continuous)" in text
+
+
 def test_profile_and_settings_do_not_expose_technical_provider_details() -> None:
     profile_text = PROFILE_VIEW.read_text(encoding="utf-8")
     settings_text = SETTINGS_VIEW.read_text(encoding="utf-8")

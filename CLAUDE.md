@@ -91,8 +91,9 @@ Tests:
 - `tests_phaseb/test_language_consistency.py`
 - `tests_phaseb/test_voice_intelligence_session_state.py`
 
-Mirror sync:
-- Keep root and `backend/` copies synchronized for all changed backend files.
+Source of truth:
+- Backend runtime source of truth is root (`main.py`, `config.py`, `brains/*.py`).
+- `backend/main.py` is a compatibility shim that imports root runtime.
 
 ### G) Validation commands to run after related edits
 
@@ -104,6 +105,28 @@ python3 -m py_compile main.py brain_router.py voice_intelligence.py brains/*.py
 If Swift touched, run Xcode build when simulator/runtime is available.
 
 Reference commit for this bundle of changes: `87414c6`.
+
+---
+
+## 0.2) Latest Session Learnings (2026-03-01) — Manifest Sync Audio Pack
+
+Primary source of truth:
+- [`docs/plans/2026-03-01-manifest-sync-audio-pack-learnings.md`](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-01-manifest-sync-audio-pack-learnings.md)
+- Claude handoff note:
+- [`docs/plans/2026-03-01-claude-handoff-manifest-sync.md`](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-01-claude-handoff-manifest-sync.md)
+
+Must-preserve decisions from this session:
+1. Manifest is source of truth for local audio-pack contents.
+2. SHA256 validation is required at both levels:
+- Manifest bytes hash for change detection.
+- Per-file hash verification before write.
+3. Never delete stale files during active workout.
+4. Version-isolated local storage (`Documents/audio_pack/{version}/...`) is required.
+5. `WorkoutViewModel` must read active pack version from sync manager first (config fallback second).
+6. Keep voice safety: persona-scoped lookup paths and no toxic/performance bleed into Personal Trainer runtime.
+7. R2 replacement/removal flow is manifest-driven:
+- Replace file: upload new MP3 + update manifest hash.
+- Remove file: remove manifest entry; stale cleanup removes local file.
 
 ---
 
@@ -143,53 +166,35 @@ iOS App plays audio through speaker
 
 ---
 
-## 2) CRITICAL: The Root vs Backend Sync Problem
+## 2) CRITICAL: Single Backend Source of Truth
 
-Render deploys from **ROOT**, not `backend/`. This has caused broken deploys before.
+Render deploys from **ROOT**. Backend runtime changes must be made in root files only.
 
 ```
 treningscoach/              ← Render deploys THIS directory
-├── main.py                 ← PRODUCTION (what Render runs via Procfile)
+├── main.py                 ← PRODUCTION + development source of truth
 ├── requirements.txt        ← PRODUCTION dependencies
 ├── Procfile                ← "web: gunicorn main:app --timeout 120 --workers 2"
-├── config.py, brain_router.py, etc.  ← All .py modules in root
-├── brains/                 ← Brain adapters (also in root)
-├── backend/                ← DEVELOPMENT copy (NOT deployed)
-│   ├── main.py             ← Edit here first
-│   ├── brains/             ← Edit here first
-│   └── requirements.txt    ← Edit here first
+├── config.py, brain_router.py, etc.  ← Runtime Python modules
+├── brains/                 ← Brain adapters
+├── backend/                ← Legacy tooling/docs + compatibility shim only
+│   └── main.py             ← Imports root main.py (do not add runtime logic here)
 └── TreningsCoach/          ← iOS app (Xcode project)
 ```
 
 ### When you change backend code, ALWAYS:
 
 ```bash
-# 1. Make changes in backend/ (the development copy)
-# 2. Sync ALL Python files to root:
-cp backend/*.py .
-cp -r backend/brains/*.py brains/
-cp backend/requirements.txt .
-# 3. Commit BOTH locations:
-git add backend/ *.py brains/ requirements.txt
+# 1. Edit root runtime files only
+# 2. Validate changed files
+python3 -m py_compile main.py config.py brain_router.py brains/*.py
+# 3. Commit changed root files
+git add main.py config.py brain_router.py brains/ requirements.txt
 git commit -m "Description of change"
 git push
 ```
 
-**If you forget to sync → deploy uses old code → nothing changes in production.**
-
-### Before committing, verify sync:
-```bash
-diff backend/main.py main.py          # Must show no differences
-diff backend/config.py config.py      # Must show no differences
-diff backend/requirements.txt requirements.txt
-```
-
-### If you detect root/backend divergence:
-1. Report the specific files that differ
-2. Propose a safe sync (copy backend/ → root)
-3. Do NOT delete anything without explicit instruction
-
-Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coaching.py, test_first_breath.py). This is expected.
+If you see older docs mentioning backend->root mirroring, treat them as historical and follow this section.
 
 ### CRITICAL: Xcode project.pbxproj is NOT in git
 
@@ -208,12 +213,11 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 - Only then propose changes
 
 ### When asked to add a new AI provider:
-1. Add a new adapter under `backend/brains/` conforming to `BaseBrain` interface
+1. Add a new adapter under `brains/` conforming to `BaseBrain` interface
 2. Add it to the router mapping in `brain_router.py`
 3. Add health checks + timeout handling
 4. Add env var for API key
 5. Update config.py BRAIN_PRIORITY list
-6. Sync to root
 
 ### When asked to change routing/switching:
 - Keep the iOS app unaware of provider selection
@@ -240,119 +244,63 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 
 ---
 
-## 4) All Backend Endpoints (19 routes in main.py)
+## 4) All Backend Endpoints (30 non-static routes total)
 
-### 1. GET `/` (line 276)
-**Purpose:** Web interface
-**Response:** HTML (templates/index.html)
-**Auth:** None
+Current route inventory:
+- `24` routes in `main.py`
+- `6` routes in `auth_routes.py` (registered as `/auth/*` blueprint)
 
-### 2. GET `/health` (line 281)
-**Purpose:** Health check + version + active brain
-**Response:** `{status, version, timestamp, endpoints}`
-**Auth:** None
+### 4a) Main App Routes (`main.py`) — 24
 
-### 3. GET `/welcome` (line 296)
-**Purpose:** Welcome message + TTS audio at workout start
-**Request params:** `?experience=beginner|intermediate|advanced&language=en|no&persona=personal_trainer|toxic_mode`
-**Response:** `{text, audio_url, category}`
-**Auth:** None
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/` | Web root (variant-resolved landing page) |
+| GET | `/preview` | Variant compare page |
+| GET | `/preview/<variant>` | Direct variant preview |
+| GET | `/health` | Health/version |
+| GET | `/tts/cache/stats` | TTS cache observability |
+| GET | `/welcome` | Welcome text + TTS audio |
+| POST | `/analyze` | Breath analysis only |
+| POST | `/coach` | Single-shot coach response |
+| POST | `/coach/continuous` | Main continuous coaching endpoint |
+| GET | `/download/<path:filename>` | Download generated audio |
+| GET | `/brain/health` | Brain health + stats |
+| POST | `/brain/switch` | Runtime brain switch |
+| POST | `/chat/start` | Create chat session |
+| POST | `/chat/stream` | SSE streaming chat |
+| POST | `/chat/message` | Non-stream chat |
+| GET | `/chat/sessions` | List sessions |
+| DELETE | `/chat/sessions/<session_id>` | Delete session |
+| GET | `/chat/personas` | List personas |
+| POST | `/coach/persona` | Switch persona mid-workout |
+| POST | `/workouts` | Save workout |
+| GET | `/workouts` | Read workouts |
+| POST | `/coach/talk` | Wake-word / conversational coach response |
+| POST | `/waitlist` | Landing waitlist capture |
+| POST | `/analytics/event` | Landing analytics ingest |
 
-### 4. POST `/analyze` (line 347)
-**Purpose:** Analyze breath audio only (no coaching)
-**Request:** multipart/form-data — `audio` file (wav/mp3/m4a, max 10MB)
-**Response:** `{intensity, volume, tempo, respiratory_rate, breath_regularity, signal_quality, ...}`
-**Auth:** None
+### 4b) Auth Blueprint Routes (`auth_routes.py`) — 6
 
-### 5. POST `/coach` (line 396)
-**Purpose:** Single-shot coaching (audio in → voice out)
-**Request:** multipart/form-data — `audio` file, `phase` (warmup|intense|cooldown), `mode` (chat|realtime_coach), `persona`
-**Response:** `{text, breath_analysis, audio_url, phase}`
-**Auth:** None
-
-### 6. POST `/coach/continuous` (line 476) — MAIN ENDPOINT
-**Purpose:** Continuous workout coaching — rapid coaching cycles
-**Request:** multipart/form-data — `audio` (6-10s chunk), `session_id` (required), `phase`, `last_coaching`, `elapsed_seconds`, `language`, `training_level`, `persona`, `workout_mode`
-**Response:** `{text, should_speak, breath_analysis, audio_url, wait_seconds, phase, workout_mode, reason, brain_provider, brain_source, brain_status, brain_mode}`
-**Auth:** None
-
-### 7. POST `/coach/talk` (line 1425)
-**Purpose:** Talk to coach — casual chat or mid-workout wake word speech
-**Request:** JSON — `{message (required), session_id, context (workout|chat), phase, intensity, persona, language}`
-**Response:** `{text, audio_url, personality}`
-**Auth:** None
-
-### 8. POST `/coach/persona` (line 1277)
-**Purpose:** Switch coach persona mid-workout
-**Request:** JSON — `{session_id, persona}`
-**Response:** `{success, persona, description}`
-**Auth:** None
-
-### 9. GET `/download/<file>` (line 900)
-**Purpose:** Download generated audio files
-**Response:** Audio file (audio/wav or audio/mpeg)
-**Auth:** None. Path traversal blocked (`..` rejected).
-
-### 10. GET `/brain/health` (line 925)
-**Purpose:** Check active AI brain status + per-brain observability
-**Response:** `{active_brain, healthy, message, brain_stats}`
-**Auth:** None
-
-### 11. POST `/brain/switch` (line 945)
-**Purpose:** Hot-swap AI brain at runtime
-**Request:** JSON — `{brain: "priority"|"claude"|"openai"|"grok"|"gemini"|"config"}`
-**Response:** `{success, active_brain, message}`
-**Auth:** None
-
-### 12. POST `/chat/start` (line 993)
-**Purpose:** Create new conversation session
-**Request:** JSON — `{user_id, persona (optional)}`
-**Response:** `{session_id, persona, persona_description, available_personas}`
-**Auth:** None
-
-### 13. POST `/chat/stream` (line 1039)
-**Purpose:** Streaming chat (SSE)
-**Request:** JSON — `{session_id, message}`
-**Response:** SSE stream — `data: {token: "..."}` ... `data: {done: true}`
-**Auth:** None. Session must exist (404 if not).
-
-### 14. POST `/chat/message` (line 1143)
-**Purpose:** Non-streaming chat (fallback)
-**Request:** JSON — `{session_id, message}`
-**Response:** `{message, session_id, persona}`
-**Auth:** None. Session must exist (404 if not).
-
-### 15. GET `/chat/sessions` (line 1210)
-**Purpose:** List sessions
-**Request params:** `?user_id=...` (optional filter)
-**Response:** `{sessions: [...]}`
-**Auth:** None
-
-### 16. DELETE `/chat/sessions/<id>` (line 1234)
-**Purpose:** Delete a session
-**Response:** `{success, session_id}`
-**Auth:** None
-
-### 17. GET `/chat/personas` (line 1246)
-**Purpose:** List available personas
-**Response:** `{personas: [{id, description}, ...]}`
-**Auth:** None
-
-### 18. POST `/workouts` (line 1324)
-**Purpose:** Save completed workout record
-**Request:** JSON — `{duration_seconds, final_phase, avg_intensity, persona_used, language}`
-**Response:** `{workout: {...}}` (201)
-**Auth:** Optional Bearer JWT → extracts user_id. Falls back to "anonymous".
-
-### 19. GET `/workouts` (line 1378)
-**Purpose:** Get workout history
-**Request params:** `?limit=20`
-**Response:** `{workouts: [...]}`
-**Auth:** Optional Bearer JWT → filters by user_id. Without auth, returns all.
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/auth/google` | Google sign-in |
+| POST | `/auth/facebook` | Facebook sign-in |
+| POST | `/auth/vipps` | Vipps sign-in |
+| GET | `/auth/me` | Get authenticated profile |
+| PUT | `/auth/me` | Update authenticated profile |
+| DELETE | `/auth/me` | Delete authenticated account |
 
 ---
 
-**Verification rule:** After any route change, confirm count = 19 (or update). Each route above includes its line number in main.py for quick lookup.
+**Verification rule:** After any route change, confirm non-static route count and update this section.
+
+```bash
+python3 - <<'PY'
+import main
+rules=[r for r in main.app.url_map.iter_rules() if r.endpoint!='static']
+print(f"TOTAL_NON_STATIC={len(rules)}")
+PY
+```
 
 ---
 
@@ -382,7 +330,8 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 
 | File | What it does | When to edit |
 |------|-------------|--------------|
-| `main.py` | Flask app, all 19 routes | Adding/changing endpoints |
+| `main.py` | Flask app (24 app routes + auth blueprint registration) | Adding/changing endpoints |
+| `auth_routes.py` | `/auth/*` provider auth + profile endpoints | Changing auth/profile behavior |
 | `config.py` | All tunable values, message banks, brain config | Changing thresholds, messages, feature flags |
 | `brain_router.py` | Priority routing across AI providers, latency tracking | Changing brain selection, timeouts, observability |
 | `brains/*.py` | AI provider adapters (grok, claude, openai, gemini) | Adding/modifying AI providers |
@@ -406,15 +355,15 @@ Note: Root has 3 test files NOT in backend/ (test_backend_audio.py, test_coachin
 ## 6) Solving Common Problems
 
 ### "Backend deployed but nothing changed"
-1. Did you sync? `diff backend/main.py main.py`
+1. Did you edit root runtime files (`main.py`, `config.py`, `brains/*`)?
 2. Did you push to `main` branch? Auto-deploy only triggers on `main`.
 3. Check Render dashboard for deploy status/errors.
 4. Verify: `curl https://treningscoach-backend.onrender.com/health`
+5. Verify guard: `./scripts/check_root_runtime.sh`
 
 ### "New dependency not found on Render"
-1. Add to `backend/requirements.txt`
-2. Sync: `cp backend/requirements.txt .` (root is what Render installs)
-3. Push.
+1. Add to root `requirements.txt`
+2. Push.
 
 ### "iOS Error -10875 (Audio Session)"
 Audio session category conflict. Fix pattern:
@@ -502,11 +451,8 @@ curl "https://treningscoach-backend.onrender.com/welcome?language=en"
 # Check active brain
 curl https://treningscoach-backend.onrender.com/brain/health
 
-# Sync backend to root
-cp backend/*.py . && cp -r backend/brains/*.py brains/ && cp backend/requirements.txt .
-
-# Verify sync
-diff backend/main.py main.py && echo "SYNCED" || echo "OUT OF SYNC!"
+# Local release smoke check
+./scripts/release_check.sh
 ```
 
 ---

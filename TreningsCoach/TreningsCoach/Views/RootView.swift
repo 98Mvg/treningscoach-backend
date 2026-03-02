@@ -20,7 +20,7 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(AppConfig.Anim.transitionSpring, value: appViewModel.hasCompletedOnboarding)
-        .preferredColorScheme(.dark)
     }
 }

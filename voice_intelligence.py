@@ -4,6 +4,7 @@
 
 from typing import Optional, Tuple, Dict
 import random
+import re
 
 
 # =============================================================================
@@ -324,6 +325,51 @@ class VoiceIntelligence:
             "pause_after": adjusted_pause_after,
             "emphasis": message_pacing.get("emphasis", [])
         }
+
+    def apply_text_rhythm(
+        self,
+        message: str,
+        language: str = "en",
+        emotional_mode: str = "supportive",
+        pacing: Optional[Dict] = None
+    ) -> str:
+        """
+        Shape text for more natural TTS rhythm using punctuation and clause breaks.
+
+        This does not change semantics. It only adds pause-friendly punctuation
+        when safe, so playback sounds less robotic.
+        """
+        if not message:
+            return message
+
+        text = re.sub(r"\s+", " ", message).strip()
+        words = text.split()
+        if len(words) <= 1:
+            return text
+
+        pacing = pacing or {}
+        pause_after = int(pacing.get("pause_after", 0))
+        has_pause_marks = any(mark in text for mark in [",", ".", "!", "?", ";", "..."])
+
+        # Add one natural clause break for medium/long single-clause cues.
+        if not has_pause_marks and len(words) >= 7:
+            split_at = 3 if len(words) <= 9 else 4
+            words.insert(split_at, ",")
+            text = " ".join(words).replace(" ,", ",")
+
+        # Ensure a sentence boundary for calm/supportive delivery.
+        if emotional_mode in ("supportive", "pressing") and text[-1] not in ".!?":
+            text = f"{text}."
+
+        # Encourage a slight release at end of line when pacing asks for it.
+        if pause_after >= 180 and text.endswith("!") and not text.endswith("!..."):
+            text = f"{text} ..."
+
+        # Norwegian stylistic touch: avoid hard exclamation spam in supportive mode.
+        if language == "no" and emotional_mode == "supportive":
+            text = re.sub(r"!{2,}", "!", text)
+
+        return text
 
     def get_elevenlabs_voice_settings(
         self,

@@ -28,6 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import config  # noqa: E402
+from coaching_engine import validate_coaching_text  # noqa: E402
 from elevenlabs_tts import ElevenLabsTTS  # noqa: E402
 from tts_phrase_catalog import (  # noqa: E402
     expand_dynamic_templates,
@@ -75,6 +76,83 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _content_hash(phrase: "PhraseItem", voice_settings: dict[str, Any]) -> str:
+    """Hash of everything that determines the generated MP3.
+
+    If any of text/language/persona/voice settings change, this hash changes
+    and the MP3 gets regenerated. No need to manually delete files.
+    """
+    payload = json.dumps(
+        {
+            "phrase_id": phrase.phrase_id,
+            "language": phrase.language,
+            "text": phrase.text,
+            "persona": phrase.persona,
+            "voice_settings": voice_settings,
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _load_build_cache(cache_path: Path) -> dict[str, str]:
+    """Load {file_key: content_hash} from build_cache.json."""
+    if cache_path.exists():
+        try:
+            return json.loads(cache_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def _save_build_cache(cache_path: Path, cache: dict[str, str]) -> None:
+    cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _validation_mode(phrase_id: str) -> str:
+    """Determine coaching_engine validation mode from phrase ID.
+
+    Welcome / notice / signal phrases allow up to 30 words (strategic).
+    Short workout cues are validated with the tighter 1-15 word realtime limit.
+    """
+    _strategic_prefixes = (
+        "welcome.",
+        "summary.",
+        "session.",
+        "workout_complete.",
+        # Signal/notice phrases are informational, not mid-rep cues
+        "zone.hr_poor",
+        "zone.watch_disconnected",
+        "zone.watch_restored",
+        "zone.no_sensors",
+    )
+    for prefix in _strategic_prefixes:
+        if phrase_id.startswith(prefix):
+            return "strategic"
+    return "realtime"
+
+
+def _validate_phrase(phrase: PhraseItem) -> tuple[bool, str]:
+    """Run coaching_engine validation on a phrase.
+
+    Returns (passed, reason) where reason is empty on success.
+    """
+    mode = _validation_mode(phrase.phrase_id)
+    passed = validate_coaching_text(
+        text=phrase.text,
+        phase="intense",
+        intensity="moderate",
+        persona=phrase.persona,
+        language=phrase.language,
+        mode=mode,
+    )
+    if not passed:
+        word_count = len(phrase.text.split())
+        limit = "1-15" if mode == "realtime" else "2-30"
+        return False, f"words={word_count} limit={limit} mode={mode}"
+    return True, ""
 
 
 def _build_phrase_list(core_only: bool) -> list[PhraseItem]:
@@ -197,6 +275,7 @@ def _generate_audio(
     sample_one: bool,
     sample_phrase_id: Optional[str],
     sample_language: str,
+    skip_validation: bool = False,
 ) -> tuple[list[PhraseItem], Path]:
     all_phrases = _build_phrase_list(core_only=core_only)
     phrases = _select_phrases_for_run(
@@ -236,14 +315,36 @@ def _generate_audio(
     tts = ElevenLabsTTS(api_key=api_key, voice_id=voice_id)
     voice_pacing = VOICE_SETTINGS.get(version, VOICE_SETTINGS["v1"])
 
+    # Build cache: content-hash per utterance detects text/voice/settings changes.
+    # Regenerates only changed phrases — no need to manually delete MP3s.
+    cache_path = output_dir / "build_cache.json"
+    build_cache = _load_build_cache(cache_path)
+
     generated = 0
     skipped = 0
+    changed = 0
+    validation_failed: list[tuple[PhraseItem, str]] = []
 
     for phrase in phrases:
+        # Coaching engine validation gate — check text before spending TTS credits.
+        if not skip_validation:
+            ok, reason = _validate_phrase(phrase)
+            if not ok:
+                validation_failed.append((phrase, reason))
+                continue
+
+        file_key = f"{phrase.language}/{phrase.phrase_id}"
         file_path = output_dir / phrase.language / f"{phrase.phrase_id}.mp3"
-        if file_path.exists() and file_path.stat().st_size > 0:
+        new_hash = _content_hash(phrase, voice_pacing)
+        cached_hash = build_cache.get(file_key)
+
+        if file_path.exists() and file_path.stat().st_size > 0 and cached_hash == new_hash:
             skipped += 1
             continue
+
+        if file_path.exists() and cached_hash != new_hash:
+            changed += 1
+
         tts.generate_audio(
             text=phrase.text,
             output_path=str(file_path),
@@ -251,10 +352,27 @@ def _generate_audio(
             persona=phrase.persona,
             voice_pacing=voice_pacing,
         )
+        build_cache[file_key] = new_hash
         generated += 1
 
-    print(f"  Generated: {generated}")
-    print(f"  Skipped existing: {skipped}")
+    # Remove stale cache entries for phrases no longer in catalog.
+    active_keys = {f"{p.language}/{p.phrase_id}" for p in phrases}
+    stale_keys = [k for k in build_cache if k not in active_keys]
+    for k in stale_keys:
+        del build_cache[k]
+
+    _save_build_cache(cache_path, build_cache)
+
+    print(f"  Generated: {generated} ({changed} changed, {generated - changed} new)")
+    print(f"  Skipped unchanged: {skipped}")
+    if validation_failed:
+        print(f"  ⚠️  Validation failed: {len(validation_failed)} phrases blocked:")
+        for failed_phrase, reason in validation_failed:
+            preview = failed_phrase.text.replace("\n", " ")[:60]
+            print(f"     BLOCKED [{failed_phrase.language}] {failed_phrase.phrase_id}: {reason}")
+            print(f"             \"{preview}\"")
+    if stale_keys:
+        print(f"  Stale cache entries removed: {len(stale_keys)}")
     return phrases, output_dir
 
 
@@ -318,6 +436,7 @@ def main() -> int:
     parser.add_argument("--sample-one", action="store_true", help="Generate only one sample MP3 (deterministic pick)")
     parser.add_argument("--sample-phrase-id", default="", help="Generate only this phrase id (requires --sample-language)")
     parser.add_argument("--sample-language", choices=list(LANGUAGES), default="en", help="Language for sample generation")
+    parser.add_argument("--skip-validation", action="store_true", help="Skip coaching_engine text validation")
     parser.add_argument("--upload", action="store_true", help="Generate then upload")
     parser.add_argument("--upload-only", action="store_true", help="Upload existing output folder only")
     args = parser.parse_args()
@@ -348,6 +467,7 @@ def main() -> int:
         sample_one=args.sample_one,
         sample_phrase_id=sample_phrase_id if sample_phrase_id else None,
         sample_language=args.sample_language,
+        skip_validation=args.skip_validation,
     )
 
     if not args.dry_run:

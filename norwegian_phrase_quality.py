@@ -99,7 +99,7 @@ def rewrite_norwegian_phrase(text: str, phase: Optional[str] = None) -> str:
         "forsiktig, fortsett å varme opp": "Rolig, fortsett oppvarmingen.",
         "vakkert": "Bra jobba.",
         "gi meg mer kraft": "Mer press nå!",
-        "trykk hardere": "Press hardere.",
+        "trykk hardere": "Trykk litt hardere.",
         "jevn opp": "Finn jevn rytme.",
         "fin rytme, behold": "Bra tempo!",
         "holdt": "Fortsett!",

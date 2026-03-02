@@ -37,24 +37,24 @@ struct CustomTabBar: View {
                 Button {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { selectedTab = tab }
                 } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 2) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 20, weight: selectedTab == tab ? .semibold : .regular))
+                            .font(.system(size: 18, weight: selectedTab == tab ? .semibold : .regular))
                             .foregroundColor(selectedTab == tab ? CoachiTheme.primary : CoachiTheme.textTertiary)
                         Text(tab.label)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(selectedTab == tab ? CoachiTheme.primary : CoachiTheme.textTertiary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                             .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity, minHeight: 24)
+                            .frame(maxWidth: .infinity, minHeight: 14)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 6)
                     .background(
                         Group {
                             if selectedTab == tab {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
                                     .fill(CoachiTheme.primary.opacity(0.1))
                                     .matchedGeometryEffect(id: "tab_bg", in: tabAnimation)
                             }
@@ -64,13 +64,14 @@ struct CustomTabBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(CoachiTheme.surface.opacity(0.95))
-                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
-                .shadow(color: Color.black.opacity(0.4), radius: 20, y: 10)
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.28), radius: 12, y: 6)
         )
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
     }
 }

@@ -2,290 +2,294 @@
 //  WorkoutCompleteView.swift
 //  TreningsCoach
 //
-//  Post-workout summary screen (neon score design)
+//  Post-workout summary screen
 //
 
 import SwiftUI
 
 struct WorkoutCompleteView: View {
     @ObservedObject var viewModel: WorkoutViewModel
+    @State private var checkmarkScale: CGFloat = 0.65
     @State private var contentVisible = false
+    @State private var displayedScore: Int = 0
+    @State private var displayedRingProgress: Double = 0
+    @State private var ringGlowPulse = false
+    @State private var hasAnimatedScore = false
+    @State private var finalDurationText = "00:00"
+    @State private var finalBPMText = "0 BPM"
 
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                completeBackground
-
-                VStack(spacing: 0) {
-                    Spacer(minLength: 42)
-
-                    ZStack {
-                        NeonScoreParticles()
-                            .frame(width: 340, height: 340)
-                        NeonCoachScoreRingView(
-                            score: viewModel.coachScore,
-                            size: min(geo.size.width * 0.62, 260)
-                        )
-                    }
-                    .opacity(contentVisible ? 1 : 0)
-                    .scaleEffect(contentVisible ? 1 : 0.94)
-
-                    VStack(spacing: 14) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "clock")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(Color(hex: "2FE3E0"))
-                            Text(durationLine)
-                                .font(.system(size: 40, weight: .medium, design: .rounded))
-                                .foregroundColor(Color.white.opacity(0.88))
-                        }
-
-                        Divider()
-                            .overlay(Color.white.opacity(0.16))
-
-                        HStack(spacing: 30) {
-                            statPill(icon: "flame.fill", color: Color(hex: "FF9C44"), text: "\(estimatedCalories) kcal")
-                            statPill(icon: "heart.fill", color: Color(hex: "2FE3E0"), text: heartRateLine)
-                        }
-
-                        if let capHint = viewModel.coachScoreCapHint {
-                            Text(capHint)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Color.white.opacity(0.62))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 10)
-                        }
-                    }
-                    .frame(maxWidth: 360)
-                    .padding(.horizontal, 28)
-                    .padding(.top, 20)
-                    .opacity(contentVisible ? 1 : 0)
-                    .offset(y: contentVisible ? 0 : 16)
-
-                    Spacer(minLength: 22)
-
-                    ShareLink(item: shareSummaryText) {
-                        Text(L10n.current == .no ? "Del" : "Share")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(Color.white.opacity(0.92))
-                            .frame(width: min(geo.size.width * 0.68, 280), height: 70)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "2FE3E0"), Color(hex: "35C8D6")],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .shadow(color: Color(hex: "2FE3E0").opacity(0.42), radius: 16, y: 0)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(contentVisible ? 1 : 0)
-
-                    Button {
-                        withAnimation(AppConfig.Anim.transitionSpring) {
-                            viewModel.resetWorkout()
-                        }
-                    } label: {
-                        Text(L10n.done)
-                            .font(.system(size: 38, weight: .regular, design: .rounded))
-                            .foregroundColor(Color.white.opacity(0.58))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 12)
-                    .opacity(contentVisible ? 1 : 0)
-                }
-                .padding(.bottom, max(24, geo.safeAreaInsets.bottom + 10))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+    private var targetScore: Int {
+        if viewModel.hasAuthoritativeCoachScore {
+            return max(0, min(100, viewModel.coachScore))
         }
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
-                contentVisible = true
-            }
-        }
+        return 0
     }
 
-    private var completeBackground: some View {
+    private var shareText: String {
+        if L10n.current == .no {
+            return "Coachi score \(targetScore) • \(finalDurationText) • \(finalBPMText)"
+        }
+        return "Coachi score \(targetScore) • \(finalDurationText) • \(finalBPMText)"
+    }
+
+    private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
+    private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
+    private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
+
+    var body: some View {
         ZStack {
-            RadialGradient(
-                colors: [Color(hex: "0E1E48"), Color(hex: "050A1E")],
-                center: .center,
-                startRadius: 40,
-                endRadius: 620
-            )
-            .ignoresSafeArea()
+            Image("OnboardingBgOutdoor")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
 
             LinearGradient(
-                colors: [Color(hex: "091436").opacity(0.96), Color(hex: "020615").opacity(0.98)],
+                colors: [Color.black.opacity(0.22), Color.black.opacity(0.42), Color.black.opacity(0.68)],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
+
+            GeometryReader { geo in
+                let verticalBudget = max(180, geo.size.height - geo.safeAreaInsets.top - geo.safeAreaInsets.bottom - 360)
+                let ringSize = min(min(geo.size.width * 0.58, verticalBudget), 246)
+                let titleSize = min(max(24, geo.size.width * 0.072), 34)
+                let metricFontSize = geo.size.width < 370 ? 15.0 : 17.0
+
+                VStack(spacing: 0) {
+                    Spacer().frame(height: max(geo.safeAreaInsets.top + 18, 44))
+
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                            .frame(width: 74, height: 74)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundColor(Color.white.opacity(0.94))
+                    }
+                    .scaleEffect(checkmarkScale)
+
+                    Text("COACH SCORE")
+                        .font(.system(size: titleSize, weight: .light, design: .default))
+                        .foregroundColor(Color.white.opacity(0.96))
+                        .tracking(1)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.top, 22)
+                        .opacity(contentVisible ? 1 : 0)
+
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.07))
+                            .frame(width: ringSize + 34, height: ringSize + 34)
+                            .blur(radius: 16)
+
+                        Circle()
+                            .stroke(Color.white.opacity(0.20), lineWidth: 14)
+                            .frame(width: ringSize, height: ringSize)
+
+                        Circle()
+                            .trim(from: 0, to: displayedRingProgress)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.97), Color(hex: "A5F3EC"), Color(hex: "67E8F9"), Color.white.opacity(0.9)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round)
+                            )
+                            .frame(width: ringSize, height: ringSize)
+                            .rotationEffect(.degrees(-90))
+                            .shadow(color: Color.white.opacity(0.24), radius: 10, y: 1)
+
+                        if displayedRingProgress > 0.01 {
+                            Circle()
+                                .fill(Color.white.opacity(0.95))
+                                .frame(width: 14, height: 14)
+                                .shadow(color: Color.white.opacity(0.64), radius: 7, y: 0)
+                                .offset(y: -ringSize / 2)
+                                .rotationEffect(.degrees(360 * displayedRingProgress - 90))
+                        }
+
+                        Text("\(displayedScore)")
+                            .font(.system(size: ringSize * 0.32, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.97))
+                            .shadow(color: .black.opacity(0.30), radius: 8, y: 2)
+                    }
+                    .frame(width: ringSize + 34, height: ringSize + 34)
+                    .padding(.top, 26)
+                    .overlay {
+                        Circle()
+                            .stroke(Color.white.opacity(0.34), lineWidth: 2.5)
+                            .blur(radius: ringGlowPulse ? 6 : 2.5)
+                            .scaleEffect(ringGlowPulse ? 1.06 : 0.98)
+                            .opacity(ringGlowPulse ? 0.58 : 0.18)
+                            .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: ringGlowPulse)
+                    }
+                    .opacity(contentVisible ? 1 : 0)
+
+                    summaryRow(metricFontSize: metricFontSize)
+                    .padding(.top, 34)
+                    .opacity(contentVisible ? 1 : 0)
+                    .frame(maxWidth: .infinity)
+
+                    Spacer()
+
+                    buttonGroup
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, max(geo.safeAreaInsets.bottom + 12, 26))
+                    .opacity(contentVisible ? 1 : 0)
+                }
+                .padding(.horizontal, 12)
+            }
+        }
+        .onAppear {
+            freezeSummaryValues()
+            withAnimation(.spring(response: 0.72, dampingFraction: 0.65).delay(0.10)) {
+                checkmarkScale = 1
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
+                contentVisible = true
+            }
+            ringGlowPulse = true
+            animateScoreIfNeeded()
         }
     }
 
-    private var finalDurationSeconds: Int {
-        max(0, viewModel.workoutHistory.first?.durationSeconds ?? 0)
+    private func freezeSummaryValues() {
+        finalDurationText = viewModel.elapsedFormatted
+        finalBPMText = viewModel.watchBPMDisplayText
     }
 
-    private var durationMinutes: Int {
-        max(0, Int(round(Double(finalDurationSeconds) / 60.0)))
-    }
+    private func animateScoreIfNeeded() {
+        guard !hasAnimatedScore else { return }
+        hasAnimatedScore = true
 
-    private var durationLine: String {
-        "\(durationMinutes) min"
-    }
-
-    private var estimatedCalories: Int {
-        let caloriesPerMinute: Double
-        switch viewModel.currentIntensity {
-        case .calm:
-            caloriesPerMinute = 6.0
-        case .moderate:
-            caloriesPerMinute = 8.0
-        case .intense:
-            caloriesPerMinute = 10.0
-        case .critical:
-            caloriesPerMinute = 11.0
+        let score = targetScore
+        guard score > 0 else {
+            displayedScore = 0
+            displayedRingProgress = 0
+            return
         }
-        return max(0, Int(round(Double(durationMinutes) * caloriesPerMinute)))
-    }
 
-    private var heartRateLine: String {
-        guard let heartRate = viewModel.heartRate, heartRate > 0 else {
-            return "0 BPM"
-        }
-        return "\(heartRate) BPM"
-    }
+        Task {
+            let animationDuration = 2.2
+            let start = CACurrentMediaTime()
+            while true {
+                let elapsed = CACurrentMediaTime() - start
+                let progress = min(max(elapsed / animationDuration, 0), 1)
+                let eased = 1 - pow(1 - progress, 3)
+                let nextScore = max(1, Int(round(Double(score) * eased)))
 
-    private var shareSummaryText: String {
-        let header = L10n.current == .no ? "Coachi økt fullført" : "Coachi workout complete"
-        let minutesText = L10n.current == .no ? "\(durationMinutes) min" : "\(durationMinutes) min"
-        let scoreText = "\(L10n.coachScore): \(viewModel.coachScore)"
-        return "\(header)\n\(scoreText)\n\(minutesText), \(estimatedCalories) kcal, \(heartRateLine)"
-    }
+                await MainActor.run {
+                    displayedScore = min(score, nextScore)
+                    displayedRingProgress = Double(displayedScore) / 100.0
+                }
 
-    private func statPill(icon: String, color: Color, text: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(color)
-            Text(text)
-                .font(.system(size: 19, weight: .medium, design: .rounded))
-                .foregroundColor(Color.white.opacity(0.78))
-                .lineLimit(1)
+                if progress >= 1 {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 16_000_000)
+            }
+
+            await MainActor.run {
+                displayedScore = score
+                displayedRingProgress = Double(score) / 100.0
+            }
         }
     }
-}
 
-private struct NeonCoachScoreRingView: View {
-    let score: Int
-    var size: CGFloat = 250
-    var lineWidth: CGFloat = 20
-    var animationDuration: Double = 2.8
-
-    @State private var displayedScore: Int = 0
-    @State private var displayedProgress: CGFloat = 0
-
-    private var clampedScore: Int {
-        max(0, min(100, score))
+    @ViewBuilder
+    private var buttonGroup: some View {
+        if UIScreen.main.bounds.width < 335 {
+            VStack(spacing: 10) {
+                doneButton
+                shareButton
+            }
+        } else {
+            HStack(spacing: 14) {
+                doneButton
+                shareButton
+            }
+        }
     }
 
-    private var targetProgress: CGFloat {
-        CGFloat(clampedScore) / 100.0
-    }
+    @ViewBuilder
+    private func summaryRow(metricFontSize: CGFloat) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 18) {
+                Label(finalBPMText, systemImage: "heart.fill")
+                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.95))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: lineWidth)
+                Text("•")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(Color(hex: "67E8F9"))
 
-            Circle()
-                .trim(from: 0, to: displayedProgress)
-                .stroke(
-                    Color(hex: "2FE3E0"),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt)
-                )
-                .rotationEffect(.degrees(-90))
-                .shadow(color: Color(hex: "2FE3E0").opacity(0.82), radius: 14)
-
-            Circle()
-                .trim(from: displayedProgress, to: 1)
-                .stroke(
-                    Color(hex: "FF9C44"),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt)
-                )
-                .rotationEffect(.degrees(-90))
-                .shadow(color: Color(hex: "FF9C44").opacity(0.68), radius: 12)
+                Text(finalDurationText)
+                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.95))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
 
             VStack(spacing: 6) {
-                Text("\(displayedScore)")
-                    .font(.system(size: size * 0.34, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.white.opacity(0.96))
-                    .monospacedDigit()
+                Label(finalBPMText, systemImage: "heart.fill")
+                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.95))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
-                Text("CS")
-                    .font(.system(size: size * 0.1, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color.white.opacity(0.5))
-                    .tracking(1.4)
+                Text(finalDurationText)
+                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.95))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-        }
-        .frame(width: size, height: size)
-        .task(id: clampedScore) {
-            await animateScore()
         }
     }
 
-    private func animateScore() async {
-        displayedScore = 0
-        displayedProgress = 0
-
-        withAnimation(.easeOut(duration: animationDuration)) {
-            displayedProgress = targetProgress
-        }
-
-        let steps = clampedScore
-        guard steps > 0 else { return }
-
-        let stepNanos = UInt64((animationDuration / Double(steps)) * 1_000_000_000)
-        let safeStepNanos = max(UInt64(10_000_000), stepNanos)
-
-        for step in 1...steps {
-            try? await Task.sleep(nanoseconds: safeStepNanos)
-            if Task.isCancelled { return }
-            displayedScore = step
+    private var doneButton: some View {
+        Button {
+            withAnimation(AppConfig.Anim.transitionSpring) {
+                viewModel.resetWorkout()
+            }
+        } label: {
+            Text(doneLabel)
+                .font(.system(size: 16, weight: .medium))
+                .tracking(0.8)
+                .foregroundColor(Color.white.opacity(0.95))
+                .frame(width: actionButtonWidth, height: 52)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "9FB08C").opacity(0.96), Color(hex: "8CA078").opacity(0.96)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
         }
     }
-}
 
-private struct NeonScoreParticles: View {
-    private let particles: [(x: CGFloat, y: CGFloat, size: CGFloat, color: Color, opacity: Double)] = [
-        (-124, -132, 6, Color(hex: "2FE3E0"), 0.9),
-        (-88, -176, 4, Color(hex: "2FE3E0"), 0.85),
-        (-30, -188, 5, Color(hex: "2FE3E0"), 0.85),
-        (18, -194, 4, Color(hex: "FF9C44"), 0.84),
-        (70, -176, 5, Color(hex: "2FE3E0"), 0.88),
-        (122, -160, 4, Color(hex: "2FE3E0"), 0.82),
-        (146, -96, 6, Color(hex: "FF9C44"), 0.88),
-        (168, -40, 5, Color(hex: "2FE3E0"), 0.86),
-        (138, 8, 6, Color(hex: "FF9C44"), 0.9),
-        (-154, -74, 4, Color(hex: "2FE3E0"), 0.82),
-        (-160, -26, 3, Color(hex: "2FE3E0"), 0.78),
-        (-132, 16, 4, Color(hex: "FF9C44"), 0.8),
-    ]
-
-    var body: some View {
-        ZStack {
-            ForEach(Array(particles.enumerated()), id: \.offset) { _, particle in
-                Circle()
-                    .fill(particle.color.opacity(particle.opacity))
-                    .frame(width: particle.size, height: particle.size)
-                    .shadow(color: particle.color.opacity(0.75), radius: particle.size * 1.8)
-                    .offset(x: particle.x, y: particle.y)
-            }
+    private var shareButton: some View {
+        ShareLink(item: shareText) {
+            Text(shareLabel)
+                .font(.system(size: 16, weight: .medium))
+                .tracking(0.8)
+                .foregroundColor(Color.white.opacity(0.92))
+                .frame(width: actionButtonWidth, height: 52)
+                .background(
+                    Capsule(style: .continuous)
+                        .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.black.opacity(0.14))
+                        )
+                )
         }
     }
 }

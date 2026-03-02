@@ -28,22 +28,30 @@ struct ParticleBackgroundView: View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             Canvas { context, size in
                 let now = timeline.date.timeIntervalSinceReferenceDate
+                guard now.isFinite else { return }
                 for particle in particles {
                     if reduceMotion {
-                        let rect = CGRect(x: particle.x * size.width, y: particle.y * size.height, width: particle.size, height: particle.size)
-                        context.opacity = particle.opacity * 0.5
+                        let width = safeLength(particle.size)
+                        let x = safeCoordinate(particle.x * size.width)
+                        let y = safeCoordinate(particle.y * size.height)
+                        let rect = CGRect(x: x, y: y, width: width, height: width)
+                        context.opacity = safeOpacity(particle.opacity * 0.5)
                         context.fill(Circle().path(in: rect), with: .color(CoachiTheme.textTertiary))
                     } else {
                         let elapsed = now * particle.speed + particle.phase
+                        guard elapsed.isFinite else { continue }
                         let yOffset = elapsed.truncatingRemainder(dividingBy: 1.2)
                         let adjustedY = (particle.y - yOffset / 1.2).truncatingRemainder(dividingBy: 1.0)
                         let finalY = adjustedY < 0 ? adjustedY + 1.0 : adjustedY
                         let xWobble = sin(elapsed * 2) * 0.01
                         let finalX = particle.x + xWobble
-                        let rect = CGRect(x: finalX * size.width, y: finalY * size.height, width: particle.size, height: particle.size)
+                        let width = safeLength(particle.size)
+                        let x = safeCoordinate(finalX * size.width)
+                        let y = safeCoordinate(finalY * size.height)
+                        let rect = CGRect(x: x, y: y, width: width, height: width)
                         let fadeEdge = min(finalY, 1.0 - finalY) * 5.0
                         let alpha = min(particle.opacity, fadeEdge)
-                        context.opacity = max(0, alpha)
+                        context.opacity = safeOpacity(alpha)
                         context.fill(Circle().path(in: rect), with: .color(CoachiTheme.textTertiary))
                     }
                 }
@@ -56,5 +64,20 @@ struct ParticleBackgroundView: View {
             }
         }
         .allowsHitTesting(false)
+    }
+
+    private func safeCoordinate(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return value
+    }
+
+    private func safeLength(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return max(0, value)
+    }
+
+    private func safeOpacity(_ value: Double) -> Double {
+        guard value.isFinite else { return 0 }
+        return max(0, min(1, value))
     }
 }

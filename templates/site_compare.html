@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coachi A/B Compare</title>
+    <style>
+        :root {
+            --bg: #0e141a;
+            --panel: #17212b;
+            --text: #f2f6fa;
+            --muted: #a2b1bf;
+            --accent: #39c4d8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+            background: linear-gradient(160deg, #0b1116, #121d28);
+            color: var(--text);
+            padding: 16px;
+        }
+
+        .wrap {
+            max-width: 1500px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: rgba(23, 33, 43, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .actions a {
+            text-decoration: none;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.17);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            transition: 140ms ease;
+        }
+
+        .actions a:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255, 255, 255, 0.33);
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            height: calc(100vh - 130px);
+        }
+
+        .pane {
+            background: rgba(23, 33, 43, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pane .head {
+            padding: 8px 10px;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.22);
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: white;
+        }
+
+        @media (max-width: 980px) {
+            .grid {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .pane {
+                min-height: 70vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <h1>Coachi A/B Website Compare</h1>
+            <div class="actions">
+                <a href="/?variant=claude" target="_blank" rel="noopener noreferrer">Open Claude Root</a>
+                <a href="/?variant=codex" target="_blank" rel="noopener noreferrer">Open Codex Root</a>
+                <a href="/health" target="_blank" rel="noopener noreferrer">Health</a>
+            </div>
+            <div class="hint">Deploy switch: set <code>WEB_UI_VARIANT=claude</code> or <code>WEB_UI_VARIANT=codex</code>.</div>
+        </div>
+
+        <div class="grid">
+            <section class="pane">
+                <div class="head">Claude Variant</div>
+                <iframe src="/preview/claude" title="Claude Variant"></iframe>
+            </section>
+            <section class="pane">
+                <div class="head">Codex Variant</div>
+                <iframe src="/preview/codex" title="Codex Variant"></iframe>
+            </section>
+        </div>
+    </div>
+</body>
+</html>

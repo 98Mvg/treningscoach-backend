@@ -16,55 +16,66 @@ struct TrainingLevelView: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        GeometryReader { geo in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: max(20, geo.size.height * 0.08))
 
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(CoachiTheme.primaryGradient)
-                .opacity(appeared ? 1 : 0)
+                    Image(systemName: "chart.bar.fill")
+                        .font(.largeTitle.weight(.light))
+                        .foregroundStyle(CoachiTheme.primaryGradient)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(L10n.trainingLevel)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .padding(.top, 20)
-                .opacity(appeared ? 1 : 0)
+                    Text(L10n.trainingLevel)
+                        .font(.title.weight(.bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 20)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(L10n.trainingLevelSubtitle)
-                .font(.system(size: 15))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
-                .opacity(appeared ? 1 : 0)
+                    Text(L10n.trainingLevelSubtitle)
+                        .font(.body)
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+                        .opacity(appeared ? 1 : 0)
 
-            VStack(spacing: 12) {
-                ForEach(TrainingLevel.allCases) { level in
-                    levelCard(level: level)
+                    VStack(spacing: 12) {
+                        ForEach(TrainingLevel.allCases) { level in
+                            levelCard(level: level)
+                        }
+                    }
+                    .padding(.top, 24)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 20)
+
+                    if let selected = selectedLevel {
+                        Button {
+                            UserDefaults.standard.set(selected.rawValue, forKey: "training_level")
+                            UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
+                            Task { await authManager.updateProfile(trainingLevel: selected) }
+                            onComplete()
+                        } label: {
+                            Text(L10n.getStarted)
+                                .font(.headline.weight(.bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(minHeight: 56)
+                                .background(CoachiTheme.primaryGradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .padding(.top, 26)
+                        .transition(.opacity)
+                    }
+
+                    Spacer(minLength: max(18, geo.size.height * 0.08))
                 }
+                .frame(minHeight: geo.size.height)
+                .padding(.horizontal, geo.size.width < 390 ? 20 : 24)
+                .padding(.top, max(20, geo.safeAreaInsets.top + 4))
+                .padding(.bottom, max(24, geo.safeAreaInsets.bottom + 8))
             }
-            .padding(.horizontal, 40).padding(.top, 28)
-            .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
-
-            if let selected = selectedLevel {
-                Button {
-                    UserDefaults.standard.set(selected.rawValue, forKey: "training_level")
-                    UserDefaults.standard.set(true, forKey: "has_completed_onboarding")
-                    Task { await authManager.updateProfile(trainingLevel: selected) }
-                    onComplete()
-                } label: {
-                    Text(L10n.getStarted)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(CoachiTheme.primaryGradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-                .padding(.horizontal, 40).padding(.top, 32)
-                .transition(.opacity)
-            }
-
-            Spacer()
         }
         .animation(.easeInOut(duration: 0.2), value: selectedLevel)
         .onAppear {
@@ -81,7 +92,7 @@ struct TrainingLevelView: View {
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: level.iconName)
-                    .font(.system(size: 18))
+                    .font(.title3)
                     .foregroundColor(cardColor)
                     .frame(width: 40, height: 40)
                     .background(cardColor.opacity(0.15))
@@ -89,12 +100,13 @@ struct TrainingLevelView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(level.displayName)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundColor(isSelected ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
 
                     Text(level.description)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundColor(CoachiTheme.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer()

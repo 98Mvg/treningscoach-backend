@@ -40,9 +40,8 @@ treningscoach/
 │   ├── openai_brain.py            # OpenAI GPT
 │   └── claude_brain.py            # Anthropic Claude
 │
-├── backend/                       # Development copy (edit here first, sync to root)
-│   ├── main.py
-│   ├── config.py
+├── backend/                       # Legacy tooling/docs; runtime source of truth is ROOT
+│   ├── main.py                    # Compatibility shim -> imports root main.py
 │   └── ...
 │
 ├── TreningsCoach/                 # iOS app (SwiftUI)
@@ -58,6 +57,8 @@ treningscoach/
 ├── Procfile                       # Gunicorn config for Render
 └── requirements.txt               # Python dependencies
 ```
+
+Production and local Flask runtime source of truth is `/Users/mariusgaarder/Documents/treningscoach/main.py`.
 
 ## 🎯 System Overview
 
@@ -100,7 +101,7 @@ Active at all times. Each phase has breathing patterns, cue intervals, and bilin
 
 ### Backend (Python/Flask)
 
-- **19 API endpoints** — workout coaching, chat, persona switching, brain management
+- **30 non-static API routes** — coaching, chat, web funnel, auth, and observability
 - **Multi-brain AI routing** — Grok, Gemini, OpenAI, Claude with priority fallback + timeout
 - **Real-time breath analysis** — librosa DSP: volume, tempo, respiratory rate, intensity
 - **ElevenLabs TTS** — `eleven_flash_v2_5` model, per-persona voices, Norwegian Bokmål support
@@ -184,35 +185,69 @@ curl "http://localhost:5001/welcome?language=en&persona=personal_trainer"
 curl http://localhost:5001/brain/health
 ```
 
+### Web Variant Compare (Claude vs Codex)
+
+```bash
+# Set root page variant (default: codex)
+export WEB_UI_VARIANT=claude   # or codex
+
+# Start backend
+PORT=5001 python3 main.py
+```
+
+- `GET /?variant=claude` → Force Claude page for this request
+- `GET /?variant=codex` → Force Codex page for this request
+- `GET /preview/claude` → Direct Claude preview
+- `GET /preview/codex` → Direct Codex preview
+- `GET /preview` → Side-by-side A/B compare page
+
 ## 🌐 Production
 
 - **Backend API:** https://treningscoach-backend.onrender.com
 - **Health Check:** https://treningscoach-backend.onrender.com/health
 - **Brain Status:** https://treningscoach-backend.onrender.com/brain/health
 
-## 📊 API Endpoints (19 routes)
+## 📊 API Endpoints (30 non-static routes)
+
+### Main App Routes (`main.py`) — 24
 
 | # | Method | Route | Purpose |
 |---|--------|-------|---------|
-| 1 | GET | `/` | Web interface |
-| 2 | GET | `/health` | Health check + version |
-| 3 | GET | `/welcome` | Welcome message + TTS audio |
-| 4 | POST | `/analyze` | Analyze breath audio |
-| 5 | POST | `/coach` | Single-shot coaching |
-| 6 | POST | `/coach/continuous` | **Main endpoint** — continuous workout coaching |
-| 7 | POST | `/coach/talk` | Talk to coach (wake word) |
-| 8 | POST | `/coach/persona` | Switch persona mid-workout |
-| 9 | GET | `/download/<file>` | Download audio files |
-| 10 | GET | `/brain/health` | Brain status + per-brain stats |
-| 11 | POST | `/brain/switch` | Hot-swap AI brain |
-| 12 | POST | `/chat/start` | Create chat session |
-| 13 | POST | `/chat/stream` | Streaming chat (SSE) |
-| 14 | POST | `/chat/message` | Non-streaming chat |
-| 15 | GET | `/chat/sessions` | List sessions |
-| 16 | DELETE | `/chat/sessions/<id>` | Delete session |
-| 17 | GET | `/chat/personas` | List personas |
-| 18 | POST | `/workouts` | Save workout record |
-| 19 | GET | `/workouts` | Get workout history |
+| 1 | GET | `/` | Web interface (variant-resolved) |
+| 2 | GET | `/preview` | Side-by-side web variant compare |
+| 3 | GET | `/preview/<variant>` | Direct web variant preview |
+| 4 | GET | `/health` | Health check + version |
+| 5 | GET | `/tts/cache/stats` | TTS cache observability |
+| 6 | GET | `/welcome` | Welcome message + TTS audio |
+| 7 | POST | `/analyze` | Analyze breath audio |
+| 8 | POST | `/coach` | Single-shot coaching |
+| 9 | POST | `/coach/continuous` | **Main endpoint** — continuous workout coaching |
+| 10 | POST | `/coach/talk` | Talk to coach (wake word/chat) |
+| 11 | POST | `/coach/persona` | Switch persona mid-workout |
+| 12 | GET | `/download/<path:filename>` | Download audio files |
+| 13 | GET | `/brain/health` | Brain status + per-brain stats |
+| 14 | POST | `/brain/switch` | Hot-swap AI brain |
+| 15 | POST | `/chat/start` | Create chat session |
+| 16 | POST | `/chat/stream` | Streaming chat (SSE) |
+| 17 | POST | `/chat/message` | Non-streaming chat |
+| 18 | GET | `/chat/sessions` | List sessions |
+| 19 | DELETE | `/chat/sessions/<session_id>` | Delete session |
+| 20 | GET | `/chat/personas` | List personas |
+| 21 | POST | `/workouts` | Save workout record |
+| 22 | GET | `/workouts` | Get workout history |
+| 23 | POST | `/waitlist` | Capture waitlist email |
+| 24 | POST | `/analytics/event` | Capture lightweight landing analytics |
+
+### Auth Routes (`auth_routes.py`) — 6
+
+| # | Method | Route | Purpose |
+|---|--------|-------|---------|
+| 25 | POST | `/auth/google` | Authenticate with Google |
+| 26 | POST | `/auth/facebook` | Authenticate with Facebook |
+| 27 | POST | `/auth/vipps` | Authenticate with Vipps |
+| 28 | GET | `/auth/me` | Get current user profile |
+| 29 | PUT | `/auth/me` | Update current user profile |
+| 30 | DELETE | `/auth/me` | Delete current user account |
 
 ## 🔧 Environment Variables
 

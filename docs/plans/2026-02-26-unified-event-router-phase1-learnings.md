@@ -18,6 +18,8 @@
 - HR loss/restored must use streak thresholds (`>=4s` lost, `>=5s` restored).
 - Countdowns must be once per `(phase_id, threshold)` and pause-safe.
 - Contract rule: `hr_bpm` is always `0` when HR is unavailable.
+- Canonical `max_silence_override` must be emitted by `zone_event_motor` (not forced in legacy branch) to prevent `event_router_empty` stalls.
+- Legacy movement/cadence fallback cue types (`pause_detected`, `pause_resumed`, `below_zone_push`, `above_zone_ease`) stay disabled for speech until reintroduced as canonical events with budgets.
 
 ## Rollout
 - Use flags: `UNIFIED_EVENT_ROUTER_ENABLED`, `UNIFIED_EVENT_ROUTER_SHADOW`, `IOS_EVENT_SPEECH_ENABLED`.

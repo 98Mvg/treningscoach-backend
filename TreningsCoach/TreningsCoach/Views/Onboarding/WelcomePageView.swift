@@ -12,39 +12,46 @@ struct WelcomePageView: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        GeometryReader { geo in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    Spacer(minLength: max(24, geo.size.height * 0.15))
 
-            CoachiLogoView(size: 120, animated: true)
-                .opacity(appeared ? 1 : 0)
+                    CoachiLogoView(size: 120, animated: true)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(AppConfig.appName)
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .padding(.top, 24)
-                .opacity(appeared ? 1 : 0)
+                    Text(AppConfig.appName)
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(AppConfig.appTagline)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .padding(.top, 8)
-                .opacity(appeared ? 1 : 0)
+                    Text(AppConfig.appTagline)
+                        .font(.body.weight(.medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .opacity(appeared ? 1 : 0)
 
-            Spacer()
+                    Spacer(minLength: max(24, geo.size.height * 0.2))
 
-            Button(action: onContinue) {
-                Text(L10n.getStarted)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(CoachiTheme.primaryGradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    Button(action: onContinue) {
+                        Text(L10n.getStarted)
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 56)
+                            .background(CoachiTheme.primaryGradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .opacity(appeared ? 1 : 0)
+                }
+                .frame(minHeight: geo.size.height)
+                .padding(.horizontal, geo.size.width < 390 ? 20 : 24)
+                .padding(.top, max(20, geo.safeAreaInsets.top + 4))
+                .padding(.bottom, max(24, geo.safeAreaInsets.bottom + 8))
+                .frame(width: geo.size.width, alignment: .top)
             }
-            .padding(.horizontal, 40)
-            .opacity(appeared ? 1 : 0)
-
-            Spacer().frame(height: 60)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.8).delay(0.2)) { appeared = true }

@@ -23,123 +23,143 @@ struct AuthView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                Spacer().frame(height: 24)
+        GeometryReader { geo in
+            let renderWidth = geo.size.width
+            let renderHeight = geo.size.height
+            let deviceWidth = UIScreen.main.bounds.width
+            let layoutWidth = min(min(renderWidth, deviceWidth), 500)
+            let sidePadding = layoutWidth < 390 ? 16.0 : 20.0
+            let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
+            // Cap bottom inset so keyboard safe-area growth does not shove content upward.
+            let bottomInset = min(42.0, max(24.0, geo.safeAreaInsets.bottom + 10.0))
 
-                Text(L10n.signIn)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .opacity(appeared ? 1 : 0)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: max(18.0, geo.safeAreaInsets.top + 8.0))
 
-                VStack(spacing: 12) {
-                    socialButton(title: L10n.registerWithApple, icon: "applelogo") {
-                        onContinue()
-                    }
-                    socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
-                        onContinue()
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .opacity(appeared ? 1 : 0)
-                .offset(y: appeared ? 0 : 16)
-
-                HStack(spacing: 12) {
-                    Rectangle()
-                        .fill(CoachiTheme.textTertiary.opacity(0.35))
-                        .frame(height: 1)
-                    Text(L10n.or)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                    Rectangle()
-                        .fill(CoachiTheme.textTertiary.opacity(0.35))
-                        .frame(height: 1)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L10n.signInSubtitle)
-                        .font(.system(size: 17, weight: .semibold))
+                    Text(L10n.signIn)
+                        .font(.largeTitle.weight(.bold))
                         .foregroundColor(CoachiTheme.textPrimary)
-                        .padding(.bottom, 4)
+                        .opacity(appeared ? 1 : 0)
+                        .frame(width: contentWidth, alignment: .center)
 
-                    onboardingInputField(
-                        placeholder: L10n.emailAddress,
-                        text: $email,
-                        keyboard: .emailAddress,
-                        contentType: .emailAddress
-                    )
-
-                    onboardingSecureInputField(
-                        placeholder: L10n.passwordLabel,
-                        text: $password,
-                        contentType: .password
-                    )
-
-                    onboardingSecureInputField(
-                        placeholder: L10n.repeatPasswordLabel,
-                        text: $repeatPassword,
-                        contentType: .newPassword
-                    )
-
-                    Button {
-                        acceptedTerms.toggle()
-                    } label: {
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(acceptedTerms ? CoachiTheme.primary : CoachiTheme.textSecondary)
-                                .padding(.top, 1)
-                            Text(L10n.acceptTerms)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                                .multilineTextAlignment(.leading)
-                            Spacer(minLength: 0)
+                    VStack(spacing: 12) {
+                        socialButton(title: L10n.registerWithApple, icon: "applelogo") {
+                            onContinue()
+                        }
+                        socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
+                            onContinue()
                         }
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 2)
+                    .frame(width: contentWidth, alignment: .center)
+                    .padding(.top, 24)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 16)
 
-                    Button(action: onContinue) {
-                        Text(L10n.register)
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(canRegisterWithEmail ? .white : CoachiTheme.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(
-                                canRegisterWithEmail
-                                    ? AnyView(CoachiTheme.primaryGradient)
-                                    : AnyView(Color.white.opacity(0.08))
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    HStack(spacing: 12) {
+                        Rectangle()
+                            .fill(CoachiTheme.textTertiary.opacity(0.35))
+                            .frame(height: 1)
+                        Text(L10n.or)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                        Rectangle()
+                            .fill(CoachiTheme.textTertiary.opacity(0.35))
+                            .frame(height: 1)
                     }
-                    .disabled(!canRegisterWithEmail)
-                    .padding(.top, 4)
+                    .frame(width: contentWidth, alignment: .center)
+                    .padding(.top, 20)
 
-                    Button(action: onContinue) {
-                        Text(L10n.alreadyHaveUser)
-                            .font(.system(size: 16, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(L10n.signInSubtitle)
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(CoachiTheme.textPrimary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                    }
-                }
-                .padding(20)
-                .background(CoachiTheme.surface.opacity(0.95))
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                )
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-                .opacity(appeared ? 1 : 0)
-                .offset(y: appeared ? 0 : 18)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.bottom, 4)
 
-                Spacer().frame(height: 30)
+                        onboardingInputField(
+                            placeholder: L10n.emailAddress,
+                            text: $email,
+                            keyboard: .emailAddress,
+                            contentType: .emailAddress
+                        )
+
+                        onboardingSecureInputField(
+                            placeholder: L10n.passwordLabel,
+                            text: $password,
+                            contentType: .password
+                        )
+
+                        onboardingSecureInputField(
+                            placeholder: L10n.repeatPasswordLabel,
+                            text: $repeatPassword,
+                            contentType: .newPassword
+                        )
+
+                        Button {
+                            acceptedTerms.toggle()
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: acceptedTerms ? "checkmark.square.fill" : "square")
+                                    .font(.title3.weight(.medium))
+                                    .foregroundColor(acceptedTerms ? CoachiTheme.primary : CoachiTheme.textSecondary)
+                                    .padding(.top, 1)
+                                Text(L10n.acceptTerms)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 2)
+
+                        Button(action: onContinue) {
+                            Text(L10n.register)
+                                .font(.headline.weight(.bold))
+                                .foregroundColor(canRegisterWithEmail ? .white : CoachiTheme.textSecondary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(
+                                    canRegisterWithEmail
+                                        ? AnyView(CoachiTheme.primaryGradient)
+                                        : AnyView(CoachiTheme.surfaceElevated.opacity(0.85))
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .disabled(!canRegisterWithEmail)
+                        .padding(.top, 4)
+
+                        Button(action: onContinue) {
+                            Text(L10n.alreadyHaveUser)
+                                .font(.body.weight(.semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                        }
+                    }
+                    .padding(20)
+                    .background(CoachiTheme.surface.opacity(0.95))
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
+                    )
+                    .frame(width: contentWidth, alignment: .center)
+                    .padding(.top, 18)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 18)
+
+                    Spacer().frame(height: bottomInset)
+                }
+                .frame(width: layoutWidth, alignment: .top)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+            .frame(width: layoutWidth, height: renderHeight, alignment: .top)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
         .onTapGesture { hideKeyboard() }
         .onAppear {
@@ -151,18 +171,22 @@ struct AuthView: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundColor(.black)
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
                     .frame(width: 22)
                 Text(title)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.black)
+                    .font(.body.weight(.bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
                 Spacer()
             }
             .padding(.horizontal, 18)
             .frame(height: 54)
-            .background(Color.white)
+            .background(CoachiTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+            )
         }
     }
 
@@ -173,7 +197,7 @@ struct AuthView: View {
         contentType: UITextContentType?
     ) -> some View {
         TextField("", text: text, prompt: Text(placeholder).foregroundColor(CoachiTheme.textTertiary))
-            .font(.system(size: 16, weight: .medium))
+            .font(.body.weight(.medium))
             .foregroundColor(CoachiTheme.textPrimary)
             .keyboardType(keyboard)
             .textInputAutocapitalization(.never)
@@ -181,11 +205,11 @@ struct AuthView: View {
             .textContentType(contentType)
             .padding(.horizontal, 14)
             .frame(height: 50)
-            .background(Color.white.opacity(0.04))
+            .background(CoachiTheme.surfaceElevated.opacity(0.65))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
             )
     }
 
@@ -195,16 +219,16 @@ struct AuthView: View {
         contentType: UITextContentType?
     ) -> some View {
         SecureField("", text: text, prompt: Text(placeholder).foregroundColor(CoachiTheme.textTertiary))
-            .font(.system(size: 16, weight: .medium))
+            .font(.body.weight(.medium))
             .foregroundColor(CoachiTheme.textPrimary)
             .textContentType(contentType)
             .padding(.horizontal, 14)
             .frame(height: 50)
-            .background(Color.white.opacity(0.04))
+            .background(CoachiTheme.surfaceElevated.opacity(0.65))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
             )
     }
 

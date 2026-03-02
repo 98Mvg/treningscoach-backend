@@ -228,8 +228,13 @@ class WakeWordManager: ObservableObject {
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
+            guard self.isCapturingUtterance else { return }
 
             if let error = error {
+                let canceled = self.isCancellationLikeError(error)
+                if canceled {
+                    return
+                }
                 if self.isNoSpeechError(error) {
                     print("⚠️ Capture speech recognition error: No speech detected")
                 } else {
@@ -343,8 +348,15 @@ class WakeWordManager: ObservableObject {
             guard let self = self else { return }
 
             if let error = error {
+                let canceled = self.isCancellationLikeError(error)
                 let detail = error.localizedDescription
                 let noSpeech = self.isNoSpeechError(error)
+
+                // Transitional cancellation/no-speech can happen when switching between
+                // wake-word listening and manual button capture; keep logs clean.
+                if canceled || (!self.isListening && (self.isButtonCaptureSession || noSpeech)) {
+                    return
+                }
 
                 // "No speech detected" is common in idle wake-word listening and should not trigger
                 // aggressive exponential backoff/degraded mode.
@@ -541,5 +553,24 @@ class WakeWordManager: ObservableObject {
     private func isNoSpeechError(_ error: Error) -> Bool {
         let text = error.localizedDescription.lowercased()
         return text.contains("no speech")
+    }
+
+    private func isCancellationLikeError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let text = nsError.localizedDescription.lowercased()
+
+        if text.contains("canceled") || text.contains("cancelled") {
+            return true
+        }
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+            return true
+        }
+        if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 1101 || nsError.code == 1107 || nsError.code == 1110) {
+            return true
+        }
+        if nsError.domain == "kAFAssistantErrorDomain" && text.contains("recognition request was canceled") {
+            return true
+        }
+        return false
     }
 }

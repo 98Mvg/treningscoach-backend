@@ -13,35 +13,46 @@ struct LanguageSelectionView: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        GeometryReader { geo in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: max(20, geo.size.height * 0.1))
 
-            Image(systemName: "globe")
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(CoachiTheme.primaryGradient)
-                .opacity(appeared ? 1 : 0)
+                    Image(systemName: "globe")
+                        .font(.largeTitle.weight(.light))
+                        .foregroundStyle(CoachiTheme.primaryGradient)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(L10n.chooseLanguage)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .padding(.top, 20)
-                .opacity(appeared ? 1 : 0)
+                    Text(L10n.chooseLanguage)
+                        .font(.title.weight(.bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 20)
+                        .opacity(appeared ? 1 : 0)
 
-            Text(L10n.languageSubtitle)
-                .font(.system(size: 15))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .padding(.top, 8)
-                .opacity(appeared ? 1 : 0)
+                    Text(L10n.languageSubtitle)
+                        .font(.body)
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+                        .opacity(appeared ? 1 : 0)
 
-            VStack(spacing: 14) {
-                languageCard(language: .en)
-                languageCard(language: .no)
+                    VStack(spacing: 14) {
+                        languageCard(language: .en)
+                        languageCard(language: .no)
+                    }
+                    .padding(.top, 30)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 20)
+
+                    Spacer(minLength: max(20, geo.size.height * 0.12))
+                }
+                .frame(minHeight: geo.size.height)
+                .padding(.horizontal, geo.size.width < 390 ? 20 : 24)
+                .padding(.top, max(20, geo.safeAreaInsets.top + 4))
+                .padding(.bottom, max(24, geo.safeAreaInsets.bottom + 8))
             }
-            .padding(.horizontal, 40).padding(.top, 36)
-            .opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 20)
-
-            Spacer()
-            Spacer()
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
@@ -55,16 +66,17 @@ struct LanguageSelectionView: View {
         } label: {
             HStack(spacing: 14) {
                 Text(language.flagEmoji)
-                    .font(.system(size: 36))
+                    .font(.largeTitle)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(language.displayName)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.headline.weight(.semibold))
                         .foregroundColor(CoachiTheme.textPrimary)
 
-                    Text(language == .en ? "English language & coach" : "Norsk spraak & coach")
-                        .font(.system(size: 13))
+                    Text(language == .en ? "English language & coach" : "Norsk språk & coach")
+                        .font(.footnote)
                         .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer()

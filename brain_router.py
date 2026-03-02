@@ -3,6 +3,7 @@
 # Routes coaching requests to the configured AI brain
 #
 
+import asyncio
 import os
 import random
 import re
@@ -154,6 +155,292 @@ class BrainRouter:
     def get_last_route_meta(self) -> Dict[str, Any]:
         """Get metadata for the most recent brain route decision."""
         return dict(self.last_route_meta)
+
+    def _qa_timeout_for(self, brain_name: str) -> float:
+        """
+        Resolve timeout for ad-hoc question answering.
+
+        Keeps Q&A snappy while allowing a bit more thinking time.
+        """
+        base_timeout = self._get_brain_timeout(brain_name, "chat")
+        cap = float(getattr(config, "COACH_QA_TIMEOUT_SECONDS", 5.0))
+        return max(0.8, min(base_timeout, cap))
+
+    def _qa_max_tokens(self) -> int:
+        try:
+            return max(48, int(getattr(config, "COACH_QA_MAX_TOKENS", 110)))
+        except Exception:
+            return 110
+
+    def _qa_max_sentences(self) -> int:
+        try:
+            return max(3, int(getattr(config, "COACH_QA_MAX_SENTENCES", 5)))
+        except Exception:
+            return 5
+
+    def _build_qa_system_prompt(
+        self,
+        language: str,
+        persona: Optional[str],
+        context: str,
+        user_name: Optional[str],
+    ) -> str:
+        persona_key = (persona or "personal_trainer").strip().lower()
+        if persona_key not in {"personal_trainer", "toxic_mode"}:
+            persona_key = "personal_trainer"
+        mode_hint = "workout" if context == "workout" else "chat"
+        name_hint = ""
+        if user_name:
+            name_hint = (
+                f"- Athlete name: {user_name}. Use the name at most once, only if natural.\n"
+            )
+
+        if language == "no":
+            return (
+                "Du er en løpecoach som svarer kort og konkret på spørsmål.\n"
+                "- Hold svaret så kort som mulig. Mål: 1-3 setninger.\n"
+                f"- Du kan bruke opptil {self._qa_max_sentences()} setninger hvis det trengs for klarhet.\n"
+                "- Forklar enkelt, uten lange avsnitt.\n"
+                "- Hold svaret muntlig og naturlig på norsk.\n"
+                "- Ikke finn opp medisinske fakta eller tall.\n"
+                "- Svar kun på tema om trening, helse, kropp, restitusjon og ernæring.\n"
+                "- Avvis seksualisert, trakasserende eller irrelevante tema kort og høflig.\n"
+                f"- Persona: {persona_key} (tone påvirkes, ikke fakta).\n"
+                f"- Context: {mode_hint}.\n"
+                f"{name_hint}"
+            )
+        return (
+            "You are a running coach answering athlete questions clearly.\n"
+            "- Keep answers as short as possible. Target 1-3 sentences.\n"
+            f"- You may use up to {self._qa_max_sentences()} sentences when needed for clarity.\n"
+            "- Keep it practical, plain language, and spoken-friendly.\n"
+            "- Do not invent medical facts or fake citations.\n"
+            "- Only answer training/health/body/recovery/nutrition questions.\n"
+            "- Refuse sexual, harassing, or unrelated topics briefly and politely.\n"
+            f"- Persona: {persona_key} (tone only, not facts).\n"
+            f"- Context: {mode_hint}.\n"
+            f"{name_hint}"
+        )
+
+    @staticmethod
+    def _trim_to_sentence_limit(text: str, max_sentences: int = 5) -> str:
+        cleaned = re.sub(r"\s+", " ", (text or "")).strip()
+        if not cleaned:
+            return ""
+        if cleaned.lower().startswith("[error"):
+            return ""
+
+        parts = [segment.strip() for segment in re.split(r"(?<=[.!?])\s+", cleaned) if segment.strip()]
+        if not parts:
+            words = cleaned.split()
+            clipped = " ".join(words[:45]).strip()
+            if clipped and clipped[-1] not in ".!?":
+                clipped += "."
+            return clipped
+
+        clipped_parts = parts[:max(1, int(max_sentences))]
+        clipped = " ".join(clipped_parts).strip()
+        if clipped and clipped[-1] not in ".!?":
+            clipped += "."
+        return clipped
+
+    @staticmethod
+    def _question_tokens(question: str) -> set:
+        lowered = (question or "").lower()
+        return set(re.findall(r"[a-z0-9æøå]+", lowered))
+
+    def _qa_policy_response(self, question: str, language: str) -> tuple[str, Optional[str]]:
+        tokens = self._question_tokens(question)
+
+        disallowed_tokens = {
+            "sex", "sexual", "sexy", "porn", "nude", "nudes", "fetish", "harass", "harassing",
+            "trakassere", "trakassering", "seksuell", "porno", "naken", "nudes",
+        }
+        if tokens.intersection(disallowed_tokens):
+            if language == "no":
+                return (
+                    "Jeg kan ikke hjelpe med seksuelt eller trakasserende innhold. "
+                    "Jeg kan hjelpe med trening, helse, restitusjon, puls og ernæring."
+                ), "policy_refusal_disallowed_topic"
+            return (
+                "I can't help with sexual or harassing content. "
+                "I can help with training, health, recovery, heart rate, and nutrition."
+            ), "policy_refusal_disallowed_topic"
+
+        domain_tokens = {
+            "train", "training", "workout", "run", "running", "interval", "intervals", "cardio",
+            "fitness", "exercise", "health", "body", "muscle", "protein", "nutrition", "diet",
+            "calorie", "calories", "carb", "carbs", "fat", "hydrate", "hydration", "water",
+            "recovery", "sleep", "stress", "injury", "sore", "soreness", "hr", "pulse", "heart",
+            "pace", "zone", "zones", "vo2", "endurance", "strength", "mobility",
+            "trening", "trene", "trenings", "okt", "økt", "lop", "løp", "intervall", "intervaller",
+            "utholdenhet", "helse", "kropp", "muskel", "protein", "ernaering", "ernæring",
+            "kosthold", "kalori", "kalorier", "karbo", "fett", "vaeske", "væske", "hydrering",
+            "restitusjon", "sovn", "søvn", "skade", "stol", "støl", "puls", "hjerte", "tempo", "sone",
+            "styrke", "mobilitet",
+        }
+        if tokens.intersection(domain_tokens):
+            return "", None
+
+        if language == "no":
+            return (
+                "Jeg holder meg til trening og helse. "
+                "Spør meg gjerne om løping, puls-soner, restitusjon eller ernæring."
+            ), "policy_refusal_off_topic"
+        return (
+            "I stay focused on training and health. "
+            "Ask me about running, HR zones, recovery, or nutrition."
+        ), "policy_refusal_off_topic"
+
+    def _qa_fallback(self, language: str) -> str:
+        if language == "no":
+            return (
+                "Trening gir bedre kondisjon, sterkere hjerte og mer energi i hverdagen. "
+                "Start rolig og vær jevn over tid. "
+                "Små økter ofte gir bedre resultat enn sjeldne skippertak."
+            )
+        return (
+            "Training improves endurance, heart health, and day-to-day energy. "
+            "Start easy and stay consistent. "
+            "Small sessions done often beat occasional all-out efforts."
+        )
+
+    def _answer_question_with_brain(
+        self,
+        brain: Any,
+        *,
+        question: str,
+        language: str,
+        persona: Optional[str],
+        context: str,
+        user_name: Optional[str],
+        timeout: float,
+    ) -> str:
+        if not hasattr(brain, "chat"):
+            return ""
+
+        system_prompt = self._build_qa_system_prompt(
+            language=language,
+            persona=persona,
+            context=context,
+            user_name=user_name,
+        )
+        response = asyncio.run(
+            brain.chat(
+                messages=[{"role": "user", "content": question}],
+                system_prompt=system_prompt,
+                temperature=0.25,
+                max_tokens=self._qa_max_tokens(),
+                timeout=max(0.8, float(timeout) - 0.2),
+            )
+        )
+        return self._trim_to_sentence_limit(response, max_sentences=self._qa_max_sentences())
+
+    def get_question_response(
+        self,
+        question: str,
+        *,
+        language: str = "en",
+        persona: Optional[str] = None,
+        context: str = "chat",
+        user_name: Optional[str] = None,
+    ) -> str:
+        """
+        Answer a direct user question with fast, concise output.
+
+        Priority for this path is Grok first (when available), then other AI brains.
+        """
+        prompt = (question or "").strip()
+        lang = self._normalize_language(language)
+        if not prompt:
+            fallback = self._qa_fallback(lang)
+            self._set_last_route_meta(
+                provider="config",
+                source="config_fallback",
+                status="empty_question_fallback",
+                mode="question_qa",
+            )
+            return fallback
+
+        policy_reply, policy_status = self._qa_policy_response(prompt, lang)
+        if policy_reply:
+            self._set_last_route_meta(
+                provider="policy",
+                source="domain_guard",
+                status=policy_status or "policy_refusal",
+                mode="question_qa",
+            )
+            return self._trim_to_sentence_limit(
+                policy_reply,
+                max_sentences=self._qa_max_sentences(),
+            )
+
+        attempted = []
+        candidate_brains = ["grok"]
+
+        if self.use_priority_routing and self.priority_brains:
+            for brain_name in self.priority_brains:
+                if brain_name in {"grok", "config"}:
+                    continue
+                if brain_name not in candidate_brains:
+                    candidate_brains.append(brain_name)
+        elif self.brain_type not in {"priority", "config", "grok"}:
+            candidate_brains.append(self.brain_type)
+
+        for brain_name in candidate_brains:
+            if not self._is_brain_available(brain_name):
+                reason = self._get_skip_reason(brain_name)
+                attempted.append({"brain": brain_name, "status": "skipped", "reason": reason})
+                continue
+
+            brain = self._get_brain_instance(brain_name)
+            if brain is None:
+                attempted.append({"brain": brain_name, "status": "unavailable"})
+                continue
+
+            timeout = self._qa_timeout_for(brain_name)
+            fn = lambda brain=brain, timeout=timeout: self._answer_question_with_brain(
+                brain,
+                question=prompt,
+                language=lang,
+                persona=persona,
+                context=context,
+                user_name=user_name,
+                timeout=timeout,
+            )
+            result = self._call_brain_with_timeout(brain_name, fn, timeout)
+            result = self._trim_to_sentence_limit(result, max_sentences=self._qa_max_sentences())
+
+            if result:
+                attempted.append({"brain": brain_name, "status": "success"})
+                self._set_last_route_meta(
+                    provider=brain_name,
+                    source="ai_qna",
+                    status="success",
+                    mode="question_qa",
+                    timeout=timeout,
+                    attempted=attempted,
+                )
+                return result
+
+            outcome = dict(self.brain_last_outcome.get(brain_name, {}))
+            attempted.append(
+                {
+                    "brain": brain_name,
+                    "status": outcome.get("status", "empty_response"),
+                    "timeout": timeout,
+                }
+            )
+
+        fallback = self._qa_fallback(lang)
+        self._set_last_route_meta(
+            provider="config",
+            source="config_fallback",
+            status="all_question_brains_failed_or_skipped",
+            mode="question_qa",
+            attempted=attempted,
+        )
+        return fallback
 
     @staticmethod
     def _normalize_repeat_key(text: str) -> str:

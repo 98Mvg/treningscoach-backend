@@ -22,7 +22,7 @@ SUPPORTED_LOCALES = {
         "speech_recognition_locale": "en-US",
         "voice_ids": {
             "personal_trainer": {
-                "primary": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "1DHhvmhXw9p08Sc79vuJ"),
+                "primary": os.getenv("ELEVENLABS_VOICE_ID_PERSONAL_TRAINER_EN", "9MPvdQh2pLsLhn7SuiIS"),
                 "fallback": "nPczCjzI2devNBz1zQrb",
             },
             "toxic_mode": {

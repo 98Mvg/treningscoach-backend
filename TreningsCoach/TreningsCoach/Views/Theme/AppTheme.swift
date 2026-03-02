@@ -58,6 +58,45 @@ extension UIColor {
     }
 }
 
+enum CoachiAccentPreset: String, CaseIterable, Identifiable {
+    case sunset
+    case mint
+    case ocean
+    case violet
+
+    static let storageKey = "theme_accent_preset"
+    static let defaultPreset: CoachiAccentPreset = .sunset
+
+    var id: String { rawValue }
+
+    var primaryHex: String {
+        switch self {
+        case .sunset: return "FF6B35"
+        case .mint: return "22C55E"
+        case .ocean: return "3B82F6"
+        case .violet: return "8B5CF6"
+        }
+    }
+
+    var primaryLightHex: String {
+        switch self {
+        case .sunset: return "FF8F5E"
+        case .mint: return "4ADE80"
+        case .ocean: return "60A5FA"
+        case .violet: return "A78BFA"
+        }
+    }
+
+    var gradientTailHex: String {
+        switch self {
+        case .sunset: return "FF4757"
+        case .mint: return "3ED4D5"
+        case .ocean: return "22D3EE"
+        case .violet: return "EC4899"
+        }
+    }
+}
+
 // MARK: - Coachi Theme
 
 enum CoachiTheme {
@@ -67,6 +106,11 @@ enum CoachiTheme {
         })
     }
 
+    private static var accentPreset: CoachiAccentPreset {
+        let stored = UserDefaults.standard.string(forKey: CoachiAccentPreset.storageKey)
+        return CoachiAccentPreset(rawValue: stored ?? "") ?? CoachiAccentPreset.defaultPreset
+    }
+
     // Backgrounds
     static let bgDeep           = adaptive(light: "DEE7FF", dark: "0A0A0F")
     static let bg               = adaptive(light: "EEF3FF", dark: "111118")
@@ -74,8 +118,8 @@ enum CoachiTheme {
     static let surfaceElevated  = adaptive(light: "F3F6FF", dark: "222230")
 
     // Primary
-    static let primary          = Color(hex: "FF6B35")
-    static let primaryLight     = Color(hex: "FF8F5E")
+    static var primary: Color { Color(hex: accentPreset.primaryHex) }
+    static var primaryLight: Color { Color(hex: accentPreset.primaryLightHex) }
 
     // Secondary
     static let secondary        = Color(hex: "4ECDC4")
@@ -98,12 +142,18 @@ enum CoachiTheme {
     static let borderSubtle     = adaptive(light: "D3DCF7", dark: "3A3A4E")
 
     // Gradients
-    static let primaryGradient    = LinearGradient(colors: [primary, Color(hex: "FF4757")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static var primaryGradient: LinearGradient {
+        LinearGradient(colors: [primary, Color(hex: accentPreset.gradientTailHex)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
     static let backgroundGradient = LinearGradient(colors: [bg, bgDeep], startPoint: .top, endPoint: .bottom)
     static let surfaceGradient    = LinearGradient(colors: [surface, Color(hex: "151520")], startPoint: .top, endPoint: .bottom)
-    static let activeGradient     = LinearGradient(colors: [primary, accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static var activeGradient: LinearGradient {
+        LinearGradient(colors: [primary, accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
     static let coolGradient       = LinearGradient(colors: [secondary, success], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let emberGradient      = LinearGradient(colors: [primary, primaryLight], startPoint: .top, endPoint: .bottom)
+    static var emberGradient: LinearGradient {
+        LinearGradient(colors: [primary, primaryLight], startPoint: .top, endPoint: .bottom)
+    }
     static let tealGradient       = LinearGradient(colors: [secondary, success], startPoint: .top, endPoint: .bottom)
     static let goldGradient       = LinearGradient(colors: [accent, primary], startPoint: .top, endPoint: .bottom)
     static let grayGradient       = LinearGradient(colors: [textTertiary, textSecondary], startPoint: .top, endPoint: .bottom)
@@ -131,6 +181,7 @@ struct GamifiedCoachScoreRingView: View {
     var size: CGFloat = 180
     var lineWidth: CGFloat = 14
     var animateFromOne: Bool = true
+    var fullSweepBeforeSettling: Bool = false
     var animationDuration: Double = 2.1
     var trackColor: Color = Color(hex: "DCE3F8")
     var gradientColors: [Color] = [Color(hex: "3ED4D5"), Color(hex: "2ED573")]
@@ -189,23 +240,70 @@ struct GamifiedCoachScoreRingView: View {
             return
         }
 
-        displayedScore = 0
-        displayedProgress = 0.0
+        if fullSweepBeforeSettling {
+            await animateFullSweepThenSettle()
+            return
+        }
+
+        let startScore = clampedScore > 0 ? 1 : 0
+        displayedScore = startScore
+        displayedProgress = CGFloat(startScore) / 100.0
 
         withAnimation(.easeOut(duration: animationDuration)) {
             displayedProgress = targetProgress
         }
 
-        let steps = clampedScore
-        guard steps > 0 else { return }
+        let remainingSteps = clampedScore - startScore
+        guard remainingSteps > 0 else { return }
 
-        let stepNanos = UInt64((animationDuration / Double(steps)) * 1_000_000_000)
+        let stepNanos = UInt64((animationDuration / Double(remainingSteps)) * 1_000_000_000)
         let safeStepNanos = max(UInt64(8_000_000), stepNanos)
 
-        for step in 1...steps {
+        for step in (startScore + 1)...clampedScore {
             try? await Task.sleep(nanoseconds: safeStepNanos)
             if Task.isCancelled { return }
-            displayedScore = min(clampedScore, step)
+            displayedScore = step
+        }
+    }
+
+    private func animateFullSweepThenSettle() async {
+        let sweepStart = 1
+        displayedScore = sweepStart
+        displayedProgress = CGFloat(sweepStart) / 100.0
+
+        let sweepSteps = 100 - sweepStart
+        let sweepStepNanos = UInt64((animationDuration / Double(max(1, sweepSteps))) * 1_000_000_000)
+        let safeSweepStepNanos = max(UInt64(8_000_000), sweepStepNanos)
+
+        for step in (sweepStart + 1)...100 {
+            try? await Task.sleep(nanoseconds: safeSweepStepNanos)
+            if Task.isCancelled { return }
+            displayedScore = step
+            displayedProgress = CGFloat(step) / 100.0
+        }
+
+        let settleTarget = clampedScore
+        guard settleTarget != 100 else { return }
+
+        let settleSteps = abs(100 - settleTarget)
+        let settleDuration = max(0.45, animationDuration * 0.38)
+        let settleStepNanos = UInt64((settleDuration / Double(max(1, settleSteps))) * 1_000_000_000)
+        let safeSettleStepNanos = max(UInt64(8_000_000), settleStepNanos)
+
+        if settleTarget < 100 {
+            for step in stride(from: 99, through: settleTarget, by: -1) {
+                try? await Task.sleep(nanoseconds: safeSettleStepNanos)
+                if Task.isCancelled { return }
+                displayedScore = step
+                displayedProgress = CGFloat(step) / 100.0
+            }
+        } else {
+            for step in 101...settleTarget {
+                try? await Task.sleep(nanoseconds: safeSettleStepNanos)
+                if Task.isCancelled { return }
+                displayedScore = step
+                displayedProgress = CGFloat(step) / 100.0
+            }
         }
     }
 }

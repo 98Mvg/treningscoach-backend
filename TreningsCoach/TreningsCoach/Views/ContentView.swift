@@ -24,13 +24,13 @@ struct MainTabView: View {
                 .opacity(selectedTab == .workout ? 1 : 0)
                 .allowsHitTesting(selectedTab == .workout)
 
-            ProfileView()
+            ProfileView(selectedTab: $selectedTab)
                 .opacity(selectedTab == .profile ? 1 : 0)
                 .allowsHitTesting(selectedTab == .profile)
 
             if workoutViewModel.workoutState == .idle && !workoutViewModel.showComplete {
                 CustomTabBar(selectedTab: $selectedTab)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 8)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -39,6 +39,7 @@ struct MainTabView: View {
         .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.showComplete)
         .onAppear {
             workoutViewModel.presentSpotifyPromptIfNeeded()
+            workoutViewModel.triggerAudioPackSync()
         }
         .fullScreenCover(isPresented: $workoutViewModel.showSpotifyConnectSheet) {
             SpotifyConnectView(viewModel: workoutViewModel)
@@ -49,7 +50,10 @@ struct MainTabView: View {
     private var workoutContent: some View {
         switch workoutViewModel.workoutState {
         case .idle:
-            WorkoutLaunchView(viewModel: workoutViewModel)
+            WorkoutLaunchView(
+                viewModel: workoutViewModel,
+                showsAnimatedBackground: selectedTab == .workout
+            )
         case .active, .paused:
             ActiveWorkoutView(viewModel: workoutViewModel)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))

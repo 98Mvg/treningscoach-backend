@@ -888,6 +888,7 @@ struct AudioDiagnosticOverlayView: View {
         case .speechRecogError: return AppTheme.danger
         case .backendSend, .backendResponse: return AppTheme.primaryAccent
         case .ttsPlayback: return AppTheme.warning
+        case .speechTranscript: return AppTheme.success
         }
     }
 }

@@ -15,6 +15,38 @@ struct LocalProfile {
     var weeklyGoal: Int
 }
 
+extension AppViewModel {
+    struct OnboardingProfileDraft {
+        var firstName: String
+        var lastName: String
+        var birthDate: Date
+        var gender: String
+        var heightCm: Int
+        var weightKg: Int
+        var hrMax: Int
+        var restingHR: Int
+        var doesEnduranceTraining: Bool
+        var hardestIntensity: String
+        var moderateSessionsPerWeek: String
+        var moderateDuration: String
+        var notificationsOptIn: Bool
+        var languageCode: String
+        var trainingLevel: String
+
+        var displayName: String {
+            let first = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let last = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let joined = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+            return joined.isEmpty ? L10n.athlete : joined
+        }
+
+        var age: Int {
+            let years = Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year ?? 0
+            return max(14, min(95, years))
+        }
+    }
+}
+
 @MainActor
 class AppViewModel: ObservableObject {
     @AppStorage("has_completed_onboarding") var hasCompletedOnboarding: Bool = false
@@ -110,7 +142,64 @@ class AppViewModel: ObservableObject {
         }
     }
 
+    func completeOnboarding(profile: OnboardingProfileDraft) {
+        let defaults = UserDefaults.standard
+        userName = profile.displayName
+        trainingLevelRaw = profile.trainingLevel
+        languageCode = profile.languageCode
+        goodCoachWorkoutCount = 0
+
+        defaults.set(profile.displayName, forKey: "user_display_name")
+        defaults.set(profile.trainingLevel, forKey: "training_level")
+        defaults.set(profile.languageCode, forKey: "app_language")
+
+        defaults.set(profile.firstName, forKey: "user_first_name")
+        defaults.set(profile.lastName, forKey: "user_last_name")
+        defaults.set(profile.birthDate.timeIntervalSince1970, forKey: "user_birthdate_ts")
+        defaults.set(profile.age, forKey: "user_age")
+        defaults.set(profile.gender, forKey: "user_gender")
+        defaults.set(profile.heightCm, forKey: "user_height_cm")
+        defaults.set(profile.weightKg, forKey: "user_weight_kg")
+
+        defaults.set(profile.hrMax, forKey: "hr_max")
+        defaults.set(profile.restingHR, forKey: "resting_hr")
+
+        defaults.set(profile.doesEnduranceTraining, forKey: "user_endurance_training")
+        defaults.set(profile.hardestIntensity, forKey: "user_hardest_intensity")
+        defaults.set(profile.moderateSessionsPerWeek, forKey: "user_moderate_sessions_per_week")
+        defaults.set(profile.moderateDuration, forKey: "user_moderate_duration")
+        defaults.set(profile.notificationsOptIn, forKey: "notifications_opt_in")
+
+        hasCompletedOnboarding = true
+        if !spotifyPromptSeen {
+            spotifyPromptPending = true
+        }
+    }
+
     func resetOnboarding() {
+        let defaults = UserDefaults.standard
+        let keysToClear = [
+            "user_display_name",
+            "training_level",
+            "user_first_name",
+            "user_last_name",
+            "user_birthdate_ts",
+            "user_age",
+            "user_gender",
+            "user_height_cm",
+            "user_weight_kg",
+            "hr_max",
+            "resting_hr",
+            "user_endurance_training",
+            "user_hardest_intensity",
+            "user_moderate_sessions_per_week",
+            "user_moderate_duration",
+            "notifications_opt_in",
+        ]
+        keysToClear.forEach { defaults.removeObject(forKey: $0) }
+
+        userName = ""
+        trainingLevelRaw = "beginner"
         hasCompletedOnboarding = false
     }
 }

@@ -1,6 +1,6 @@
 # main.py - MAIN FILE FOR TRENINGSCOACH BACKEND
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, g
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -19,7 +19,7 @@ import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
 from persona_manager import PersonaManager  # Import Persona Manager
-from coaching_intelligence import should_coach_speak, calculate_next_interval, apply_max_silence_override  # Import coaching intelligence
+from coaching_intelligence import calculate_next_interval  # Legacy interval timing helper only
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
@@ -27,17 +27,16 @@ from strategic_brain import get_strategic_brain  # Import Strategic Brain for hi
 from database import init_db, db, WaitlistSignup  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
+from auth import require_auth
 from norwegian_phrase_quality import rewrite_norwegian_phrase
 from coaching_engine import validate_coaching_text, get_template_message
 from breathing_timeline import BreathingTimeline
 from running_personalization import RunningPersonalizationStore
 from zone_event_motor import (
     evaluate_zone_tick,
-    is_zone_mode,
     normalize_coaching_style,
     normalize_interval_template,
 )
-from coaching_pipeline import run as run_coaching_pipeline
 from web_routes import create_web_blueprint
 from chat_routes import create_chat_blueprint
 from locale_config import get_voice_id as locale_voice_id
@@ -1206,15 +1205,6 @@ def _resolve_breath_quality_state(breath_data: dict, recent_samples) -> str:
     return "unavailable"
 
 
-def _phase_fallback_interval_seconds(phase: str) -> float:
-    normalized_phase = (phase or "").strip().lower()
-    if normalized_phase == "warmup":
-        return float(getattr(config, "SPEECH_PHASE_FALLBACK_WARMUP_SECONDS", 30.0))
-    if normalized_phase == "cooldown":
-        return float(getattr(config, "SPEECH_PHASE_FALLBACK_COOLDOWN_SECONDS", 40.0))
-    return float(getattr(config, "SPEECH_PHASE_FALLBACK_INTENSE_SECONDS", 35.0))
-
-
 def _phase_fallback_text(language: str, phase: str, elapsed_seconds: int) -> str:
     lang = normalize_language_code(language)
     normalized_phase = (phase or "").strip().lower()
@@ -2177,10 +2167,11 @@ def coach_continuous():
             "window": getattr(config, "BREATH_SMOOTHING_WINDOW", 4)
         }
 
-        zone_mode_active = is_zone_mode(workout_mode, config)
+        # Unified runtime path: all continuous workout ticks are event-driven.
+        # This removes dual ownership between legacy breath pipeline and zone events.
+        zone_mode_active = workout_state is not None
         zone_tick = None
         zone_forced_text = None
-        zone_mode_speaks = False
         if zone_mode_active and workout_state is not None:
             zone_tick = evaluate_zone_tick(
                 workout_state=workout_state,
@@ -2210,7 +2201,6 @@ def coach_continuous():
                 session_id=session_id,
                 paused=request.form.get("paused"),
             )
-            zone_mode_speaks = bool(zone_tick.get("should_speak"))
             zone_forced_text = zone_tick.get("coach_text")
             breath_data["heart_rate"] = zone_tick.get("heart_rate")
             breath_data["zone_status"] = zone_tick.get("zone_status")
@@ -2253,7 +2243,6 @@ def coach_continuous():
 
         decision_started = time.perf_counter()
         rich_followup_forced = False
-        speech_decision_owner_v2 = bool(getattr(config, "SPEECH_DECISION_OWNER_V2", True))
         recent_breath_quality_samples = [
             item.get("signal_quality")
             for item in (coaching_context.get("breath_history", [])[-12:] if isinstance(coaching_context, dict) else [])
@@ -2263,57 +2252,40 @@ def coach_continuous():
             breath_data=breath_data,
             recent_samples=recent_breath_quality_samples,
         )
-        unified_event_router_enabled = bool(getattr(config, "UNIFIED_EVENT_ROUTER_ENABLED", True))
         unified_event_router_shadow = bool(getattr(config, "UNIFIED_EVENT_ROUTER_SHADOW", False))
-        unified_zone_router_active = (
-            unified_event_router_enabled
-            and zone_mode_active
-            and zone_tick is not None
-            and workout_mode in {"easy_run", "interval"}
-        )
         if unified_event_router_shadow and zone_mode_active and zone_tick is not None:
             logger.info(
-                "UNIFIED_EVENT_SHADOW session=%s mode=%s events=%s legacy_reason=%s legacy_should_speak=%s",
+                "UNIFIED_EVENT_SHADOW session=%s mode=%s events=%s zone_reason=%s zone_should_speak=%s",
                 session_id,
                 workout_mode,
                 [item.get("event_type") for item in (zone_tick.get("events") or []) if isinstance(item, dict)],
                 zone_tick.get("reason"),
                 zone_tick.get("should_speak"),
             )
-        decision = run_coaching_pipeline(
-            is_first_breath=bool(is_first_breath),
-            zone_mode_active=bool(zone_mode_active),
-            zone_tick=zone_tick,
-            breath_quality_state=breath_quality_state,
-            speech_decision_owner_v2=bool(speech_decision_owner_v2),
-            unified_zone_router_active=bool(unified_zone_router_active),
-            voice_intelligence=voice_intelligence,
-            should_coach_speak_fn=should_coach_speak,
-            apply_max_silence_override_fn=apply_max_silence_override,
-            phase_fallback_interval_seconds_fn=_phase_fallback_interval_seconds,
-            breath_data=breath_data,
-            phase=phase,
-            last_coaching=last_coaching,
-            elapsed_seconds=elapsed_seconds,
-            last_breath=last_breath,
-            coaching_history=coaching_context["coaching_history"],
-            training_level=training_level,
-            session_id=session_id,
-            elapsed_since_last=elapsed_since_last,
-            max_silence_seconds=float(getattr(config, "MAX_SILENCE_SECONDS", 60)),
-        )
-        speak_decision = bool(decision.speak)
-        reason = decision.reason
-        decision_owner = decision.owner
-        decision_owner_base = decision.owner_base
-        zone_forced_text = decision.zone_forced_text
-        max_silence_override_used = bool(decision.max_silence_override_used)
+        if zone_tick is not None:
+            speak_decision = bool(zone_tick.get("should_speak"))
+            reason = str(zone_tick.get("reason") or "zone_no_change")
+            decision_owner = "zone_event"
+            zone_forced_text = zone_tick.get("coach_text")
+            max_silence_override_used = (
+                str(zone_tick.get("primary_event_type") or "") == "max_silence_override"
+                or reason == "max_silence_override"
+            )
+        else:
+            speak_decision = False
+            reason = "event_router_missing_zone_tick"
+            decision_owner = "zone_event"
+            zone_forced_text = None
+            max_silence_override_used = False
+            logger.warning(
+                "Zone-event decision missing for workout tick (session=%s mode=%s phase=%s)",
+                session_id,
+                workout_mode,
+                phase,
+            )
 
-        if decision.mark_first_breath_consumed:
+        if is_first_breath:
             workout_state["is_first_breath"] = False
-        if decision.mark_use_welcome_phrase:
-            workout_state["use_welcome_phrase"] = True
-            logger.info("First breath detected - will provide welcome message")
 
         if zone_mode_active and zone_tick is not None:
             logger.info(
@@ -2349,17 +2321,6 @@ def coach_continuous():
         if speak_decision:
             _increment_quality_metric("spoken_ticks")
 
-        # Latency strategy (legacy path only): if previous tick used fast fallback,
-        # force one richer follow-up cue.
-        if (not speech_decision_owner_v2) and (not is_first_breath) and latency_state.get("pending_rich_followup") and not zone_mode_active:
-            rich_followup_forced = True
-            if not speak_decision:
-                speak_decision = True
-                reason = "latency_rich_followup"
-                logger.info(
-                    "Latency strategy: forcing rich follow-up cue (provider=%s)",
-                    latency_state.get("last_latency_provider"),
-                )
         decision_ms = (time.perf_counter() - decision_started) * 1000.0
 
         # Get coaching message (priority: strategic > pattern > realtime brain router)
@@ -2400,7 +2361,6 @@ def coach_continuous():
                     )
 
         if not speak_decision:
-            # Low-latency path: skip AI generation when coach will stay silent.
             coach_text = _get_silent_debug_text(reason, language)
             brain_meta = {
                 "provider": "system",
@@ -2408,30 +2368,7 @@ def coach_continuous():
                 "status": "skipped_generation",
                 "mode": "realtime_coach",
             }
-        elif use_welcome:
-            # Use a specific cached phrase for instant welcome
-            coach_text = "Perfect."  # This phrase is cached (from pregenerate list)
-            workout_state["use_welcome_phrase"] = False  # Clear flag
-            brain_meta = {
-                "provider": "system",
-                "source": "welcome_cache",
-                "status": "cached_phrase",
-                "mode": "realtime_coach",
-            }
-            logger.info(f"Using cached welcome phrase: {coach_text}")
-        elif speech_decision_owner_v2 and decision_owner_base == "phase_fallback":
-            coach_text = _phase_fallback_text(
-                language=language,
-                phase=phase,
-                elapsed_seconds=elapsed_seconds,
-            )
-            brain_meta = {
-                "provider": "system",
-                "source": "phase_fallback",
-                "status": "deterministic_template",
-                "mode": "realtime_coach",
-            }
-        elif speech_decision_owner_v2 and decision_owner_base == "zone_event":
+        else:
             zone_event_type = (
                 (zone_tick or {}).get("primary_event_type")
                 or (zone_tick or {}).get("event_type")
@@ -2446,7 +2383,6 @@ def coach_continuous():
                     event_type=zone_event_type,
                 )
             else:
-                # Keep v2 single-owner deterministic even if zone motor text is missing.
                 coach_text = _phase_fallback_text(
                     language=language,
                     phase=phase,
@@ -2459,161 +2395,11 @@ def coach_continuous():
                     "mode": "realtime_coach",
                 }
                 logger.warning(
-                    "Zone decision owner selected but no zone text supplied; using deterministic fallback (session=%s reason=%s event=%s)",
+                    "Zone-event speech selected but no text supplied; using deterministic fallback (session=%s reason=%s event=%s)",
                     session_id,
                     reason,
                     zone_event_type,
                 )
-        elif zone_mode_active and zone_forced_text:
-            zone_event_type = (
-                (zone_tick or {}).get("primary_event_type")
-                or (zone_tick or {}).get("event_type")
-                or reason
-            )
-            coach_text, brain_meta = _maybe_rephrase_zone_event_text(
-                base_text=zone_forced_text,
-                language=language,
-                persona=persona,
-                coaching_style=coaching_style,
-                event_type=zone_event_type,
-            )
-        else:
-            # Only run expensive brain paths when we already decided to speak.
-            use_fast_fallback = False
-            if not rich_followup_forced:
-                latency_signal = brain_router.get_latency_fallback_signal(mode="realtime_coach")
-                if latency_signal.get("should_fallback") and _latency_fast_fallback_allowed(latency_state, elapsed_seconds):
-                    use_fast_fallback = True
-
-            if use_fast_fallback:
-                coach_text = brain_router.get_fast_fallback_response(
-                    breath_data=breath_data,
-                    phase=phase,
-                    language=language,
-                    persona=persona,
-                )
-                brain_meta = brain_router.get_last_route_meta()
-                fast_fallback_used = True
-                latency_state["pending_rich_followup"] = True
-                latency_state["last_fast_fallback_elapsed"] = float(elapsed_seconds)
-                latency_state["last_latency_provider"] = latency_signal.get("provider")
-                logger.info(
-                    "Latency strategy: fast fallback used (provider=%s avg=%.3fs threshold=%.3fs calls=%s)",
-                    latency_signal.get("provider"),
-                    float(latency_signal.get("avg_latency", 0.0)),
-                    float(latency_signal.get("threshold", 0.0)),
-                    latency_signal.get("calls"),
-                )
-            else:
-                last_pattern_time = workout_state.get("last_pattern_time") if workout_state else None
-                if brain_router.use_hybrid and brain_router.should_use_pattern_insight(elapsed_seconds, last_pattern_time):
-                    pattern_insight = brain_router.detect_pattern(
-                        breath_history=coaching_context["breath_history"],
-                        coaching_history=coaching_context["coaching_history"],
-                        phase=phase
-                    )
-
-                    if pattern_insight:
-                        logger.info(f"Pattern detected: {pattern_insight}")
-                        if workout_state:
-                            workout_state["last_pattern_time"] = elapsed_seconds
-
-                if strategic_brain is not None:
-                    last_strategic_time = workout_state.get("last_strategic_time", 0) if workout_state else 0
-
-                    if strategic_brain.should_provide_insight(elapsed_seconds, last_strategic_time, phase):
-                        strategic_guidance = strategic_brain.get_strategic_insight(
-                            breath_history=coaching_context["breath_history"],
-                            coaching_history=coaching_context["coaching_history"],
-                            phase=phase,
-                            elapsed_seconds=elapsed_seconds,
-                            session_context=session_manager.sessions.get(session_id, {}).get("metadata", {}),
-                            language=language
-                        )
-
-                        if strategic_guidance:
-                            logger.info(f"🧠 Strategic guidance received: {strategic_guidance}")
-                            if workout_state:
-                                workout_state["last_strategic_time"] = elapsed_seconds
-
-                generation_breath_data = dict(breath_data)
-                generation_breath_data["session_id"] = session_id
-                generation_breath_data["persona"] = persona
-                generation_breath_data["training_level"] = training_level
-                generation_breath_data["persona_mode"] = coaching_context.get("persona_mode")
-                generation_breath_data["emotional_intensity"] = coaching_context.get("emotional_intensity")
-                generation_breath_data["emotional_trend"] = coaching_context.get("emotional_trend")
-                generation_breath_data["safety_override"] = coaching_context.get("safety_override")
-                generation_breath_data["time_in_struggle"] = coaching_context.get("time_in_struggle")
-                generation_breath_data["coaching_reason"] = reason
-                generation_breath_data["recent_coach_cues"] = recent_cues
-
-                if strategic_guidance:
-                # Strategic Brain guidance (highest priority for strategic moments)
-                # System decides: use suggested phrase or pick from config based on guidance
-                    if "suggested_phrase" in strategic_guidance and strategic_guidance["suggested_phrase"]:
-                        coach_text = strategic_guidance["suggested_phrase"]
-                        brain_meta = {
-                            "provider": "strategic",
-                            "source": "strategic_brain",
-                            "status": "suggested_phrase",
-                            "mode": "strategic",
-                        }
-                        logger.info(f"🧠 Using Strategic Brain phrase: {coach_text}")
-                    else:
-                        coach_text = get_coach_response_continuous(
-                            generation_breath_data,
-                            phase,
-                            language=language,
-                            persona=persona,
-                            user_name=user_name,
-                        )
-                        brain_meta = brain_router.get_last_route_meta()
-                        logger.info(f"🧠 Strategic guidance applied, using config phrase: {coach_text}")
-                elif pattern_insight:
-                    coach_text = pattern_insight  # STEP 4: Use Claude's pattern insight
-                    brain_meta = {
-                        "provider": "claude",
-                        "source": "pattern_insight",
-                        "status": "pattern_override",
-                        "mode": "strategic",
-                    }
-                    logger.info(f"Using pattern insight instead of config message")
-                else:
-                    coach_text = get_coach_response_continuous(
-                        generation_breath_data,
-                        phase,
-                        language=language,
-                        persona=persona,
-                        user_name=user_name,
-                    )
-                    brain_meta = brain_router.get_last_route_meta()
-
-                if rich_followup_forced:
-                    latency_state["pending_rich_followup"] = False
-                    latency_state["last_rich_followup_elapsed"] = float(elapsed_seconds)
-                    logger.info(
-                        "Latency strategy: rich follow-up completed (provider=%s source=%s)",
-                        brain_meta.get("provider"),
-                        brain_meta.get("source"),
-                    )
-
-        if (not speech_decision_owner_v2) and speak_decision and timeline_cue and timeline_enforce and not use_welcome and not fast_fallback_used:
-            zone_priority_active = zone_mode_active and (
-                bool(zone_forced_text) or str(brain_meta.get("source", "")).startswith("zone_event_")
-            )
-            if zone_priority_active:
-                _increment_quality_metric("timeline_zone_priority_skips")
-                logger.info("Breathing timeline override skipped: deterministic zone cue has priority")
-            else:
-                coach_text = timeline_cue
-                brain_meta = {
-                    "provider": "system",
-                    "source": "breathing_timeline",
-                    "status": "timeline_override",
-                    "mode": "realtime_coach",
-                }
-                _increment_quality_metric("timeline_overrides")
 
         validation_shadow = bool(getattr(config, "COACHING_VALIDATION_SHADOW_MODE", True))
         validation_enforce = bool(getattr(config, "COACHING_VALIDATION_ENFORCE", False))
@@ -2848,6 +2634,8 @@ def coach_continuous():
                     "zone_status": zone_tick.get("zone_status"),
                     "zone_event": zone_tick.get("event_type"),
                     "zone_primary_event": zone_tick.get("primary_event_type"),
+                    "zone_priority": zone_tick.get("priority"),
+                    "zone_phrase_id": zone_tick.get("phrase_id"),
                     "sensor_mode": zone_tick.get("sensor_mode"),
                     "phase_id": zone_tick.get("phase_id"),
                     "zone_state": zone_tick.get("zone_state"),
@@ -3003,29 +2791,8 @@ def switch_persona():
 # WORKOUT HISTORY ENDPOINTS
 # ============================================
 
-def _extract_optional_user_id() -> str:
-    """
-    Extract user_id from optional Bearer JWT in Authorization header.
-
-    Returns user_id string or None. Logs decode failures at warning level
-    instead of silently swallowing them.
-    """
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None
-    try:
-        from auth import decode_jwt
-        import jwt as pyjwt
-        token = auth_header.split("Bearer ", 1)[1]
-        payload = decode_jwt(token)
-        return payload.get("user_id")
-    except Exception as e:
-        # Log a sanitized warning (no token content) so failures are visible
-        logger.warning(f"Optional JWT decode failed: {type(e).__name__}")
-        return None
-
-
 @app.route('/workouts', methods=['POST'])
+@require_auth
 def save_workout():
     """
     Save a completed workout record.
@@ -3046,14 +2813,18 @@ def save_workout():
         if not data:
             return jsonify({"error": "Missing request body"}), 400
 
-        user_id = _extract_optional_user_id()
+        user_id = g.current_user_id
+        try:
+            duration_seconds = max(0, int(data.get("duration_seconds", 0)))
+        except (TypeError, ValueError):
+            return jsonify({"error": "duration_seconds must be an integer"}), 400
 
         workout = WorkoutHistory(
-            user_id=user_id or "anonymous",
-            duration_seconds=data.get("duration_seconds", 0),
-            final_phase=data.get("final_phase"),
-            avg_intensity=data.get("avg_intensity"),
-            persona_used=data.get("persona_used"),
+            user_id=user_id,
+            duration_seconds=duration_seconds,
+            final_phase=data.get("final_phase") or data.get("phase"),
+            avg_intensity=data.get("avg_intensity") or data.get("intensity"),
+            persona_used=data.get("persona_used") or data.get("persona"),
             language=data.get("language", getattr(config, "DEFAULT_LANGUAGE", "en"))
         )
         db.session.add(workout)
@@ -3069,6 +2840,7 @@ def save_workout():
 
 
 @app.route('/workouts', methods=['GET'])
+@require_auth
 def get_workouts():
     """
     Get workout history for a user.
@@ -3079,7 +2851,7 @@ def get_workouts():
     try:
         from database import WorkoutHistory
 
-        user_id = _extract_optional_user_id()
+        user_id = g.current_user_id
 
         # Bounds-check limit to prevent abuse
         try:
@@ -3087,14 +2859,9 @@ def get_workouts():
         except (ValueError, TypeError):
             limit = 20
 
-        if user_id:
-            workouts = WorkoutHistory.query.filter_by(user_id=user_id)\
-                .order_by(WorkoutHistory.date.desc())\
-                .limit(limit).all()
-        else:
-            workouts = WorkoutHistory.query\
-                .order_by(WorkoutHistory.date.desc())\
-                .limit(limit).all()
+        workouts = WorkoutHistory.query.filter_by(user_id=user_id)\
+            .order_by(WorkoutHistory.date.desc())\
+            .limit(limit).all()
 
         return jsonify({
             "workouts": [w.to_dict() for w in workouts]

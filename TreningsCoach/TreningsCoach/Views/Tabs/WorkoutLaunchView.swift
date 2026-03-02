@@ -137,7 +137,7 @@ struct WorkoutLaunchView: View {
                             }
                         }
 
-                        launchSection(title: "Step B", subtitle: "Input sources") {
+                        launchSection(title: "Step B", subtitle: L10n.inputSources) {
                             HStack(spacing: 8) {
                                 Circle()
                                     .fill(viewModel.watchConnected ? CoachiTheme.success : CoachiTheme.textTertiary)
@@ -146,22 +146,30 @@ struct WorkoutLaunchView: View {
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(CoachiTheme.textSecondary)
                                 Spacer()
-                                if viewModel.watchConnected {
-                                    Text(viewModel.hrSignalQuality == "good" ? "HR good" : "HR limited")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(viewModel.hrSignalQuality == "good" ? CoachiTheme.success : CoachiTheme.textTertiary)
-                                } else {
-                                    Text(L10n.notConnected)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(CoachiTheme.textTertiary)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(
+                                        viewModel.watchConnected
+                                            ? (L10n.current == .no ? "Tilkoblet" : "Connected")
+                                            : L10n.notConnected
+                                    )
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(viewModel.watchConnected ? CoachiTheme.success : CoachiTheme.textTertiary)
+
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "heart.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(viewModel.watchConnected ? .green : .red)
+
+                                        Text(
+                                            viewModel.watchConnected
+                                                ? "\(max(0, viewModel.heartRate ?? 0)) BPM"
+                                                : "0 BPM"
+                                        )
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundColor(CoachiTheme.textPrimary)
+                                    }
                                 }
                             }
-                            Toggle(isOn: $viewModel.useBreathingMicCues) {
-                                Text("Use breathing mic cues")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(CoachiTheme.textSecondary)
-                            }
-                            .tint(CoachiTheme.primary)
                         }
 
                         DisclosureGroup(
@@ -169,16 +177,33 @@ struct WorkoutLaunchView: View {
                             content: {
                                 VStack(spacing: 14) {
                                     VStack(alignment: .leading, spacing: 8) {
-                                        Text("COACHING STYLE")
+                                        Text(L10n.workoutIntensityTitle)
                                             .font(.system(size: 13, weight: .semibold))
                                             .foregroundColor(CoachiTheme.textTertiary)
                                             .tracking(1)
+                                        Text(L10n.workoutIntensityDescription)
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(CoachiTheme.textSecondary)
+                                            .fixedSize(horizontal: false, vertical: true)
                                         HStack(spacing: 8) {
-                                            styleChip(.minimal)
-                                            styleChip(.normal)
-                                            styleChip(.motivational)
+                                            styleChip(.easy)
+                                            styleChip(.medium)
+                                            styleChip(.hard)
                                         }
                                     }
+
+                                    Toggle(isOn: $viewModel.useBreathingMicCues) {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(L10n.breathAnalysisTitle)
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(CoachiTheme.textPrimary)
+                                            Text(L10n.breathAnalysisSubtitle)
+                                                .font(.system(size: 12, weight: .medium))
+                                                .foregroundColor(CoachiTheme.textSecondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                    .tint(CoachiTheme.primary)
 
                                     VStack(spacing: 12) {
                                         Text(L10n.selectCoach.uppercased())
@@ -251,7 +276,7 @@ struct WorkoutLaunchView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 60)
+                .padding(.bottom, 92)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 12)
             }
@@ -338,7 +363,7 @@ struct WorkoutLaunchView: View {
     private var stepASubtitle: String {
         switch setupStage {
         case .easyWarmup, .intervalWarmup:
-            return L10n.warmupTime
+            return "\(L10n.warmupTime) · \(L10n.intensityEasy)"
         case .easyDuration:
             return L10n.current == .no ? "Løpsvarighet" : "Run duration"
         case .intervalSets:
@@ -358,6 +383,11 @@ struct WorkoutLaunchView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
                     .tracking(1)
+                Text(L10n.warmupEasyBPMCue)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 6)
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedWarmupMinutes,
                     valueRange: 0...40,
@@ -415,6 +445,11 @@ struct WorkoutLaunchView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
                     .tracking(1)
+                Text(L10n.warmupEasyBPMCue)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 6)
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedWarmupMinutes,
                     valueRange: 0...40,

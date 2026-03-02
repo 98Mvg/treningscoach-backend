@@ -313,6 +313,8 @@ struct ContinuousCoachResponse: Codable {
     let breathAvailableReliable: Bool?
     let events: [CoachingEvent]?
     let zonePrimaryEvent: String?
+    let zonePriority: Int?
+    let zonePhraseId: String?
     let sensorMode: String?
     let phaseId: Int?
     let zoneState: String?
@@ -367,6 +369,8 @@ struct ContinuousCoachResponse: Codable {
         case breathAvailableReliable = "breath_available_reliable"
         case events
         case zonePrimaryEvent = "zone_primary_event"
+        case zonePriority = "zone_priority"
+        case zonePhraseId = "zone_phrase_id"
         case sensorMode = "sensor_mode"
         case phaseId = "phase_id"
         case zoneState = "zone_state"
@@ -377,11 +381,15 @@ struct ContinuousCoachResponse: Codable {
 struct CoachingEvent: Codable, Identifiable {
     var id: String { "\(eventType)-\(ts)" }
     let eventType: String
+    let priority: Int?
+    let phraseId: String?
     let ts: Double
     let payload: CoachingEventPayload
 
     enum CodingKeys: String, CodingKey {
         case eventType = "event_type"
+        case priority
+        case phraseId = "phrase_id"
         case ts
         case payload
     }

@@ -69,6 +69,7 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
         training_level="intermediate"
     )
     db.session.add(user)
+    db.session.flush()  # Ensure user.id exists before creating dependent rows.
 
     # Create default settings
     settings = UserSettings(user_id=user.id)

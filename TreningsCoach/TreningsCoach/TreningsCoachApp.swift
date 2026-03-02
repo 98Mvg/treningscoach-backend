@@ -11,12 +11,14 @@ import SwiftUI
 @main
 struct TreningsCoachApp: App {
     @StateObject private var appViewModel = AppViewModel()
+    @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(appViewModel)
                 .environmentObject(appViewModel.authManager)
+                .preferredColorScheme(darkModeEnabled ? .dark : .light)
         }
     }
 }

@@ -30,12 +30,17 @@ struct L10n {
     // MARK: - Home
     static var startWorkout: String { current == .no ? "Start trening" : "Start Workout" }
     static var audioCoachingStarts: String { current == .no ? "Lydcoaching starter umiddelbart" : "Audio coaching starts immediately" }
+    static var connectHeartRateMonitorTitle: String { current == .no ? "Koble til pulsmåleren din" : "Connect your heart rate monitor" }
+    static var connected: String { current == .no ? "Tilkoblet" : "Connected" }
+    static var notConnected: String { current == .no ? "Ikke tilkoblet" : "Not connected" }
     static var thisWeek: String { current == .no ? "Denne uken" : "This week" }
     static var workoutsCompleted: String { current == .no ? "treninger fullfort" : "workouts completed" }
     static var recentWorkouts: String { current == .no ? "Siste treninger" : "Recent Workouts" }
     static var noWorkoutsYet: String { current == .no ? "Ingen treninger ennaa" : "No workouts yet" }
     static var tapStartWorkout: String { current == .no ? "Trykk Start trening for aa begynne" : "Tap Start Workout to begin your first session" }
     static var of: String { current == .no ? "av" : "of" }
+    static var today: String { current == .no ? "I dag" : "Today" }
+    static var coachScore: String { current == .no ? "Coach score" : "Coach score" }
 
     // MARK: - Workout
     static var warmup: String { current == .no ? "Oppvarming" : "Warm-up" }
@@ -48,11 +53,28 @@ struct L10n {
 
     // MARK: - Profile
     static var myStatistics: String { current == .no ? "Min statistikk" : "My Statistics" }
+    static var personalProfile: String { current == .no ? "Personlig profil" : "Personal profile" }
+    static var healthProfile: String { current == .no ? "Helseprofil" : "Health profile" }
+    static var manageHeartRateMonitors: String { current == .no ? "Administrer pulsmålere" : "Manage heart rate monitors" }
     static var settings: String { current == .no ? "Innstillinger" : "Settings" }
+    static var accountSettings: String { current == .no ? "Brukerkontoinnstillinger" : "Account settings" }
+    static var notifications: String { current == .no ? "Varsler" : "Notifications" }
+    static var privacySettings: String { current == .no ? "Personverninnstillinger" : "Privacy settings" }
+    static var sharingSettings: String { current == .no ? "Delingsinnstillinger" : "Sharing settings" }
+    static var manageSubscription: String { current == .no ? "Administrer abonnement" : "Manage subscription" }
+    static var helpAndSupport: String { current == .no ? "Hjelp og brukerstøtte" : "Help and support" }
+    static var faqTitle: String { current == .no ? "Hvordan bruke Coachi (FAQ)" : "How to use Coachi (FAQ)" }
+    static var contactSupport: String { current == .no ? "Kontakt brukerstøtte" : "Contact support" }
+    static var legal: String { current == .no ? "Juridisk" : "Legal" }
+    static var termsOfUse: String { current == .no ? "Brukervilkår" : "Terms of use" }
+    static var privacyPolicy: String { current == .no ? "Personvernerklæring" : "Privacy policy" }
+    static var appVersionLabel: String { current == .no ? "App-versjon" : "App version" }
+    static var comingSoon: String { current == .no ? "Kommer snart" : "Coming soon" }
     static var workouts: String { current == .no ? "Treninger" : "Workouts" }
     static var minutes: String { current == .no ? "Minutter" : "Minutes" }
     static var streak: String { current == .no ? "Rekke" : "Streak" }
     static var experienceLevel: String { current == .no ? "Treningsnivaa" : "Experience Level" }
+    static var dateOfBirth: String { current == .no ? "Fødselsdato" : "Date of birth" }
     static var coachVoice: String { current == .no ? "Coach-stemme" : "Coach Voice" }
     static var language: String { current == .no ? "Spraak" : "Language" }
     static var signOut: String { current == .no ? "Logg ut" : "Sign Out" }
@@ -102,6 +124,8 @@ struct L10n {
     // MARK: - Workout Player
     static var paused: String { current == .no ? "Pauset" : "Paused" }
     static var recording: String { current == .no ? "Opptaker" : "Recording" }
+    static var console: String { current == .no ? "Konsoll" : "Console" }
+    static var stopStartWorkout: String { current == .no ? "Stopp/start trening" : "Stop/start workout" }
 
     // MARK: - Onboarding (Coachi flow)
     static var aboutYou: String { current == .no ? "Om deg" : "About You" }
@@ -157,25 +181,61 @@ struct L10n {
 
     // MARK: - Workout Setup
     static var warmupTime: String { current == .no ? "Oppvarmingstid" : "Warm-up Time" }
+    static var inputSources: String { current == .no ? "Datakilder" : "Input sources" }
+    static var workoutIntensityTitle: String { current == .no ? "Treningsintensitet" : "Workout intensity" }
+    static var workoutIntensityDescription: String {
+        current == .no
+            ? "Du velger pulssonen og Coachen hjelper deg å holde riktig sone."
+            : "You choose the target zone and Coachi helps you stay in it."
+    }
+    static var breathAnalysisTitle: String { current == .no ? "Pusteanalyse" : "Breath analysis" }
+    static var breathAnalysisSubtitle: String {
+        current == .no
+            ? "Bruker mikrofonen til å analysere pust under trening."
+            : "Uses microphone to analyze breathing during workouts."
+    }
     static var go: String { current == .no ? "KJØR" : "GO" }
     static var min: String { current == .no ? "min" : "min" }
     static var minutesUpper: String { current == .no ? "MINUTTER" : "MINUTES" }
     static var noWarmup: String { current == .no ? "Ingen" : "None" }
     static var skipWarmup: String { current == .no ? "HOPP OVER" : "SKIP" }
+    static var intensityEasy: String { current == .no ? "Lett" : "Easy" }
+    static var intensityMedium: String { current == .no ? "Middels" : "Medium" }
+    static var intensityHard: String { current == .no ? "Hard" : "Hard" }
+    static var warmupEasyBPMCue: String {
+        current == .no
+            ? "Oppvarming kjøres alltid i lett intensitet."
+            : "Warm-up always runs at easy intensity."
+    }
 
     // MARK: - Workout Complete
     static var greatWorkout: String { current == .no ? "Bra trening!" : "Great Workout!" }
     static var duration: String { current == .no ? "Varighet" : "Duration" }
     static var done: String { current == .no ? "Ferdig" : "Done" }
+    static var share: String { current == .no ? "Del" : "Share" }
 
     // MARK: - Settings / About
     static var about: String { current == .no ? "Om" : "About" }
     static var version: String { current == .no ? "Versjon" : "Version" }
+    static var themeColor: String { current == .no ? "Temafarge" : "Theme color" }
+    static var chooseThemeColor: String { current == .no ? "Velg temafarge" : "Choose theme color" }
+    static var darkMode: String { current == .no ? "Mørk modus" : "Dark mode" }
+    static var darkModeSubtitle: String {
+        current == .no
+            ? "Bytt mellom svart og hvit app-visning."
+            : "Switch between black and white app appearance."
+    }
+
+    // MARK: - Voice Pack
+    static var voicePackTitle: String { current == .no ? "Stemmepakke" : "Voice Pack" }
+    static var resetVoicePack: String { current == .no ? "Tilbakestill stemmepakke" : "Reset Voice Pack" }
+    static var purgeStaleFiles: String { current == .no ? "Rydd opp filer" : "Purge Stale Files" }
 
     // MARK: - Tab Bar
     static var home: String { current == .no ? "Hjem" : "Home" }
     static var workout: String { current == .no ? "Trening" : "Workout" }
     static var profile: String { current == .no ? "Profil" : "Profile" }
+    static var profileTab: String { current == .no ? "Din profil" : "Your profile" }
 
     // MARK: - Errors
     static var error: String { current == .no ? "Feil" : "Error" }

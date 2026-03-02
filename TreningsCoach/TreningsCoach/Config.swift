@@ -69,6 +69,14 @@ struct AppConfig {
         static let iosEventSpeechEnabled = true
     }
 
+    // MARK: - Audio Pack (local-first speech)
+    struct AudioPack {
+        static let version = "v1"
+        // Set to your Cloudflare R2 public URL to enable runtime fetch+cache.
+        // Example: https://pub-xxxx.r2.dev
+        static let r2PublicURL = "https://pub-b70ecae2812f46e19b80bc39deb1c9a1.r2.dev"
+    }
+
     // MARK: - Health Signals
     struct Health {
         static let hrStaleThresholdSeconds: TimeInterval = 8.0

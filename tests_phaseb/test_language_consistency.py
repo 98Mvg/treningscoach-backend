@@ -8,7 +8,7 @@ from brains.openai_brain import OpenAIBrain
 from brains.claude_brain import ClaudeBrain
 from brains.gemini_brain import GeminiBrain
 from brains.grok_brain import GrokBrain
-from main import enforce_language_consistency, _looks_english
+from main import enforce_language_consistency, _looks_english, _looks_norwegian
 
 
 def test_router_normalizes_english_locale_for_config_fallback():
@@ -61,12 +61,29 @@ def test_looks_english_detects_common_phrases():
     assert _looks_english("You are doing great") is True  # "are" + "you" markers
 
 
+def test_looks_english_detects_mixed_language_drift():
+    """Mixed EN/NO cue should still be treated as English drift in NO mode."""
+    assert _looks_english("PUSH! Hardere!") is True
+
+
+def test_looks_norwegian_detects_common_phrases():
+    """_looks_norwegian should detect Norwegian cues in EN mode."""
+    assert _looks_norwegian("Bra jobba!") is True
+    assert _looks_norwegian("Fortsett!") is True
+    assert _looks_norwegian("Kjør på nå!") is True
+
+
 def test_looks_english_passes_norwegian():
     """_looks_english should NOT flag actual Norwegian text."""
     assert _looks_english("Kjør på!") is False
     assert _looks_english("Bra jobba!") is False
     assert _looks_english("Fortsett!") is False
     assert _looks_english("Helt inn nå!") is False
+
+
+def test_language_guard_corrects_norwegian_drift_for_english_mode():
+    assert enforce_language_consistency("Bra jobba!", "en") == "Keep going!"
+    assert enforce_language_consistency("Fortsett!", "en") == "Keep going!"
 
 
 def test_language_guard_leaves_norwegian_untouched():
@@ -80,10 +97,19 @@ def test_language_guard_leaves_norwegian_untouched():
 def test_norwegian_quality_guard_rewrites_known_awkward_phrases():
     assert enforce_language_consistency("Vakkert.", "no", phase="intense") == "Bra jobba."
     assert enforce_language_consistency("Gi meg mer kraft!", "no", phase="intense") == "Mer press nå!"
-    assert enforce_language_consistency("Trykk hardere.", "no", phase="intense") == "Press hardere."
+    assert enforce_language_consistency("Trykk hardere.", "no", phase="intense") == "Trykk litt hardere."
     assert enforce_language_consistency("Jevn opp.", "no", phase="intense") == "Finn jevn rytme."
 
 
 def test_norwegian_quality_guard_blocks_warmup_phrases_after_warmup():
     result = enforce_language_consistency("Forsiktig, fortsett å varme opp.", "no", phase="intense")
     assert result == "Nå øker vi trykket."
+
+
+def test_language_guard_uses_deterministic_replacement_for_mixed_drift():
+    attempts = [
+        enforce_language_consistency("PUSH! Hardere!", "no", phase="intense")
+        for _ in range(4)
+    ]
+    assert len(set(attempts)) == 1
+    assert "push" not in attempts[0].lower()

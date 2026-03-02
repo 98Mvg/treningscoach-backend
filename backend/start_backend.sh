@@ -1,18 +1,22 @@
 #!/bin/bash
-# Start Treningscoach Backend with environment variables from .env
+# Start Treningscoach backend using ROOT runtime (single source of truth).
 
 # Kill any existing backend
 pkill -f "python.*main.py" 2>/dev/null || true
 lsof -ti:10000 | xargs kill -9 2>/dev/null || true
 sleep 2
 
-# Change to backend directory
-cd "$(dirname "$0")"
+# Resolve directories
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Load environment variables from .env file
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-    echo "✅ Loaded environment variables from .env"
+if [ -f "$ROOT_DIR/.env" ]; then
+    export $(grep -v '^#' "$ROOT_DIR/.env" | xargs)
+    echo "✅ Loaded environment variables from root .env"
+elif [ -f "$SCRIPT_DIR/.env" ]; then
+    export $(grep -v '^#' "$SCRIPT_DIR/.env" | xargs)
+    echo "✅ Loaded environment variables from backend/.env"
 else
     echo "⚠️ No .env file found - some features may be disabled"
 fi
@@ -21,8 +25,8 @@ fi
 export PORT=10000
 
 # Start backend
-echo "🚀 Starting Treningscoach Backend..."
-python3 main.py > /tmp/backend.log 2>&1 &
+echo "🚀 Starting Treningscoach Backend (root runtime)..."
+python3 "$ROOT_DIR/main.py" > /tmp/backend.log 2>&1 &
 
 # Wait for startup
 sleep 4

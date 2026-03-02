@@ -10,6 +10,7 @@ import SwiftUI
 struct CoachOrbView: View {
     let state: OrbState
     var size: CGFloat = 120
+    var showsStateIcon: Bool = true
 
     @State private var isPulsing = false
     @State private var glowScale: CGFloat = 1.0
@@ -68,10 +69,12 @@ struct CoachOrbView: View {
                 .shadow(color: glowColor.opacity(0.3), radius: 20, y: 10)
                 .scaleEffect(state == .paused ? 1.0 : (isPulsing ? 1.04 : 1.0))
 
-            Image(systemName: icon)
-                .font(.system(size: size * 0.3, weight: .light))
-                .foregroundColor(.white)
-                .contentTransition(.symbolEffect(.replace))
+            if showsStateIcon {
+                Image(systemName: icon)
+                    .font(.system(size: size * 0.3, weight: .light))
+                    .foregroundColor(.white)
+                    .contentTransition(.symbolEffect(.replace))
+            }
         }
         .animation(.easeInOut(duration: 0.5), value: state)
         .onChange(of: state) { _, _ in isPulsing = false; startPulse() }
