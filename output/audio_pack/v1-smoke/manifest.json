@@ -1,0 +1,20 @@
+{
+  "version": "v1-smoke",
+  "generated_at": "2026-02-27T20:10:40.934025+00:00",
+  "voice": "elevenlabs_flash_v2_5",
+  "languages": [
+    "en"
+  ],
+  "total_files": 1,
+  "total_size_bytes": 34316,
+  "phrases": [
+    {
+      "id": "breath.cooldown.1",
+      "en": {
+        "file": "en/breath.cooldown.1.mp3",
+        "size": 34316,
+        "sha256": "eed00f2a9e72fddc5c2f7c77fb96d3313f1b9d55f5779099e603e6104416c6b2"
+      }
+    }
+  ]
+}
