@@ -227,6 +227,34 @@ PHRASE_CATALOG = [
     {"id": "breath.interrupt.slow_down.1", "en": "Slowing down. Match my count. In... two... three...", "no": "Vi senker tempoet. Følg tellingen. Inn... to... tre...", "persona": "personal_trainer", "priority": "core"},
     {"id": "breath.interrupt.dizzy.1", "en": "Stop moving. Sit down if you need to. Slow nose breathing.", "no": "Stopp. Sett deg ned om du trenger. Rolig nesepust.", "persona": "personal_trainer", "priority": "core"},
 
+    # wake acknowledgements (local, instant)
+    {"id": "wake_ack.en.default", "en": "Yes?", "no": "Yes?", "persona": "personal_trainer", "priority": "core"},
+    {"id": "wake_ack.no.default", "en": "Ja?", "no": "Ja?", "persona": "personal_trainer", "priority": "core"},
+    # wake acknowledgement candidates (manual review/promotion set)
+    {"id": "wake_ack.en.candidate.1", "en": "Listening.", "no": "Listening.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.2", "en": "Go on.", "no": "Go on.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.3", "en": "Yep?", "no": "Yep?", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.4", "en": "Tell me.", "no": "Tell me.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.5", "en": "Ready.", "no": "Ready.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.6", "en": "Go.", "no": "Go.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.7", "en": "I'm here.", "no": "I'm here.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.8", "en": "Speak.", "no": "Speak.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.9", "en": "Alright.", "no": "Alright.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.10", "en": "Go ahead.", "no": "Go ahead.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.11", "en": "Okay.", "no": "Okay.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.12", "en": "I'm listening.", "no": "I'm listening.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.13", "en": "What's up?", "no": "What's up?", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.14", "en": "Talk to me.", "no": "Talk to me.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.15", "en": "Let's go.", "no": "Let's go.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.16", "en": "Talk.", "no": "Talk.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.17", "en": "Hit me.", "no": "Hit me.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.18", "en": "What's good?", "no": "What's good?", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.en.candidate.19", "en": "Go for it.", "no": "Go for it.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.no.candidate.1", "en": "Ja?", "no": "Ja?", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.no.candidate.2", "en": "Klar.", "no": "Klar.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.no.candidate.3", "en": "Jeg hører.", "no": "Jeg hører.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "wake_ack.no.candidate.4", "en": "Hva skjer?", "no": "Hva skjer?", "persona": "personal_trainer", "priority": "extended"},
+
     # -----------------------------------------------------------------
     # ZONE EVENTS — zone_event_motor.py (fixed text, no variables)
     # -----------------------------------------------------------------

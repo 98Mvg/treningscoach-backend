@@ -15,18 +15,24 @@ def _wakeword_text() -> str:
     return WAKEWORD_MANAGER.read_text(encoding="utf-8")
 
 
-def test_button_capture_ignores_late_cancel_errors() -> None:
+def test_wake_word_manager_only_uses_coach_or_coachi() -> None:
     text = _wakeword_text()
-    assert "guard self.isCapturingUtterance else { return }" in text
-    assert "let canceled = self.isCancellationLikeError(error)" in text
+    assert '"en": ["coach", "coachi"]' in text
+    assert '"no": ["coach", "coachi"]' in text
+    assert '"pt"' not in text
+    assert '"snakk"' not in text
 
 
-def test_wake_listener_suppresses_transitional_noise_errors() -> None:
+def test_wake_word_manager_enforces_10_second_cooldown() -> None:
     text = _wakeword_text()
-    assert "if canceled || (!self.isListening && (self.isButtonCaptureSession || noSpeech)) {" in text
+    assert "private let wakeCooldownSeconds: TimeInterval = 10.0" in text
+    assert "self.lastWakeDetectionAt = now" in text
+    assert "Suppressed by cooldown" in text
 
 
-def test_cancellation_error_helper_covers_assistant_domain() -> None:
+def test_wake_word_manager_uses_phrase_spotting_and_no_command_transcription() -> None:
     text = _wakeword_text()
-    assert 'nsError.domain == "kAFAssistantErrorDomain"' in text
-    assert "nsError.code == 1101" in text
+    assert "request.contextualStrings = currentWakeWords" in text
+    assert "matchesWakePhrase" in text
+    assert "Phase 2: Capturing utterance after wake word" not in text
+

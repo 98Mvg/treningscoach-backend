@@ -7,6 +7,14 @@
 
 import Foundation
 
+struct WorkoutTalkContext {
+    let phase: String?
+    let heartRate: Int?
+    let targetHRLow: Int?
+    let targetHRHigh: Int?
+    let zoneState: String?
+}
+
 class BackendAPIService {
     // MARK: - Configuration
 
@@ -212,7 +220,8 @@ class BackendAPIService {
         persona: String? = nil,
         userName: String = "",
         responseMode: String? = nil,
-        context: String? = nil
+        context: String? = nil,
+        triggerSource: String = "button"
     ) async throws -> CoachTalkResponse {
         let url = URL(string: "\(baseURL)/coach/talk")!
         var request = URLRequest(url: url)
@@ -235,6 +244,7 @@ class BackendAPIService {
         if let context = context?.trimmingCharacters(in: .whitespacesAndNewlines), !context.isEmpty {
             body["context"] = context
         }
+        body["trigger_source"] = triggerSource
         request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await session.data(for: request)
@@ -245,6 +255,51 @@ class BackendAPIService {
         }
 
         return try JSONDecoder().decode(CoachTalkResponse.self, from: data)
+    }
+
+    /// Unified workout talk endpoint (wake word + button)
+    /// Sends multipart audio when available, otherwise falls back to JSON prompt.
+    func talkToCoachDuringWorkoutUnified(
+        audioURL: URL?,
+        fallbackMessage: String,
+        triggerSource: String,
+        sessionId: String,
+        workoutContext: WorkoutTalkContext,
+        persona: String,
+        language: String,
+        userName: String = ""
+    ) async throws -> CoachTalkResponse {
+        if let audioURL {
+            let url = URL(string: "\(baseURL)/coach/talk")!
+            let request = try createTalkMultipartRequest(
+                url: url,
+                audioURL: audioURL,
+                triggerSource: triggerSource,
+                sessionId: sessionId,
+                workoutContext: workoutContext,
+                persona: persona,
+                language: language,
+                userName: userName
+            )
+
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                throw APIError.invalidResponse
+            }
+            return try JSONDecoder().decode(CoachTalkResponse.self, from: data)
+        }
+
+        // Audio capture failed — keep behavior deterministic via JSON fallback.
+        return try await talkToCoach(
+            message: fallbackMessage,
+            language: language,
+            persona: persona,
+            userName: userName,
+            responseMode: "qa",
+            context: "workout",
+            triggerSource: triggerSource
+        )
     }
 
     /// Talk to coach during active workout (wake word triggered)
@@ -272,7 +327,8 @@ class BackendAPIService {
             "persona": persona,
             "language": language,
             "context": "workout",  // Tells backend this is mid-workout, not casual chat
-            "response_mode": "qa"
+            "response_mode": "qa",
+            "trigger_source": "button"
         ]
         if !userName.isEmpty {
             body["user_name"] = userName
@@ -523,6 +579,74 @@ class BackendAPIService {
 
         request.httpBody = body
 
+        return request
+    }
+
+    private func createTalkMultipartRequest(
+        url: URL,
+        audioURL: URL,
+        triggerSource: String,
+        sessionId: String,
+        workoutContext: WorkoutTalkContext,
+        persona: String,
+        language: String,
+        userName: String = ""
+    ) throws -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        addAuthHeader(to: &request)
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        func appendField(name: String, value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append(value.data(using: .utf8)!)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+
+        let audioData = try Data(contentsOf: audioURL)
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"audio\"; filename=\"talk.wav\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
+        body.append(audioData)
+        body.append("\r\n".data(using: .utf8)!)
+
+        appendField(name: "trigger_source", value: triggerSource)
+        appendField(name: "context", value: "workout")
+        appendField(name: "response_mode", value: "qa")
+        appendField(name: "session_id", value: sessionId)
+        appendField(name: "persona", value: persona)
+        appendField(name: "language", value: language)
+        if !userName.isEmpty {
+            appendField(name: "user_name", value: userName)
+        }
+        if let phase = workoutContext.phase, !phase.isEmpty {
+            appendField(name: "phase", value: phase)
+            appendField(name: "workout_phase", value: phase)
+        }
+        if let bpm = workoutContext.heartRate {
+            appendField(name: "heart_rate", value: "\(bpm)")
+            appendField(name: "workout_heart_rate", value: "\(bpm)")
+        }
+        if let low = workoutContext.targetHRLow {
+            appendField(name: "target_hr_low", value: "\(low)")
+            appendField(name: "workout_target_hr_low", value: "\(low)")
+        }
+        if let high = workoutContext.targetHRHigh {
+            appendField(name: "target_hr_high", value: "\(high)")
+            appendField(name: "workout_target_hr_high", value: "\(high)")
+        }
+        if let zoneState = workoutContext.zoneState, !zoneState.isEmpty {
+            appendField(name: "zone_state", value: zoneState)
+            appendField(name: "workout_zone_state", value: zoneState)
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
         return request
     }
 }

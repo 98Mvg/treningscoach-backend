@@ -80,7 +80,10 @@ def _zone_event_phrase_ids() -> set[str]:
 def test_zone_event_phrase_ids_exist_in_active_manifest():
     manifest_path = _active_manifest_path()
     manifest_ids = _manifest_phrase_ids(manifest_path)
-    required_ids = _zone_event_phrase_ids()
+    required_ids = _zone_event_phrase_ids().union({
+        "wake_ack.en.default",
+        "wake_ack.no.default",
+    })
     missing = sorted(required_ids - manifest_ids)
     assert not missing, (
         f"Active audio pack manifest is missing phrase IDs used by zone events "

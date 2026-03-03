@@ -4,6 +4,7 @@ from flask import Flask, request, send_file, jsonify, g
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+import json
 
 # Load environment variables from .env file
 from pathlib import Path
@@ -269,6 +270,156 @@ def is_question_request(message: str) -> bool:
         "explain ", "tell me ", "forklar ", "si hvorfor ", "hjelp meg å forstå ",
     )
     return any(lowered.startswith(pattern) for pattern in request_patterns)
+
+
+def normalize_trigger_source(trigger_source: str) -> str | None:
+    """Normalize and validate coach-talk trigger source."""
+    value = (trigger_source or "button").strip().lower()
+    allowed = set(getattr(config, "COACH_TALK_ALLOWED_TRIGGER_SOURCES", ("wake_word", "button")))
+    if value not in allowed:
+        return None
+    return value
+
+
+def talk_timeout_budget(trigger_source: str) -> float:
+    """Get trigger-specific talk timeout budget in seconds."""
+    if trigger_source == "wake_word":
+        return max(0.8, float(getattr(config, "COACH_TALK_WAKE_TIMEOUT_SECONDS", 2.0)))
+    return max(0.8, float(getattr(config, "COACH_TALK_BUTTON_TIMEOUT_SECONDS", 3.5)))
+
+
+def collect_workout_context(payload: dict | None = None, form=None) -> dict:
+    """
+    Collect normalized workout context from either JSON payload or multipart form fields.
+    Returns optional keys only when present.
+    """
+    payload = payload or {}
+    context = payload.get("workout_context") or {}
+    if form is not None:
+        raw_context = form.get("workout_context")
+        if raw_context and not context:
+            try:
+                parsed = json.loads(raw_context)
+                if isinstance(parsed, dict):
+                    context = parsed
+            except Exception:
+                context = {}
+    if not isinstance(context, dict):
+        context = {}
+
+    def _pick(*keys):
+        for key in keys:
+            if key in context and context.get(key) not in (None, ""):
+                return context.get(key)
+            if key in payload and payload.get(key) not in (None, ""):
+                return payload.get(key)
+            if form is not None:
+                value = form.get(key)
+                if value not in (None, ""):
+                    return value
+        return None
+
+    phase = _pick("phase", "workout_phase")
+    zone_state = _pick("zone_state", "workout_zone_state")
+    heart_rate = _coerce_int(_pick("heart_rate", "workout_heart_rate"))
+    target_low = _coerce_int(_pick("target_hr_low", "workout_target_hr_low"))
+    target_high = _coerce_int(_pick("target_hr_high", "workout_target_hr_high"))
+
+    result = {}
+    if phase:
+        result["phase"] = str(phase).strip().lower()
+    if zone_state:
+        result["zone_state"] = str(zone_state).strip().lower()
+    if heart_rate is not None:
+        result["heart_rate"] = max(0, int(heart_rate))
+    if target_low is not None:
+        result["target_hr_low"] = int(target_low)
+    if target_high is not None:
+        result["target_hr_high"] = int(target_high)
+    return result
+
+
+def workout_talk_fallback(language: str, workout_context: dict | None = None) -> str:
+    """Deterministic short fallback used when provider fails/timeouts."""
+    lang = normalize_language_code(language)
+    context = workout_context or {}
+    zone_state = str(context.get("zone_state") or "unknown").strip().lower()
+    if zone_state in {"above_zone", "above_target"}:
+        bucket = "above_zone"
+    elif zone_state in {"below_zone", "below_target"}:
+        bucket = "below_zone"
+    elif zone_state in {"in_zone", "in_target"}:
+        bucket = "in_zone"
+    else:
+        bucket = "unknown"
+
+    banks = getattr(config, "COACH_TALK_WORKOUT_FALLBACKS", {}) or {}
+    selected = banks.get(lang, {}) if isinstance(banks, dict) else {}
+    text = selected.get(bucket)
+    if text:
+        return text
+    if lang == "no":
+        return "Hold det jevnt og kontrollert. Stabil pust hele veien."
+    return "Stay smooth and controlled. Keep your breathing steady."
+
+
+def fallback_talk_prompt(language: str, workout_context: dict | None = None) -> str:
+    """Prompt used when no user message can be extracted."""
+    lang = normalize_language_code(language)
+    context = workout_context or {}
+    zone_state = str(context.get("zone_state") or "").strip().lower()
+    phase = str(context.get("phase") or "").strip().lower()
+
+    if lang == "no":
+        if zone_state in {"above_zone", "above_target"}:
+            return "Jeg er over målsonen nå. Hva bør jeg gjøre?"
+        if zone_state in {"below_zone", "below_target"}:
+            return "Jeg er under målsonen nå. Hva bør jeg gjøre?"
+        if phase in {"recovery", "cooldown"}:
+            return "Hva bør jeg fokusere på nå i denne fasen?"
+        return "Hvordan ligger jeg an akkurat nå?"
+
+    if zone_state in {"above_zone", "above_target"}:
+        return "I am above target zone right now. What should I do?"
+    if zone_state in {"below_zone", "below_target"}:
+        return "I am below target zone right now. What should I do?"
+    if phase in {"recovery", "cooldown"}:
+        return "What should I focus on in this phase?"
+    return "How am I doing right now?"
+
+
+def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) -> tuple[str | None, str]:
+    """
+    Best-effort speech-to-text for /coach/talk multipart audio.
+    Returns (text, source_status).
+    """
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
+        return None, "stt_skipped_no_api_key"
+
+    try:
+        from openai import OpenAI
+    except Exception:
+        return None, "stt_skipped_openai_missing"
+
+    model = (os.getenv("OPENAI_STT_MODEL") or "gpt-4o-mini-transcribe").strip()
+    client_timeout = max(1.0, float(timeout_seconds))
+
+    try:
+        client = OpenAI(api_key=api_key, timeout=client_timeout)
+        with open(filepath, "rb") as audio_handle:
+            transcript = client.audio.transcriptions.create(
+                model=model,
+                file=audio_handle,
+                language=normalize_language_code(language),
+            )
+        text = str(getattr(transcript, "text", "") or "").strip()
+        if not text:
+            return None, "stt_empty"
+        return text, "stt_openai"
+    except Exception as exc:
+        logger.warning("Coach talk STT failed: %s", exc)
+        return None, "stt_error"
 
 
 def _coach_score_from_intensity(intensity: str) -> int:
@@ -2914,27 +3065,122 @@ def coach_talk():
         "personality": "fitness_coach"
     }
     """
+    started_at = time.perf_counter()
+    temp_audio_path = None
+
     try:
-        data = request.get_json()
-        if not data or 'message' not in data:
-            return jsonify({"error": "Missing 'message' parameter"}), 400
+        is_multipart = "multipart/form-data" in (request.content_type or "")
+        payload = {}
+        form = request.form if is_multipart else None
+        files = request.files if is_multipart else None
 
-        user_message = data['message']
-        session_id = data.get('session_id')
-        context = data.get('context', 'chat')  # "workout" or "chat"
-        phase = data.get('phase', 'intense')
-        intensity = normalize_intensity_value(data.get('intensity', 'moderate'))
-        persona = data.get('persona', 'personal_trainer')
+        if is_multipart:
+            payload = {}
+        else:
+            payload = request.get_json(silent=True) or {}
+
+        raw_trigger = (
+            (form.get("trigger_source") if form is not None else None)
+            or payload.get("trigger_source")
+            or "button"
+        )
+        trigger_source = normalize_trigger_source(raw_trigger)
+        if not trigger_source:
+            return jsonify({"error": "Invalid trigger_source. Allowed: wake_word|button"}), 400
+
+        context = (
+            (form.get("context") if form is not None else None)
+            or payload.get("context")
+            or ("workout" if trigger_source in {"wake_word", "button"} else "chat")
+        )
+        context = str(context or "chat").strip().lower()
+        if context not in {"workout", "chat"}:
+            context = "chat"
+
         default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
-        language = normalize_language_code(data.get('language', default_language))
-        user_name = data.get('user_name', '').strip()
-        response_mode = (data.get("response_mode", "") or "").strip().lower()
+        language = normalize_language_code(
+            (form.get("language") if form is not None else None)
+            or payload.get("language", default_language)
+        )
+        persona = (
+            (form.get("persona") if form is not None else None)
+            or payload.get("persona")
+            or "personal_trainer"
+        )
+        user_name = (
+            (form.get("user_name") if form is not None else None)
+            or payload.get("user_name")
+            or ""
+        ).strip()
+        response_mode = (
+            (form.get("response_mode") if form is not None else None)
+            or payload.get("response_mode")
+            or ""
+        ).strip().lower()
 
-        logger.info(f"Coach talk: '{user_message}' (context={context}, phase={phase}, persona={persona}, user={user_name or 'anon'})")
+        workout_context = collect_workout_context(payload=payload, form=form)
+        phase = (
+            workout_context.get("phase")
+            or (form.get("phase") if form is not None else None)
+            or payload.get("phase")
+            or "intense"
+        )
+        intensity = normalize_intensity_value(
+            (form.get("intensity") if form is not None else None)
+            or payload.get("intensity")
+            or "moderate"
+        )
 
+        explicit_message = (
+            (form.get("message") if form is not None else None)
+            or payload.get("message")
+            or ""
+        ).strip()
+        user_message = explicit_message
+        stt_source = "none"
+
+        if is_multipart and files is not None and "audio" in files:
+            audio_file = files["audio"]
+            if audio_file and audio_file.filename:
+                audio_file.seek(0, os.SEEK_END)
+                file_size = audio_file.tell()
+                audio_file.seek(0)
+                if file_size > MAX_FILE_SIZE:
+                    return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
+
+                filename = f"talk_{datetime.now().timestamp()}.wav"
+                temp_audio_path = os.path.join(UPLOAD_FOLDER, filename)
+                audio_file.save(temp_audio_path)
+                if not user_message:
+                    budget = talk_timeout_budget(trigger_source)
+                    transcribed, stt_source = transcribe_talk_audio(
+                        filepath=temp_audio_path,
+                        language=language,
+                        timeout_seconds=budget,
+                    )
+                    if transcribed:
+                        user_message = transcribed
+            elif not explicit_message:
+                logger.info("Coach talk multipart request has no audio payload")
+
+        if not user_message:
+            user_message = fallback_talk_prompt(language, workout_context)
+
+        logger.info(
+            "Coach talk request trigger=%s context=%s phase=%s persona=%s user=%s stt=%s msg='%s'",
+            trigger_source,
+            context,
+            phase,
+            persona,
+            user_name or "anon",
+            stt_source,
+            user_message,
+        )
+
+        timeout_budget = talk_timeout_budget(trigger_source)
         is_question = response_mode in {"qa", "qna", "question"} or is_question_request(user_message)
+        fallback_used = False
 
-        # User questions should use fast Grok-first Q&A with max 3 sentences.
         if is_question:
             coach_text = brain_router.get_question_response(
                 user_message,
@@ -2942,71 +3188,36 @@ def coach_talk():
                 persona=persona,
                 context=context,
                 user_name=user_name or None,
+                timeout_cap_seconds=timeout_budget,
             )
         else:
-            # Build system prompt based on context
-            name_context = f"\n- The athlete's name is {user_name}. Use it at most once in this response, and only if it feels natural." if user_name else ""
+            # Backward-compatible non-QA route (rare for workout talk).
+            coach_text = brain_router.get_coaching_response(
+                {"intensity": intensity, "volume": 50, "tempo": 20},
+                phase,
+                mode="chat",
+                language=language,
+                persona=persona,
+            )
 
-            if context == 'workout':
-                # Mid-workout: user spoke via wake word — keep response VERY SHORT
-                persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
-                system_prompt = (
-                    f"{persona_prompt}\n\n"
-                    f"IMPORTANT: The user is IN THE MIDDLE of a workout right now.\n"
-                    f"- Current phase: {phase}\n"
-                    f"- Breathing intensity: {intensity}\n"
-                    f"- They used the wake word to speak to you.\n"
-                    f"- Keep your response to 1 sentence MAX. Be direct and actionable.\n"
-                    f"- Don't ask questions — they can't easily respond.\n"
-                    f"- If unclear, give a short motivational response."
-                    f"{name_context}"
-                )
-                if language == "no":
-                    system_prompt += "\n- RESPOND IN NORWEGIAN."
-                max_tokens = 40  # Very short for mid-workout
-            else:
-                # Casual chat: outside workout, slightly longer allowed
-                persona_prompt = PersonaManager.get_system_prompt(persona, language=language)
-                system_prompt = (
-                    f"{persona_prompt}\n"
-                    f"Max 2 sentences. You speak out loud to an athlete. Be concise and direct."
-                    f"{name_context}"
-                )
-                if language == "no":
-                    system_prompt += "\n- RESPOND IN NORWEGIAN."
-                max_tokens = 60
+        route_meta = brain_router.get_last_route_meta()
+        route_status = str(route_meta.get("status") or "").strip().lower()
+        if route_status and route_status != "success":
+            fallback_used = True
 
-            # Use strategic brain (Claude Haiku for cost efficiency) if enabled
-            coach_text = None
-            if strategic_brain is not None and strategic_brain.is_available():
-                try:
-                    response = strategic_brain.client.messages.create(
-                        model="claude-3-haiku-20240307",
-                        max_tokens=max_tokens,
-                        system=system_prompt,
-                        messages=[{"role": "user", "content": user_message}]
-                    )
-                    coach_text = response.content[0].text
-                    logger.info(f"Claude Haiku response: '{coach_text}'")
-                except Exception as e:
-                    logger.error(f"Claude API error: {e}")
+        if not coach_text or not str(coach_text).strip():
+            coach_text = workout_talk_fallback(language, workout_context)
+            fallback_used = True
 
-            # Fallback to config-based response
-            if not coach_text:
-                coach_text = brain_router.get_coaching_response(
-                    {"intensity": intensity, "volume": 50, "tempo": 20},
-                    phase,
-                    mode="chat",
-                    language=language,
-                    persona=persona
-                )
         coach_text = enforce_language_consistency(
             coach_text,
             language,
-            phase=phase if context == "workout" else None
+            phase=phase if context == "workout" else None,
         )
 
-        # Generate voice audio with persona-specific voice
+        if context == "workout" and fallback_used and not coach_text:
+            coach_text = workout_talk_fallback(language, workout_context)
+
         voice_file = generate_voice(
             coach_text,
             language=language,
@@ -3015,16 +3226,40 @@ def coach_talk():
         )
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         audio_url = f"/download/{relative_path}"
+        latency_ms = int(round((time.perf_counter() - started_at) * 1000))
+        provider = str(route_meta.get("provider") or "config")
+        mode = "workout_talk" if context == "workout" else "chat_talk"
+
+        logger.info(
+            "Coach talk response trigger=%s latency_ms=%s provider=%s mode=%s fallback_used=%s",
+            trigger_source,
+            latency_ms,
+            provider,
+            mode,
+            fallback_used,
+        )
 
         return jsonify({
             "text": coach_text,
             "audio_url": audio_url,
-            "personality": persona
+            "personality": persona,
+            "trigger_source": trigger_source,
+            "provider": provider,
+            "mode": mode,
+            "latency_ms": latency_ms,
+            "fallback_used": fallback_used,
+            "stt_source": stt_source,
         })
 
     except Exception as e:
         logger.error(f"Coach talk error: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+    finally:
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            try:
+                os.remove(temp_audio_path)
+            except Exception as cleanup_error:
+                logger.warning("Could not remove temp talk file %s: %s", temp_audio_path, cleanup_error)
 
 
 # ============================================

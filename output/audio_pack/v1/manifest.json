@@ -1,13 +1,13 @@
 {
   "version": "v1",
-  "generated_at": "2026-03-02T19:34:21.119245+00:00",
+  "generated_at": "2026-03-03T11:48:50.671612+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
-  "total_files": 468,
-  "total_size_bytes": 16204192,
+  "total_files": 518,
+  "total_size_bytes": 16842080,
   "phrases": [
     {
       "id": "breath.cooldown.1",
@@ -2191,6 +2191,331 @@
         "file": "no/toxic.warmup.5.mp3",
         "size": 62737,
         "sha256": "6a4d349399220e3d0a523adf140d10a95b50240f0c080bc4007bdb654b4e91c2"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.1",
+      "en": {
+        "file": "en/wake_ack.en.candidate.1.mp3",
+        "size": 13836,
+        "sha256": "1bc2a2a798e478601f2f8da87fbc041a1be776e4ab880fb40e88bfa8339be98b"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.1.mp3",
+        "size": 13000,
+        "sha256": "1519ec9a8b675a90091ec9f0ee8dc3de0302cba1647cb1a8610102d25f21490b"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.10",
+      "en": {
+        "file": "en/wake_ack.en.candidate.10.mp3",
+        "size": 13836,
+        "sha256": "163735dd0a3734bfcdec93ccd832f400b70a871e372889e52b6278df18b2e4af"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.10.mp3",
+        "size": 13836,
+        "sha256": "de53d1e1268e8b3a1cdd0f69597b3e54ecb7d288f4ed74c4fa60d1ee68b1ca29"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.11",
+      "en": {
+        "file": "en/wake_ack.en.candidate.11.mp3",
+        "size": 12164,
+        "sha256": "56c340c6d50e0b8428b1c7d87124d0b72643bec0d26a5b92adb9cb8f45c7cd4e"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.11.mp3",
+        "size": 11328,
+        "sha256": "c4fcb9f5836b7be80e1b29aae0280206a525a90f93f62fdb62416fc0aa03c8dc"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.12",
+      "en": {
+        "file": "en/wake_ack.en.candidate.12.mp3",
+        "size": 15926,
+        "sha256": "1e855703d4db8bc801ea53c934135102d12031bb8a0988fec49f73c08567e78b"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.12.mp3",
+        "size": 15926,
+        "sha256": "fd20f6b7e9ca387ebfdebb7616a49ab3ec918f44aea64437d2303f435a782e91"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.13",
+      "en": {
+        "file": "en/wake_ack.en.candidate.13.mp3",
+        "size": 12164,
+        "sha256": "53caa3317a09f203d0871b70b7071c9e6f527eac3044bfdc81be8f69ce4821e2"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.13.mp3",
+        "size": 13836,
+        "sha256": "0c320a05240a045ef705ec04e526a98f135b5e3fe70259e1e131631408a4236b"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.14",
+      "en": {
+        "file": "en/wake_ack.en.candidate.14.mp3",
+        "size": 15090,
+        "sha256": "681b133639d5856ab644055eab11149fe4a2cd7c9146dfdbb3d22dc7ae57ed58"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.14.mp3",
+        "size": 14254,
+        "sha256": "60b15091af91645c6e934adae801fa71e2bd8de40bfde2e7ac3babaa3e638996"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.15",
+      "en": {
+        "file": "en/wake_ack.en.candidate.15.mp3",
+        "size": 13836,
+        "sha256": "75e3570e7d1d383730819c4f95bd3a9eef40a11bca16834a9f0051949b67a0ac"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.15.mp3",
+        "size": 13836,
+        "sha256": "db6c9af61eed90dfeecbc6cc8bd4eb883b8144168b9a49d332a2592a25d7b960"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.16",
+      "en": {
+        "file": "en/wake_ack.en.candidate.16.mp3",
+        "size": 10911,
+        "sha256": "715e8cbf048d74c90b7b7c657655e8a206b5c3b30f33c0622a80e0a4edd0b575"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.16.mp3",
+        "size": 13836,
+        "sha256": "ffa83be47fd98d2fcffbeb6b7ee81f63d6f53d9de3015710e61ffa25f4eb993c"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.17",
+      "en": {
+        "file": "en/wake_ack.en.candidate.17.mp3",
+        "size": 13000,
+        "sha256": "c01957eb7f485602fe2026cb93d4d4ca7f8a7ae595ed0f01c812183776f52463"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.17.mp3",
+        "size": 14254,
+        "sha256": "d764457d3ac07a8afd02a51c79089994a101ab63d73d27eaa627424a6f15749f"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.18",
+      "en": {
+        "file": "en/wake_ack.en.candidate.18.mp3",
+        "size": 13836,
+        "sha256": "0727675dfc6be11f165bb9f8f679430f06749f5c29a8b6332d3c2ec246040176"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.18.mp3",
+        "size": 17598,
+        "sha256": "8f0d66518e4e881c813ef3e3ff43e383a8560efcba6cbada794bce2ef7c514be"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.19",
+      "en": {
+        "file": "en/wake_ack.en.candidate.19.mp3",
+        "size": 14254,
+        "sha256": "a60d7dfafa997a4bf19ea5d5866032909331a62dd9fa6714653fa6b0945f800a"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.19.mp3",
+        "size": 13000,
+        "sha256": "379351c96285aaa0c469563a6f7bc8e66babc3d0acc99e33425dd12f2a65f7a8"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.2",
+      "en": {
+        "file": "en/wake_ack.en.candidate.2.mp3",
+        "size": 13000,
+        "sha256": "a30f9c01b25141031b2ee992f56ae5cb50f1a8aa3182a2a8d36d1f0f7cb212c8"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.2.mp3",
+        "size": 12164,
+        "sha256": "c2db67f823e3d5022b54a17b9780769a7359363ccf7d134949801a8121e1f8f2"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.3",
+      "en": {
+        "file": "en/wake_ack.en.candidate.3.mp3",
+        "size": 10075,
+        "sha256": "f7e871d262523c0806cf54ecdd286c8d5227aabf71e2995e29be01856346c876"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.3.mp3",
+        "size": 9239,
+        "sha256": "c95f7c2620c2126d12796b36e15c0123080e7f77d81e275b619645ec52bd1f6b"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.4",
+      "en": {
+        "file": "en/wake_ack.en.candidate.4.mp3",
+        "size": 13836,
+        "sha256": "adb370f098e18af52bccd9237b39ac453abccb3f6b4887114f091c08b334ccce"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.4.mp3",
+        "size": 14254,
+        "sha256": "093e312137bd76246693dc7e0d038a30991edea126d108c7f097347c2ac61d4a"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.5",
+      "en": {
+        "file": "en/wake_ack.en.candidate.5.mp3",
+        "size": 12164,
+        "sha256": "d8694d51d6872a4eb3a01c2a9cd2ab8930e11dc01a866f390a9bc396d3fe7268"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.5.mp3",
+        "size": 12164,
+        "sha256": "b645660428027e01e41ad34440c19957e4b326172828390820bc06cc2361f761"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.6",
+      "en": {
+        "file": "en/wake_ack.en.candidate.6.mp3",
+        "size": 10911,
+        "sha256": "0bf26ecf8c2cde01d91502388af4150c4bd5656160b8c9d10ef1b67345e46ad5"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.6.mp3",
+        "size": 10075,
+        "sha256": "1ed7f6da2fb56b29a1824f575d369674dd4e232389e5d8b10fc618ed7ac8ccc0"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.7",
+      "en": {
+        "file": "en/wake_ack.en.candidate.7.mp3",
+        "size": 11328,
+        "sha256": "2ac8a987c150392e1c1d0f683463a87a599a48afe1b851eeb908279fb392e98f"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.7.mp3",
+        "size": 15090,
+        "sha256": "ea255e8e6d0ec06ef1908139b24434cd7c282a01787968f2ca2533a206353bee"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.8",
+      "en": {
+        "file": "en/wake_ack.en.candidate.8.mp3",
+        "size": 12164,
+        "sha256": "31a2ad60102629f946316e470b9c62941492cb3ba34f1ed84f886c6fe6da71fb"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.8.mp3",
+        "size": 13836,
+        "sha256": "a1420afd15b79d77583044467e0c5e3a6ec43cd673cfc66174bfa0d7d78559cd"
+      }
+    },
+    {
+      "id": "wake_ack.en.candidate.9",
+      "en": {
+        "file": "en/wake_ack.en.candidate.9.mp3",
+        "size": 12164,
+        "sha256": "4e79cb95d86c90e1af06f57ef2463772465e374f1e01ea11c68960368e655a9e"
+      },
+      "no": {
+        "file": "no/wake_ack.en.candidate.9.mp3",
+        "size": 13836,
+        "sha256": "ed2b7fd5a8e3c2824dbca5d924e688f38960c3e87b220511270cca5b5ef64e30"
+      }
+    },
+    {
+      "id": "wake_ack.en.default",
+      "en": {
+        "file": "en/wake_ack.en.default.mp3",
+        "size": 11328,
+        "sha256": "ab4497b905b1d7202fc7d386abfc5ec73fb13078a105562451939248f4e3c517"
+      },
+      "no": {
+        "file": "no/wake_ack.en.default.mp3",
+        "size": 10911,
+        "sha256": "f2488dc9f0fbf99a5dff279060ece83732638ef7bb08be9e9b5e2482c1099a9d"
+      }
+    },
+    {
+      "id": "wake_ack.no.candidate.1",
+      "en": {
+        "file": "en/wake_ack.no.candidate.1.mp3",
+        "size": 11328,
+        "sha256": "1bc385af013e27c922a0df5f08042fe8a6ba9ba0b5110a38455a73060b2a3d0a"
+      },
+      "no": {
+        "file": "no/wake_ack.no.candidate.1.mp3",
+        "size": 9239,
+        "sha256": "e3974027e9302750cc6f29fdcb4998401a9da8adcf881ca29ddea8338bfe0837"
+      }
+    },
+    {
+      "id": "wake_ack.no.candidate.2",
+      "en": {
+        "file": "en/wake_ack.no.candidate.2.mp3",
+        "size": 11328,
+        "sha256": "e286f38914f3fd42676ff95c59d7a89d5ac36c4878b307d0d05dafab28766ed3"
+      },
+      "no": {
+        "file": "no/wake_ack.no.candidate.2.mp3",
+        "size": 10911,
+        "sha256": "282628c2fbb052329f0f471d33f48db4db1690a7b337691e7a398e08b2ede3e6"
+      }
+    },
+    {
+      "id": "wake_ack.no.candidate.3",
+      "en": {
+        "file": "en/wake_ack.no.candidate.3.mp3",
+        "size": 13836,
+        "sha256": "3d9350dbbde0c0003e8e6cca63f6c853d6e5aae50aa44270d7627a60ae4e3754"
+      },
+      "no": {
+        "file": "no/wake_ack.no.candidate.3.mp3",
+        "size": 13836,
+        "sha256": "6952bf1b51404d343fdfd836ceb949488a5bd17394bcca9d49cb4be95e54458b"
+      }
+    },
+    {
+      "id": "wake_ack.no.candidate.4",
+      "en": {
+        "file": "en/wake_ack.no.candidate.4.mp3",
+        "size": 13836,
+        "sha256": "fa96dcad7a4ac33d29e0099bd3ded13c72f08f1fbce1e3efb170ec5d225bc3a6"
+      },
+      "no": {
+        "file": "no/wake_ack.no.candidate.4.mp3",
+        "size": 12164,
+        "sha256": "989adf1b38047ede6bf6b117eb013e2f885c3daccb82d49bc37fe83be796e957"
+      }
+    },
+    {
+      "id": "wake_ack.no.default",
+      "en": {
+        "file": "en/wake_ack.no.default.mp3",
+        "size": 10075,
+        "sha256": "82776f0901ecfbe84f4df454fe45501579040245e648f488a4378c24d425697b"
+      },
+      "no": {
+        "file": "no/wake_ack.no.default.mp3",
+        "size": 9239,
+        "sha256": "362de82cc906615a3b881300b6ddfbd94ed184643108c02c8caab6dd061d1663"
       }
     },
     {

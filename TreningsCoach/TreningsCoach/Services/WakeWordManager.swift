@@ -2,15 +2,13 @@
 //  WakeWordManager.swift
 //  TreningsCoach
 //
-//  Listens for wake word ("Coach" / "Trener") during continuous workout,
-//  then captures a short user utterance and returns the transcription.
+//  Listens for wake phrase ("coach" / "coachi") during continuous workout.
 //
 //  Architecture:
 //  - Uses Apple's SFSpeechRecognizer for on-device speech recognition
 //  - Taps into the SAME AVAudioEngine as ContinuousRecordingManager
-//  - Runs speech recognition on the audio stream looking for wake word
-//  - After wake word detected: captures next ~5 seconds of speech
-//  - Returns transcribed text (minus the wake word)
+//  - Runs on-device phrase spotting with constrained wake words
+//  - Emits wake events only (no transcript command parsing in workout path)
 //
 //  Key design: 90% one-way coaching, 10% user-initiated via wake word
 //
@@ -32,19 +30,15 @@ class WakeWordManager: ObservableObject {
 
     // MARK: - Configuration
 
-    /// Wake words per language
-    /// English: "Coach" / "hey coach"
-    /// Norwegian: "Coachi" / "PT"
+    /// Wake phrases per language (locked runtime set)
+    /// NOTE: v1 allows only "coach" and "coachi".
     static let wakeWords: [String: [String]] = [
-        "en": ["coach", "hey coach"],
-        "no": ["coachi", "pt"]
+        "en": ["coach", "coachi"],
+        "no": ["coach", "coachi"]
     ]
 
-    /// How long to capture after wake word (seconds)
-    private let utteranceTimeout: TimeInterval = 5.0
-
-    /// Minimum confidence for wake word detection
-    private let minConfidence: Float = 0.5
+    /// Retrigger cooldown to avoid duplicate wake detections.
+    private let wakeCooldownSeconds: TimeInterval = 10.0
 
     // MARK: - Private Properties
 
@@ -56,6 +50,7 @@ class WakeWordManager: ObservableObject {
     private var currentWakeWords: [String] = ["coach"]
     private var utteranceCaptureTimer: Timer?
     private var onUtteranceCaptured: ((String) -> Void)?
+    private var lastWakeDetectionAt: Date?
 
     private var isAuthorized = false
 
@@ -112,7 +107,7 @@ class WakeWordManager: ObservableObject {
         print("🎙️ Wake word manager: language=\(lang), words=\(currentWakeWords)")
     }
 
-    /// Start listening for wake word on the given audio engine
+    /// Start listening for wake phrase on the given audio engine
     /// Shares the audio engine with ContinuousRecordingManager
     func startListening(audioEngine: AVAudioEngine, onUtterance: @escaping (String) -> Void) {
         let diag = AudioPipelineDiagnostics.shared
@@ -165,7 +160,7 @@ class WakeWordManager: ObservableObject {
         isListening = true
         diag.isWakeWordListening = true
         diag.log(.wakeWordListening, detail: "Words: \(currentWakeWords.joined(separator: ", "))")
-        print("👂 Wake word listening started (words: \(currentWakeWords))")
+        print("👂 Wake word listening started (kws phrases: \(currentWakeWords))")
     }
 
     /// Feed an audio buffer to the speech recognizer
@@ -341,8 +336,7 @@ class WakeWordManager: ObservableObject {
     // MARK: - Private Methods
 
     private func startRecognitionTask(recognizer: SFSpeechRecognizer, request: SFSpeechAudioBufferRecognitionRequest) {
-        var wakeWordFound = false
-        var capturedText = ""
+        request.contextualStrings = currentWakeWords
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
@@ -395,79 +389,44 @@ class WakeWordManager: ObservableObject {
 
             Task { @MainActor in
                 self.resetErrorRetryState()
-                if !wakeWordFound {
-                    // Phase 1: Looking for wake word
-                    for wakeWord in self.currentWakeWords {
-                        if transcription.contains(wakeWord) {
-                            wakeWordFound = true
-                            self.wakeWordDetected = true
-                            self.isCapturingUtterance = true
+                for wakeWord in self.currentWakeWords where self.matchesWakePhrase(wakeWord, in: transcription) {
+                    let now = Date()
+                    if let previous = self.lastWakeDetectionAt,
+                       now.timeIntervalSince(previous) < self.wakeCooldownSeconds {
+                        AudioPipelineDiagnostics.shared.log(
+                            .wakeWordDetected,
+                            detail: "Suppressed by cooldown (\(Int(self.wakeCooldownSeconds))s)"
+                        )
+                        return
+                    }
 
-                            print("🎯 Wake word detected: '\(wakeWord)' in '\(transcription)'")
-                            AudioPipelineDiagnostics.shared.wakeWordDetected = true
-                            AudioPipelineDiagnostics.shared.lastWakeWordTime = Date()
-                            AudioPipelineDiagnostics.shared.log(.wakeWordDetected, detail: "'\(wakeWord)' in '\(transcription)'")
+                    self.lastWakeDetectionAt = now
+                    self.wakeWordDetected = true
+                    self.isCapturingUtterance = true
+                    AudioPipelineDiagnostics.shared.wakeWordDetected = true
+                    AudioPipelineDiagnostics.shared.lastWakeWordTime = now
+                    AudioPipelineDiagnostics.shared.log(.wakeWordDetected, detail: "'\(wakeWord)'")
+                    print("🎯 Wake phrase detected: '\(wakeWord)'")
 
-                            // Remove wake word from transcription to get the utterance
-                            capturedText = transcription
-                            for w in self.currentWakeWords {
-                                capturedText = capturedText.replacingOccurrences(of: w, with: "").trimmingCharacters(in: .whitespaces)
-                            }
-
-                            // Start timeout for utterance capture
-                            self.utteranceCaptureTimer = Timer.scheduledTimer(withTimeInterval: self.utteranceTimeout, repeats: false) { [weak self] _ in
-                                Task { @MainActor in
-                                    self?.finalizeUtterance(capturedText)
-                                }
-                            }
-                            break
+                    self.onUtteranceCaptured?(wakeWord)
+                    self.utteranceCaptureTimer?.invalidate()
+                    self.utteranceCaptureTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false) { [weak self] _ in
+                        Task { @MainActor in
+                            self?.wakeWordDetected = false
+                            self?.isCapturingUtterance = false
+                            AudioPipelineDiagnostics.shared.wakeWordDetected = false
                         }
                     }
-                } else {
-                    // Phase 2: Capturing utterance after wake word
-                    capturedText = transcription
-                    for w in self.currentWakeWords {
-                        capturedText = capturedText.replacingOccurrences(of: w, with: "").trimmingCharacters(in: .whitespaces)
-                    }
-
-                    // If result is final, don't wait for timeout
-                    if result.isFinal && !capturedText.isEmpty {
-                        self.utteranceCaptureTimer?.invalidate()
-                        self.finalizeUtterance(capturedText)
-                    }
+                    return
                 }
             }
         }
     }
 
-    private func finalizeUtterance(_ text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let diag = AudioPipelineDiagnostics.shared
-
-        guard !trimmed.isEmpty else {
-            print("👂 Wake word heard but no utterance captured — resuming listening")
-            diag.log(.utteranceFinalized, detail: "Empty — no speech after wake word")
-            diag.wakeWordDetected = false
-            wakeWordDetected = false
-            isCapturingUtterance = false
-            restartRecognition(reason: "empty_utterance")
-            return
-        }
-
-        print("💬 User utterance captured: '\(trimmed)'")
-        lastTranscription = trimmed
-        wakeWordDetected = false
-        isCapturingUtterance = false
-
-        diag.lastUtterance = trimmed
-        diag.wakeWordDetected = false
-        diag.log(.utteranceFinalized, detail: "'\(trimmed)'")
-
-        // Notify callback
-        onUtteranceCaptured?(trimmed)
-
-        // Restart listening for next wake word
-        restartRecognition(reason: "utterance_finalized")
+    private func matchesWakePhrase(_ phrase: String, in transcription: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(for: phrase)
+        let pattern = "(^|[^a-zA-ZæøåÆØÅ])\(escaped)([^a-zA-ZæøåÆØÅ]|$)"
+        return transcription.range(of: pattern, options: .regularExpression) != nil
     }
 
     private func resetErrorRetryState() {

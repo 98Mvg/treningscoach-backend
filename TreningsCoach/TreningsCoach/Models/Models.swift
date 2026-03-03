@@ -586,11 +586,23 @@ struct CoachTalkResponse: Codable {
     let text: String
     let audioURL: String
     let personality: String
+    let triggerSource: String?
+    let provider: String?
+    let mode: String?
+    let latencyMS: Int?
+    let fallbackUsed: Bool?
+    let sttSource: String?
 
     enum CodingKeys: String, CodingKey {
         case text
         case audioURL = "audio_url"
         case personality
+        case triggerSource = "trigger_source"
+        case provider
+        case mode
+        case latencyMS = "latency_ms"
+        case fallbackUsed = "fallback_used"
+        case sttSource = "stt_source"
     }
 }
 

@@ -127,6 +127,9 @@ def test_coach_talk_contract(monkeypatch, tmp_path):
     assert isinstance(payload.get("text"), str)
     assert isinstance(payload.get("audio_url"), str)
     assert isinstance(payload.get("personality"), str)
+    assert payload.get("trigger_source") == "button"
+    assert isinstance(payload.get("latency_ms"), int)
+    assert isinstance(payload.get("fallback_used"), bool)
 
 
 def test_coach_talk_question_uses_qna_path(monkeypatch, tmp_path):
@@ -157,6 +160,46 @@ def test_coach_talk_question_uses_qna_path(monkeypatch, tmp_path):
     assert payload["text"].count(".") <= 3
     assert isinstance(payload.get("audio_url"), str)
     assert isinstance(payload.get("personality"), str)
+
+
+def test_coach_talk_rejects_unknown_trigger_source(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "Quick cue",
+            "trigger_source": "chat",
+            "context": "workout",
+            "phase": "intense",
+        },
+    )
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "trigger_source" in (payload.get("error") or "")
+
+
+def test_coach_talk_accepts_workout_multipart_audio_contract(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+    response = client.post(
+        "/coach/talk",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "talk.wav"),
+            "trigger_source": "wake_word",
+            "context": "workout",
+            "phase": "work",
+            "workout_zone_state": "in_zone",
+            "workout_heart_rate": "145",
+            "language": "en",
+            "persona": "personal_trainer",
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload.get("trigger_source") == "wake_word"
+    assert isinstance(payload.get("text"), str)
+    assert isinstance(payload.get("audio_url"), str)
+    assert isinstance(payload.get("latency_ms"), int)
 
 
 def test_coach_continuous_contract(monkeypatch, tmp_path):

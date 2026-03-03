@@ -20,6 +20,11 @@ enum CoachInteractionState: String {
     case responding         // Coach is generating/speaking response
 }
 
+private enum TalkTriggerSource: String {
+    case wakeWord = "wake_word"
+    case button = "button"
+}
+
 struct SpeechTranscriptEntry: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -890,6 +895,8 @@ class WorkoutViewModel: ObservableObject {
     private var lastResolvedUtteranceID: String?
     private var lastResolvedEventType: String?
     private let maxSpeechTranscriptEntries = 120
+    private var talkCaptureTask: Task<Void, Never>?
+    private let workoutTalkCaptureSeconds: TimeInterval = 6.0
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -1057,60 +1064,191 @@ class WorkoutViewModel: ObservableObject {
 
     // MARK: - Wake Word Speech-to-Coach
 
-    /// Handle user utterance after wake word detection
-    /// This is the user-initiated channel — short, contextual questions
+    /// Handle wake trigger from on-device keyword spotting.
     private func handleWakeWordUtterance(_ utterance: String) {
-        guard isContinuousMode else { return }
-
-        print("🗣️ User spoke to coach: '\(utterance)'")
-        isWakeWordActive = true
-        coachInteractionState = .commandMode
-
-        sendUserMessageToCoach(utterance)
+        _ = utterance // Wake callbacks currently pass only the matched wake phrase.
+        guard isContinuousMode, !isPaused else { return }
+        startWorkoutTalkCapture(triggerSource: .wakeWord, playWakeAck: true)
     }
 
     /// "Talk to Coach" button — manually triggered
-    /// Starts a short speech capture session so the user can speak freely
+    /// Starts a short workout-context capture session.
     func talkToCoachButtonPressed() {
         guard isContinuousMode else { return }
         guard !isPaused else { return }
-        guard coachInteractionState != .responding else {
+        guard !isTalkingToCoach else {
             print("⚠️ Talk button ignored while coach is responding")
             return
         }
-        guard !wakeWordManager.isCapturingUtterance && !wakeWordManager.wakeWordDetected else {
-            print("⚠️ Ignoring button capture while wake-word capture is active")
-            return
-        }
+        startWorkoutTalkCapture(triggerSource: .button, playWakeAck: false)
+    }
 
-        print("🎤 Talk-to-coach button pressed — starting speech capture")
-        coachInteractionState = .commandMode
+    private func startWorkoutTalkCapture(triggerSource: TalkTriggerSource, playWakeAck: Bool) {
+        guard isContinuousMode, !isPaused else { return }
+        guard !isTalkingToCoach else { return }
+
+        talkCaptureTask?.cancel()
+        isTalkingToCoach = true
         isWakeWordActive = true
+        coachInteractionState = .commandMode
         voiceState = .listening
 
-        // Use speech recognition to capture what the user actually says
-        wakeWordManager.captureUtterance(duration: 6.0) { [weak self] transcription in
-            Task { @MainActor in
-                guard let self = self else { return }
-
-                let text = transcription.trimmingCharacters(in: .whitespacesAndNewlines)
-
-                if text.isEmpty {
-                    // No speech detected — fall back to a generic prompt
-                    print("⚠️ No speech captured, using fallback prompt")
-                    let fallback = self.currentLanguage == "no"
-                        ? "Hvordan gjør jeg det?"
-                        : "How am I doing?"
-                    self.sendUserMessageToCoach(fallback)
-                } else {
-                    print("💬 Captured user speech: '\(text)'")
-                    self.sendUserMessageToCoach(text)
-                }
+        if playWakeAck {
+            Task { [weak self] in
+                await self?.playWakeAcknowledgement()
             }
+        }
+
+        let captureDuration = workoutTalkCaptureSeconds
+        let startedAt = Date()
+        print("🎤 Workout talk capture started source=\(triggerSource.rawValue) duration=\(captureDuration)s")
+
+        talkCaptureTask = Task { [weak self] in
+            guard let self = self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(captureDuration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard self.isContinuousMode, !self.isPaused else {
+                await MainActor.run {
+                    self.isTalkingToCoach = false
+                    self.isWakeWordActive = false
+                    self.coachInteractionState = .passiveListening
+                }
+                return
+            }
+
+            let audioURL = self.continuousRecordingManager.getLatestChunk(duration: captureDuration)
+            if audioURL == nil {
+                print("⚠️ Workout talk capture empty — using text fallback prompt")
+            }
+            await self.sendWorkoutTalkRequest(
+                audioURL: audioURL,
+                triggerSource: triggerSource,
+                captureStartedAt: startedAt
+            )
         }
     }
 
-    /// Common path: send a user message to the coach backend
+    private func sendWorkoutTalkRequest(
+        audioURL: URL?,
+        triggerSource: TalkTriggerSource,
+        captureStartedAt: Date
+    ) async {
+        coachInteractionState = .responding
+
+        let talkContext = workoutTalkContextPayload()
+        let fallbackPrompt = defaultWorkoutTalkPrompt()
+        let requestStartedAt = Date()
+
+        do {
+            guard let sid = sessionId, !sid.isEmpty else {
+                print("⚠️ session_id missing for workout talk; using generic talk endpoint fallback")
+                let response = try await apiService.talkToCoach(
+                    message: fallbackPrompt,
+                    language: currentLanguage,
+                    persona: activePersonality.rawValue,
+                    userName: currentUserName,
+                    responseMode: "qa",
+                    context: "workout",
+                    triggerSource: triggerSource.rawValue
+                )
+                coachMessage = response.text
+                voiceState = .speaking
+                _ = await playCoachAudio(response.audioURL, transcriptText: response.text)
+                finalizeWorkoutTalkSession()
+                return
+            }
+
+            let response = try await apiService.talkToCoachDuringWorkoutUnified(
+                audioURL: audioURL,
+                fallbackMessage: fallbackPrompt,
+                triggerSource: triggerSource.rawValue,
+                sessionId: sid,
+                workoutContext: talkContext,
+                persona: activePersonality.rawValue,
+                language: currentLanguage,
+                userName: currentUserName
+            )
+
+            let latencyMs = Int(Date().timeIntervalSince(requestStartedAt) * 1000)
+            print(
+                "🗣️ Coach talk response source=\(triggerSource.rawValue) latency_ms=\(latencyMs) provider=\(response.provider ?? "unknown") mode=\(response.mode ?? "unknown") fallback_used=\(response.fallbackUsed ?? false)"
+            )
+            coachMessage = response.text
+            voiceState = .speaking
+            _ = await playCoachAudio(response.audioURL, transcriptText: response.text)
+        } catch {
+            print("❌ Coach talk failed: \(error.localizedDescription)")
+            coachMessage = currentLanguage == "no"
+                ? "Fikk ikke kontakt med coach akkurat nå. Prøv igjen."
+                : "Could not reach coach right now. Try again."
+        }
+
+        let captureMs = Int(Date().timeIntervalSince(captureStartedAt) * 1000)
+        print("🎙️ Workout talk completed source=\(triggerSource.rawValue) total_capture_window_ms=\(captureMs)")
+        finalizeWorkoutTalkSession()
+    }
+
+    private func finalizeWorkoutTalkSession() {
+        talkCaptureTask?.cancel()
+        talkCaptureTask = nil
+        isTalkingToCoach = false
+        isWakeWordActive = false
+        coachInteractionState = .passiveListening
+        voiceState = isContinuousMode && !isPaused ? .listening : .idle
+        // Drop stale event scheduler state once talk flow ends.
+        lastEventSpeechAt = nil
+        lastEventSpeechPriority = -1
+        lastResolvedUtteranceID = nil
+        lastResolvedEventType = nil
+    }
+
+    private func defaultWorkoutTalkPrompt() -> String {
+        switch zoneStatus {
+        case "above_zone":
+            return currentLanguage == "no"
+                ? "Jeg er over målsonen nå. Hva bør jeg gjøre?"
+                : "I am above target zone right now. What should I do?"
+        case "below_zone":
+            return currentLanguage == "no"
+                ? "Jeg er under målsonen nå. Hva bør jeg gjøre?"
+                : "I am below target zone right now. What should I do?"
+        case "in_zone":
+            return currentLanguage == "no"
+                ? "Jeg er i målsonen nå. Hva bør jeg fokusere på?"
+                : "I am in target zone now. What should I focus on?"
+        default:
+            return currentLanguage == "no" ? "Hvordan ligger jeg an nå?" : "How am I doing right now?"
+        }
+    }
+
+    private func workoutTalkContextPayload() -> WorkoutTalkContext {
+        WorkoutTalkContext(
+            phase: currentPhase.rawValue,
+            heartRate: watchConnected ? heartRate : 0,
+            targetHRLow: targetHRLow,
+            targetHRHigh: targetHRHigh,
+            zoneState: zoneStatus
+        )
+    }
+
+    private func wakeAcknowledgementUtteranceID() -> String {
+        currentLanguage == "no" ? "wake_ack.no.default" : "wake_ack.en.default"
+    }
+
+    private func playWakeAcknowledgement() async {
+        let utteranceID = wakeAcknowledgementUtteranceID()
+        print("🎧 Wake ack: \(utteranceID)")
+        _ = await playCoachAudio(
+            nil,
+            utteranceID: utteranceID,
+            eventType: "wake_ack",
+            transcriptText: nil,
+            allowRemotePackFetch: false,
+            allowBackendTTSFallback: false
+        )
+    }
+
+    /// Legacy text path retained for non-workout chat interactions.
     private func sendUserMessageToCoach(_ message: String) {
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else {
@@ -1484,6 +1622,13 @@ class WorkoutViewModel: ObservableObject {
             return (response.shouldSpeak && response.audioURL != nil, "legacy_fallback")
         }
 
+        if isCoachTalkActive {
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
+            print("🤫 EVENT_SUPPRESSED reason=talk_arbitration state=\(coachInteractionState.rawValue)")
+            return (false, "talk_arbitration")
+        }
+
         // Event-capable contract:
         // - Backend owns the speech/no-speech decision via should_speak.
         // - If events array is missing, fall back to legacy audio path.
@@ -1818,6 +1963,8 @@ class WorkoutViewModel: ObservableObject {
             coachInteractionState = .passiveListening
             isWakeWordActive = false
             isTalkingToCoach = false
+            talkCaptureTask?.cancel()
+            talkCaptureTask = nil
             sessionStartTime = Date()
             workoutDuration = 0
 
@@ -1909,6 +2056,8 @@ class WorkoutViewModel: ObservableObject {
         coachInteractionState = .passiveListening
         isWakeWordActive = false
         isTalkingToCoach = false
+        talkCaptureTask?.cancel()
+        talkCaptureTask = nil
         consecutiveChunkFailures = 0
 
         print("✅ Workout paused")
@@ -1933,6 +2082,8 @@ class WorkoutViewModel: ObservableObject {
         coachInteractionState = .passiveListening
         isWakeWordActive = false
         isTalkingToCoach = false
+        talkCaptureTask?.cancel()
+        talkCaptureTask = nil
 
         // Resume wake word listening
         wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
@@ -1993,6 +2144,8 @@ class WorkoutViewModel: ObservableObject {
         coachInteractionState = .passiveListening
         isWakeWordActive = false
         isTalkingToCoach = false
+        talkCaptureTask?.cancel()
+        talkCaptureTask = nil
         sessionId = nil
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0
@@ -2486,7 +2639,9 @@ class WorkoutViewModel: ObservableObject {
         _ audioURL: String?,
         utteranceID: String? = nil,
         eventType: String? = nil,
-        transcriptText: String? = nil
+        transcriptText: String? = nil,
+        allowRemotePackFetch: Bool = true,
+        allowBackendTTSFallback: Bool = true
     ) async -> Bool {
         let language = normalizedLanguageCode(currentLanguage)
         let resolvedEventType = eventType ?? "unknown"
@@ -2516,26 +2671,28 @@ class WorkoutViewModel: ObservableObject {
                     return true
                 }
 
-                if let downloadedURL = await downloadAudioPackFileIfNeeded(
-                    for: utteranceID,
-                    language: language,
-                    personaKey: personaKey
-                ) {
-                    await playAudio(from: downloadedURL)
-                    logSpeechTranscript(
-                        utteranceID: utteranceID,
-                        eventType: resolvedEventType,
-                        source: "r2_pack",
-                        text: transcriptText
-                    )
-                    return true
+                if allowRemotePackFetch {
+                    if let downloadedURL = await downloadAudioPackFileIfNeeded(
+                        for: utteranceID,
+                        language: language,
+                        personaKey: personaKey
+                    ) {
+                        await playAudio(from: downloadedURL)
+                        logSpeechTranscript(
+                            utteranceID: utteranceID,
+                            eventType: resolvedEventType,
+                            source: "r2_pack",
+                            text: transcriptText
+                        )
+                        return true
+                    }
                 }
             } else {
                 print("🔇 PACK_SUPPRESSED persona=personal_trainer utterance=\(utteranceID)")
             }
         }
 
-        guard let audioURL else {
+        guard allowBackendTTSFallback, let audioURL else {
             return false
         }
 

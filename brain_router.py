@@ -156,14 +156,20 @@ class BrainRouter:
         """Get metadata for the most recent brain route decision."""
         return dict(self.last_route_meta)
 
-    def _qa_timeout_for(self, brain_name: str) -> float:
+    def _qa_timeout_for(self, brain_name: str, timeout_cap_seconds: Optional[float] = None) -> float:
         """
         Resolve timeout for ad-hoc question answering.
 
         Keeps Q&A snappy while allowing a bit more thinking time.
         """
         base_timeout = self._get_brain_timeout(brain_name, "chat")
-        cap = float(getattr(config, "COACH_QA_TIMEOUT_SECONDS", 5.0))
+        default_cap = float(getattr(config, "COACH_QA_TIMEOUT_SECONDS", 5.0))
+        cap = default_cap
+        if timeout_cap_seconds is not None:
+            try:
+                cap = max(0.8, float(timeout_cap_seconds))
+            except Exception:
+                cap = default_cap
         return max(0.8, min(base_timeout, cap))
 
     def _qa_max_tokens(self) -> int:
@@ -344,6 +350,7 @@ class BrainRouter:
         persona: Optional[str] = None,
         context: str = "chat",
         user_name: Optional[str] = None,
+        timeout_cap_seconds: Optional[float] = None,
     ) -> str:
         """
         Answer a direct user question with fast, concise output.
@@ -398,7 +405,7 @@ class BrainRouter:
                 attempted.append({"brain": brain_name, "status": "unavailable"})
                 continue
 
-            timeout = self._qa_timeout_for(brain_name)
+            timeout = self._qa_timeout_for(brain_name, timeout_cap_seconds=timeout_cap_seconds)
             fn = lambda brain=brain, timeout=timeout: self._answer_question_with_brain(
                 brain,
                 question=prompt,

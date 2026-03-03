@@ -367,8 +367,25 @@ BRAIN_TIMEOUTS = _env_json_dict("BRAIN_TIMEOUTS_JSON", {"grok": 6.0})
 # Optional per-mode overrides (realtime_coach/chat). Falls back to BRAIN_TIMEOUTS/BRAIN_TIMEOUT.
 BRAIN_MODE_TIMEOUTS = _env_json_dict("BRAIN_MODE_TIMEOUTS_JSON", {})
 COACH_QA_TIMEOUT_SECONDS = _env_float("COACH_QA_TIMEOUT_SECONDS", 5.0)
+COACH_TALK_WAKE_TIMEOUT_SECONDS = _env_float("COACH_TALK_WAKE_TIMEOUT_SECONDS", 2.0)
+COACH_TALK_BUTTON_TIMEOUT_SECONDS = _env_float("COACH_TALK_BUTTON_TIMEOUT_SECONDS", 3.5)
 COACH_QA_MAX_TOKENS = _env_int("COACH_QA_MAX_TOKENS", 110)
 COACH_QA_MAX_SENTENCES = _env_int("COACH_QA_MAX_SENTENCES", 5)
+COACH_TALK_ALLOWED_TRIGGER_SOURCES = ("wake_word", "button")
+COACH_TALK_WORKOUT_FALLBACKS = {
+    "en": {
+        "above_zone": "Check in: ease off a touch and lengthen your exhale.",
+        "below_zone": "Build gradually now. Shorter steps and calm breathing.",
+        "in_zone": "You're on target. Keep this rhythm and relaxed shoulders.",
+        "unknown": "Stay smooth and controlled. Keep your breathing steady.",
+    },
+    "no": {
+        "above_zone": "Sjekk inn: ro litt ned og forleng utpusten.",
+        "below_zone": "Bygg gradvis nå. Kortere steg og rolig pust.",
+        "in_zone": "Du er i målsonen. Hold rytmen og lave skuldre.",
+        "unknown": "Hold det jevnt og kontrollert. Stabil pust hele veien.",
+    },
+}
 #
 # Provider client timeout strategy:
 # Keep provider HTTP timeout slightly below router timeout so timed-out work
