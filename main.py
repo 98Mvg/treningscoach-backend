@@ -617,29 +617,35 @@ def _apply_interval_tick_budget(
     workout_mode: str,
     zone_tick: dict,
 ) -> int:
-    """Cap tick interval during interval workouts so countdown cues are not skipped."""
+    """Cap tick interval during countdown-sensitive phases so cues are not skipped."""
     resolved_wait = max(1, int(wait_seconds or 1))
-    if str(workout_mode or "").strip().lower() != "interval":
-        return resolved_wait
     if not isinstance(zone_tick, dict):
         return resolved_wait
 
+    mode = str(workout_mode or "").strip().lower()
     phase = str(zone_tick.get("phase") or "").strip().lower()
     remaining_phase_seconds = _coerce_int(zone_tick.get("remaining_phase_seconds"))
 
-    if phase in {"warmup", "recovery"}:
+    if mode == "interval" and phase in {"warmup", "recovery"}:
         recovery_cap = int(getattr(config, "INTERVAL_RECOVERY_MAX_WAIT_SECONDS", 5))
         final_window = int(getattr(config, "INTERVAL_RECOVERY_FINAL_WINDOW_SECONDS", 35))
         final_cap = int(getattr(config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
         resolved_wait = min(resolved_wait, recovery_cap)
         if remaining_phase_seconds is not None and remaining_phase_seconds <= final_window:
             resolved_wait = min(resolved_wait, final_cap)
-    elif phase == "work":
+    elif mode == "interval" and phase == "work":
         work_cap = int(getattr(config, "INTERVAL_WORK_MAX_WAIT_SECONDS", 8))
         resolved_wait = min(resolved_wait, work_cap)
-    else:
+    elif mode == "interval":
         transition_cap = int(getattr(config, "INTERVAL_TRANSITION_MAX_WAIT_SECONDS", 12))
         resolved_wait = min(resolved_wait, transition_cap)
+    elif mode == "easy_run" and phase == "warmup" and remaining_phase_seconds is not None:
+        warmup_cap = int(getattr(config, "INTERVAL_RECOVERY_MAX_WAIT_SECONDS", 5))
+        final_window = int(getattr(config, "INTERVAL_RECOVERY_FINAL_WINDOW_SECONDS", 35))
+        final_cap = int(getattr(config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
+        resolved_wait = min(resolved_wait, warmup_cap)
+        if remaining_phase_seconds <= final_window:
+            resolved_wait = min(resolved_wait, final_cap)
 
     return max(1, int(resolved_wait))
 
@@ -1849,26 +1855,16 @@ def welcome():
         user_name = request.args.get('user_name', '').strip()
 
         experience_key = (experience or "standard").strip().lower()
-        category_map = {
-            "standard": "standard",
-            "beginner": "beginner",
-            "beginner_friendly": "beginner",
-            "intermediate": "standard",
-            "advanced": "standard",
-            "breath": "breath",
-            "breath_aware": "breath",
-        }
-        message_category = category_map.get(experience_key, "standard")
-        category_prefix = f"welcome.{message_category}"
+        # Single source-of-truth: welcome lines are standardized under welcome.standard.*
+        message_category = "standard"
+        category_prefix = "welcome.standard"
         selected_persona = persona
 
         available_ids = list_phrase_ids_by_prefix(category_prefix, persona=persona)
         selected_prefix = category_prefix
 
-        # Safe fallback to standard welcome set for unknown personas/categories.
-        if not available_ids and message_category != "standard":
-            selected_prefix = "welcome.standard"
-            available_ids = list_phrase_ids_by_prefix(selected_prefix, persona=persona)
+        if experience_key not in {"", "standard", "intermediate", "advanced", "beginner", "beginner_friendly", "breath", "breath_aware"}:
+            logger.info("Unknown welcome experience '%s' -> using welcome.standard", experience_key)
         if not available_ids:
             selected_prefix = "welcome.standard"
             selected_persona = "personal_trainer"
@@ -2121,6 +2117,7 @@ def coach_continuous():
             request.form.get('interval_template', getattr(config, "DEFAULT_INTERVAL_TEMPLATE", "4x4")),
             config,
         )
+        warmup_seconds_raw = request.form.get("warmup_seconds")
         user_name = request.form.get('user_name', '').strip()
         user_profile_id = request.form.get('user_profile_id', '').strip()
         heart_rate_raw = request.form.get("heart_rate")
@@ -2449,6 +2446,7 @@ def coach_continuous():
                 hr_max=request.form.get("hr_max"),
                 resting_hr=request.form.get("resting_hr"),
                 age=request.form.get("age"),
+                warmup_seconds=warmup_seconds_raw,
                 config_module=config,
                 breath_intensity=breath_data.get("intensity"),
                 breath_signal_quality=breath_data.get("signal_quality"),

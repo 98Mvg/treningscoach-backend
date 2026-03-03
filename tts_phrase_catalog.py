@@ -32,27 +32,23 @@ PHRASE_CATALOG = [
     # WELCOME — config.py WELCOME_MESSAGES (personal_trainer)
     # -----------------------------------------------------------------
 
-    # standard
-    {"id": "welcome.standard.1", "en": "Good to see you. Let's start with some easy movement and build from there.", "no": "Fint at du er her. Vi starter rolig og bygger derfra.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.standard.2", "en": "Ready when you are. Take a breath, settle in, and we'll ease into it.", "no": "Klar når du er. Ta et pust, finn roen, så setter vi i gang.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.standard.3", "en": "Nice timing. Let's warm up properly and set the tone for a good session.", "no": "Bra timing. La oss varme opp ordentlig og legge grunnlaget.", "persona": "personal_trainer", "priority": "core"},
+    # standard (single welcome source-of-truth)
+    {"id": "welcome.standard.1", "en": "Let's begin by warming up the body.", "no": "La oss begynne med oppvarming.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.2", "en": "Ready when you are.", "no": "Klar når du er. Gjør kroppen klar for dagens trening.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.3", "en": "Nice to see you. Let's set the tone for a good session.", "no": "Herlig å se deg. La oss varme opp ordentlig før økten starter.", "persona": "personal_trainer", "priority": "core"},
     {"id": "welcome.standard.4", "en": "Let's get moving. Controlled pace to start, then we'll find your rhythm.", "no": "La oss komme i gang. Kontrollert tempo til å begynne med.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.standard.5", "en": "Welcome back. Focus on how your body feels and we'll build from there.", "no": "Velkommen tilbake. Kjenn på kroppen så bygger vi derfra.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.standard.6", "en": "Alright, let's begin. Smooth and steady, no rush.", "no": "Ok, la oss begynne. Rolig og jevnt, uten stress.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.standard.7", "en": "Good call showing up. Start easy, the intensity will come naturally.", "no": "Bra at du dukket opp. Start rolig, intensiteten kommer naturlig.", "persona": "personal_trainer", "priority": "core"},
-
-    # beginner_friendly
-    {"id": "welcome.beginner.1", "en": "Great that you're here. We'll start slow and keep it simple.", "no": "Fint at du er her. Vi starter sakte og holder det enkelt.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.beginner.2", "en": "Welcome. Just focus on breathing and moving at your own pace.", "no": "Velkommen. Bare fokuser på pusten og beveg deg i ditt tempo.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.beginner.3", "en": "Let's begin easy. No pressure, just getting your body warmed up.", "no": "La oss starte rolig. Ingen press, bare få kroppen varm.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.beginner.4", "en": "Nice to have you. Take it one step at a time, I'll guide you through.", "no": "Godt å ha deg her. Ett steg om gangen, jeg guider deg.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.beginner.5", "en": "You're here, that's the hardest part. Now let's ease into it together.", "no": "Du er her, det er det vanskeligste. Nå tar vi det rolig sammen.", "persona": "personal_trainer", "priority": "core"},
-
-    # breath_aware
-    {"id": "welcome.breath.1", "en": "Take a moment. Deep breath in, slow breath out. Now let's begin.", "no": "Ta et øyeblikk. Dyp innpust, rolig utpust. Nå begynner vi.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.breath.2", "en": "Start by finding your breath. Shoulders down, chest open, easy pace.", "no": "Start med å finne pusten. Skuldrene ned, brystet åpent, rolig tempo.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.breath.3", "en": "Let's connect with your breathing first. Everything else follows from there.", "no": "La oss koble på pusten først. Alt annet følger derfra.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "welcome.breath.4", "en": "Settle your breath, relax your body. We'll build the intensity gradually.", "no": "Finn roen i pusten, slapp av kroppen. Vi bygger intensiteten gradvis.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.5", "en": "Welcome back.", "no": "Velkommen tilbake.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.6", "en": "Alright, let's begin.", "no": "Velkommen tilbake, la oss begynne.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.7", "en": "Let's start easy, then slowly increase the intensity.", "no": "La oss starte rolig, vi øker intensiteten når kroppen er varmet opp.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.8", "en": "Nice to see you. We'll start slowly and keep it simple.", "no": "Fint at du er her. Vi starter sakte og holder det enkelt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.9", "en": "Welcome. Just focus on breathing and moving at your own pace.", "no": "Velkommen. Bare fokuser på pusten og beveg deg i ditt tempo.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.10", "en": "Let's begin easy. Just getting your body warmed up.", "no": "La oss starte rolig og få kroppen god og varm.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.11", "en": "Nice to see you. I'll guide you through the workout.", "no": "Godt å se deg. Jeg guider deg igjennom dagens økt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.12", "en": "Perfect! You're here, that's the hardest part.", "no": "Herlig! Du er her, det er det vanskeligste.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.13", "en": "Take a moment. Deep breath in, slow breath out.", "no": "Start denne økten med 5 dype innpust og 5 rolige utpust.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.14", "en": "Start by finding your breath, and get in the zone.", "no": "Start med å finne pusten og komme deg inn i sonen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.15", "en": "Let's connect with your breathing first. Everything else follows from there.", "no": "Først koble deg på pusten. Alt annet følger derfra.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "welcome.standard.16", "en": "Settle your breath, relax your body. We'll build the intensity gradually.", "no": "Finn roen i pusten, slapp av kroppen. Vi bygger intensiteten gradvis.", "persona": "personal_trainer", "priority": "core"},
 
     # -----------------------------------------------------------------
     # COACH — config.py COACH_MESSAGES (personal_trainer)

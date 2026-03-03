@@ -147,7 +147,7 @@ def test_validation_mode_realtime_for_coaching_cues():
 def test_validation_mode_strategic_for_welcome():
     """Welcome phrases get strategic mode (2-30 words) — they're longer by design."""
     assert mod._validation_mode("welcome.standard.1") == "strategic"
-    assert mod._validation_mode("welcome.beginner.3") == "strategic"
+    assert mod._validation_mode("welcome.standard.12") == "strategic"
 
 
 def test_validation_mode_strategic_for_signal_notices():
