@@ -96,3 +96,7 @@ output/audio_pack/*/en/
 output/audio_pack/*/no/
 # Keep manifests
 !output/audio_pack/*/manifest.json
+
+# Candidate queue ephemeral review artifacts
+output/candidate_queue.json
+output/candidate_review.xlsx
