@@ -20,6 +20,8 @@ Usage:
         print(phrase["id"], phrase["en"])
 """
 
+import re
+
 # =============================================================================
 # STATIC PHRASES — can be pre-generated as-is
 # =============================================================================
@@ -471,6 +473,106 @@ def get_all_static_phrases(language: str = None) -> list:
 def get_core_phrases(language: str = None) -> list:
     """Get only core priority phrases."""
     return [p for p in get_all_static_phrases(language) if p["priority"] == "core"]
+
+
+def get_phrase_by_id(phrase_id: str) -> dict | None:
+    """Return a catalog phrase dict by exact ID."""
+    for phrase in PHRASE_CATALOG:
+        if str(phrase.get("id", "")).strip() == phrase_id:
+            return phrase
+    return None
+
+
+def get_phrase_text(phrase_id: str, language: str) -> str | None:
+    """Return phrase text for the given ID/language."""
+    phrase = get_phrase_by_id(phrase_id)
+    if not phrase:
+        return None
+    lang_key = (language or "en").strip().lower()
+    if lang_key not in ("en", "no"):
+        lang_key = "en"
+    text = phrase.get(lang_key)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return None
+
+
+def list_phrase_ids_by_prefix(prefix: str, persona: str | None = None) -> list[str]:
+    """List phrase IDs matching a stable prefix, sorted by numeric suffix when present."""
+    normalized_prefix = (prefix or "").strip()
+    if not normalized_prefix:
+        return []
+    matches: list[str] = []
+    for phrase in PHRASE_CATALOG:
+        phrase_id = str(phrase.get("id", "")).strip()
+        if not phrase_id.startswith(f"{normalized_prefix}."):
+            continue
+        if persona and str(phrase.get("persona", "")).strip() != persona:
+            continue
+        matches.append(phrase_id)
+
+    def _sort_key(phrase_id: str) -> tuple:
+        last_segment = phrase_id.split(".")[-1]
+        if last_segment.isdigit():
+            return phrase_id.rsplit(".", 1)[0], int(last_segment), phrase_id
+        return phrase_id, 0, phrase_id
+
+    return sorted(set(matches), key=_sort_key)
+
+
+def validate_welcome_catalog(catalog: list[dict] | None = None) -> list[str]:
+    """
+    Validate welcome phrase IDs for XLSX + latest.json workflow.
+
+    Rules:
+    - IDs must match welcome.<group>.<n> format.
+    - Numbering per group must be contiguous (1..N).
+    - Each welcome entry must contain non-empty `en` and `no`.
+    """
+    source = catalog if catalog is not None else PHRASE_CATALOG
+    errors: list[str] = []
+    groups: dict[str, list[int]] = {}
+    id_pattern = re.compile(r"^welcome\.([a-z_]+)\.(\d+)$")
+
+    for phrase in source:
+        phrase_id = str(phrase.get("id", "")).strip()
+        if not phrase_id.startswith("welcome."):
+            continue
+
+        match = id_pattern.match(phrase_id)
+        if not match:
+            errors.append(f"Invalid welcome ID format: {phrase_id}")
+            continue
+
+        group = match.group(1)
+        number = int(match.group(2))
+        groups.setdefault(group, []).append(number)
+
+        for lang in ("en", "no"):
+            text = str(phrase.get(lang, "")).strip()
+            if not text:
+                errors.append(f"Missing {lang} text for {phrase_id}")
+
+    if not groups:
+        errors.append("No welcome.* entries found in phrase catalog.")
+        return errors
+
+    for group, numbers in sorted(groups.items()):
+        unique_numbers = sorted(set(numbers))
+        duplicates = sorted({n for n in numbers if numbers.count(n) > 1})
+        if duplicates:
+            errors.append(
+                f"Duplicate numbering in welcome.{group}: {', '.join(str(n) for n in duplicates)}"
+            )
+
+        expected = list(range(1, max(unique_numbers) + 1))
+        missing = [n for n in expected if n not in unique_numbers]
+        if missing:
+            errors.append(
+                f"Non-contiguous numbering in welcome.{group}: missing {', '.join(str(n) for n in missing)}"
+            )
+
+    return errors
 
 
 def expand_dynamic_templates() -> list:

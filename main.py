@@ -16,6 +16,7 @@ import random
 import logging
 import time
 from datetime import datetime
+from urllib.parse import quote
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
@@ -42,6 +43,8 @@ from zone_event_motor import (
 from web_routes import create_web_blueprint
 from chat_routes import create_chat_blueprint
 from locale_config import get_voice_id as locale_voice_id
+from tts_phrase_catalog import get_phrase_text, list_phrase_ids_by_prefix
+from utterance_rotation import select_rotated_utterance
 
 # Configure logging
 logging.basicConfig(
@@ -1803,7 +1806,7 @@ def welcome():
         experience: "beginner", "intermediate", "advanced" (default: "standard")
 
     Returns:
-        JSON with welcome message text and audio URL
+        JSON with utterance_id + exactly matching text (+ optional audio URL)
     """
     try:
         experience = request.args.get('experience', 'standard')
@@ -1812,39 +1815,88 @@ def welcome():
         persona = request.args.get('persona', 'personal_trainer')
         user_name = request.args.get('user_name', '').strip()
 
-        # Keep welcome personality consistent across experience levels
-        # (experience is retained for API compatibility and analytics/logging)
-        message_category = 'standard'
+        experience_key = (experience or "standard").strip().lower()
+        category_map = {
+            "standard": "standard",
+            "beginner": "beginner",
+            "beginner_friendly": "beginner",
+            "intermediate": "standard",
+            "advanced": "standard",
+            "breath": "breath",
+            "breath_aware": "breath",
+        }
+        message_category = category_map.get(experience_key, "standard")
+        category_prefix = f"welcome.{message_category}"
+        selected_persona = persona
 
-        # Get random welcome message from config (language-aware)
-        if language == "no":
-            welcome_bank = getattr(config, 'WELCOME_MESSAGES_NO', config.WELCOME_MESSAGES)
-        else:
-            welcome_bank = config.WELCOME_MESSAGES
-        messages = welcome_bank.get(message_category, welcome_bank.get('standard', ["Welcome."]))
-        welcome_text = random.choice(messages)
+        available_ids = list_phrase_ids_by_prefix(category_prefix, persona=persona)
+        selected_prefix = category_prefix
 
-        # Personalize welcome with user name (first message of session uses name)
+        # Safe fallback to standard welcome set for unknown personas/categories.
+        if not available_ids and message_category != "standard":
+            selected_prefix = "welcome.standard"
+            available_ids = list_phrase_ids_by_prefix(selected_prefix, persona=persona)
+        if not available_ids:
+            selected_prefix = "welcome.standard"
+            selected_persona = "personal_trainer"
+            available_ids = list_phrase_ids_by_prefix(selected_prefix, persona="personal_trainer")
+
+        if not available_ids:
+            raise RuntimeError("No welcome utterance IDs available in phrase catalog")
+
+        rotation_state_raw = str(
+            getattr(config, "WELCOME_ROTATION_STATE_PATH", "output/cache/utterance_rotation_state.json")
+            or "output/cache/utterance_rotation_state.json"
+        ).strip()
+        rotation_state_path = Path(rotation_state_raw)
+        if not rotation_state_path.is_absolute():
+            rotation_state_path = Path(__file__).resolve().parent / rotation_state_path
+
+        utterance_id = select_rotated_utterance(
+            category_prefix=selected_prefix,
+            language=language,
+            persona=selected_persona,
+            available_ids=available_ids,
+            recent_k=getattr(config, "WELCOME_ROTATION_RECENT_K", 2),
+            avoid_hours=getattr(config, "WELCOME_ROTATION_AVOID_HOURS", 24),
+            history_limit=getattr(config, "WELCOME_ROTATION_HISTORY_MAX", 50),
+            state_path=rotation_state_path,
+        )
+
+        welcome_text = get_phrase_text(utterance_id, language)
+        if not welcome_text:
+            raise RuntimeError(f"Missing localized welcome text for utterance_id={utterance_id}, lang={language}")
+
+        # IMPORTANT: keep text exactly equal to utterance_id phrase text
+        # to avoid text/audio mismatch with local pre-generated packs.
         if user_name:
-            if language == "no":
-                welcome_text = f"Hei {user_name}! {welcome_text}"
-            else:
-                welcome_text = f"Hey {user_name}! {welcome_text}"
-        welcome_text = enforce_language_consistency(welcome_text, language, phase="warmup")
+            logger.info(
+                "Welcome user_name is ignored for utterance-bound welcome to keep text/audio matched."
+            )
 
-        logger.info(f"Welcome message requested: experience={experience}, language={language}, user={user_name or 'anon'}, message='{welcome_text}'")
+        r2_base = (getattr(config, "R2_PUBLIC_URL", "") or "").strip().rstrip("/")
+        audio_url = None
+        if r2_base:
+            encoded_id = quote(utterance_id, safe=".")
+            pack_version = getattr(config, "AUDIO_PACK_VERSION", "v1")
+            audio_url = f"{r2_base}/{pack_version}/{language}/{selected_persona}/{encoded_id}.mp3"
 
-        # Generate or use cached audio (language + persona-aware voice)
-        voice_file = generate_voice(welcome_text, language=language, persona=persona, emotional_mode="supportive")
-
-        # Return relative path for download
-        relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
-        audio_url = f"/download/{relative_path}"
+        logger.info(
+            "Welcome selected: category=%s prefix=%s utterance_id=%s language=%s persona=%s user=%s",
+            message_category,
+            selected_prefix,
+            utterance_id,
+            language,
+            selected_persona,
+            user_name or "anon",
+        )
 
         return jsonify({
+            "utterance_id": utterance_id,
             "text": welcome_text,
             "audio_url": audio_url,
-            "category": message_category
+            "category": selected_prefix.split(".", 1)[1] if "." in selected_prefix else message_category,
+            "lang": language,
         })
 
     except Exception as e:

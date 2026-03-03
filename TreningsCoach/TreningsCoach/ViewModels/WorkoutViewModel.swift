@@ -2621,10 +2621,10 @@ class WorkoutViewModel: ObservableObject {
             print("👋 Fetching welcome message...")
             let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue, userName: currentUserName)
             coachMessage = welcome.text
-            print("👋 Welcome: '\(welcome.text)' - downloading audio...")
+            print("👋 Welcome [\(welcome.utteranceID)]: '\(welcome.text)' - resolving audio source...")
             _ = await playCoachAudio(
                 welcome.audioURL,
-                utteranceID: "welcome.standard.1",
+                utteranceID: welcome.utteranceID,
                 eventType: "welcome_message",
                 transcriptText: welcome.text
             )
@@ -2650,6 +2650,7 @@ class WorkoutViewModel: ObservableObject {
         if let utteranceID {
             if isLocalPackAllowed(for: utteranceID) {
                 if let localURL = localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
+                    print("🔊 Resolving audio source: cached_local_pack utterance=\(utteranceID) event=\(resolvedEventType)")
                     await playAudio(from: localURL)
                     logSpeechTranscript(
                         utteranceID: utteranceID,
@@ -2661,6 +2662,7 @@ class WorkoutViewModel: ObservableObject {
                 }
 
                 if let bundledURL = bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
+                    print("🔊 Resolving audio source: bundled_core utterance=\(utteranceID) event=\(resolvedEventType)")
                     await playAudio(from: bundledURL)
                     logSpeechTranscript(
                         utteranceID: utteranceID,
@@ -2677,6 +2679,7 @@ class WorkoutViewModel: ObservableObject {
                         language: language,
                         personaKey: personaKey
                     ) {
+                        print("🔊 Resolving audio source: r2_pack utterance=\(utteranceID) event=\(resolvedEventType)")
                         await playAudio(from: downloadedURL)
                         logSpeechTranscript(
                             utteranceID: utteranceID,
@@ -2697,6 +2700,7 @@ class WorkoutViewModel: ObservableObject {
         }
 
         do {
+            print("🔊 Resolving audio source: backend_tts event=\(resolvedEventType)")
             let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
             let ext = URL(string: audioURL)?.pathExtension ?? "mp3"
             let tempURL = FileManager.default.temporaryDirectory
@@ -2712,7 +2716,7 @@ class WorkoutViewModel: ObservableObject {
             )
             return true
         } catch {
-            print("Failed to download/play coach audio: \(error.localizedDescription)")
+            print("Failed to resolve/play coach audio source: \(error.localizedDescription)")
             return false
         }
     }

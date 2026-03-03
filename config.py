@@ -252,6 +252,15 @@ INTENSE_DURATION = 900  # 2-15 minutes
 # ============================================
 # WELCOME MESSAGES (Gym Companion - Martin Sundby Style)
 # ============================================
+# Welcome utterance-id rotation tuning
+WELCOME_ROTATION_RECENT_K = _env_int("WELCOME_ROTATION_RECENT_K", 2)
+WELCOME_ROTATION_AVOID_HOURS = _env_int("WELCOME_ROTATION_AVOID_HOURS", 24)
+WELCOME_ROTATION_HISTORY_MAX = _env_int("WELCOME_ROTATION_HISTORY_MAX", 50)
+WELCOME_ROTATION_STATE_PATH = (
+    os.getenv("WELCOME_ROTATION_STATE_PATH", "output/cache/utterance_rotation_state.json")
+    or "output/cache/utterance_rotation_state.json"
+).strip()
+
 # Spoken once at workout start (before first breath)
 # Purpose: Acknowledge start, set expectations, establish rhythm
 # Tone: Calm, authoritative, friendly

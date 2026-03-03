@@ -173,3 +173,12 @@ def test_import_xlsx_detects_text_edit(tmp_path: Path):
     changed = [r for r in imported if r.en == "EDITED TEXT HERE"]
     assert len(changed) == 1
     assert changed[0].phrase_id == target_id
+
+
+def test_welcome_validation_helper_passes_for_current_catalog():
+    assert editor._validate_welcome_or_fail() == 0
+
+
+def test_welcome_validation_helper_fails_on_errors(monkeypatch):
+    monkeypatch.setattr(editor, "validate_welcome_catalog", lambda: ["bad welcome gap"])
+    assert editor._validate_welcome_or_fail() == 2

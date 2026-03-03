@@ -31,7 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from tts_phrase_catalog import PHRASE_CATALOG  # noqa: E402
+from tts_phrase_catalog import PHRASE_CATALOG, validate_welcome_catalog  # noqa: E402
 
 
 SOURCE_FILE = PROJECT_ROOT / "tts_phrase_catalog.py"
@@ -759,6 +759,17 @@ def import_xlsx(
     return 0
 
 
+def _validate_welcome_or_fail() -> int:
+    errors = validate_welcome_catalog()
+    if not errors:
+        return 0
+
+    print("Welcome catalog validation failed:")
+    for err in errors:
+        print(f"  - {err}")
+    return 2
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Review and clean TTS phrase catalog.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -815,6 +826,10 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "export":
+        validation_status = _validate_welcome_or_fail()
+        if validation_status != 0:
+            return validation_status
+
         output_dir = Path(args.output_dir)
         if not output_dir.is_absolute():
             output_dir = PROJECT_ROOT / output_dir
@@ -844,6 +859,10 @@ def main() -> int:
         return 0
 
     if args.command == "import":
+        validation_status = _validate_welcome_or_fail()
+        if validation_status != 0:
+            return validation_status
+
         xlsx_path = Path(args.xlsx)
         if not xlsx_path.is_absolute():
             xlsx_path = PROJECT_ROOT / xlsx_path

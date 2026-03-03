@@ -672,7 +672,7 @@ enum APIError: LocalizedError {
         case .serverError(let message):
             return "Server error: \(message)"
         case .downloadFailed:
-            return "Failed to download audio"
+            return "Failed to resolve audio source"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         }

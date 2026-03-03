@@ -467,13 +467,17 @@ struct CoachScoreComponents: Codable {
 
 struct WelcomeResponse: Codable {
     let text: String
-    let audioURL: String
+    let audioURL: String?
     let category: String
+    let utteranceID: String
+    let lang: String?
 
     enum CodingKeys: String, CodingKey {
         case text
         case audioURL = "audio_url"
         case category
+        case utteranceID = "utterance_id"
+        case lang
     }
 }
 
