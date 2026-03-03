@@ -96,6 +96,12 @@ class AudioPackSyncManager: ObservableObject {
     private var cachedManifest: AudioPackManifest?
     private let session: URLSession
 
+    private func displayVersion(_ raw: String?) -> String {
+        let normalized = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return "unknown" }
+        return normalized.lowercased().hasPrefix("v") ? normalized : "v\(normalized)"
+    }
+
     private var audioPackRootDirectory: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docs.appendingPathComponent("audio_pack", isDirectory: true)
@@ -149,7 +155,7 @@ class AudioPackSyncManager: ObservableObject {
             if manifestHash == storedHash && latest.latestVersion == currentPackVersion {
                 syncState = .complete
                 persistLastSyncAt()
-                print("📦 Audio pack up to date (v\(latest.latestVersion))")
+                print("📦 Audio pack up to date (\(displayVersion(latest.latestVersion)))")
                 return
             }
 
@@ -179,7 +185,7 @@ class AudioPackSyncManager: ObservableObject {
             persistLastSyncAt()
             syncState = .complete
 
-            print("📦 Audio pack synced: v\(manifest.version), \(downloaded) files downloaded")
+            print("📦 Audio pack synced: \(displayVersion(manifest.version)), \(downloaded) files downloaded")
 
         } catch {
             lastError = error.localizedDescription

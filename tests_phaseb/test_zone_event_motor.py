@@ -50,7 +50,7 @@ def test_zone2_falls_back_to_hrmax_when_resting_hr_missing():
     assert result["target_hr_high"] == 162
 
 
-def test_hr_poor_mode_emits_safe_event_without_zone_claims():
+def test_hr_poor_mode_bootstrap_is_silent_for_signal_loss():
     state = {}
     result = evaluate_zone_tick(
         **_base_tick(
@@ -63,9 +63,11 @@ def test_hr_poor_mode_emits_safe_event_without_zone_claims():
     )
     assert result["hr_quality"] == "poor"
     assert result["zone_status"] == "hr_unstable"
-    assert result["event_type"] == "hr_poor_enter"
-    assert result["should_speak"] is True
-    assert "signal" in result["coach_text"].lower()
+    # Startup without HR should not emit hr_signal_lost / hr_poor_enter.
+    # We only speak loss cues after a real connected -> disconnected transition.
+    events = [item.get("event_type") for item in result.get("events", []) if isinstance(item, dict)]
+    assert "hr_signal_lost" not in events
+    assert result["event_type"] != "hr_poor_enter"
 
 
 def test_style_matrix_blocks_too_frequent_corrective_cues():
@@ -608,3 +610,68 @@ def test_phase1_no_sensors_notice_emits_once_without_fallback_coaching_cues():
     )
     later_events = [item.get("event_type") for item in later.get("events", []) if isinstance(item, dict)]
     assert "no_sensors_notice" not in later_events
+
+
+def test_interval_warmup_end_emits_countdown_sequence():
+    state = {}
+
+    # 4x4 template warmup is 600s.
+    tick_30 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=570,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in events_30
+
+    tick_15 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=585,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_15 = [item.get("event_type") for item in tick_15.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_15" in events_15
+
+    tick_5 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=595,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_5 = [item.get("event_type") for item in tick_5.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_5" in events_5
+
+    tick_start = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=600,
+            heart_rate=148,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_start" in events_start

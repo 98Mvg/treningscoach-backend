@@ -572,3 +572,120 @@ def test_zone_tick_missing_returns_silent_safe_without_legacy_fallback(monkeypat
     assert payload["audio_url"] is None
     messages = "\n".join(record.getMessage() for record in caplog.records)
     assert "ZONE_GUARD silent-safe: zone_tick missing; legacy fallback disabled" in messages
+
+
+def test_interval_recovery_uses_short_tick_budget_for_countdowns(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+
+    session_id = main.session_manager.create_session(user_id="interval_countdown_tick_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    seeded = (datetime.now() - timedelta(seconds=60)).isoformat()
+    state["is_first_breath"] = False
+    state["coaching_history"] = [{"timestamp": seeded, "text": "Keep steady."}]
+    state["last_coaching_time"] = seeded
+
+    # 4x4 template:
+    # warmup=600, work=240, rest=180.
+    # elapsed=990 -> recovery segment with 30s remaining.
+    elapsed = 990
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": str(elapsed),
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "interval",
+            "coaching_style": "normal",
+            "interval_template": "4x4",
+            "heart_rate": "148",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "122.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["workout_mode"] == "interval"
+    assert payload.get("remaining_phase_seconds") == 30
+    assert payload["wait_seconds"] <= int(getattr(main.config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
+
+    event_names = [item.get("event_type") for item in (payload.get("events") or []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in event_names
+
+
+def test_interval_warmup_uses_short_tick_budget_for_countdowns(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+
+    session_id = main.session_manager.create_session(user_id="interval_warmup_tick_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="warmup")
+    state = main.session_manager.get_workout_state(session_id)
+    seeded = (datetime.now() - timedelta(seconds=60)).isoformat()
+    state["is_first_breath"] = False
+    state["coaching_history"] = [{"timestamp": seeded, "text": "Keep steady."}]
+    state["last_coaching_time"] = seeded
+
+    # 4x4 template warmup=600. elapsed=570 => 30s left in warmup.
+    elapsed = 570
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "warmup",
+            "elapsed_seconds": str(elapsed),
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "interval",
+            "coaching_style": "normal",
+            "interval_template": "4x4",
+            "heart_rate": "142",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "122.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["workout_mode"] == "interval"
+    assert payload.get("phase") == "warmup"
+    assert payload.get("remaining_phase_seconds") == 30
+    assert payload["wait_seconds"] <= int(getattr(main.config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
+
+    event_names = [item.get("event_type") for item in (payload.get("events") or []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in event_names

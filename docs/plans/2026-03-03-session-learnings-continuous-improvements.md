@@ -2,6 +2,7 @@
 
 ## Scope of this session
 This session focused on stabilizing the Workout Talk v1 path (wake-word + button), preserving single source of truth behavior, and keeping audio-pack/runtime contracts in sync.
+It also finalized countdown reliability and startup HR-loss behavior in the zone-event path.
 
 ## What worked (keep doing this)
 1. Keep one runtime path:
@@ -28,6 +29,9 @@ This session focused on stabilizing the Workout Talk v1 path (wake-word + button
    - wake-word: fast budget
    - button: slightly larger budget
 6. No parallel architecture should be introduced for the same behavior.
+7. Startup without HR should not speak `hr_signal_lost`; only real connected->disconnected transitions should emit HR-loss notice/cues.
+8. Interval warmup end should follow explicit countdown flow (`30/15/5/start`) before main-set zone cues.
+9. Interval tick budget must be phase-aware (`warmup/recovery` tighter polling) so countdown windows are not skipped.
 
 ## Common pitfalls and how to avoid them
 1. Pitfall: adding new phrase IDs without updating active audio pack.
@@ -56,6 +60,9 @@ This session focused on stabilizing the Workout Talk v1 path (wake-word + button
 
 ## Verification checklist for future sessions
 - [ ] `events[]` behavior unchanged in `/coach/continuous`
+- [ ] Startup with no HR does **not** emit `hr_signal_lost`
+- [ ] Real HR disconnect still emits loss notice once per session
+- [ ] Interval warmup emits `interval_countdown_30/15/5/start`
 - [ ] `trigger_source` validation still strict
 - [ ] wake words unchanged unless explicitly planned
 - [ ] talk arbitration still suppresses overlapping event speech
@@ -73,4 +80,3 @@ R2 uploads can succeed while public `r2.dev` reads still return `403` if public 
 1. Keep wake ack defaults stable and test candidate acknowledgements via phrase ID promotion, not ad-hoc replacements.
 2. Expand deterministic fallback bank quality by phase/zone context before adding any extra runtime complexity.
 3. Continue removing legacy fallback dependencies only after explicit coverage proves no regressions in active workout flows.
-

@@ -611,6 +611,39 @@ def _sanitize_log_text(value) -> str:
     return " ".join(text.split())
 
 
+def _apply_interval_tick_budget(
+    *,
+    wait_seconds: int,
+    workout_mode: str,
+    zone_tick: dict,
+) -> int:
+    """Cap tick interval during interval workouts so countdown cues are not skipped."""
+    resolved_wait = max(1, int(wait_seconds or 1))
+    if str(workout_mode or "").strip().lower() != "interval":
+        return resolved_wait
+    if not isinstance(zone_tick, dict):
+        return resolved_wait
+
+    phase = str(zone_tick.get("phase") or "").strip().lower()
+    remaining_phase_seconds = _coerce_int(zone_tick.get("remaining_phase_seconds"))
+
+    if phase in {"warmup", "recovery"}:
+        recovery_cap = int(getattr(config, "INTERVAL_RECOVERY_MAX_WAIT_SECONDS", 5))
+        final_window = int(getattr(config, "INTERVAL_RECOVERY_FINAL_WINDOW_SECONDS", 35))
+        final_cap = int(getattr(config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
+        resolved_wait = min(resolved_wait, recovery_cap)
+        if remaining_phase_seconds is not None and remaining_phase_seconds <= final_window:
+            resolved_wait = min(resolved_wait, final_cap)
+    elif phase == "work":
+        work_cap = int(getattr(config, "INTERVAL_WORK_MAX_WAIT_SECONDS", 8))
+        resolved_wait = min(resolved_wait, work_cap)
+    else:
+        transition_cap = int(getattr(config, "INTERVAL_TRANSITION_MAX_WAIT_SECONDS", 12))
+        resolved_wait = min(resolved_wait, transition_cap)
+
+    return max(1, int(resolved_wait))
+
+
 def _log_coach_transcript_debug(
     *,
     session_id: str,
@@ -2716,6 +2749,14 @@ def coach_continuous():
             min_any = int(style_policy.get("min_seconds_between_any_speech", wait_seconds))
             wait_seconds = max(wait_seconds, min_any)
 
+            # Interval-specific cap so countdown events (30/15/5/start) are not skipped
+            # by long polling gaps.
+            wait_seconds = _apply_interval_tick_budget(
+                wait_seconds=wait_seconds,
+                workout_mode=workout_mode,
+                zone_tick=zone_tick,
+            )
+
         # STEP 6: Increase wait time if coach is overtalking
         if (not zone_mode_active) and voice_intelligence.should_reduce_frequency(breath_data, coaching_context["coaching_history"]):
             wait_seconds = min(15, wait_seconds + 3)  # Add 3 seconds, max 15s
@@ -2864,6 +2905,7 @@ def coach_continuous():
                     "target_hr_high": zone_tick.get("target_hr_high"),
                     "target_source": zone_tick.get("target_source"),
                     "target_hr_enforced": zone_tick.get("target_hr_enforced"),
+                    "remaining_phase_seconds": zone_tick.get("remaining_phase_seconds"),
                     "hr_quality": zone_tick.get("hr_quality"),
                     "hr_quality_reasons": zone_tick.get("hr_quality_reasons"),
                     "hr_delta_bpm": zone_tick.get("hr_delta_bpm"),

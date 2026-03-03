@@ -1,6 +1,6 @@
 # Lessons / Execution Guardrails
 
-Updated: 2026-03-01
+Updated: 2026-03-03
 
 ## Workflow Orchestration
 
@@ -78,3 +78,6 @@ Updated: 2026-03-01
 - 2026-03-01: Never purge stale audio files during active workouts; allow cleanup only in safe states (`idle`/`complete`) and manual reset paths.
 - 2026-03-01: Keep version-isolated local pack directories and dynamic version lookup from sync manager to avoid stale-path drift.
 - 2026-03-01: For voice safety, maintain persona-scoped audio lookup and prevent toxic/performance phrases from loading for personal-trainer persona.
+- 2026-03-03: In zone-event runtime, do not emit `hr_signal_lost` on first bootstrap tick when HR starts missing; only emit after a stable connected->disconnected transition.
+- 2026-03-03: Interval cue order must explicitly include warmup-end countdowns (`30/15/5/start`) before main-zone coaching.
+- 2026-03-03: Countdown reliability depends on poll cadence; keep interval warmup/recovery on tighter `/coach/continuous` wait budgets to avoid skipping countdown windows.

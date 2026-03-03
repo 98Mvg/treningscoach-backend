@@ -665,6 +665,7 @@ def _interval_target(
         "main_set": main_set,
         "segment_elapsed_seconds": segment_elapsed_seconds,
         "segment_remaining_seconds": segment_remaining_seconds,
+        "warmup_seconds": warmup,
         "work_seconds": work,
         "rest_seconds": rest,
         "session_end_seconds": session_end,
@@ -743,12 +744,11 @@ def _update_hr_signal_state(
     if signal_state is None:
         # First tick bootstrap:
         # - Good HR starts in "ok" with no event.
-        # - Missing/poor HR starts in "lost" and emits one loss event for compatibility.
+        # - Missing/poor HR starts in "lost" silently.
+        #   Emit hr_signal_lost only after a real connected -> disconnected transition.
         signal_state = "ok" if hr_good_now else "lost"
         valid_streak = 5.0 if hr_good_now else 0.0
         invalid_streak = 4.0 if not hr_good_now else 0.0
-        if not hr_good_now:
-            events.append("hr_signal_lost")
 
     if hr_good_now:
         valid_streak += dt_seconds
@@ -2051,6 +2051,12 @@ def evaluate_zone_tick(
             phase_events.append("warmup_started")
         elif canonical_phase == "cooldown":
             phase_events.append("cooldown_started")
+        if (
+            canonical_workout_type == "intervals"
+            and previous_phase == "warmup"
+            and canonical_phase in {"main", "work", "recovery"}
+        ):
+            phase_events.append("interval_countdown_start")
 
     if canonical_phase in {"main", "work", "recovery"} and not bool(state.get("main_started_emitted")):
         phase_events.append("main_started")
@@ -2144,6 +2150,25 @@ def evaluate_zone_tick(
     for candidate_event in phase_events + hr_signal_events + sensor_notice_events:
         if candidate_event and candidate_event not in event_types:
             event_types.append(candidate_event)
+
+    if (
+        canonical_workout_type == "intervals"
+        and canonical_phase == "warmup"
+        and not pause_flag
+        and target.get("segment_remaining_seconds") is not None
+    ):
+        warmup_seconds_total = int(target.get("warmup_seconds") or 0)
+        remaining = int(max(0, target.get("segment_remaining_seconds") or 0))
+        if warmup_seconds_total > 0:
+            fired = state.setdefault("countdown_fired_map", {})
+            phase_id = int(state.get("phase_id", 1))
+            for threshold in _countdown_thresholds(warmup_seconds_total):
+                if threshold <= 0:
+                    continue
+                event_key = f"{phase_id}:warmup:{threshold}"
+                if remaining <= threshold and not bool(fired.get(event_key)):
+                    event_types.append(f"interval_countdown_{threshold}")
+                    fired[event_key] = True
 
     if (
         canonical_workout_type == "intervals"
@@ -2594,6 +2619,7 @@ def evaluate_zone_tick(
         },
         "phase_id": phase_id_value,
         "sensor_mode": sensor_mode,
+        "phase": canonical_phase,
         "zone_status": zone_status,
         "zone_state": canonical_zone,
         "delta_to_band": delta_to_band,
@@ -2602,6 +2628,7 @@ def evaluate_zone_tick(
         "target_hr_high": target.get("target_high"),
         "target_source": target.get("target_source"),
         "target_hr_enforced": bool(target_enforced),
+        "remaining_phase_seconds": int(remaining_phase_seconds) if remaining_phase_seconds is not None else None,
         "interval_template": template if workout_mode == "interval" else None,
         "segment": target.get("segment"),
         "segment_key": target.get("segment_key"),
