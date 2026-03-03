@@ -207,6 +207,14 @@ PORT=5001 python3 main.py
 - **Health Check:** https://treningscoach-backend.onrender.com/health
 - **Brain Status:** https://treningscoach-backend.onrender.com/brain/health
 
+## ☁️ Cloudflare Worker Edge Proxy
+
+Cloudflare deploy source of truth is now versioned in git:
+
+- `/Users/mariusgaarder/Documents/treningscoach/wrangler.toml`
+- `/Users/mariusgaarder/Documents/treningscoach/cloudflare/worker.js`
+- guide: [/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md](/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md)
+
 ## 📊 API Endpoints (30 non-static routes)
 
 ### Main App Routes (`main.py`) — 24

@@ -1,0 +1,8 @@
+name = "treningscoach-backend"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-03-03"
+workers_dev = true
+
+[vars]
+# Render backend remains the runtime source of truth.
+ORIGIN_URL = "https://treningscoach-backend.onrender.com"

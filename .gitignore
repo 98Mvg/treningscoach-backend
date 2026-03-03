@@ -100,3 +100,6 @@ output/audio_pack/*/no/
 # Candidate queue ephemeral review artifacts
 output/candidate_queue.json
 output/candidate_review.xlsx
+
+# Cloudflare Wrangler local state
+.wrangler/
