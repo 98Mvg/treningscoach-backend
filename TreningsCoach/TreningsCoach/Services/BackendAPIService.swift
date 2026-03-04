@@ -151,6 +151,7 @@ class BackendAPIService {
         workoutMode: WorkoutMode = .standard,
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
+        warmupSeconds: Int? = nil,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
         hrSampleAgeSeconds: Double? = nil,
@@ -182,6 +183,7 @@ class BackendAPIService {
             workoutMode: workoutMode,
             coachingStyle: coachingStyle,
             intervalTemplate: intervalTemplate,
+            warmupSeconds: warmupSeconds,
             userProfileId: userProfileId,
             heartRate: heartRate,
             hrSampleAgeSeconds: hrSampleAgeSeconds,
@@ -478,6 +480,7 @@ class BackendAPIService {
         workoutMode: WorkoutMode = .standard,
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
+        warmupSeconds: Int? = nil,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
         hrSampleAgeSeconds: Double? = nil,
@@ -530,6 +533,9 @@ class BackendAPIService {
         appendField(name: "workout_mode", value: workoutMode.rawValue)
         appendField(name: "coaching_style", value: coachingStyle.rawValue)
         appendField(name: "interval_template", value: intervalTemplate.rawValue)
+        if let warmupSeconds = warmupSeconds {
+            appendField(name: "warmup_seconds", value: "\(max(0, warmupSeconds))")
+        }
         if let userProfileId = userProfileId, !userProfileId.isEmpty {
             appendField(name: "user_profile_id", value: userProfileId)
         }

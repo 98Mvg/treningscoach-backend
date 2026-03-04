@@ -881,7 +881,7 @@ def test_easy_run_warmup_end_emits_countdown_sequence():
 
 
 def test_easy_run_warmup_countdown_uses_workout_state_warmup_seconds_without_kwarg():
-    state = {"warmup_seconds": 120}
+    state = {"warmup_remaining_s": 30}
 
     tick_30 = evaluate_zone_tick(
         **_base_tick(
@@ -897,3 +897,27 @@ def test_easy_run_warmup_countdown_uses_workout_state_warmup_seconds_without_kwa
     )
     events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" in events_30
+
+
+def test_countdown_fired_keys_are_namespaced_by_phase_kind():
+    state = {
+        "phase_id": 7,
+        "canonical_phase": "warmup",
+        "countdown_fired_map": {"7:recovery:countdown_30": True},
+        "warmup_remaining_s": 30,
+    }
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            elapsed_seconds=90,
+            heart_rate=135,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in events

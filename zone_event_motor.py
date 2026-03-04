@@ -674,25 +674,17 @@ def _interval_target(
 
 def _easy_run_target(
     phase: str,
-    elapsed_seconds: int,
-    warmup_seconds: Optional[int],
+    warmup_remaining_seconds: Optional[int],
     profile: Dict[str, Any],
     intensity: str,
     config_module,
 ) -> Dict[str, Any]:
     normalized_phase = (phase or "").strip().lower() or "intense"
     target_intensity = "easy" if normalized_phase in {"warmup", "cooldown"} else intensity
-    elapsed = max(0, int(elapsed_seconds))
-    configured_warmup = _safe_int(warmup_seconds)
-    if configured_warmup is None:
-        configured_warmup = _safe_int(getattr(config_module, "WARMUP_DURATION", 120))
-    configured_warmup = max(0, int(configured_warmup or 0))
-
     segment_elapsed_seconds: Optional[int] = None
     segment_remaining_seconds: Optional[int] = None
-    if normalized_phase == "warmup" and configured_warmup > 0:
-        segment_elapsed_seconds = min(elapsed, configured_warmup)
-        segment_remaining_seconds = max(0, configured_warmup - segment_elapsed_seconds)
+    if normalized_phase == "warmup" and warmup_remaining_seconds is not None:
+        segment_remaining_seconds = max(0, int(warmup_remaining_seconds))
 
     low, high, source = _resolve_intensity_target_bounds(
         workout_mode="easy_run",
@@ -713,7 +705,6 @@ def _easy_run_target(
         "main_set": normalized_phase == "intense",
         "segment_elapsed_seconds": segment_elapsed_seconds,
         "segment_remaining_seconds": segment_remaining_seconds,
-        "warmup_seconds": configured_warmup if normalized_phase == "warmup" else None,
         "work_seconds": None,
         "rest_seconds": None,
         "session_end_seconds": None,
@@ -726,7 +717,7 @@ def _resolve_target(
     coaching_style: Optional[str],
     interval_template: str,
     elapsed_seconds: int,
-    warmup_seconds: Optional[int],
+    warmup_remaining_seconds: Optional[int],
     profile: Dict[str, Any],
     config_module,
 ) -> Dict[str, Any]:
@@ -736,8 +727,7 @@ def _resolve_target(
         return _interval_target(interval_template, elapsed_seconds, profile, intensity, config_module)
     return _easy_run_target(
         phase=phase,
-        elapsed_seconds=elapsed_seconds,
-        warmup_seconds=warmup_seconds,
+        warmup_remaining_seconds=warmup_remaining_seconds,
         profile=profile,
         intensity=intensity,
         config_module=config_module,
@@ -2100,8 +2090,13 @@ def evaluate_zone_tick(
     breath_quality_sample_count = _safe_int(breath_summary_data.get("quality_sample_count"))
     breath_quality_reliable = bool(breath_summary_data.get("quality_reliable"))
 
-    state_warmup_seconds = _safe_int(workout_state.get("warmup_seconds"))
-    resolved_warmup_seconds = state_warmup_seconds if state_warmup_seconds is not None else _safe_int(warmup_seconds)
+    state_warmup_remaining = _safe_int(workout_state.get("warmup_remaining_s"))
+    resolved_warmup_remaining = state_warmup_remaining
+    if resolved_warmup_remaining is None:
+        legacy_warmup_total = _safe_int(warmup_seconds)
+        if legacy_warmup_total is not None and (phase or "").strip().lower() == "warmup":
+            # Legacy fallback for older callers that still pass warmup_seconds total.
+            resolved_warmup_remaining = max(0, int(legacy_warmup_total) - max(0, int(elapsed_seconds)))
 
     target = _resolve_target(
         workout_mode=workout_mode,
@@ -2109,7 +2104,7 @@ def evaluate_zone_tick(
         coaching_style=style,
         interval_template=template,
         elapsed_seconds=int(elapsed_seconds),
-        warmup_seconds=resolved_warmup_seconds,
+        warmup_remaining_seconds=resolved_warmup_remaining,
         profile=profile,
         config_module=config_module,
     )
@@ -2221,18 +2216,17 @@ def evaluate_zone_tick(
             event_types.append(candidate_event)
 
     if canonical_phase == "warmup" and not pause_flag and target.get("segment_remaining_seconds") is not None:
-        warmup_seconds_total = int(target.get("warmup_seconds") or 0)
         remaining = int(max(0, target.get("segment_remaining_seconds") or 0))
-        if warmup_seconds_total > 0:
-            fired = state.setdefault("countdown_fired_map", {})
-            phase_id = int(state.get("phase_id", 1))
-            for threshold in _countdown_thresholds(warmup_seconds_total):
-                if threshold <= 0:
-                    continue
-                event_key = f"{phase_id}:warmup:{threshold}"
-                if remaining <= threshold and not bool(fired.get(event_key)):
-                    event_types.append(f"interval_countdown_{threshold}")
-                    fired[event_key] = True
+        fired = state.setdefault("countdown_fired_map", {})
+        phase_id = int(state.get("phase_id", 1))
+        # Compatibility note: keep interval_countdown_* names for iOS v1 router.
+        # Warmup meaning is disambiguated by canonical phase + key namespace.
+        for threshold in (30, 15, 5):
+            countdown_kind = f"countdown_{threshold}"
+            event_key = f"{phase_id}:warmup:{countdown_kind}"
+            if remaining <= threshold and not bool(fired.get(event_key)):
+                event_types.append(f"interval_countdown_{threshold}")
+                fired[event_key] = True
 
     if (
         canonical_workout_type == "intervals"
@@ -2247,7 +2241,8 @@ def evaluate_zone_tick(
             fired = state.setdefault("countdown_fired_map", {})
             phase_id = int(state.get("phase_id", 1))
             for threshold in _countdown_thresholds(recovery_seconds_total):
-                event_key = f"{phase_id}:{threshold}"
+                countdown_kind = "countdown_start" if threshold == 0 else f"countdown_{threshold}"
+                event_key = f"{phase_id}:recovery:{countdown_kind}"
                 if remaining <= threshold and not bool(fired.get(event_key)):
                     event_name = "interval_countdown_start" if threshold == 0 else f"interval_countdown_{threshold}"
                     event_types.append(event_name)

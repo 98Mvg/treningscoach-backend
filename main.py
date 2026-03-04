@@ -2345,9 +2345,13 @@ def coach_continuous():
             workout_state["coaching_style"] = coaching_style
             workout_state["interval_template"] = interval_template
             resolved_warmup_seconds = _coerce_int(warmup_seconds_raw)
-            if resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
+            if phase == "warmup" and resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
                 # Keep timing config inside shared workout_state to avoid signature drift.
-                workout_state["warmup_seconds"] = int(resolved_warmup_seconds)
+                # Primary input for countdown logic is remaining seconds, not total duration.
+                remaining = max(0, int(resolved_warmup_seconds) - max(0, int(elapsed_seconds)))
+                workout_state["warmup_remaining_s"] = remaining
+            elif phase != "warmup":
+                workout_state.pop("warmup_remaining_s", None)
         latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema

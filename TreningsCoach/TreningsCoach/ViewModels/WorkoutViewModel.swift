@@ -2273,6 +2273,7 @@ class WorkoutViewModel: ObservableObject {
                     workoutMode: selectedWorkoutMode,
                     coachingStyle: coachingStyle,
                     intervalTemplate: selectedIntervalTemplate,
+                    warmupSeconds: Int(configuredWarmupDuration),
                     userProfileId: personalizationProfileId,
                     heartRate: tickHeartRate,
                     hrSampleAgeSeconds: tickSampleAge,
