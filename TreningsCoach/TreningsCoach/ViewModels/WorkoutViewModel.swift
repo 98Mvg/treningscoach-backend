@@ -2005,9 +2005,11 @@ class WorkoutViewModel: ObservableObject {
                 }
             }
 
-            // Play welcome message, then start coaching loop after a delay
-            // This avoids the first tick picking up speaker audio from the welcome message
+            // Force manifest sync on every workout start so welcome/event playback
+            // resolves against the latest cached local pack when available.
+            // Then play welcome and start the coaching loop.
             Task {
+                await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
                 await playWelcomeMessage()
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 await MainActor.run {
@@ -2530,12 +2532,26 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func localPackFileURL(for utteranceID: String, language: String, personaKey: String) -> URL? {
-        let url = audioPackRootDirectory
+        let versionDir = audioPackRootDirectory
             .appendingPathComponent(audioPackVersion, isDirectory: true)
             .appendingPathComponent(language, isDirectory: true)
+
+        // Prefer persona-specific cached files first.
+        let personaSpecific = versionDir
             .appendingPathComponent(personaKey, isDirectory: true)
             .appendingPathComponent("\(utteranceID).mp3")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        if FileManager.default.fileExists(atPath: personaSpecific.path) {
+            return personaSpecific
+        }
+
+        // Manifest sync stores generic files at vX/<lang>/<utterance>.mp3.
+        let generic = versionDir
+            .appendingPathComponent("\(utteranceID).mp3")
+        if FileManager.default.fileExists(atPath: generic.path) {
+            return generic
+        }
+
+        return nil
     }
 
     private func bundledPackFileURL(for utteranceID: String, language: String, personaKey: String) -> URL? {

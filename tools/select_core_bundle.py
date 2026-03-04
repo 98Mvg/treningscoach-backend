@@ -10,36 +10,84 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-LANGUAGES = ("en", "no")
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# ~54 phrase ids that should always be available offline in the app bundle.
-CORE_BUNDLE_IDS = [
-    "coach.critical.1",
-    "cont.critical.1", "cont.critical.2", "cont.critical.3", "cont.critical.4",
-    "cont.warmup.1", "cont.warmup.2", "cont.warmup.3", "cont.warmup.4", "cont.warmup.5",
-    "cont.intense.calm.1", "cont.intense.calm.2",
-    "cont.intense.mod.1", "cont.intense.mod.2",
-    "cont.intense.intense.1",
-    "cont.cooldown.1", "cont.cooldown.2", "cont.cooldown.3", "cont.cooldown.4", "cont.cooldown.5",
-    "zone.countdown.30", "zone.countdown.15", "zone.countdown.5", "zone.countdown.start",
-    "zone.main_started.1", "zone.workout_finished.1", "zone.phase.warmup.1", "zone.phase.cooldown.1",
-    "zone.above.minimal.1", "zone.below.minimal.1", "zone.in_zone.minimal.1", "zone.in_zone.default.1",
-    "zone.watch_disconnected.1", "zone.no_sensors.1", "zone.watch_restored.1",
-    "breath.interrupt.cant_breathe.1", "breath.interrupt.slow_down.1", "breath.interrupt.dizzy.1",
-    "welcome.standard.1", "welcome.standard.2", "welcome.beginner.1",
-    "motivation.1", "motivation.2", "motivation.3", "motivation.4", "motivation.5",
-    "motivation.6", "motivation.7", "motivation.8", "motivation.9", "motivation.10",
-    "zone.silence.work.1", "zone.silence.rest.1", "zone.silence.default.1",
+from tts_phrase_catalog import PHRASE_CATALOG
+
+LANGUAGES = ("en", "no")
+MAX_VARIANTS_PER_CATEGORY = 5
+
+
+# Categories to keep bundled offline. We include up to MAX_VARIANTS_PER_CATEGORY
+# variants for each category in each language.
+CORE_BUNDLE_CATEGORIES = [
+    "coach.critical",
+    "cont.critical",
+    "cont.warmup",
+    "cont.intense.calm",
+    "cont.intense.mod",
+    "cont.intense.intense",
+    "cont.cooldown",
+    "zone.countdown",
+    "zone.main_started",
+    "zone.workout_finished",
+    "zone.phase.warmup",
+    "zone.phase.cooldown",
+    "zone.above.minimal",
+    "zone.below.minimal",
+    "zone.in_zone.minimal",
+    "zone.in_zone.default",
+    "zone.watch_disconnected",
+    "zone.no_sensors",
+    "zone.watch_restored",
+    "breath.interrupt.cant_breathe",
+    "breath.interrupt.slow_down",
+    "breath.interrupt.dizzy",
+    "welcome.standard",
+    "wake_ack.en",
+    "wake_ack.no",
+    "motivation",
+    "zone.silence.work",
+    "zone.silence.rest",
+    "zone.silence.default",
 ]
+
+
+def _phrase_sort_key(phrase_id: str) -> tuple[int, int, str]:
+    tail = phrase_id.split(".")[-1]
+    if tail == "default":
+        return (0, 0, phrase_id)
+    if tail.isdigit():
+        return (1, int(tail), phrase_id)
+    return (2, 999, phrase_id)
+
+
+def _build_core_bundle_ids() -> list[str]:
+    all_ids = [entry["id"] for entry in PHRASE_CATALOG]
+    ordered_ids: list[str] = []
+    seen: set[str] = set()
+
+    for prefix in CORE_BUNDLE_CATEGORIES:
+        matches = [pid for pid in all_ids if pid == prefix or pid.startswith(prefix + ".")]
+        matches.sort(key=_phrase_sort_key)
+        for pid in matches[:MAX_VARIANTS_PER_CATEGORY]:
+            if pid not in seen:
+                seen.add(pid)
+                ordered_ids.append(pid)
+
+    return ordered_ids
 
 
 def select_bundle(version: str) -> int:
     source_root = PROJECT_ROOT / "output" / "audio_pack" / version
     target_root = PROJECT_ROOT / "TreningsCoach" / "TreningsCoach" / "Resources" / "CoreAudioPack"
+    core_bundle_ids = _build_core_bundle_ids()
 
     if not source_root.exists():
         print(f"ERROR: source folder not found: {source_root}")
@@ -54,7 +102,7 @@ def select_bundle(version: str) -> int:
         lang_target = target_root / lang
         lang_target.mkdir(parents=True, exist_ok=True)
 
-        for phrase_id in CORE_BUNDLE_IDS:
+        for phrase_id in core_bundle_ids:
             src = source_root / lang / f"{phrase_id}.mp3"
             dst = lang_target / f"{phrase_id}.mp3"
             if not src.exists():
@@ -66,10 +114,11 @@ def select_bundle(version: str) -> int:
             shutil.copy2(src, dst)
             copied += 1
 
-    expected_total = len(CORE_BUNDLE_IDS) * len(LANGUAGES)
+    expected_total = len(core_bundle_ids) * len(LANGUAGES)
     print(f"Core bundle complete")
     print(f"  Version: {version}")
-    print(f"  IDs: {len(CORE_BUNDLE_IDS)}")
+    print(f"  Categories: {len(CORE_BUNDLE_CATEGORIES)} (max {MAX_VARIANTS_PER_CATEGORY} each)")
+    print(f"  IDs: {len(core_bundle_ids)}")
     print(f"  Expected files: {expected_total}")
     print(f"  Copied: {copied}")
     print(f"  Overwritten: {overwritten}")
