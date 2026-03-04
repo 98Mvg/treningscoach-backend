@@ -52,6 +52,7 @@ class User(db.Model):
 
     # Relationships
     settings = db.relationship("UserSettings", backref="user", uselist=False, cascade="all, delete-orphan")
+    profile = db.relationship("UserProfile", backref="user", uselist=False, cascade="all, delete-orphan")
     workouts = db.relationship("WorkoutHistory", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -96,6 +97,42 @@ class UserSettings(db.Model):
             "coach_voice_id_en": self.coach_voice_id_en,
             "coach_voice_id_no": self.coach_voice_id_no,
             "coaching_frequency": self.coaching_frequency
+        }
+
+
+# ============================================
+# USER PROFILE MODEL
+# ============================================
+
+class UserProfile(db.Model):
+    __tablename__ = "user_profiles"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    name = db.Column(db.String(255), nullable=True)
+    sex = db.Column(db.String(32), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    height_cm = db.Column(db.Float, nullable=True)
+    weight_kg = db.Column(db.Float, nullable=True)
+    max_hr_bpm = db.Column(db.Integer, nullable=True)
+    resting_hr_bpm = db.Column(db.Integer, nullable=True)
+    profile_updated_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+            "name": self.name,
+            "sex": self.sex,
+            "age": self.age,
+            "height_cm": self.height_cm,
+            "weight_kg": self.weight_kg,
+            "max_hr_bpm": self.max_hr_bpm,
+            "resting_hr_bpm": self.resting_hr_bpm,
+            "profile_updated_at": self.profile_updated_at.isoformat() if self.profile_updated_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 

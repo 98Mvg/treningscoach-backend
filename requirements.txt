@@ -18,6 +18,7 @@ gunicorn==21.2.0
 # Database
 Flask-SQLAlchemy>=3.1.0
 SQLAlchemy>=2.0.0
+alembic>=1.13.0
 
 # Authentication
 PyJWT>=2.8.0
