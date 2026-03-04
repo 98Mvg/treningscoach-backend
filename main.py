@@ -16,7 +16,7 @@ import random
 import logging
 import time
 import inspect
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import quote
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
@@ -27,7 +27,7 @@ from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
-from database import init_db, db, WaitlistSignup  # Import database initialization + models
+from database import init_db, db, WaitlistSignup, UserProfile  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from auth import require_auth
@@ -46,7 +46,12 @@ from chat_routes import create_chat_blueprint
 from locale_config import get_voice_id as locale_voice_id
 from tts_phrase_catalog import get_phrase_text, list_phrase_ids_by_prefix
 from utterance_rotation import select_rotated_utterance
-from workout_contracts import normalize_continuous_contract, normalize_talk_contract
+from workout_contracts import (
+    UserProfilePayload,
+    normalize_continuous_contract,
+    normalize_talk_contract,
+    profile_validation_errors,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -291,6 +296,23 @@ def talk_timeout_budget(trigger_source: str) -> float:
     if trigger_source == "wake_word":
         return max(0.8, float(getattr(config, "COACH_TALK_WAKE_TIMEOUT_SECONDS", 2.0)))
     return max(0.8, float(getattr(config, "COACH_TALK_BUTTON_TIMEOUT_SECONDS", 3.5)))
+
+
+def _parse_profile_timestamp(value: str | None):
+    if not value:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def collect_workout_context(payload: dict | None = None, form=None) -> dict:
@@ -3190,6 +3212,113 @@ def get_workouts():
 
     except Exception as e:
         logger.error(f"Get workouts error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# ============================================
+# USER PROFILE
+# ============================================
+
+@app.route('/profile/upsert', methods=['POST'])
+@require_auth
+def profile_upsert():
+    """
+    Upsert persisted onboarding/profile data.
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        raw_profile = payload.get("user_profile") if isinstance(payload.get("user_profile"), dict) else payload
+        if not isinstance(raw_profile, dict):
+            return jsonify({"error": "user_profile payload must be an object"}), 400
+
+        profile = UserProfilePayload(
+            name=(str(raw_profile.get("name")).strip() if raw_profile.get("name") not in (None, "") else None),
+            sex=(str(raw_profile.get("sex")).strip().lower() if raw_profile.get("sex") not in (None, "") else None),
+            age=(int(raw_profile.get("age")) if raw_profile.get("age") not in (None, "") else None),
+            height_cm=(float(raw_profile.get("height_cm")) if raw_profile.get("height_cm") not in (None, "") else None),
+            weight_kg=(float(raw_profile.get("weight_kg")) if raw_profile.get("weight_kg") not in (None, "") else None),
+            max_hr_bpm=(int(raw_profile.get("max_hr_bpm")) if raw_profile.get("max_hr_bpm") not in (None, "") else None),
+            resting_hr_bpm=(int(raw_profile.get("resting_hr_bpm")) if raw_profile.get("resting_hr_bpm") not in (None, "") else None),
+            profile_updated_at=(
+                str(raw_profile.get("profile_updated_at")).strip()
+                if raw_profile.get("profile_updated_at") not in (None, "")
+                else None
+            ),
+        )
+        validation_errors = profile_validation_errors(profile)
+        if validation_errors:
+            return jsonify({"error": "Invalid profile payload", "validation_errors": validation_errors}), 400
+
+        user_id = g.current_user_id
+        existing = UserProfile.query.filter_by(user_id=user_id).first()
+
+        normalized_updated_at = profile.normalized_updated_at()
+        incoming_ts = _parse_profile_timestamp(normalized_updated_at)
+        current_ts = existing.profile_updated_at if existing is not None else None
+
+        def _epoch_or_none(value):
+            if value is None:
+                return None
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc).timestamp()
+
+        incoming_epoch = _epoch_or_none(incoming_ts)
+        current_epoch = _epoch_or_none(current_ts)
+
+        stale_ignored = False
+        if existing is not None and incoming_epoch is not None and current_epoch is not None and incoming_epoch <= current_epoch:
+            stale_ignored = True
+            action = "stale_ignored"
+        else:
+            if existing is None:
+                existing = UserProfile(user_id=user_id)
+                db.session.add(existing)
+                action = "insert"
+            else:
+                action = "update"
+
+            if profile.name is not None:
+                existing.name = profile.name
+            if profile.sex is not None:
+                existing.sex = profile.sex
+            if profile.age is not None:
+                existing.age = profile.age
+            if profile.height_cm is not None:
+                existing.height_cm = profile.height_cm
+            if profile.weight_kg is not None:
+                existing.weight_kg = profile.weight_kg
+            if profile.max_hr_bpm is not None:
+                existing.max_hr_bpm = profile.max_hr_bpm
+            if profile.resting_hr_bpm is not None:
+                existing.resting_hr_bpm = profile.resting_hr_bpm
+            if incoming_ts is not None:
+                existing.profile_updated_at = incoming_ts
+            elif existing.profile_updated_at is None:
+                existing.profile_updated_at = datetime.utcnow()
+
+            db.session.commit()
+
+        if existing is None:
+            existing = UserProfile.query.filter_by(user_id=user_id).first()
+
+        logger.info(
+            "PROFILE_UPSERT user=%s action=%s stale_ignored=%s",
+            user_id,
+            action,
+            stale_ignored,
+        )
+
+        return jsonify({
+            "status": "ok",
+            "action": action,
+            "stale_ignored": stale_ignored,
+            "user_profile": existing.to_dict() if existing is not None else {},
+        }), 200
+    except ValueError:
+        return jsonify({"error": "Invalid numeric profile field"}), 400
+    except Exception as e:
+        logger.error(f"Profile upsert error: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 
