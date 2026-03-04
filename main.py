@@ -1476,6 +1476,61 @@ def _call_evaluate_zone_tick_compat(**kwargs):
         return evaluate_zone_tick(**filtered_kwargs)
 
 
+def _compute_server_authoritative_elapsed(
+    *,
+    workout_state: dict,
+    client_elapsed_seconds: int,
+    phase: str,
+    paused: bool,
+) -> tuple[int, float]:
+    """
+    Compute canonical elapsed time from server-side monotonic clock.
+
+    Returns:
+        (canonical_elapsed_s, drift_vs_client_s)
+    """
+    now_mono = time.monotonic()
+    if workout_state.get("session_started_at_monotonic") is None:
+        workout_state["session_started_at_monotonic"] = now_mono - max(0, int(client_elapsed_seconds))
+        workout_state["phase_started_at_monotonic"] = now_mono
+        workout_state["paused_accumulated_s"] = 0.0
+        workout_state["pause_started_at_monotonic"] = None
+        workout_state["clock_last_phase"] = phase
+
+    if workout_state.get("clock_last_phase") != phase:
+        workout_state["phase_started_at_monotonic"] = now_mono
+        workout_state["clock_last_phase"] = phase
+
+    paused_accumulated = float(workout_state.get("paused_accumulated_s") or 0.0)
+    pause_started = workout_state.get("pause_started_at_monotonic")
+    if paused:
+        if pause_started is None:
+            workout_state["pause_started_at_monotonic"] = now_mono
+            pause_started = now_mono
+    elif pause_started is not None:
+        paused_accumulated += max(0.0, now_mono - float(pause_started))
+        workout_state["paused_accumulated_s"] = paused_accumulated
+        workout_state["pause_started_at_monotonic"] = None
+        pause_started = None
+
+    active_pause = max(0.0, now_mono - float(pause_started)) if pause_started is not None else 0.0
+    start_mono = float(workout_state.get("session_started_at_monotonic") or now_mono)
+    elapsed = max(0.0, now_mono - start_mono - paused_accumulated - active_pause)
+    canonical_elapsed = int(round(elapsed))
+
+    # Client elapsed is a hint. If server clock falls far behind (for example app resume),
+    # resync the session start once so canonical time remains usable for countdowns.
+    client_elapsed = max(0, int(client_elapsed_seconds))
+    resync_ahead_seconds = int(getattr(config, "SERVER_CLOCK_RESYNC_AHEAD_SECONDS", 20))
+    if client_elapsed - canonical_elapsed >= max(1, resync_ahead_seconds):
+        workout_state["session_started_at_monotonic"] = now_mono - float(client_elapsed) - paused_accumulated - active_pause
+        canonical_elapsed = client_elapsed
+
+    drift = float(canonical_elapsed - client_elapsed)
+    workout_state["server_elapsed_s"] = canonical_elapsed
+    return canonical_elapsed, drift
+
+
 def _log_decision_debug(
     *,
     session_id: str,
@@ -2191,6 +2246,9 @@ def coach_continuous():
         watch_connected_raw = request.form.get("watch_connected")
         if normalized_tick_state.watch_connected is not None:
             watch_connected_raw = "true" if normalized_tick_state.watch_connected else "false"
+        paused_raw = request.form.get("paused")
+        if normalized_tick_state.paused is not None:
+            paused_raw = "true" if normalized_tick_state.paused else "false"
         breath_analysis_enabled_raw = request.form.get("breath_analysis_enabled", "true")
         mic_permission_granted_raw = request.form.get("mic_permission_granted", "true")
         breath_enabled_by_user = _coerce_bool(breath_analysis_enabled_raw)
@@ -2395,6 +2453,27 @@ def coach_continuous():
                 workout_state["warmup_remaining_s"] = remaining
             elif phase != "warmup":
                 workout_state.pop("warmup_remaining_s", None)
+            if bool(getattr(config, "SERVER_CLOCK_ENABLED", True)):
+                client_elapsed_seconds = int(elapsed_seconds)
+                paused_flag = bool(_coerce_bool(paused_raw))
+                canonical_elapsed, drift = _compute_server_authoritative_elapsed(
+                    workout_state=workout_state,
+                    client_elapsed_seconds=client_elapsed_seconds,
+                    phase=phase,
+                    paused=paused_flag,
+                )
+                elapsed_seconds = canonical_elapsed
+                drift_threshold = int(getattr(config, "SERVER_CLOCK_DRIFT_LOG_THRESHOLD_SECONDS", 5))
+                if abs(drift) >= float(drift_threshold):
+                    logger.info(
+                        "CLOCK_CANONICAL session=%s elapsed_server=%s elapsed_client=%s drift_s=%.1f phase=%s paused=%s",
+                        session_id,
+                        canonical_elapsed,
+                        client_elapsed_seconds,
+                        drift,
+                        phase,
+                        paused_flag,
+                    )
         latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema
@@ -2530,7 +2609,7 @@ def coach_continuous():
                 breath_signal_quality=breath_data.get("signal_quality"),
                 breath_summary=breath_timeline_summary,
                 session_id=session_id,
-                paused=request.form.get("paused"),
+                paused=paused_raw,
             )
             zone_tick = _call_evaluate_zone_tick_compat(**zone_tick_kwargs)
             if isinstance(zone_tick, dict):
