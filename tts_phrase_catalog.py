@@ -326,13 +326,13 @@ PHRASE_CATALOG = [
     # MOTIVATION — general encouragement cues
     # -----------------------------------------------------------------
 
-    {"id": "motivation.1", "en": "You're doing great.", "no": "Du er kjempeflink.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "motivation.2", "en": "Strong work. Keep it up.", "no": "Sterkt. Fortsett slik.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "motivation.3", "en": "That's the effort I want to see.", "no": "Det er innsatsen jeg vil se.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.1", "en": "Perfect.", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.2", "en": "Keep it up.", "no": "Perfekt!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.3", "en": "That's the effort I want to see.", "no": "Det skal kjennes litt. Det er prisen for endring..", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.4", "en": "One step at a time. You got this.", "no": "Ett steg om gangen. Du klarer det.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.5", "en": "Discipline beats motivation. Keep going.", "no": "Disiplin slår motivasjon. Fortsett.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.6", "en": "This is where it counts.", "no": "Det er nå det gjelder.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "motivation.7", "en": "You showed up. Now finish it.", "no": "Du møtte opp. Nå fullfører du.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.7", "en": "You showed up. thats the hard part.", "no": "Du møtte opp. Det er det vanskelige.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.8", "en": "Trust the process.", "no": "Stol på prosessen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.9", "en": "Every rep matters.", "no": "Hvert steg teller.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.10", "en": "Finish what you started.", "no": "Fullfør det du begynte på.", "persona": "personal_trainer", "priority": "core"},
@@ -374,16 +374,16 @@ PHRASE_CATALOG = [
     # -----------------------------------------------------------------
 
     # stage 1: supportive (rep 1)
-    {"id": "interval.motivate.s1.1", "en": "Beautiful. Smooth and steady.", "no": "Nydelig. Jevnt og rolig.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s1.2", "en": "Good. Breathe easy.", "no": "Bra. Pust rolig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s1.1", "en": "Smooth and steady.", "no": "Nydelig. Bra tempo.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s1.2", "en": "Good. Focus on breathing.", "no": "Bra. fokuser på å puste.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 2: pressing (rep 2)
     {"id": "interval.motivate.s2.1", "en": "Come on!", "no": "Kom igjen!", "persona": "personal_trainer", "priority": "core"},
     {"id": "interval.motivate.s2.2", "en": "Lovely!", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
 
     # stage 3: intense (rep 3)
-    {"id": "interval.motivate.s3.1", "en": "All the way! Drive your legs!", "no": "Helt inn nå! Trøkk i beina!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s3.2", "en": "Time to work! Smooth and strong.", "no": "Nå må du jobbe! Jevnt og godt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s3.1", "en": "You are doing the work!", "no": "Bra. Nå gjør du jobben!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s3.2", "en": "Keep it Smooth and strong.", "no": "Fokuser på jevnt tempo.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 4: peak (rep >= 4)
     {"id": "interval.motivate.s4.1", "en": "EVERYTHING. NOW.", "no": "ALT. NÅ.", "persona": "personal_trainer", "priority": "core"},
@@ -403,12 +403,12 @@ PHRASE_CATALOG = [
     {"id": "easy_run.motivate.s2.2", "en": "YES!", "no": "JA!", "persona": "personal_trainer", "priority": "core"},
 
     # stage 3: intense (40–60 min)
-    {"id": "easy_run.motivate.s3.1", "en": "One more. Don't stop.", "no": "En til. Ikke stopp.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s3.2", "en": "Discipline. Execute.", "no": "Disiplin. Gjennomfør.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s3.1", "en": "Perfect!.", "no": "Perfekt!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s3.2", "en": "Good work!", "no": "Herlig!.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 4: peak (60+ min)
-    {"id": "easy_run.motivate.s4.1", "en": "Finish the rep. Now.", "no": "Fullfør draget. Nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s4.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s4.1", "en": "Keep focusing on your breath Now.", "no": "Hold fokuset på pusten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s4.2", "en": "Nice work", "no": "Herlig jobba!", "persona": "personal_trainer", "priority": "core"},
 ]
 
 
