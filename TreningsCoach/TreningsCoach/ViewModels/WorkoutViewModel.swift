@@ -2017,6 +2017,7 @@ class WorkoutViewModel: ObservableObject {
             Task {
                 await syncProfileSnapshotToBackend(reason: "workout_start")
                 await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
+                await prefetchCoreAudioIfNeeded()
                 await playWelcomeMessage()
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 await MainActor.run {
@@ -2643,6 +2644,59 @@ class WorkoutViewModel: ObservableObject {
             print("📦 Audio pack fetch failed for \(utteranceID): \(error.localizedDescription)")
             return nil
         }
+    }
+
+    private func corePrefetchUtteranceIDs() -> [String] {
+        var ids = [
+            "wake_ack.en.default",
+            "wake_ack.no.default",
+            "zone.phase.warmup.1",
+            "zone.countdown.30",
+            "zone.countdown.15",
+            "zone.countdown.5",
+            "zone.countdown.start",
+            "zone.in_zone.default.1",
+            "zone.above.default.1",
+            "zone.below.default.1",
+            "zone.feel.easy_run.1",
+            "zone.breath.easy_run.1",
+            "zone.hr_poor_enter.1",
+            "zone.hr_poor_exit.1",
+            "zone.watch_disconnected.1",
+            "zone.watch_restored.1",
+            "zone.no_sensors.1",
+        ]
+        for idx in 1 ... 5 {
+            ids.append("welcome.standard.\(idx)")
+        }
+        return ids
+    }
+
+    private func prefetchCoreAudioIfNeeded() async {
+        guard AppConfig.AudioPack.prefetchEnabled else { return }
+        let language = normalizedLanguageCode(currentLanguage)
+        let personaKey = activeAudioPersonaKey
+        var downloaded = 0
+        var missing = 0
+        for utteranceID in corePrefetchUtteranceIDs() {
+            guard isLocalPackAllowed(for: utteranceID) else { continue }
+            if localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) != nil {
+                continue
+            }
+            if bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) != nil {
+                continue
+            }
+            if let _ = await downloadAudioPackFileIfNeeded(
+                for: utteranceID,
+                language: language,
+                personaKey: personaKey
+            ) {
+                downloaded += 1
+            } else {
+                missing += 1
+            }
+        }
+        print("📦 AUDIO_PREFETCH downloaded=\(downloaded) missing=\(missing) language=\(language)")
     }
 
     private func logSpeechTranscript(utteranceID: String, eventType: String, source: String, text: String?) {

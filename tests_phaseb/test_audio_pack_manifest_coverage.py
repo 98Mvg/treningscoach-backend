@@ -87,6 +87,18 @@ def test_zone_event_phrase_ids_exist_in_active_manifest():
     required_ids = _zone_event_phrase_ids().union({
         "wake_ack.en.default",
         "wake_ack.no.default",
+        "welcome.standard.1",
+        "welcome.standard.2",
+        "welcome.standard.3",
+        "welcome.standard.4",
+        "welcome.standard.5",
+        "zone.phase.warmup.1",
+        "zone.countdown.30",
+        "zone.countdown.15",
+        "zone.countdown.5",
+        "zone.countdown.start",
+        "zone.hr_poor_enter.1",
+        "zone.hr_poor_exit.1",
     })
     missing = sorted(required_ids - manifest_ids)
     assert not missing, (

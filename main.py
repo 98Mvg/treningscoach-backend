@@ -316,6 +316,105 @@ def _parse_profile_timestamp(value: str | None):
         return None
 
 
+def _profile_payload_from_record(record: UserProfile) -> UserProfilePayload:
+    return UserProfilePayload(
+        name=record.name,
+        sex=record.sex,
+        age=record.age,
+        height_cm=record.height_cm,
+        weight_kg=record.weight_kg,
+        max_hr_bpm=record.max_hr_bpm,
+        resting_hr_bpm=record.resting_hr_bpm,
+        profile_updated_at=record.profile_updated_at.isoformat() if record.profile_updated_at else None,
+    )
+
+
+def _coerce_profile_user_id(value: str | None) -> str | None:
+    candidate = (value or "").strip()
+    if not candidate or candidate.lower() == "unknown":
+        return None
+    return candidate
+
+
+def _resolve_runtime_profile(
+    *,
+    user_id: str | None,
+    snapshot_profile: UserProfilePayload | None,
+) -> tuple[UserProfilePayload | None, str]:
+    """
+    Profile precedence:
+    1) newer valid snapshot
+    2) stored DB profile
+    3) valid snapshot
+    4) none (caller uses safe defaults)
+    """
+    snapshot = snapshot_profile if isinstance(snapshot_profile, UserProfilePayload) else None
+    snapshot_valid = snapshot is not None and not profile_validation_errors(snapshot)
+    snapshot_ts = _parse_profile_timestamp(snapshot.normalized_updated_at() if snapshot else None)
+
+    use_db = bool(getattr(config, "PROFILE_DB_ENABLED", True))
+    normalized_user_id = _coerce_profile_user_id(user_id)
+    db_record = None
+    db_payload = None
+    db_ts = None
+    if use_db and normalized_user_id:
+        db_record = UserProfile.query.filter_by(user_id=normalized_user_id).first()
+        if db_record is not None:
+            db_payload = _profile_payload_from_record(db_record)
+            db_ts = db_record.profile_updated_at
+
+    def _epoch_or_none(value):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).timestamp()
+
+    snapshot_epoch = _epoch_or_none(snapshot_ts)
+    db_epoch = _epoch_or_none(db_ts)
+
+    if (
+        snapshot_valid
+        and snapshot_epoch is not None
+        and db_payload is not None
+        and db_epoch is not None
+        and snapshot_epoch > db_epoch
+    ):
+        if use_db and normalized_user_id and db_record is not None:
+            db_record.name = snapshot.name
+            db_record.sex = snapshot.sex
+            db_record.age = snapshot.age
+            db_record.height_cm = snapshot.height_cm
+            db_record.weight_kg = snapshot.weight_kg
+            db_record.max_hr_bpm = snapshot.max_hr_bpm
+            db_record.resting_hr_bpm = snapshot.resting_hr_bpm
+            db_record.profile_updated_at = snapshot_ts
+            db.session.commit()
+        return snapshot, "snapshot_newer"
+
+    if db_payload is not None:
+        return db_payload, "db"
+
+    if snapshot_valid:
+        if use_db and normalized_user_id:
+            record = UserProfile.query.filter_by(user_id=normalized_user_id).first()
+            if record is None:
+                record = UserProfile(user_id=normalized_user_id)
+                db.session.add(record)
+            record.name = snapshot.name
+            record.sex = snapshot.sex
+            record.age = snapshot.age
+            record.height_cm = snapshot.height_cm
+            record.weight_kg = snapshot.weight_kg
+            record.max_hr_bpm = snapshot.max_hr_bpm
+            record.resting_hr_bpm = snapshot.resting_hr_bpm
+            record.profile_updated_at = snapshot_ts or datetime.utcnow()
+            db.session.commit()
+        return snapshot, "snapshot"
+
+    return None, "defaults"
+
+
 def collect_workout_context(payload: dict | None = None, form=None) -> dict:
     """
     Collect normalized workout context from either JSON payload or multipart form fields.
@@ -2491,6 +2590,38 @@ def coach_continuous():
         )
         session_meta["personalization_user_id"] = personalization_user_id
 
+        runtime_profile_user_id = _coerce_profile_user_id(
+            user_profile_id or session_meta.get("user_profile_id") or current_user_id
+        )
+        if runtime_profile_user_id:
+            session_meta["user_profile_id"] = runtime_profile_user_id
+        profile_snapshot = normalized_contract.get("user_profile")
+        resolved_runtime_profile, runtime_profile_source = _resolve_runtime_profile(
+            user_id=runtime_profile_user_id,
+            snapshot_profile=profile_snapshot,
+        )
+        logger.info(
+            "PROFILE_RUNTIME session=%s user=%s source=%s",
+            session_id,
+            runtime_profile_user_id or "none",
+            runtime_profile_source,
+        )
+        resolved_hr_max = (
+            resolved_runtime_profile.max_hr_bpm
+            if resolved_runtime_profile and resolved_runtime_profile.max_hr_bpm is not None
+            else _coerce_int(request.form.get("hr_max"))
+        )
+        resolved_resting_hr = (
+            resolved_runtime_profile.resting_hr_bpm
+            if resolved_runtime_profile and resolved_runtime_profile.resting_hr_bpm is not None
+            else _coerce_int(request.form.get("resting_hr"))
+        )
+        resolved_age = (
+            resolved_runtime_profile.age
+            if resolved_runtime_profile and resolved_runtime_profile.age is not None
+            else _coerce_int(request.form.get("age"))
+        )
+
         # Early guard: too-small audio chunks are often invalid/corrupted
         min_bytes = getattr(config, "BREATH_MIN_AUDIO_BYTES", 8000)
         if file_size < min_bytes:
@@ -2737,9 +2868,9 @@ def coach_continuous():
                 movement_source=request.form.get("movement_source"),
                 watch_connected=watch_connected_raw,
                 watch_status=request.form.get("watch_status"),
-                hr_max=request.form.get("hr_max"),
-                resting_hr=request.form.get("resting_hr"),
-                age=request.form.get("age"),
+                hr_max=resolved_hr_max,
+                resting_hr=resolved_resting_hr,
+                age=resolved_age,
                 config_module=config,
                 breath_intensity=breath_data.get("intensity"),
                 breath_signal_quality=breath_data.get("signal_quality"),
@@ -3663,6 +3794,38 @@ def coach_talk():
             for key, value in summary_from_contract.items():
                 if value is not None and workout_context.get(key) in (None, ""):
                     workout_context[key] = value
+        talk_session_id = (
+            (form.get("session_id") if form is not None else None)
+            or payload.get("session_id")
+            or ""
+        ).strip()
+        talk_profile_user_id = _coerce_profile_user_id(
+            (form.get("user_profile_id") if form is not None else None)
+            or payload.get("user_profile_id")
+            or payload.get("user_id")
+        )
+        if not talk_profile_user_id and talk_session_id and session_manager.session_exists(talk_session_id):
+            talk_meta = session_manager.sessions.get(talk_session_id, {}).get("metadata", {})
+            talk_profile_user_id = _coerce_profile_user_id(
+                (talk_meta.get("user_profile_id") or talk_meta.get("user_id"))
+            )
+        talk_profile, talk_profile_source = _resolve_runtime_profile(
+            user_id=talk_profile_user_id,
+            snapshot_profile=None,
+        )
+        if talk_profile is not None:
+            if talk_profile.max_hr_bpm is not None:
+                workout_context.setdefault("profile_max_hr_bpm", int(talk_profile.max_hr_bpm))
+            if talk_profile.resting_hr_bpm is not None:
+                workout_context.setdefault("profile_resting_hr_bpm", int(talk_profile.resting_hr_bpm))
+            if talk_profile.age is not None:
+                workout_context.setdefault("profile_age", int(talk_profile.age))
+        logger.info(
+            "PROFILE_RUNTIME_TALK session=%s user=%s source=%s",
+            talk_session_id or "none",
+            talk_profile_user_id or "none",
+            talk_profile_source,
+        )
         phase = (
             workout_context.get("phase")
             or (form.get("phase") if form is not None else None)

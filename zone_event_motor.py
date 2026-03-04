@@ -932,11 +932,18 @@ def _resolve_sensor_mode(
         state["sensor_mode_candidate_since"] = float(elapsed_seconds)
         current_mode = desired
 
-    transition_table = {
-        "FULL_HR": {"BREATH_FALLBACK", "NO_SENSORS"},
-        "BREATH_FALLBACK": {"FULL_HR", "NO_SENSORS"},
-        "NO_SENSORS": {"FULL_HR", "BREATH_FALLBACK"},
-    }
+    if bool(getattr(config_module, "SENSOR_MODE_TABLE_V2_ENABLED", True)):
+        transition_table = {
+            "FULL_HR": {"BREATH_FALLBACK", "NO_SENSORS"},
+            "BREATH_FALLBACK": {"FULL_HR", "NO_SENSORS"},
+            "NO_SENSORS": {"FULL_HR", "BREATH_FALLBACK"},
+        }
+    else:
+        transition_table = {
+            "FULL_HR": {"BREATH_FALLBACK", "NO_SENSORS"},
+            "BREATH_FALLBACK": {"FULL_HR", "NO_SENSORS"},
+            "NO_SENSORS": {"FULL_HR", "BREATH_FALLBACK"},
+        }
 
     if desired != current_mode:
         allowed_targets = transition_table.get(str(current_mode), set())

@@ -567,6 +567,7 @@ class BackendAPIService {
         body.append("\r\n".data(using: .utf8)!)
 
         // Add form fields
+        appendField(name: "contract_version", value: "2")
         appendField(name: "session_id", value: sessionId)
         appendField(name: "phase", value: phase.rawValue)
         appendField(name: "last_coaching", value: lastCoaching)
@@ -625,6 +626,49 @@ class BackendAPIService {
         appendField(name: "breath_analysis_enabled", value: breathAnalysisEnabled ? "true" : "false")
         appendField(name: "mic_permission_granted", value: micPermissionGranted ? "true" : "false")
 
+        var workoutPlan: [String: Any] = [
+            "workout_type": workoutMode == .intervals ? "intervals" : "easy_run",
+            "warmup_s": warmupSeconds ?? Int(AppConfig.warmupDuration),
+            "cooldown_s": 0
+        ]
+        if workoutMode == .intervals {
+            workoutPlan["intervals"] = intervalPlanFromTemplate(intervalTemplate)
+        }
+        if let workoutPlanJSON = jsonString(workoutPlan) {
+            appendField(name: "workout_plan", value: workoutPlanJSON)
+        }
+
+        var workoutState: [String: Any] = [
+            "session_id": sessionId,
+            "elapsed_s": elapsedSeconds,
+            "phase": phase.rawValue,
+            "paused": false
+        ]
+        if let watchConnected = watchConnected {
+            workoutState["watch_connected"] = watchConnected
+        }
+        if let heartRate = heartRate {
+            workoutState["hr_bpm"] = heartRate
+        }
+        if let hrQuality = hrQuality, !hrQuality.isEmpty {
+            workoutState["hr_quality"] = hrQuality
+        }
+        if let hrConfidence = hrConfidence {
+            workoutState["hr_confidence"] = hrConfidence
+        }
+        if let movementScore = movementScore {
+            workoutState["movement_score"] = movementScore
+        }
+        if let cadenceSPM = cadenceSPM {
+            workoutState["cadence_spm"] = cadenceSPM
+        }
+        if let movementSource = movementSource, !movementSource.isEmpty {
+            workoutState["movement_state"] = movementSource
+        }
+        if let workoutStateJSON = jsonString(workoutState) {
+            appendField(name: "workout_state", value: workoutStateJSON)
+        }
+
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         request.httpBody = body
@@ -665,6 +709,7 @@ class BackendAPIService {
         body.append(audioData)
         body.append("\r\n".data(using: .utf8)!)
 
+        appendField(name: "contract_version", value: "2")
         appendField(name: "trigger_source", value: triggerSource)
         appendField(name: "context", value: "workout")
         appendField(name: "response_mode", value: "qa")
@@ -709,10 +754,43 @@ class BackendAPIService {
         if let repsRemaining = workoutContext.repsRemainingIncludingCurrent {
             appendField(name: "reps_remaining_including_current", value: "\(repsRemaining)")
         }
+        var workoutSummary: [String: Any] = [:]
+        if let phase = workoutContext.phase, !phase.isEmpty { workoutSummary["phase"] = phase }
+        if let timeLeftS = workoutContext.timeLeftS { workoutSummary["time_left_s"] = timeLeftS }
+        if let repIndex = workoutContext.repIndex { workoutSummary["rep_index"] = repIndex }
+        if let repsTotal = workoutContext.repsTotal { workoutSummary["reps_total"] = repsTotal }
+        if let repRemainingS = workoutContext.repRemainingS { workoutSummary["rep_remaining_s"] = repRemainingS }
+        if let repsRemaining = workoutContext.repsRemainingIncludingCurrent {
+            workoutSummary["reps_remaining_including_current"] = repsRemaining
+        }
+        if let workoutSummaryJSON = jsonString(workoutSummary), !workoutSummary.isEmpty {
+            appendField(name: "workout_context_summary", value: workoutSummaryJSON)
+        }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         request.httpBody = body
         return request
+    }
+
+    private func intervalPlanFromTemplate(_ template: IntervalTemplate) -> [String: Int] {
+        switch template {
+        case .fourByFour:
+            return ["repeats": 4, "work_s": 240, "recovery_s": 180]
+        case .eightByOne:
+            return ["repeats": 8, "work_s": 60, "recovery_s": 60]
+        case .tenByThirtyThirty:
+            return ["repeats": 10, "work_s": 30, "recovery_s": 30]
+        }
+    }
+
+    private func jsonString(_ value: [String: Any]) -> String? {
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value, options: []),
+              let json = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+        return json
     }
 }
 

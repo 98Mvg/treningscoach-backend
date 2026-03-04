@@ -268,6 +268,16 @@ class BrainRouter:
         else:
             hints.append("heart_rate=unavailable")
 
+        profile_max = context.get("profile_max_hr_bpm")
+        profile_rest = context.get("profile_resting_hr_bpm")
+        profile_age = context.get("profile_age")
+        if isinstance(profile_max, (int, float)):
+            hints.append(f"profile_max_hr_bpm={int(profile_max)}")
+        if isinstance(profile_rest, (int, float)):
+            hints.append(f"profile_resting_hr_bpm={int(profile_rest)}")
+        if isinstance(profile_age, (int, float)):
+            hints.append(f"profile_age={int(profile_age)}")
+
         if hints:
             parts.append("Workout context: " + ", ".join(hints))
         if lang == "no":
