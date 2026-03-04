@@ -2,12 +2,14 @@
 //  AuthManager.swift
 //  TreningsCoach
 //
-//  Manages authentication state with Google, Facebook, and Vipps
+//  Manages authentication state with Apple, Google, Facebook, and Vipps
 //  Stores JWT token in Keychain, communicates with backend /auth/* endpoints
 //
 
 import Foundation
 import SwiftUI
+import AuthenticationServices
+import UIKit
 
 @MainActor
 class AuthManager: ObservableObject {
@@ -63,6 +65,39 @@ class AuthManager: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    // MARK: - Apple Sign-In
+
+    func signInWithApple() async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let credential = try await requestAppleCredential()
+            var body: [String: String] = [
+                "identity_token": credential.identityToken
+            ]
+            if let authorizationCode = credential.authorizationCode, !authorizationCode.isEmpty {
+                body["authorization_code"] = authorizationCode
+            }
+            if let email = credential.email, !email.isEmpty {
+                body["email"] = email
+            }
+            if let fullName = credential.fullName, !fullName.isEmpty {
+                body["full_name"] = fullName
+            }
+
+            let authResponse = try await sendAuthRequest(
+                provider: "apple",
+                body: body
+            )
+            handleAuthSuccess(authResponse)
+            return true
+        } catch {
+            errorMessage = "Apple sign-in failed: \(error.localizedDescription)"
+            return false
+        }
     }
 
     // MARK: - Facebook Sign-In
@@ -226,6 +261,18 @@ class AuthManager: ObservableObject {
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
 
+    private func requestAppleCredential() async throws -> AppleAuthorizationPayload {
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        let coordinator = AppleSignInCoordinator()
+        controller.delegate = coordinator
+        controller.presentationContextProvider = coordinator
+        return try await coordinator.perform(controller: controller)
+    }
+
     private func handleAuthSuccess(_ response: AuthResponse) {
         // Save token to Keychain
         KeychainHelper.save(key: KeychainHelper.tokenKey, string: response.token)
@@ -244,5 +291,89 @@ class AuthManager: ObservableObject {
         }
 
         print("Authenticated: \(response.user.email)")
+    }
+}
+
+private struct AppleAuthorizationPayload {
+    let identityToken: String
+    let authorizationCode: String?
+    let email: String?
+    let fullName: String?
+}
+
+private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<AppleAuthorizationPayload, Error>?
+
+    func perform(controller: ASAuthorizationController) async throws -> AppleAuthorizationPayload {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            controller.performRequests()
+        }
+    }
+
+    func presentationAnchor(for _: ASAuthorizationController) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first,
+            let window = scene.windows.first(where: { $0.isKeyWindow })
+        else {
+            return ASPresentationAnchor(frame: .zero)
+        }
+        return window
+    }
+
+    func authorizationController(
+        controller _: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            continuation?.resume(throwing: NSError(domain: "AuthManager", code: 9001, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple credential"]))
+            continuation = nil
+            return
+        }
+
+        guard let identityTokenData = credential.identityToken,
+              let identityToken = String(data: identityTokenData, encoding: .utf8),
+              !identityToken.isEmpty
+        else {
+            continuation?.resume(throwing: NSError(domain: "AuthManager", code: 9002, userInfo: [NSLocalizedDescriptionKey: "Missing Apple identity token"]))
+            continuation = nil
+            return
+        }
+
+        let authorizationCode: String?
+        if let codeData = credential.authorizationCode,
+           let value = String(data: codeData, encoding: .utf8),
+           !value.isEmpty {
+            authorizationCode = value
+        } else {
+            authorizationCode = nil
+        }
+
+        let formatter = PersonNameComponentsFormatter()
+        let fullNameString: String?
+        if let components = credential.fullName {
+            let formatted = formatter.string(from: components).trimmingCharacters(in: .whitespacesAndNewlines)
+            fullNameString = formatted.isEmpty ? nil : formatted
+        } else {
+            fullNameString = nil
+        }
+
+        let payload = AppleAuthorizationPayload(
+            identityToken: identityToken,
+            authorizationCode: authorizationCode,
+            email: credential.email,
+            fullName: fullNameString
+        )
+        continuation?.resume(returning: payload)
+        continuation = nil
+    }
+
+    func authorizationController(
+        controller _: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        continuation?.resume(throwing: error)
+        continuation = nil
     }
 }

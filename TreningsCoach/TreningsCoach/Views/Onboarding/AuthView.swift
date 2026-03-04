@@ -10,6 +10,7 @@ import SwiftUI
 import UIKit
 
 struct AuthView: View {
+    @EnvironmentObject var authManager: AuthManager
     let onContinue: () -> Void
     @State private var appeared = false
     @State private var email = ""
@@ -45,7 +46,12 @@ struct AuthView: View {
 
                     VStack(spacing: 12) {
                         socialButton(title: L10n.registerWithApple, icon: "applelogo") {
-                            onContinue()
+                            Task {
+                                let signedIn = await authManager.signInWithApple()
+                                if signedIn {
+                                    onContinue()
+                                }
+                            }
                         }
                         socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
                             onContinue()
@@ -55,6 +61,15 @@ struct AuthView: View {
                     .padding(.top, 24)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 16)
+
+                    if let errorMessage = authManager.errorMessage, !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .font(.footnote.weight(.medium))
+                            .foregroundColor(CoachiTheme.primary)
+                            .multilineTextAlignment(.center)
+                            .frame(width: contentWidth, alignment: .center)
+                            .padding(.top, 10)
+                    }
 
                     HStack(spacing: 12) {
                         Rectangle()

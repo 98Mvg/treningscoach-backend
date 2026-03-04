@@ -1,6 +1,6 @@
 """
 Auth API routes for Treningscoach
-Handles Google, Facebook, and Vipps authentication
+Handles Apple, Google, Facebook, and Vipps authentication
 """
 
 import logging
@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify, g
 from database import db, User, UserSettings
 from auth import (
     create_jwt, require_auth,
-    verify_google_token, verify_facebook_token, verify_vipps_token
+    verify_apple_token, verify_google_token, verify_facebook_token, verify_vipps_token
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
     Find existing user by provider ID or create new one.
 
     Args:
-        provider: "google", "facebook", or "vipps"
+        provider: "apple", "google", "facebook", or "vipps"
         provider_info: Dict from verify_*_token()
 
     Returns:
@@ -83,6 +83,51 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
 # ============================================
 # AUTH ENDPOINTS
 # ============================================
+
+@auth_bp.route("/apple", methods=["POST"])
+def auth_apple():
+    """
+    Authenticate with Apple Sign-In.
+
+    Request body:
+    {
+        "identity_token": "eyJhbGciOi...",
+        "authorization_code": "optional",
+        "email": "optional@first.login",
+        "full_name": "Optional Name"
+    }
+
+    Returns:
+    {
+        "token": "jwt_token",
+        "user": { ... }
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data or "identity_token" not in data:
+            return jsonify({"error": "Missing identity_token"}), 400
+
+        provider_info = verify_apple_token(
+            data["identity_token"],
+            email=data.get("email"),
+            full_name=data.get("full_name"),
+        )
+        user = find_or_create_user("apple", provider_info)
+        token = create_jwt(user.id, user.email)
+
+        return jsonify({
+            "token": token,
+            "user": user.to_dict()
+        }), 200
+
+    except ValueError as e:
+        logger.warning(f"Apple auth failed: {e}")
+        return jsonify({"error": str(e)}), 401
+    except Exception as e:
+        logger.error(f"Apple auth error: {e}", exc_info=True)
+        return jsonify({"error": "Authentication failed"}), 500
+
 
 @auth_bp.route("/google", methods=["POST"])
 def auth_google():

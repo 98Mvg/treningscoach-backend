@@ -38,7 +38,7 @@ class User(db.Model):
     avatar_url = db.Column(db.String(500), nullable=True)
 
     # Auth
-    auth_provider = db.Column(db.String(50), nullable=False)  # "google", "facebook", "vipps"
+    auth_provider = db.Column(db.String(50), nullable=False)  # "apple", "google", "facebook", "vipps"
     auth_provider_id = db.Column(db.String(255), nullable=False)  # Provider's user ID
 
     # Preferences

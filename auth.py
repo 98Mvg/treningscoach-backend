@@ -1,6 +1,6 @@
 """
 Authentication module for Treningscoach
-Supports: Google Sign-In, Facebook Login, Vipps Login
+Supports: Apple Sign-In, Google Sign-In, Facebook Login, Vipps Login
 Issues JWT tokens for session management
 """
 
@@ -231,6 +231,66 @@ def verify_google_token(id_token: str) -> dict:
     except Exception as e:
         logger.error(f"Google token verification error: {e}")
         raise ValueError(f"Invalid Google token: {str(e)}")
+
+
+def _resolve_apple_client_ids() -> list[str]:
+    """
+    Resolve allowed Apple audiences (services IDs / bundle IDs).
+    """
+    configured = (os.getenv("APPLE_CLIENT_IDS") or os.getenv("APPLE_CLIENT_ID") or "").strip()
+    if configured:
+        values = [item.strip() for item in configured.split(",") if item.strip()]
+        if values:
+            return values
+    # Default to app bundle ID when env is not configured.
+    return ["com.mariusgaarder.TreningsCoach"]
+
+
+def verify_apple_token(
+    identity_token: str,
+    email: str | None = None,
+    full_name: str | None = None,
+) -> dict:
+    """
+    Verify Apple identity token and extract user info.
+
+    Args:
+        identity_token: Apple identity token (JWT) from ASAuthorizationAppleIDCredential
+        email: Optional fallback email from iOS first-sign-in payload
+        full_name: Optional fallback full name from iOS first-sign-in payload
+
+    Returns:
+        Dict with: provider_id, email, display_name, avatar_url
+
+    Raises:
+        ValueError: If token is invalid
+    """
+    try:
+        signing_key_client = jwt.PyJWKClient("https://appleid.apple.com/auth/keys")
+        signing_key = signing_key_client.get_signing_key_from_jwt(identity_token)
+        decoded = jwt.decode(
+            identity_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=_resolve_apple_client_ids(),
+            issuer="https://appleid.apple.com",
+        )
+    except Exception as exc:
+        logger.error("Apple token verification error: %s", exc)
+        raise ValueError("Invalid Apple token") from exc
+
+    profile_email = decoded.get("email") or (email or "").strip()
+    profile_name = (full_name or "").strip()
+    if not profile_name:
+        # Apple can omit name after first authorization; avoid empty display names.
+        profile_name = profile_email.split("@")[0] if profile_email else ""
+
+    return {
+        "provider_id": decoded.get("sub", ""),
+        "email": profile_email,
+        "display_name": profile_name,
+        "avatar_url": "",
+    }
 
 
 def verify_facebook_token(access_token: str) -> dict:
