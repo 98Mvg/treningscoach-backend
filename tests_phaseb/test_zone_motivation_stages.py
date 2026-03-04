@@ -119,8 +119,8 @@ def test_easy_run_in_target_sustained_priority_is_55():
 def test_motivation_priority_below_entered_target():
     assert _event_priority("interval_in_target_sustained") < _event_priority("entered_target")
 
-def test_motivation_priority_above_max_silence_motivation():
-    assert _event_priority("interval_in_target_sustained") > _event_priority("max_silence_motivation")
+def test_max_silence_motivation_priority_above_go_by_feel():
+    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel")
 
 
 # --- Phrase ID resolution fallback ---

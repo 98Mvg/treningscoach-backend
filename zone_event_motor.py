@@ -202,6 +202,7 @@ def _event_priority(event_type: str) -> int:
         "max_silence_override": 68,
         "max_silence_breath_guide": 68,
         "max_silence_go_by_feel": 66,
+        "max_silence_motivation": 69,
         "recovery_hr_above_relax_ceiling": 65,
         "recovery_hr_ok_relax": 64,
         "entered_target": 60,
@@ -209,9 +210,6 @@ def _event_priority(event_type: str) -> int:
         # Tier C.5 — stage-based motivation (positive reinforcement)
         "interval_in_target_sustained": 55,
         "easy_run_in_target_sustained": 55,
-
-        # Tier D — motivational filler
-        "max_silence_motivation": 10,
     }
     return order.get(event_type, 0)
 
@@ -1385,7 +1383,7 @@ def _allow_motivation_event(
     elapsed_seconds: int,
     config_module,
 ) -> bool:
-    """Motivation cooldown barrier for Tier D events."""
+    """Motivation cooldown barrier for max-silence motivation events."""
     is_intervals = workout_type == "intervals"
 
     barrier = int(
@@ -2496,10 +2494,16 @@ def evaluate_zone_tick(
                         max_silence_candidate = "max_silence_override"
                     elif sensor_fusion_mode in {"BREATH_MOVEMENT", "BREATH_ONLY"}:
                         max_silence_candidate = "max_silence_breath_guide"
-                    elif sensor_fusion_mode in {"MOVEMENT_ONLY", "TIMING_ONLY"}:
-                        max_silence_candidate = "max_silence_go_by_feel"
                     elif not hr_available:
+                        # No HR + no reliable breath: keep deterministic go-by-feel fallback.
                         max_silence_candidate = "max_silence_go_by_feel"
+                    elif sensor_fusion_mode in {"MOVEMENT_ONLY", "TIMING_ONLY"}:
+                        # When HR exists but we are not running strict HR-zone enforcement
+                        # (e.g. targets unenforced), prioritize motivation over go-by-feel.
+                        if _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel"):
+                            max_silence_candidate = "max_silence_motivation"
+                        else:
+                            max_silence_candidate = "max_silence_go_by_feel"
                     else:
                         max_silence_candidate = "max_silence_motivation"
 

@@ -221,9 +221,9 @@ def test_tier_b_above_tier_c():
     assert _event_priority("cooldown_started") > _event_priority("entered_target")
 
 
-def test_tier_c_above_tier_d():
-    assert _event_priority("max_silence_go_by_feel") > _event_priority("max_silence_motivation")
-    assert _event_priority("max_silence_breath_guide") > _event_priority("max_silence_motivation")
+def test_max_silence_motivation_above_go_by_feel():
+    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel")
+    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_breath_guide")
 
 
 def test_event_group_motivation():

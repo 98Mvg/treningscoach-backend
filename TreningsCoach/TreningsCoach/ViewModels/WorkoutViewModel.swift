@@ -1519,7 +1519,7 @@ class WorkoutViewModel: ObservableObject {
         case "interval_in_target_sustained", "easy_run_in_target_sustained":
             return 55
         case "max_silence_motivation":
-            return 10
+            return 69
         default:
             return 0
         }
