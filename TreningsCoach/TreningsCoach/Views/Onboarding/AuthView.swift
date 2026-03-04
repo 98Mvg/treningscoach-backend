@@ -45,11 +45,13 @@ struct AuthView: View {
                         .frame(width: contentWidth, alignment: .center)
 
                     VStack(spacing: 12) {
-                        socialButton(title: L10n.registerWithApple, icon: "applelogo") {
-                            Task {
-                                let signedIn = await authManager.signInWithApple()
-                                if signedIn {
-                                    onContinue()
+                        if AppConfig.Auth.appleSignInEnabled {
+                            socialButton(title: L10n.registerWithApple, icon: "applelogo") {
+                                Task {
+                                    let signedIn = await authManager.signInWithApple()
+                                    if signedIn {
+                                        onContinue()
+                                    }
                                 }
                             }
                         }

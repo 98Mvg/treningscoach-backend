@@ -6,6 +6,8 @@
 	<array>
 		<string>spotify</string>
 	</array>
+	<key>APPLE_SIGN_IN_ENABLED</key>
+	<false/>
 	<key>NSMotionUsageDescription</key>
 	<string>Motion access is used to estimate cadence and movement so coaching stays accurate when heart-rate signal is weak.</string>
 	<key>UILaunchScreen</key>

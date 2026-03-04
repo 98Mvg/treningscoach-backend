@@ -94,8 +94,13 @@ class AuthManager: ObservableObject {
             )
             handleAuthSuccess(authResponse)
             return true
+        } catch let appleError as ASAuthorizationError {
+            if appleError.code != .canceled {
+                errorMessage = L10n.appleSignInFailedTryAgain
+            }
+            return false
         } catch {
-            errorMessage = "Apple sign-in failed: \(error.localizedDescription)"
+            errorMessage = localizedAuthError(provider: "apple", error: error)
             return false
         }
     }
@@ -255,7 +260,11 @@ class AuthManager: ObservableObject {
 
         guard httpResponse.statusCode == 200 else {
             let errorResp = try? JSONDecoder().decode(ErrorResponse.self, from: data)
-            throw APIError.serverError(message: errorResp?.error ?? "Auth failed")
+            let backendMessage = errorResp?.error ?? "Auth failed"
+            if provider == "apple" {
+                throw APIError.serverError(message: localizedAppleBackendError(errorResponse: errorResp, fallback: backendMessage))
+            }
+            throw APIError.serverError(message: backendMessage)
         }
 
         return try JSONDecoder().decode(AuthResponse.self, from: data)
@@ -271,6 +280,42 @@ class AuthManager: ObservableObject {
         controller.delegate = coordinator
         controller.presentationContextProvider = coordinator
         return try await coordinator.perform(controller: controller)
+    }
+
+    private func localizedAuthError(provider: String, error: Error) -> String {
+        if provider == "apple" {
+            if let apiError = error as? APIError {
+                switch apiError {
+                case .serverError(let message):
+                    return message
+                default:
+                    return L10n.appleSignInFailedTryAgain
+                }
+            }
+            return L10n.appleSignInFailedTryAgain
+        }
+        return error.localizedDescription
+    }
+
+    private func localizedAppleBackendError(errorResponse: ErrorResponse?, fallback: String) -> String {
+        switch errorResponse?.errorCode {
+        case "apple_token_expired":
+            return L10n.appleTokenExpired
+        case "apple_audience_mismatch", "apple_identity_unverified":
+            return L10n.appleIdentityVerifyFailed
+        case "apple_token_invalid", "apple_missing_identity_token", "apple_auth_internal_error":
+            return L10n.appleSignInFailedTryAgain
+        default:
+            break
+        }
+
+        if errorResponse?.error.localizedCaseInsensitiveContains("verify Apple identity") == true {
+            return L10n.appleIdentityVerifyFailed
+        }
+        if errorResponse?.error.localizedCaseInsensitiveContains("expired") == true {
+            return L10n.appleTokenExpired
+        }
+        return fallback.isEmpty ? L10n.appleSignInFailedTryAgain : fallback
     }
 
     private func handleAuthSuccess(_ response: AuthResponse) {

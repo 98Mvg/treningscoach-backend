@@ -79,6 +79,15 @@ def _resolve_jwt_secret() -> str:
 JWT_SECRET = _resolve_jwt_secret()
 
 
+class AppleTokenVerificationError(ValueError):
+    """Structured Apple token verification error with telemetry-friendly reason code."""
+
+    def __init__(self, reason: str, message: str):
+        super().__init__(message)
+        self.reason = reason
+        self.message = message
+
+
 def create_jwt(user_id: str, email: str = None) -> str:
     """
     Create a JWT token for authenticated user.
@@ -275,9 +284,21 @@ def verify_apple_token(
             audience=_resolve_apple_client_ids(),
             issuer="https://appleid.apple.com",
         )
+    except jwt.ExpiredSignatureError as exc:
+        logger.warning("Apple token expired: %s", exc)
+        raise AppleTokenVerificationError("apple_token_expired", "Apple sign-in token expired. Please try again.") from exc
+    except jwt.InvalidAudienceError as exc:
+        logger.warning("Apple token audience mismatch: %s", exc)
+        raise AppleTokenVerificationError("apple_audience_mismatch", "Unable to verify Apple identity.") from exc
+    except jwt.InvalidIssuerError as exc:
+        logger.warning("Apple token issuer mismatch: %s", exc)
+        raise AppleTokenVerificationError("apple_identity_unverified", "Unable to verify Apple identity.") from exc
+    except (jwt.InvalidSignatureError, jwt.DecodeError, jwt.InvalidTokenError) as exc:
+        logger.warning("Apple token invalid: %s", exc)
+        raise AppleTokenVerificationError("apple_token_invalid", "Invalid Apple sign-in token.") from exc
     except Exception as exc:
         logger.error("Apple token verification error: %s", exc)
-        raise ValueError("Invalid Apple token") from exc
+        raise AppleTokenVerificationError("apple_identity_unverified", "Unable to verify Apple identity.") from exc
 
     profile_email = decoded.get("email") or (email or "").strip()
     profile_name = (full_name or "").strip()
@@ -285,8 +306,12 @@ def verify_apple_token(
         # Apple can omit name after first authorization; avoid empty display names.
         profile_name = profile_email.split("@")[0] if profile_email else ""
 
+    provider_id = decoded.get("sub", "")
+    if not provider_id:
+        raise AppleTokenVerificationError("apple_token_invalid", "Invalid Apple sign-in token.")
+
     return {
-        "provider_id": decoded.get("sub", ""),
+        "provider_id": provider_id,
         "email": profile_email,
         "display_name": profile_name,
         "avatar_url": "",

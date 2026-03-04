@@ -57,6 +57,37 @@ struct AppConfig {
         static let resourceTimeout: TimeInterval = 120
     }
 
+    // MARK: - Auth Feature Flags
+    struct Auth {
+        private static func boolInfoValue(_ key: String, default defaultValue: Bool = false) -> Bool {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else {
+                return defaultValue
+            }
+            if let boolValue = raw as? Bool {
+                return boolValue
+            }
+            if let stringValue = raw as? String {
+                switch stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                case "1", "true", "yes", "on":
+                    return true
+                case "0", "false", "no", "off":
+                    return false
+                default:
+                    return defaultValue
+                }
+            }
+            return defaultValue
+        }
+
+        static let appleSignInFeatureEnabled: Bool = boolInfoValue("APPLE_SIGN_IN_ENABLED", default: false)
+
+        // Show Apple auth only when explicitly enabled in build config.
+        // Personal Team default is disabled to avoid capability/signing friction.
+        static var appleSignInEnabled: Bool {
+            appleSignInFeatureEnabled
+        }
+    }
+
     // MARK: - Continuous Coaching Settings
     struct ContinuousCoaching {
         static let defaultInterval: TimeInterval = 8.0

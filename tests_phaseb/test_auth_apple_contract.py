@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
 import auth_routes
+from auth import AppleTokenVerificationError
 from database import User, UserSettings, db
 
 
@@ -25,7 +26,9 @@ def test_auth_apple_requires_identity_token():
     client = main.app.test_client()
     response = client.post("/auth/apple", json={})
     assert response.status_code == 400
-    assert response.get_json()["error"] == "Missing identity_token"
+    payload = response.get_json()
+    assert payload["error"] == "Missing identity_token"
+    assert payload["error_code"] == "apple_missing_identity_token"
 
 
 def test_auth_apple_success(monkeypatch):
@@ -62,10 +65,12 @@ def test_auth_apple_success(monkeypatch):
 
 def test_auth_apple_invalid_token_returns_401(monkeypatch):
     def _fake_verify(identity_token, email=None, full_name=None):
-        raise ValueError("Invalid Apple token")
+        raise AppleTokenVerificationError("apple_token_invalid", "Invalid Apple sign-in token.")
 
     monkeypatch.setattr(auth_routes, "verify_apple_token", _fake_verify)
     client = main.app.test_client()
     response = client.post("/auth/apple", json={"identity_token": "bad"})
     assert response.status_code == 401
-    assert response.get_json()["error"] == "Invalid Apple token"
+    payload = response.get_json()
+    assert payload["error"] == "Invalid Apple sign-in token."
+    assert payload["error_code"] == "apple_token_invalid"

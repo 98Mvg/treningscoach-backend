@@ -101,6 +101,15 @@ struct L10n {
     static var signInWithGoogle: String { current == .no ? "Logg inn med Google" : "Sign in with Google" }
     static var signInWithFacebook: String { current == .no ? "Logg inn med Facebook" : "Sign in with Facebook" }
     static var signInWithVipps: String { current == .no ? "Logg inn med Vipps" : "Sign in with Vipps" }
+    static var appleSignInFailedTryAgain: String {
+        current == .no ? "Apple-innlogging feilet. Prøv igjen." : "Apple sign-in failed. Please try again."
+    }
+    static var appleIdentityVerifyFailed: String {
+        current == .no ? "Kunne ikke verifisere Apple-identitet." : "Unable to verify Apple identity."
+    }
+    static var appleTokenExpired: String {
+        current == .no ? "Apple-innloggingen utløp. Prøv igjen." : "Apple sign-in token expired. Please try again."
+    }
     static var trainingLevel: String { current == .no ? "Treningsnivaa" : "Training Level" }
     static var trainingLevelSubtitle: String { current == .no ? "Dette paavirker coachens tone og intensitet" : "This influences the coach's tone and intensity" }
     static var continueButton: String { current == .no ? "Fortsett" : "Continue" }

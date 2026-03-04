@@ -4,17 +4,53 @@ Handles Apple, Google, Facebook, and Vipps authentication
 """
 
 import logging
+import time
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from database import db, User, UserSettings
 from auth import (
     create_jwt, require_auth,
-    verify_apple_token, verify_google_token, verify_facebook_token, verify_vipps_token
+    AppleTokenVerificationError,
+    verify_apple_token,
+    verify_google_token,
+    verify_facebook_token,
+    verify_vipps_token,
 )
 
 logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+_apple_auth_metrics = {
+    "success": 0,
+    "failure": 0,
+    "reasons": {},
+}
+
+
+def _record_apple_auth_metric(*, success: bool, reason: str, started_at: float) -> None:
+    """
+    Lightweight in-process telemetry for Apple sign-in outcomes.
+    """
+    latency_ms = int((time.perf_counter() - started_at) * 1000)
+    if success:
+        _apple_auth_metrics["success"] += 1
+    else:
+        _apple_auth_metrics["failure"] += 1
+
+    reason_counts = _apple_auth_metrics["reasons"]
+    reason_counts[reason] = int(reason_counts.get(reason, 0)) + 1
+
+    logger.info(
+        "AUTH_APPLE_METRIC success=%s reason=%s latency_ms=%s success_total=%s failure_total=%s reason_total=%s",
+        success,
+        reason,
+        latency_ms,
+        _apple_auth_metrics["success"],
+        _apple_auth_metrics["failure"],
+        reason_counts[reason],
+    )
 
 
 # ============================================
@@ -103,10 +139,16 @@ def auth_apple():
         "user": { ... }
     }
     """
+    started_at = time.perf_counter()
     try:
         data = request.get_json()
         if not data or "identity_token" not in data:
-            return jsonify({"error": "Missing identity_token"}), 400
+            reason = "apple_missing_identity_token"
+            _record_apple_auth_metric(success=False, reason=reason, started_at=started_at)
+            return jsonify({
+                "error": "Missing identity_token",
+                "error_code": reason,
+            }), 400
 
         provider_info = verify_apple_token(
             data["identity_token"],
@@ -115,18 +157,30 @@ def auth_apple():
         )
         user = find_or_create_user("apple", provider_info)
         token = create_jwt(user.id, user.email)
+        _record_apple_auth_metric(success=True, reason="ok", started_at=started_at)
 
         return jsonify({
             "token": token,
             "user": user.to_dict()
         }), 200
 
+    except AppleTokenVerificationError as e:
+        logger.warning("Apple auth failed: %s (%s)", e.message, e.reason)
+        _record_apple_auth_metric(success=False, reason=e.reason, started_at=started_at)
+        return jsonify({"error": e.message, "error_code": e.reason}), 401
     except ValueError as e:
-        logger.warning(f"Apple auth failed: {e}")
-        return jsonify({"error": str(e)}), 401
+        reason = "apple_token_invalid"
+        logger.warning("Apple auth failed: %s", e)
+        _record_apple_auth_metric(success=False, reason=reason, started_at=started_at)
+        return jsonify({"error": str(e), "error_code": reason}), 401
     except Exception as e:
         logger.error(f"Apple auth error: {e}", exc_info=True)
-        return jsonify({"error": "Authentication failed"}), 500
+        reason = "apple_auth_internal_error"
+        _record_apple_auth_metric(success=False, reason=reason, started_at=started_at)
+        return jsonify({
+            "error": "Authentication failed",
+            "error_code": reason,
+        }), 500
 
 
 @auth_bp.route("/google", methods=["POST"])

@@ -832,4 +832,10 @@ struct HealthResponse: Codable {
 
 struct ErrorResponse: Codable {
     let error: String
+    let errorCode: String?
+
+    enum CodingKeys: String, CodingKey {
+        case error
+        case errorCode = "error_code"
+    }
 }
