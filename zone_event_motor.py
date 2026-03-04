@@ -674,6 +674,7 @@ def _interval_target(
         "warmup_seconds": warmup,
         "work_seconds": work,
         "rest_seconds": rest,
+        "reps": reps,
         "session_end_seconds": session_end,
     }
 
@@ -738,6 +739,47 @@ def _resolve_target(
         intensity=intensity,
         config_module=config_module,
     )
+
+
+def _build_workout_context_summary(
+    *,
+    workout_type: str,
+    phase: str,
+    elapsed_seconds: int,
+    target: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Deterministic progress context for UI and talk, independent of HR availability.
+    """
+    session_end_seconds = _safe_int(target.get("session_end_seconds"))
+    segment_remaining_seconds = _safe_int(target.get("segment_remaining_seconds"))
+    rep_index = _safe_int(target.get("rep_index")) or 0
+    reps_total = None
+    if workout_type == "intervals":
+        reps_total = _safe_int(target.get("reps")) or 0
+
+    reps_remaining_including_current = None
+    if workout_type == "intervals" and reps_total is not None and rep_index > 0:
+        reps_remaining_including_current = max(0, int(reps_total) - int(rep_index) + 1)
+
+    return {
+        "phase": phase,
+        "elapsed_s": max(0, int(elapsed_seconds)),
+        "time_left_s": (
+            max(0, int(session_end_seconds) - max(0, int(elapsed_seconds)))
+            if session_end_seconds is not None
+            else segment_remaining_seconds
+        ),
+        "rep_index": int(rep_index),
+        "reps_total": int(reps_total) if reps_total is not None else None,
+        "rep_remaining_s": int(segment_remaining_seconds) if segment_remaining_seconds is not None else None,
+        "reps_remaining_including_current": (
+            int(reps_remaining_including_current)
+            if reps_remaining_including_current is not None
+            else None
+        ),
+        "elapsed_source": "server_authoritative",
+    }
 
 
 def _tick_delta_seconds(state: Dict[str, Any], elapsed_seconds: int, config_module) -> float:
@@ -2574,6 +2616,12 @@ def evaluate_zone_tick(
     )
     remaining_phase_seconds = _safe_int(target.get("segment_remaining_seconds"))
     phase_id_value = int(state.get("phase_id", 1))
+    workout_context_summary = _build_workout_context_summary(
+        workout_type=canonical_workout_type,
+        phase=canonical_phase,
+        elapsed_seconds=int(elapsed_seconds),
+        target=target,
+    )
     now_ts = time.time()
     event_payload_base = {
         "session_id": session_identifier,
@@ -2592,6 +2640,7 @@ def evaluate_zone_tick(
         "sensor_mode": sensor_mode,
         "sensor_fusion_mode": sensor_fusion_mode,
         "movement_available": bool(movement_available),
+        "workout_context_summary": workout_context_summary,
     }
     events_payload = []
     for event_name in event_types:
@@ -2802,4 +2851,5 @@ def evaluate_zone_tick(
         "interval_recovery_in_target_seconds": float(metrics_snapshot.get("interval_recovery_in_target_seconds", 0.0)),
         "target_enforced_main_set_seconds": float(metrics_snapshot.get("target_enforced_main_set_seconds", 0.0)),
         "zone_compliance": zone_compliance,
+        "workout_context_summary": workout_context_summary,
     }

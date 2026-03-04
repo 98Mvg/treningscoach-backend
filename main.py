@@ -46,6 +46,7 @@ from chat_routes import create_chat_blueprint
 from locale_config import get_voice_id as locale_voice_id
 from tts_phrase_catalog import get_phrase_text, list_phrase_ids_by_prefix
 from utterance_rotation import select_rotated_utterance
+from workout_contracts import normalize_continuous_contract, normalize_talk_contract
 
 # Configure logging
 logging.basicConfig(
@@ -2040,7 +2041,7 @@ def coach():
             return jsonify({"error": "Empty filename"}), 400
 
         # Validate phase
-        valid_phases = ['warmup', 'intense', 'cooldown']
+        valid_phases = ['warmup', 'intense', 'cooldown', 'work', 'recovery', 'main']
         if phase not in valid_phases:
             return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
 
@@ -2128,15 +2129,24 @@ def coach_continuous():
             return jsonify({"error": "No audio file received"}), 400
 
         audio_file = request.files['audio']
-        session_id = request.form.get('session_id')
-        phase = request.form.get('phase', 'intense')
+        normalized_contract = normalize_continuous_contract(request.form, {})
+        contract_version = normalized_contract["contract_version"]
+        normalized_plan = normalized_contract["workout_plan"]
+        normalized_tick_state = normalized_contract["workout_state"]
+
+        session_id = normalized_tick_state.session_id or request.form.get('session_id')
+        phase = normalized_tick_state.phase or request.form.get('phase', 'intense')
         last_coaching = request.form.get('last_coaching', '')
-        elapsed_seconds = int(request.form.get('elapsed_seconds', 0))
+        elapsed_seconds = int(normalized_tick_state.elapsed_s or request.form.get('elapsed_seconds', 0))
         default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
         language = normalize_language_code(request.form.get('language', default_language))
         training_level = request.form.get('training_level', 'intermediate')
         persona = request.form.get('persona', 'personal_trainer')
         workout_mode = request.form.get('workout_mode', config.DEFAULT_WORKOUT_MODE)
+        if str(normalized_plan.workout_type).strip().lower() in {"intervals", "interval"}:
+            workout_mode = "interval"
+        elif str(normalized_plan.workout_type).strip().lower() in {"easy_run", "easy"}:
+            workout_mode = "easy_run"
         coaching_style = normalize_coaching_style(
             request.form.get('coaching_style', getattr(config, "DEFAULT_COACHING_STYLE", "normal")),
             config,
@@ -2146,11 +2156,19 @@ def coach_continuous():
             config,
         )
         warmup_seconds_raw = request.form.get("warmup_seconds")
+        if normalized_plan.warmup_s is not None:
+            warmup_seconds_raw = str(max(0, int(normalized_plan.warmup_s)))
         user_name = request.form.get('user_name', '').strip()
         user_profile_id = request.form.get('user_profile_id', '').strip()
         heart_rate_raw = request.form.get("heart_rate")
+        if normalized_tick_state.hr_bpm is not None:
+            heart_rate_raw = str(int(normalized_tick_state.hr_bpm))
         hr_quality_raw = request.form.get("hr_quality")
+        if normalized_tick_state.hr_quality:
+            hr_quality_raw = str(normalized_tick_state.hr_quality)
         watch_connected_raw = request.form.get("watch_connected")
+        if normalized_tick_state.watch_connected is not None:
+            watch_connected_raw = "true" if normalized_tick_state.watch_connected else "false"
         breath_analysis_enabled_raw = request.form.get("breath_analysis_enabled", "true")
         mic_permission_granted_raw = request.form.get("mic_permission_granted", "true")
         breath_enabled_by_user = _coerce_bool(breath_analysis_enabled_raw)
@@ -2187,7 +2205,7 @@ def coach_continuous():
         audio_file.save(filepath)
 
         logger.info(
-            "Continuous coaching tick: session=%s phase=%s mode=%s elapsed=%ss lang=%s level=%s persona=%s style=%s template=%s user=%s",
+            "Continuous coaching tick: session=%s phase=%s mode=%s elapsed=%ss lang=%s level=%s persona=%s style=%s template=%s user=%s contract=%s",
             session_id,
             phase,
             workout_mode,
@@ -2198,6 +2216,7 @@ def coach_continuous():
             coaching_style,
             interval_template,
             user_name or "anon",
+            contract_version,
         )
 
         # Create session if doesn't exist
@@ -2308,6 +2327,7 @@ def coach_continuous():
             coach_score_line = score_payload["score_line"]
 
             return jsonify({
+                "contract_version": contract_version,
                 "text": "",
                 "should_speak": False,
                 "breath_analysis": breath_data,
@@ -2329,6 +2349,7 @@ def coach_continuous():
                 "breath_available_reliable": score_payload.get("breath_available_reliable"),
                 "coaching_style": coaching_style,
                 "interval_template": interval_template if workout_mode == "interval" else None,
+                "workout_context_summary": None,
             })
 
         # Analyze breath
@@ -2881,6 +2902,7 @@ def coach_continuous():
 
         # Response
         response_data = {
+            "contract_version": contract_version,
             "text": coach_text,
             "should_speak": speak_decision,
             "breath_analysis": breath_data,
@@ -2920,6 +2942,11 @@ def coach_continuous():
             "personalization_tip": personalization_tip,
             "recovery_line": recovery_line,
             "recovery_baseline_seconds": recovery_baseline_seconds,
+            "workout_context_summary": (
+                zone_tick.get("workout_context_summary")
+                if isinstance(zone_tick, dict)
+                else None
+            ),
         }
         if zone_mode_active and zone_tick is not None:
             response_data.update(
@@ -3206,6 +3233,8 @@ def coach_talk():
             payload = {}
         else:
             payload = request.get_json(silent=True) or {}
+        normalized_talk_contract = normalize_talk_contract(form=form, payload=payload)
+        contract_version = normalized_talk_contract.get("contract_version", "1")
 
         raw_trigger = (
             (form.get("trigger_source") if form is not None else None)
@@ -3247,6 +3276,11 @@ def coach_talk():
         ).strip().lower()
 
         workout_context = collect_workout_context(payload=payload, form=form)
+        summary_from_contract = normalized_talk_contract.get("workout_context_summary") or {}
+        if isinstance(summary_from_contract, dict):
+            for key, value in summary_from_contract.items():
+                if value is not None and workout_context.get(key) in (None, ""):
+                    workout_context[key] = value
         phase = (
             workout_context.get("phase")
             or (form.get("phase") if form is not None else None)
@@ -3295,13 +3329,14 @@ def coach_talk():
             user_message = fallback_talk_prompt(language, workout_context)
 
         logger.info(
-            "Coach talk request trigger=%s context=%s phase=%s persona=%s user=%s stt=%s msg='%s'",
+            "Coach talk request trigger=%s context=%s phase=%s persona=%s user=%s stt=%s contract=%s msg='%s'",
             trigger_source,
             context,
             phase,
             persona,
             user_name or "anon",
             stt_source,
+            contract_version,
             user_message,
         )
 
@@ -3368,6 +3403,7 @@ def coach_talk():
         )
 
         return jsonify({
+            "contract_version": contract_version,
             "text": coach_text,
             "audio_url": audio_url,
             "personality": persona,

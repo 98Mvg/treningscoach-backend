@@ -265,6 +265,7 @@ struct CoachResponse: Codable {
 // MARK: - Continuous Coach Response
 
 struct ContinuousCoachResponse: Codable {
+    let contractVersion: String?
     let text: String
     let shouldSpeak: Bool
     let breathAnalysis: BreathAnalysis
@@ -319,8 +320,10 @@ struct ContinuousCoachResponse: Codable {
     let phaseId: Int?
     let zoneState: String?
     let deltaToBand: Int?
+    let workoutContextSummary: WorkoutContextSummary?
 
     enum CodingKeys: String, CodingKey {
+        case contractVersion = "contract_version"
         case text
         case shouldSpeak = "should_speak"
         case breathAnalysis = "breath_analysis"
@@ -375,6 +378,29 @@ struct ContinuousCoachResponse: Codable {
         case phaseId = "phase_id"
         case zoneState = "zone_state"
         case deltaToBand = "delta_to_band"
+        case workoutContextSummary = "workout_context_summary"
+    }
+}
+
+struct WorkoutContextSummary: Codable {
+    let phase: String?
+    let elapsedS: Int?
+    let timeLeftS: Int?
+    let repIndex: Int?
+    let repsTotal: Int?
+    let repRemainingS: Int?
+    let repsRemainingIncludingCurrent: Int?
+    let elapsedSource: String?
+
+    enum CodingKeys: String, CodingKey {
+        case phase
+        case elapsedS = "elapsed_s"
+        case timeLeftS = "time_left_s"
+        case repIndex = "rep_index"
+        case repsTotal = "reps_total"
+        case repRemainingS = "rep_remaining_s"
+        case repsRemainingIncludingCurrent = "reps_remaining_including_current"
+        case elapsedSource = "elapsed_source"
     }
 }
 
@@ -587,6 +613,7 @@ struct UserStats {
 // MARK: - Coach Talk Response
 
 struct CoachTalkResponse: Codable {
+    let contractVersion: String?
     let text: String
     let audioURL: String
     let personality: String
@@ -598,6 +625,7 @@ struct CoachTalkResponse: Codable {
     let sttSource: String?
 
     enum CodingKeys: String, CodingKey {
+        case contractVersion = "contract_version"
         case text
         case audioURL = "audio_url"
         case personality
