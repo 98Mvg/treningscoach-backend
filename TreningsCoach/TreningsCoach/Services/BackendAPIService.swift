@@ -176,6 +176,7 @@ class BackendAPIService {
         persona: String = "personal_trainer",
         userName: String = "",
         workoutMode: WorkoutMode = .standard,
+        easyRunFreeMode: Bool = false,
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         warmupSeconds: Int? = nil,
@@ -208,6 +209,7 @@ class BackendAPIService {
             persona: persona,
             userName: userName,
             workoutMode: workoutMode,
+            easyRunFreeMode: easyRunFreeMode,
             coachingStyle: coachingStyle,
             intervalTemplate: intervalTemplate,
             warmupSeconds: warmupSeconds,
@@ -522,6 +524,7 @@ class BackendAPIService {
         persona: String = "personal_trainer",
         userName: String = "",
         workoutMode: WorkoutMode = .standard,
+        easyRunFreeMode: Bool = false,
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         warmupSeconds: Int? = nil,
@@ -576,6 +579,7 @@ class BackendAPIService {
         appendField(name: "training_level", value: trainingLevel)
         appendField(name: "persona", value: persona)
         appendField(name: "workout_mode", value: workoutMode.rawValue)
+        appendField(name: "easy_run_free_mode", value: easyRunFreeMode ? "true" : "false")
         appendField(name: "coaching_style", value: coachingStyle.rawValue)
         appendField(name: "interval_template", value: intervalTemplate.rawValue)
         if let warmupSeconds = warmupSeconds {
@@ -631,6 +635,10 @@ class BackendAPIService {
             "warmup_s": warmupSeconds ?? Int(AppConfig.warmupDuration),
             "cooldown_s": 0
         ]
+        if workoutMode == .easyRun && easyRunFreeMode {
+            workoutPlan["main_s"] = 0
+            workoutPlan["free_run"] = true
+        }
         if workoutMode == .intervals {
             workoutPlan["intervals"] = intervalPlanFromTemplate(intervalTemplate)
         }

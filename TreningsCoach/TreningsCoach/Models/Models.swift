@@ -86,6 +86,22 @@ enum WorkoutMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum EasyRunSessionMode: String, CaseIterable, Identifiable, Codable {
+    case timed = "timed"
+    case freeRun = "free_run"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .timed:
+            return L10n.current == .no ? "Timed" : "Timed"
+        case .freeRun:
+            return L10n.current == .no ? "Free Run" : "Free Run"
+        }
+    }
+}
+
 enum IntervalTemplate: String, CaseIterable, Identifiable, Codable {
     case fourByFour = "4x4"
     case eightByOne = "8x1"

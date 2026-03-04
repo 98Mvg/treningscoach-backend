@@ -51,3 +51,11 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
     assert "dragSensitivity: 1.55" in text
     assert "dragSensitivity: 1.45" in text
     assert "var dragSensitivity: Double = 1.0" in text
+
+
+def test_circular_dial_visual_progress_is_value_synced():
+    text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
+    assert "let raw = safeAngle / 360.0" in text
+    assert "let boostedProgress = min(1.0, max(0.0, (angle / 360.0) * max(1.0, dragSensitivity)))" in text
+    assert "currentAngle = boostedProgress * 360.0" in text
+    assert "let nextAngle = normalized * 360.0" in text

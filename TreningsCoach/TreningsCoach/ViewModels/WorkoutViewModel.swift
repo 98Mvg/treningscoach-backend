@@ -265,6 +265,7 @@ class WorkoutViewModel: ObservableObject {
     private let maxCoachScoreHistoryCount = 42
     private let workoutIntensityPreferenceKey = "workout_intensity_preference"
     private let breathAnalysisEnabledKey = "breath_analysis_enabled"
+    private let easyRunSessionModePreferenceKey = "easy_run_session_mode"
 
     // MARK: - Published Properties
 
@@ -313,6 +314,12 @@ class WorkoutViewModel: ObservableObject {
     @Published var showComplete: Bool = false
     @Published var selectedWarmupMinutes: Int = 2
     @Published var selectedWorkoutMode: WorkoutMode = .easyRun
+    @Published var selectedEasyRunSessionMode: EasyRunSessionMode = .timed {
+        didSet {
+            UserDefaults.standard.set(selectedEasyRunSessionMode.rawValue, forKey: easyRunSessionModePreferenceKey)
+            applyEasyRunSessionModeSelection(selectedEasyRunSessionMode)
+        }
+    }
     @Published var selectedEasyRunMinutes: Int = 30
     @Published var selectedIntervalSets: Int = 6
     @Published var selectedIntervalWorkMinutes: Int = 2
@@ -362,6 +369,8 @@ class WorkoutViewModel: ObservableObject {
     @Published var isSpotifyConnected: Bool = UserDefaults.standard.bool(forKey: "spotify_connected")
     @Published var showSpotifyConnectSheet: Bool = false
     @Published private(set) var speechTranscript: [SpeechTranscriptEntry] = []
+    private var timedEasyRunWarmupBackup: Int = 2
+    private var timedEasyRunDurationBackup: Int = 30
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -410,7 +419,17 @@ class WorkoutViewModel: ObservableObject {
         return String(format: "%02d:%02d", mins, secs)
     }
 
+    var isEasyRunFreeRunActive: Bool {
+        selectedWorkoutMode == .easyRun && selectedEasyRunSessionMode == .freeRun
+    }
+
     var phaseCountdownPrimaryText: String {
+        if isEasyRunFreeRunActive && (resolvedPhaseKey == "main" || resolvedPhaseKey == "work") {
+            return currentLanguage == "no"
+                ? "Total tid: \(elapsedFormatted)"
+                : "Total time: \(elapsedFormatted)"
+        }
+
         let remainingText = formatPhaseRemaining(seconds: currentPhaseRemainingSeconds)
         let phaseKey = resolvedPhaseKey
 
@@ -899,6 +918,9 @@ class WorkoutViewModel: ObservableObject {
     private var configuredIntenseDuration: TimeInterval {
         switch selectedWorkoutMode {
         case .easyRun:
+            if selectedEasyRunSessionMode == .freeRun {
+                return 0
+            }
             return TimeInterval(selectedEasyRunMinutes * 60)
         case .intervals:
             let sets = max(1, selectedIntervalSets)
@@ -1063,6 +1085,10 @@ class WorkoutViewModel: ObservableObject {
         }
         if defaults.object(forKey: breathAnalysisEnabledKey) != nil {
             useBreathingMicCues = defaults.bool(forKey: breathAnalysisEnabledKey)
+        }
+        if let storedModeRaw = defaults.string(forKey: easyRunSessionModePreferenceKey),
+           let storedMode = EasyRunSessionMode(rawValue: storedModeRaw) {
+            selectedEasyRunSessionMode = storedMode
         }
     }
 
@@ -1455,10 +1481,35 @@ class WorkoutViewModel: ObservableObject {
 
         if warmupSeconds > 0 && duration < warmupSeconds && !hasSkippedWarmup {
             currentPhase = .warmup
+        } else if isEasyRunFreeRunActive {
+            currentPhase = .intense
         } else if duration < intenseEndSeconds {
             currentPhase = .intense
         } else {
             currentPhase = .cooldown
+        }
+    }
+
+    func applyEasyRunSessionModeSelection(_ mode: EasyRunSessionMode) {
+        switch mode {
+        case .timed:
+            let restoreWarmup = max(0, timedEasyRunWarmupBackup)
+            let restoreDuration = max(0, timedEasyRunDurationBackup)
+            if selectedWarmupMinutes == 0 && restoreWarmup > 0 {
+                selectedWarmupMinutes = restoreWarmup
+            }
+            if selectedEasyRunMinutes == 0 && restoreDuration > 0 {
+                selectedEasyRunMinutes = restoreDuration
+            }
+        case .freeRun:
+            if selectedWarmupMinutes > 0 {
+                timedEasyRunWarmupBackup = selectedWarmupMinutes
+            }
+            if selectedEasyRunMinutes > 0 {
+                timedEasyRunDurationBackup = selectedEasyRunMinutes
+            }
+            selectedWarmupMinutes = 0
+            selectedEasyRunMinutes = 0
         }
     }
 
@@ -2428,6 +2479,7 @@ class WorkoutViewModel: ObservableObject {
                     persona: activePersonality.rawValue,
                     userName: currentUserName,
                     workoutMode: selectedWorkoutMode,
+                    easyRunFreeMode: isEasyRunFreeRunActive,
                     coachingStyle: coachingStyle,
                     intervalTemplate: selectedIntervalTemplate,
                     warmupSeconds: Int(configuredWarmupDuration),
