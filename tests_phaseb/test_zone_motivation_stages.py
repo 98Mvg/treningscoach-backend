@@ -10,6 +10,8 @@ from zone_event_motor import (
     _motivation_budget,
     _motivation_slots,
     _motivation_phrase_id,
+    _motivation_stage_phrase_ids,
+    _pick_motivation_phrase_id,
     _event_priority,
     _resolve_phrase_id,
     evaluate_zone_tick,
@@ -143,6 +145,30 @@ def test_phrase_id_easy_run_s2_v1():
 
 def test_phrase_id_easy_run_s4_v2():
     assert _motivation_phrase_id("easy_run", stage=4, variant=2) == "easy_run.motivate.s4.2"
+
+
+# --- Global pool + anti-repeat ---
+
+def test_pick_motivation_phrase_id_uses_global_pool_for_max_silence():
+    state = {}
+    picked = [
+        _pick_motivation_phrase_id(state=state, stage_phrase_ids=[], config_module=config)
+        for _ in range(3)
+    ]
+    assert all(pid.startswith("motivation.") for pid in picked)
+    assert len(set(picked)) == len(picked), "Expected anti-repeat in first picks"
+
+
+def test_pick_motivation_phrase_id_blends_stage_and_global_pool():
+    state = {}
+    stage_ids = _motivation_stage_phrase_ids("intervals", stage=1)
+    picked = [
+        _pick_motivation_phrase_id(state=state, stage_phrase_ids=stage_ids, config_module=config)
+        for _ in range(4)
+    ]
+    assert picked[0] in stage_ids
+    assert any(pid in stage_ids for pid in picked), "Stage pool should stay eligible"
+    assert any(pid.startswith("motivation.") for pid in picked), "Global pool should also be eligible"
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +321,7 @@ def test_easy_run_motivation_respects_cooldown():
 
 
 def test_motivation_phrase_id_contains_stage():
-    """Phrase ID in event payload should contain stage number."""
+    """Motivation phrase ID may come from stage pool or global motivation pool."""
     state = {}
     evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
 
@@ -305,8 +331,10 @@ def test_motivation_phrase_id_contains_stage():
         for e in (r.get("events") or []):
             if e.get("event_type") == "interval_in_target_sustained":
                 pid = e.get("phrase_id", "")
-                assert pid.startswith("interval.motivate.s"), f"Bad phrase_id: {pid}"
-                assert ".s1." in pid or ".s2." in pid or ".s3." in pid or ".s4." in pid
+                assert (
+                    pid.startswith("interval.motivate.s")
+                    or pid.startswith("motivation.")
+                ), f"Bad phrase_id: {pid}"
 
 
 def test_evaluate_motivation_event_not_crashes_easy_run_mode():

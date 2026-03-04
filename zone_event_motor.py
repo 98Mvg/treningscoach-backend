@@ -20,7 +20,13 @@ from breath_reliability import summarize_breath_quality, is_breath_quality_relia
 logger = logging.getLogger(__name__)
 
 # Event types that use phrase_id-based cached audio (no backend coach_text needed).
-_MOTIVATION_EVENT_TYPES = ("interval_in_target_sustained", "easy_run_in_target_sustained")
+_MOTIVATION_EVENT_TYPES = (
+    "interval_in_target_sustained",
+    "easy_run_in_target_sustained",
+    "max_silence_motivation",
+)
+
+_GLOBAL_MOTIVATION_IDS = tuple(f"motivation.{index}" for index in range(1, 11))
 
 _STYLE_ALIASES = {
     "easy": "minimal",
@@ -1409,6 +1415,59 @@ def _motivation_phrase_id(workout_type: str, stage: int, variant: int) -> str:
     return f"{prefix}.motivate.s{s}.{v}"
 
 
+def _motivation_stage_phrase_ids(workout_type: str, stage: int) -> List[str]:
+    """Return stage-local phrase IDs in deterministic order."""
+    return [
+        _motivation_phrase_id(workout_type, stage=stage, variant=1),
+        _motivation_phrase_id(workout_type, stage=stage, variant=2),
+    ]
+
+
+def _pick_motivation_phrase_id(
+    *,
+    state: Dict[str, Any],
+    stage_phrase_ids: Optional[List[str]],
+    config_module,
+) -> str:
+    """
+    Select a motivation phrase from a global pool + optional stage pool with anti-repeat.
+
+    - Global pool is always available to interval/easy/max-silence motivation paths.
+    - Stage IDs are preferred first to preserve workout-context flavor.
+    - Avoids repeating the last K IDs when alternatives exist (default K=2).
+    """
+    stage_ids = [phrase_id for phrase_id in (stage_phrase_ids or []) if phrase_id]
+    candidates = list(dict.fromkeys(stage_ids + list(_GLOBAL_MOTIVATION_IDS)))
+    if not candidates:
+        return "motivation.1"
+
+    recent_k = int(getattr(config_module, "MOTIVATION_RECENT_HISTORY_SIZE", 2))
+    recent_k = max(0, min(8, recent_k))
+    recent = [
+        str(item).strip()
+        for item in (state.get("recent_motivation_phrase_ids") or [])
+        if str(item).strip()
+    ]
+    recent = recent[-recent_k:] if recent_k > 0 else []
+
+    filtered = [phrase_id for phrase_id in candidates if phrase_id not in recent]
+    if not filtered:
+        filtered = candidates
+
+    rotation_index = int(state.get("motivation_rotation_index", 0))
+    selected = filtered[rotation_index % len(filtered)]
+    state["motivation_rotation_index"] = rotation_index + 1
+
+    updated_recent = recent + [selected]
+    if recent_k > 0:
+        updated_recent = updated_recent[-recent_k:]
+    else:
+        updated_recent = []
+    state["recent_motivation_phrase_ids"] = updated_recent
+
+    return selected
+
+
 def _evaluate_motivation_event(
     *,
     state: Dict[str, Any],
@@ -1544,10 +1603,13 @@ def _evaluate_interval_motivation(
     phase_state["used_slots"].add(eligible_slot)
     state["last_motivation_phase_id"] = phase_id
 
-    # Compute stage and variant
+    # Compute stage
     stage = _motivation_stage_from_rep(rep_index)
-    variant = 1 if (phase_state["count"] % 2) == 1 else 2
-    phrase_id = _motivation_phrase_id("intervals", stage=stage, variant=variant)
+    phrase_id = _pick_motivation_phrase_id(
+        state=state,
+        stage_phrase_ids=_motivation_stage_phrase_ids("intervals", stage),
+        config_module=config_module,
+    )
 
     # Store for phrase_id resolution in event payload
     state["_pending_motivation_phrase_id"] = phrase_id
@@ -1583,12 +1645,11 @@ def _evaluate_easy_run_motivation(
     elapsed_minutes = max(0, elapsed_seconds // 60)
     stage = _motivation_stage_from_elapsed(elapsed_minutes, config_module)
 
-    # Variant alternation
-    easy_run_motivation_count = int(state.get("easy_run_motivation_count", 0)) + 1
-    state["easy_run_motivation_count"] = easy_run_motivation_count
-    variant = 1 if (easy_run_motivation_count % 2) == 1 else 2
-
-    phrase_id = _motivation_phrase_id("easy_run", stage=stage, variant=variant)
+    phrase_id = _pick_motivation_phrase_id(
+        state=state,
+        stage_phrase_ids=_motivation_stage_phrase_ids("easy_run", stage),
+        config_module=config_module,
+    )
 
     state["_pending_motivation_phrase_id"] = phrase_id
     state["_pending_motivation_stage"] = stage
@@ -2417,6 +2478,12 @@ def evaluate_zone_tick(
                     ):
                         max_silence_candidate = None
                         reason = "motivation_cooldown"
+                    else:
+                        state["_pending_motivation_phrase_id"] = _pick_motivation_phrase_id(
+                            state=state,
+                            stage_phrase_ids=[],
+                            config_module=config_module,
+                        )
 
                 if max_silence_candidate:
                     primary_event = max_silence_candidate
