@@ -67,6 +67,7 @@ class AppViewModel: ObservableObject {
     }
 
     let authManager = AuthManager()
+    private let backendAPI = BackendAPIService.shared
 
     var trainingLevelDisplayName: String {
         switch trainingLevelRaw {
@@ -174,6 +175,10 @@ class AppViewModel: ObservableObject {
         if !spotifyPromptSeen {
             spotifyPromptPending = true
         }
+
+        Task {
+            await syncProfileToBackend(reason: "onboarding")
+        }
     }
 
     func resetOnboarding() {
@@ -201,5 +206,26 @@ class AppViewModel: ObservableObject {
         userName = ""
         trainingLevelRaw = "beginner"
         hasCompletedOnboarding = false
+    }
+
+    func syncProfileToBackend(reason: String) async {
+        guard authManager.isAuthenticated else { return }
+        let defaults = UserDefaults.standard
+        let payload = BackendUserProfilePayload(
+            name: defaults.string(forKey: "user_display_name"),
+            sex: defaults.string(forKey: "user_gender"),
+            age: defaults.object(forKey: "user_age") as? Int,
+            heightCm: defaults.object(forKey: "user_height_cm") as? Int,
+            weightKg: defaults.object(forKey: "user_weight_kg") as? Int,
+            maxHrBpm: defaults.object(forKey: "hr_max") as? Int,
+            restingHrBpm: defaults.object(forKey: "resting_hr") as? Int,
+            profileUpdatedAt: ISO8601DateFormatter().string(from: Date())
+        )
+        do {
+            try await backendAPI.upsertUserProfile(payload)
+            print("📤 Profile upsert reason=\(reason)")
+        } catch {
+            print("⚠️ Profile upsert failed reason=\(reason) error=\(error.localizedDescription)")
+        }
     }
 }

@@ -183,6 +183,21 @@ class AuthManager: ObservableObject {
             let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
             currentUser = profileResponse.user
 
+            // Keep backend profile snapshot fresh for coaching runtime.
+            let defaults = UserDefaults.standard
+            let snapshot = BackendUserProfilePayload(
+                name: defaults.string(forKey: "user_display_name"),
+                sex: defaults.string(forKey: "user_gender"),
+                age: defaults.object(forKey: "user_age") as? Int,
+                heightCm: defaults.object(forKey: "user_height_cm") as? Int,
+                weightKg: defaults.object(forKey: "user_weight_kg") as? Int,
+                maxHrBpm: defaults.object(forKey: "hr_max") as? Int,
+                restingHrBpm: defaults.object(forKey: "resting_hr") as? Int,
+                profileUpdatedAt: ISO8601DateFormatter().string(from: Date())
+            )
+            try? await BackendAPIService.shared.upsertUserProfile(snapshot)
+            print("📤 Profile upsert reason=profile_edit")
+
         } catch {
             print("Failed to update profile: \(error.localizedDescription)")
         }

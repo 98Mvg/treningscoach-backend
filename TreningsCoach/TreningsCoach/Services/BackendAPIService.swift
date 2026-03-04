@@ -15,6 +15,28 @@ struct WorkoutTalkContext {
     let zoneState: String?
 }
 
+struct BackendUserProfilePayload: Encodable {
+    let name: String?
+    let sex: String?
+    let age: Int?
+    let heightCm: Int?
+    let weightKg: Int?
+    let maxHrBpm: Int?
+    let restingHrBpm: Int?
+    let profileUpdatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case sex
+        case age
+        case heightCm = "height_cm"
+        case weightKg = "weight_kg"
+        case maxHrBpm = "max_hr_bpm"
+        case restingHrBpm = "resting_hr_bpm"
+        case profileUpdatedAt = "profile_updated_at"
+    }
+}
+
 class BackendAPIService {
     // MARK: - Configuration
 
@@ -429,6 +451,23 @@ class BackendAPIService {
                 avgIntensity: dict["avg_intensity"] as? String ?? "moderate",
                 personaUsed: dict["persona_used"] as? String ?? "personal_trainer"
             )
+        }
+    }
+
+    /// Persist onboarding/profile fields on backend for runtime targeting.
+    func upsertUserProfile(_ profile: BackendUserProfilePayload) async throws {
+        let url = URL(string: "\(baseURL)/profile/upsert")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        request.httpBody = try JSONEncoder().encode(profile)
+
+        let (_, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200 ... 299).contains(httpResponse.statusCode)
+        else {
+            throw APIError.invalidResponse
         }
     }
 

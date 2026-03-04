@@ -2009,6 +2009,7 @@ class WorkoutViewModel: ObservableObject {
             // resolves against the latest cached local pack when available.
             // Then play welcome and start the coaching loop.
             Task {
+                await syncProfileSnapshotToBackend(reason: "workout_start")
                 await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
                 await playWelcomeMessage()
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -2032,6 +2033,29 @@ class WorkoutViewModel: ObservableObject {
         } catch {
             showErrorAlert("Failed to start continuous workout: \(error.localizedDescription)")
             isContinuousMode = false
+        }
+    }
+
+    private func syncProfileSnapshotToBackend(reason: String) async {
+        guard KeychainHelper.readString(key: KeychainHelper.tokenKey) != nil else { return }
+
+        let defaults = UserDefaults.standard
+        let payload = BackendUserProfilePayload(
+            name: defaults.string(forKey: "user_display_name"),
+            sex: defaults.string(forKey: "user_gender"),
+            age: defaults.object(forKey: "user_age") as? Int,
+            heightCm: defaults.object(forKey: "user_height_cm") as? Int,
+            weightKg: defaults.object(forKey: "user_weight_kg") as? Int,
+            maxHrBpm: defaults.object(forKey: "hr_max") as? Int,
+            restingHrBpm: defaults.object(forKey: "resting_hr") as? Int,
+            profileUpdatedAt: ISO8601DateFormatter().string(from: Date())
+        )
+
+        do {
+            try await apiService.upsertUserProfile(payload)
+            print("📤 Profile upsert reason=\(reason)")
+        } catch {
+            print("⚠️ Profile upsert failed reason=\(reason) error=\(error.localizedDescription)")
         }
     }
 
