@@ -106,6 +106,11 @@ def _legacy_evaluate_zone_tick_without_warmup_seconds(
     }
 
 
+def _raising_evaluate_zone_tick(**kwargs):
+    _ = kwargs
+    raise RuntimeError("forced zone tick failure")
+
+
 def test_continuous_zone_tick_signature_drift_does_not_500(monkeypatch, tmp_path, caplog):
     fake_audio = tmp_path / "dummy.mp3"
     fake_audio.write_bytes(b"ID3")
@@ -148,6 +153,47 @@ def test_continuous_zone_tick_signature_drift_does_not_500(monkeypatch, tmp_path
     assert payload["reason"] == "zone_no_change"
     warning_messages = "\n".join(record.getMessage() for record in caplog.records)
     assert "Zone tick compat fallback: dropping unsupported kwargs" not in warning_messages
+
+
+def test_continuous_internal_exception_returns_failsafe_200(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "evaluate_zone_tick", _raising_evaluate_zone_tick)
+    monkeypatch.setattr(main.config, "CONTINUOUS_FAILSAFE_ENABLED", True, raising=False)
+
+    session_id = main.session_manager.create_session(user_id="failsafe_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    state["is_first_breath"] = False
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "42",
+            "language": "no",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["decision_owner"] == "zone_event"
+    assert payload["reason"] == "continuous_failsafe"
+    assert payload["should_speak"] is False
+    assert payload["events"] == []
+    assert isinstance(payload.get("debug_trace_id"), str)
+    assert payload["debug_trace_id"]
 
 
 def test_continuous_zone_contract_exposes_zone_fields(monkeypatch, tmp_path):

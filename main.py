@@ -1531,6 +1531,63 @@ def _compute_server_authoritative_elapsed(
     return canonical_elapsed, drift
 
 
+def _build_continuous_failsafe_response(
+    *,
+    contract_version: str,
+    phase: str,
+    workout_mode: str,
+    coaching_style: str,
+    interval_template: str | None,
+    reason: str,
+    trace_id: str,
+    language: str,
+) -> dict:
+    return {
+        "contract_version": contract_version,
+        "text": _get_silent_debug_text(reason, language),
+        "should_speak": False,
+        "breath_analysis": breath_analyzer._default_analysis(),
+        "audio_url": None,
+        "wait_seconds": int(getattr(config, "MAX_COACHING_INTERVAL", 20)),
+        "phase": phase,
+        "workout_mode": workout_mode,
+        "reason": reason,
+        "decision_owner": "zone_event",
+        "decision_reason": reason,
+        "zone_tick_guard_silent_safe": True,
+        "breath_quality_state": "unknown",
+        "coach_score": 0,
+        "coach_score_line": "",
+        "coach_score_v2": 0,
+        "coach_score_components": {},
+        "cap_reason_codes": [],
+        "cap_applied": 100,
+        "cap_applied_reason": None,
+        "hr_valid_main_set_seconds": 0,
+        "zone_valid_main_set_seconds": 0,
+        "zone_compliance": None,
+        "breath_available_reliable": False,
+        "events": [],
+        "brain_provider": "system",
+        "brain_source": "failsafe",
+        "brain_status": "fallback",
+        "brain_mode": "realtime_coach",
+        "latency_fast_fallback_used": True,
+        "latency_rich_followup_forced": False,
+        "latency_pending_rich_followup": False,
+        "latency_signal_reason": None,
+        "latency_signal_provider": None,
+        "latency_signal_avg": None,
+        "coaching_style": coaching_style,
+        "interval_template": interval_template if workout_mode == "interval" else None,
+        "personalization_tip": None,
+        "recovery_line": None,
+        "recovery_baseline_seconds": None,
+        "workout_context_summary": None,
+        "debug_trace_id": trace_id,
+    }
+
+
 def _log_decision_debug(
     *,
     session_id: str,
@@ -2193,6 +2250,8 @@ def coach_continuous():
     - audio_url: Coach voice URL (if should_speak is true)
     - wait_seconds: Optimal time before next tick
     """
+    trace_id = f"ct_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+    temp_filepath = None
     try:
         _increment_quality_metric("continuous_ticks")
         request_started = time.perf_counter()
@@ -2282,6 +2341,7 @@ def coach_continuous():
         # Save file temporarily
         filename = f"continuous_{datetime.now().timestamp()}.wav"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
+        temp_filepath = filepath
         audio_file.save(filepath)
 
         logger.info(
@@ -3106,7 +3166,45 @@ def coach_continuous():
 
     except Exception as e:
         logger.error(f"Error in continuous coaching endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        if temp_filepath and os.path.exists(temp_filepath):
+            try:
+                os.remove(temp_filepath)
+            except Exception:
+                pass
+
+        if bool(getattr(config, "CONTINUOUS_FAILSAFE_ENABLED", True)):
+            fallback_form = request.form or {}
+            fallback_contract = normalize_continuous_contract(fallback_form, {})
+            fallback_payload = _build_continuous_failsafe_response(
+                contract_version=fallback_contract.get("contract_version", "1"),
+                phase=(
+                    fallback_contract["workout_state"].phase
+                    if fallback_contract.get("workout_state") is not None
+                    else "intense"
+                ),
+                workout_mode=(
+                    "interval"
+                    if (fallback_contract["workout_plan"].workout_type in {"interval", "intervals"})
+                    else "easy_run"
+                ),
+                coaching_style=normalize_coaching_style(
+                    fallback_form.get("coaching_style", getattr(config, "DEFAULT_COACHING_STYLE", "normal")),
+                    config,
+                ),
+                interval_template=normalize_interval_template(
+                    fallback_form.get("interval_template", getattr(config, "DEFAULT_INTERVAL_TEMPLATE", "4x4")),
+                    config,
+                ),
+                reason="continuous_failsafe",
+                trace_id=trace_id,
+                language=normalize_language_code(
+                    fallback_form.get("language", getattr(config, "DEFAULT_LANGUAGE", "en"))
+                ),
+            )
+            logger.error("FAILSAFE_200 trace_id=%s reason=continuous_exception", trace_id)
+            return jsonify(fallback_payload), 200
+
+        return jsonify({"error": "Internal server error", "debug_trace_id": trace_id}), 500
 
 
 def get_coach_response_continuous(breath_data, phase, language="en", persona=None, user_name=None):
