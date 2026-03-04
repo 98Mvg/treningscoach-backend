@@ -612,7 +612,7 @@ def test_phase1_no_sensors_notice_emits_once_without_fallback_coaching_cues():
     assert "no_sensors_notice" not in later_events
 
 
-def test_phase1_movement_fallback_when_hr_lost_and_breath_unreliable():
+def test_phase1_movement_available_keeps_fusion_mode_when_hr_lost_and_breath_unreliable():
     state = {}
 
     evaluate_zone_tick(
@@ -658,17 +658,17 @@ def test_phase1_movement_fallback_when_hr_lost_and_breath_unreliable():
         )
     )
     switched_events = [item.get("event_type") for item in switched.get("events", []) if isinstance(item, dict)]
-    assert switched["sensor_mode"] == "MOVEMENT_FALLBACK"
+    assert switched["sensor_mode"] == "NO_SENSORS"
     assert switched["sensor_fusion_mode"] == "MOVEMENT_ONLY"
     assert switched["movement_available"] is True
     assert "watch_disconnected_notice" in switched_events
-    assert "no_sensors_notice" not in switched_events
+    assert "no_sensors_notice" in switched_events
 
 
-def test_phase1_no_sensors_requires_missing_breath_and_movement():
+def test_phase1_no_sensors_mode_persists_when_movement_signal_later_disappears():
     state = {}
 
-    # Enter movement fallback first.
+    # Enter NO_SENSORS with movement still available.
     evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
@@ -710,9 +710,25 @@ def test_phase1_no_sensors_requires_missing_breath_and_movement():
             movement_source="cadence",
         )
     )
+    mid = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=19,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=0.58,
+            cadence_spm=108.0,
+            movement_source="cadence",
+        )
+    )
+    assert mid["sensor_mode"] == "NO_SENSORS"
+    assert mid["sensor_fusion_mode"] == "MOVEMENT_ONLY"
 
-    # Remove movement too; no-sensors notice should emit after dwell.
-    evaluate_zone_tick(
+    # Remove movement too; mode stays NO_SENSORS but fusion drops to TIMING_ONLY.
+    no_sensors = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             elapsed_seconds=21,
@@ -744,7 +760,7 @@ def test_phase1_no_sensors_requires_missing_breath_and_movement():
     assert no_sensors["sensor_mode"] == "NO_SENSORS"
     assert no_sensors["sensor_fusion_mode"] == "TIMING_ONLY"
     assert no_sensors["movement_available"] is False
-    assert "no_sensors_notice" in no_sensor_events
+    assert "no_sensors_notice" not in no_sensor_events
 
 
 def test_interval_warmup_end_emits_countdown_sequence():

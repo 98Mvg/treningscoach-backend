@@ -922,8 +922,6 @@ def _resolve_sensor_mode(
         desired = "FULL_HR"
     elif breath_reliable:
         desired = "BREATH_FALLBACK"
-    elif movement_available:
-        desired = "MOVEMENT_FALLBACK"
     else:
         desired = "NO_SENSORS"
 
@@ -934,7 +932,19 @@ def _resolve_sensor_mode(
         state["sensor_mode_candidate_since"] = float(elapsed_seconds)
         current_mode = desired
 
+    transition_table = {
+        "FULL_HR": {"BREATH_FALLBACK", "NO_SENSORS"},
+        "BREATH_FALLBACK": {"FULL_HR", "NO_SENSORS"},
+        "NO_SENSORS": {"FULL_HR", "BREATH_FALLBACK"},
+    }
+
     if desired != current_mode:
+        allowed_targets = transition_table.get(str(current_mode), set())
+        if desired not in allowed_targets:
+            state["sensor_mode_candidate"] = current_mode
+            state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+            return events
+
         candidate = state.get("sensor_mode_candidate")
         candidate_since = _safe_float(state.get("sensor_mode_candidate_since"))
         if candidate != desired:
@@ -952,7 +962,7 @@ def _resolve_sensor_mode(
 
                 if (
                     previous_mode == "FULL_HR"
-                    and desired in {"BREATH_FALLBACK", "MOVEMENT_FALLBACK", "NO_SENSORS"}
+                    and desired in {"BREATH_FALLBACK", "NO_SENSORS"}
                     and not bool(state.get("notice_watch_disconnected_sent"))
                 ):
                     events.append("watch_disconnected_notice")
