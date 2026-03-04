@@ -1,13 +1,13 @@
 {
   "version": "v1",
-  "generated_at": "2026-03-03T19:41:37.382821+00:00",
+  "generated_at": "2026-03-04T12:23:37.770111+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
   "total_files": 518,
-  "total_size_bytes": 16336351,
+  "total_size_bytes": 16226845,
   "phrases": [
     {
       "id": "breath.cooldown.1",
@@ -1547,78 +1547,78 @@
       "id": "easy_run.motivate.s3.1",
       "en": {
         "file": "en/easy_run.motivate.s3.1.mp3",
-        "size": 21777,
-        "sha256": "97e914e5db1db9f802cdc205f4320699fd20114cca53a81e395ce55bc5754c15"
+        "size": 13836,
+        "sha256": "0bac7b8917125f4d36f6ba7480ee844e1a7da13669c7a26ba8f38d127e64a4ce"
       },
       "no": {
         "file": "no/easy_run.motivate.s3.1.mp3",
-        "size": 24285,
-        "sha256": "995d4f0b568bd2cb4e3606fa4a382760c75422c25d7da82c1f2b50f84691bdcd"
+        "size": 13836,
+        "sha256": "459a00c769fa24102e2288a13cb9d54b4bd7f7f2b3ec0339ef874aa6d12f0d94"
       }
     },
     {
       "id": "easy_run.motivate.s3.2",
       "en": {
         "file": "en/easy_run.motivate.s3.2.mp3",
-        "size": 27629,
-        "sha256": "8f00386d2ba9f701ef75844633fd6ea6f2e06e7af21a9fc65fa2875422f4bf76"
+        "size": 14254,
+        "sha256": "c1e2970a79e297b298344089e6aea38fe364f26d00b2dc03ecfb58a6aaa89fc7"
       },
       "no": {
         "file": "no/easy_run.motivate.s3.2.mp3",
-        "size": 29301,
-        "sha256": "b6b54f2e65ece73c7cade99fd94fb9120d10c36af91624090d0ba6c2b5a344ee"
+        "size": 13000,
+        "sha256": "89a85c3cc01d5035852e31c104ea34dafe21de8f534d97151d46c1cbc2946f4d"
       }
     },
     {
       "id": "easy_run.motivate.s4.1",
       "en": {
         "file": "en/easy_run.motivate.s4.1.mp3",
-        "size": 21777,
-        "sha256": "2a0b43b86883b8f27ecc5ac0735a4f7e4b1e7ae239adbf6e71981da36258d23e"
+        "size": 29301,
+        "sha256": "3303a784d953bd140487ac8ec39e40d03c09b330b1f9bb8b9c8c5d29c4f2429d"
       },
       "no": {
         "file": "no/easy_run.motivate.s4.1.mp3",
-        "size": 33062,
-        "sha256": "08c3faee15bfa6a4b1290c9528c9925a5a6243179f657c3856c69353d9d9defa"
+        "size": 23449,
+        "sha256": "a3f6c094a74d33b58a3a89b244f016b1428fd1e9533f72122f4a2e519d0b6aa5"
       }
     },
     {
       "id": "easy_run.motivate.s4.2",
       "en": {
         "file": "en/easy_run.motivate.s4.2.mp3",
-        "size": 25539,
-        "sha256": "0dd93e30e5be9d73614f44230943f4d9e55b99d23e14a225623fd34c09439c42"
+        "size": 12164,
+        "sha256": "cf7321636d9ac12bbaf7515aeb1358d15646507b322bf89782163fb80f81ce19"
       },
       "no": {
         "file": "no/easy_run.motivate.s4.2.mp3",
-        "size": 27629,
-        "sha256": "42ea17116bb4e5b572118d7a0de35cf0f6215e2dc5f084e628e6a9922405a84d"
+        "size": 15090,
+        "sha256": "36fb300f4a956eb6d8e734ccd24be596314272f6c59cef5366b007b91fc50823"
       }
     },
     {
       "id": "interval.motivate.s1.1",
       "en": {
         "file": "en/interval.motivate.s1.1.mp3",
-        "size": 31391,
-        "sha256": "8e78df1ed97231b32dd82e84f44e06b13071703dfadd015f87904ae97150b75c"
+        "size": 19688,
+        "sha256": "e07c9ae9199c93f1cb4378f7ed261b1fcdf998c1c064865e4d07247a229005e5"
       },
       "no": {
         "file": "no/interval.motivate.s1.1.mp3",
-        "size": 30973,
-        "sha256": "e5aafeb28b8819be01e609ef4e6e8d9e9bb6f8b9178f463c2f5a9271bdcb6fbe"
+        "size": 24285,
+        "sha256": "05727efceab8e3590821f2076ef5fc3c92258681cf171bc3a83bd954dfbe3e19"
       }
     },
     {
       "id": "interval.motivate.s1.2",
       "en": {
         "file": "en/interval.motivate.s1.2.mp3",
-        "size": 23449,
-        "sha256": "246f91ee97c6ab7e02783c79004904b7db36efafe156873c4a863ca2a8750180"
+        "size": 28465,
+        "sha256": "5db96ce5c9d126c7f029ca8ebacab31289cddda7fa5310025c77abc554a73873"
       },
       "no": {
         "file": "no/interval.motivate.s1.2.mp3",
-        "size": 20942,
-        "sha256": "b66b8075c2bea53cd723daa50b949b294b952a2bc7f9b2199a64a74b3d9c3cab"
+        "size": 39750,
+        "sha256": "e1736c50b4428113cf8c932edf347834e94c71f197dc7806ddd33c1c18f95c99"
       }
     },
     {
@@ -1651,26 +1651,26 @@
       "id": "interval.motivate.s3.1",
       "en": {
         "file": "en/interval.motivate.s3.1.mp3",
-        "size": 26375,
-        "sha256": "8ae796aa2764fbb3d15e46bbb61ea7741fec4ed4d3a031829a629cd6bcc1e15e"
+        "size": 22613,
+        "sha256": "5ca08c9a61f9e6e629263a0031fcd96cbd633b70034d9c853d950ba4b3a60a60"
       },
       "no": {
         "file": "no/interval.motivate.s3.1.mp3",
-        "size": 34316,
-        "sha256": "1aad0ae8fc262a62e1f49043df335da51d12dc23b13d0a65d881d5b0bdf94d10"
+        "size": 38914,
+        "sha256": "9dcc7352d2bb2a796b0d1fed15617270d98ff1acba8f08842b5640ee5ddc11d4"
       }
     },
     {
       "id": "interval.motivate.s3.2",
       "en": {
         "file": "en/interval.motivate.s3.2.mp3",
-        "size": 33062,
-        "sha256": "feaf6d219e1e66b575ec9ee6a0c032d7f8abeedf42247ad28f91a96c9c14e397"
+        "size": 24703,
+        "sha256": "e1571d7629e12da5097ca61225f94e056ff5538a4ba415cfd40efb8c2917f6e8"
       },
       "no": {
         "file": "no/interval.motivate.s3.2.mp3",
-        "size": 43511,
-        "sha256": "b9e1a3984d1a38e061d795088a86e830d22aa07eb010a0dd21221797a58363cc"
+        "size": 27211,
+        "sha256": "32c1456a76a47fecb3a5a2f102abbc9cb69493ed49dd64bc38ea6617f5a5e7fa"
       }
     },
     {
@@ -1703,13 +1703,13 @@
       "id": "motivation.1",
       "en": {
         "file": "en/motivation.1.mp3",
-        "size": 18016,
-        "sha256": "9ad17dffc8e1f53a409e05e3d4374eaf2b97fb7dc6af68905d4c46df6e242c3a"
+        "size": 13000,
+        "sha256": "ba4213cf2572f7ae65a9a8e89ed8e771106bf176d2b507aac20937d125e66470"
       },
       "no": {
         "file": "no/motivation.1.mp3",
-        "size": 18016,
-        "sha256": "b656211b3d447f48039df82f7c20d5954200053680f045fff0a0847d624978da"
+        "size": 11328,
+        "sha256": "883598cfae5da6877ed956e59875313016009cb83df88dcedbad7ccb77bb4506"
       }
     },
     {
@@ -1729,13 +1729,13 @@
       "id": "motivation.2",
       "en": {
         "file": "en/motivation.2.mp3",
-        "size": 25539,
-        "sha256": "227c3a8a01b9e12c3682cc7af577ca2c21fe45c5c53b127193807164ce9d298b"
+        "size": 14254,
+        "sha256": "18729c0323a18385091192c6a0ae40c5ddb93dc03106515986564be3d1838f1c"
       },
       "no": {
         "file": "no/motivation.2.mp3",
-        "size": 28465,
-        "sha256": "2d26b299db35acc7bf4f6ca11cf18929b8d997016ca023b73b4d060d4f5fd281"
+        "size": 14254,
+        "sha256": "6ee24bd08150f5711ef9d4fc00875dd4ca16386b63f058b86f2fddf72c2030a8"
       }
     },
     {
@@ -1747,8 +1747,8 @@
       },
       "no": {
         "file": "no/motivation.3.mp3",
-        "size": 23449,
-        "sha256": "d2ae0b5807e9a50dd8dca77a19c497d57826cacbc2ab00d6b918e5a499ab0319"
+        "size": 51035,
+        "sha256": "8bf3545f4f753a10b179d4c1d4d60256ee317f36516fd4d10d7fc95dc83bb6a8"
       }
     },
     {
@@ -1794,13 +1794,13 @@
       "id": "motivation.7",
       "en": {
         "file": "en/motivation.7.mp3",
-        "size": 27629,
-        "sha256": "28fe9b715850d4eca0a384bf2afeb87faf664ac5442cadb0b92aecd2bffacce4"
+        "size": 35152,
+        "sha256": "a554e3c34a559e02fa00fccb98943ad673655a5487a579768543a7c89376bccd"
       },
       "no": {
         "file": "no/motivation.7.mp3",
-        "size": 44347,
-        "sha256": "d1759e05ac68dd9d20da00798874d6e14d8847e0f1d74e6a9fbb967307f085f8"
+        "size": 31391,
+        "sha256": "e017ab5e0040294e376775517c0f579da34998cd4293c394f5e197f709b4bc2a"
       }
     },
     {
