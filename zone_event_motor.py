@@ -2338,6 +2338,12 @@ def evaluate_zone_tick(
             if remaining <= threshold and not bool(fired.get(event_key)):
                 event_types.append(f"interval_countdown_{threshold}")
                 fired[event_key] = True
+                logger.info(
+                    "COUNTDOWN_EMIT phase=warmup threshold=%s phase_id=%s remaining=%s",
+                    threshold,
+                    phase_id,
+                    remaining,
+                )
 
     if (
         canonical_workout_type == "intervals"
@@ -2358,6 +2364,12 @@ def evaluate_zone_tick(
                     event_name = "interval_countdown_start" if threshold == 0 else f"interval_countdown_{threshold}"
                     event_types.append(event_name)
                     fired[event_key] = True
+                    logger.info(
+                        "COUNTDOWN_EMIT phase=recovery threshold=%s phase_id=%s remaining=%s",
+                        "start" if threshold == 0 else threshold,
+                        phase_id,
+                        remaining,
+                    )
 
     if not pause_flag and target_enforced and hr_ok_for_zone_events and sensor_mode == "FULL_HR":
         if transition_event == "above_zone":

@@ -896,6 +896,64 @@ def test_easy_run_warmup_end_emits_countdown_sequence():
     assert "interval_countdown_start" in events_start
 
 
+def test_easy_run_warmup_countdown_handles_coarse_tick_budget():
+    state = {}
+
+    # Remaining 50s: no warmup countdown yet.
+    first = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=70,
+            heart_rate=135,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    first_events = [item.get("event_type") for item in first.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" not in first_events
+    assert "interval_countdown_15" not in first_events
+
+    # Coarse jump to remaining 14s should still emit both 30 and 15 once.
+    second = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=106,
+            heart_rate=136,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    second_events = [item.get("event_type") for item in second.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in second_events
+    assert "interval_countdown_15" in second_events
+    assert second_events.count("interval_countdown_30") == 1
+    assert second_events.count("interval_countdown_15") == 1
+
+    third = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=118,
+            heart_rate=136,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    third_events = [item.get("event_type") for item in third.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_5" in third_events
+
+
 def test_easy_run_warmup_countdown_uses_workout_state_warmup_seconds_without_kwarg():
     state = {"warmup_remaining_s": 30}
 
