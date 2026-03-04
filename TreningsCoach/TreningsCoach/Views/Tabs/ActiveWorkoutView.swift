@@ -71,6 +71,9 @@ struct ActiveWorkoutView: View {
                     bpmStatusPill
                         .padding(.top, 22)
 
+                    phaseCountdownPanel
+                        .padding(.top, 10)
+
                     Spacer()
 
                     bottomControlPanel
@@ -202,6 +205,35 @@ struct ActiveWorkoutView: View {
                         .stroke(Color.white.opacity(0.20), lineWidth: 1)
                 )
         )
+    }
+
+    private var phaseCountdownPanel: some View {
+        VStack(spacing: 4) {
+            Text(viewModel.phaseCountdownPrimaryText)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color.white.opacity(0.96))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            if let secondary = viewModel.phaseCountdownSecondaryText {
+                Text(secondary)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(Color.white.opacity(0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.22))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.20), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
     }
 
     @ViewBuilder

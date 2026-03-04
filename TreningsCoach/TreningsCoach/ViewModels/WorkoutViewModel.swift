@@ -410,6 +410,57 @@ class WorkoutViewModel: ObservableObject {
         return String(format: "%02d:%02d", mins, secs)
     }
 
+    var phaseCountdownPrimaryText: String {
+        let remainingText = formatPhaseRemaining(seconds: currentPhaseRemainingSeconds)
+        let phaseKey = resolvedPhaseKey
+
+        switch phaseKey {
+        case "warmup":
+            return currentLanguage == "no"
+                ? "Oppvarming – \(remainingText) igjen"
+                : "Warmup – \(remainingText) remaining"
+        case "work":
+            if let (repIndex, repsTotal) = intervalRepProgress {
+                return currentLanguage == "no"
+                    ? "Drag \(repIndex) / \(repsTotal) – \(remainingText) igjen"
+                    : "Interval \(repIndex) / \(repsTotal) – \(remainingText) remaining"
+            }
+            return currentLanguage == "no"
+                ? "Intervall – \(remainingText) igjen"
+                : "Interval – \(remainingText) remaining"
+        case "recovery":
+            return currentLanguage == "no"
+                ? "Pause – neste drag om \(remainingText)"
+                : "Recovery – next interval in \(remainingText)"
+        case "cooldown":
+            return currentLanguage == "no"
+                ? "Nedtrapping – \(remainingText) igjen"
+                : "Cooldown – \(remainingText) remaining"
+        case "main":
+            return currentLanguage == "no"
+                ? "Hoveddel – \(remainingText) igjen"
+                : "Main set – \(remainingText) remaining"
+        default:
+            return currentLanguage == "no"
+                ? "Økt – \(remainingText) igjen"
+                : "Workout – \(remainingText) remaining"
+        }
+    }
+
+    var phaseCountdownSecondaryText: String? {
+        guard selectedWorkoutMode == .intervals else { return nil }
+        guard let summary = workoutContextSummary else { return nil }
+
+        guard let repsTotal = summary.repsTotal, repsTotal > 0 else { return nil }
+        let repIndex = max(1, summary.repIndex ?? 1)
+        let repsLeft = max(0, summary.repsRemainingIncludingCurrent ?? (repsTotal - repIndex + 1))
+
+        if currentLanguage == "no" {
+            return "Drag \(min(repIndex, repsTotal))/\(repsTotal) · \(repsLeft) igjen"
+        }
+        return "Interval \(min(repIndex, repsTotal))/\(repsTotal) · \(repsLeft) left"
+    }
+
     var coachScoreSummaryLine: String {
         if !coachScoreLine.isEmpty { return coachScoreLine }
         return formattedCoachScoreLine(score: coachScore)
@@ -661,6 +712,8 @@ class WorkoutViewModel: ObservableObject {
         cadenceSPM = nil
         movementSource = "none"
         movementState = "unknown"
+        workoutContextSummary = nil
+        workoutContextSummaryReceivedAt = nil
         // If no warmup selected, start directly in intense phase
         if selectedWarmupMinutes == 0 {
             hasSkippedWarmup = true
@@ -716,6 +769,8 @@ class WorkoutViewModel: ObservableObject {
         cadenceSPM = nil
         movementSource = "none"
         movementState = "unknown"
+        workoutContextSummary = nil
+        workoutContextSummaryReceivedAt = nil
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
@@ -859,6 +914,75 @@ class WorkoutViewModel: ObservableObject {
     private var configuredCooldownDuration: TimeInterval {
         if selectedWorkoutMode == .intervals { return 6 * 60 }
         return 5 * 60
+    }
+
+    private var workoutContextSummaryReceivedAt: Date?
+
+    private var resolvedPhaseKey: String {
+        if let phase = workoutContextSummary?.phase?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           !phase.isEmpty {
+            return phase
+        }
+        switch currentPhase {
+        case .warmup:
+            return "warmup"
+        case .cooldown:
+            return "cooldown"
+        case .intense:
+            return selectedWorkoutMode == .intervals ? "work" : "main"
+        }
+    }
+
+    private var workoutContextSummaryAgeSeconds: Int {
+        guard let anchor = workoutContextSummaryReceivedAt else { return 0 }
+        return max(0, Int(Date().timeIntervalSince(anchor)))
+    }
+
+    private var intervalRepProgress: (Int, Int)? {
+        guard let summary = workoutContextSummary,
+              let repsTotal = summary.repsTotal, repsTotal > 0 else { return nil }
+        let repIndex = max(1, min(repsTotal, summary.repIndex ?? 1))
+        return (repIndex, repsTotal)
+    }
+
+    private var currentPhaseRemainingSeconds: Int {
+        if let summary = workoutContextSummary {
+            let age = workoutContextSummaryAgeSeconds
+            let phase = resolvedPhaseKey
+            if phase == "work" || phase == "recovery",
+               let repRemaining = summary.repRemainingS {
+                return max(0, repRemaining - age)
+            }
+            if let timeLeft = summary.timeLeftS {
+                return max(0, timeLeft - age)
+            }
+        }
+        return fallbackPhaseRemainingSeconds()
+    }
+
+    private func fallbackPhaseRemainingSeconds() -> Int {
+        let warmup = Int(configuredWarmupDuration)
+        let intense = Int(configuredIntenseDuration)
+        let cooldown = Int(configuredCooldownDuration)
+        let elapsed = max(0, Int(elapsedTime))
+
+        switch currentPhase {
+        case .warmup:
+            return max(0, warmup - elapsed)
+        case .intense:
+            let elapsedInIntense = max(0, elapsed - warmup)
+            return max(0, intense - elapsedInIntense)
+        case .cooldown:
+            let elapsedInCooldown = max(0, elapsed - warmup - intense)
+            return max(0, cooldown - elapsedInCooldown)
+        }
+    }
+
+    private func formatPhaseRemaining(seconds: Int) -> String {
+        let clamped = max(0, seconds)
+        let mins = clamped / 60
+        let secs = clamped % 60
+        return String(format: "%02d:%02d", mins, secs)
     }
 
     // Formatted elapsed time string (MM:SS)
@@ -2387,6 +2511,9 @@ class WorkoutViewModel: ObservableObject {
                 zoneTimeInTargetPct = response.zoneTimeInTargetPct
                 zoneOvershoots = response.zoneOvershoots ?? zoneOvershoots
                 workoutContextSummary = response.workoutContextSummary
+                if response.workoutContextSummary != nil {
+                    workoutContextSummaryReceivedAt = Date()
+                }
                 if let tip = response.personalizationTip, !tip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     personalizationTip = tip
                 }

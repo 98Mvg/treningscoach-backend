@@ -472,9 +472,10 @@ struct WorkoutLaunchView: View {
 
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalSets,
-                    valueRange: 2...20,
+                    valueRange: 2...10,
                     unitLabel: L10n.current == .no ? "DRAG" : "DRAG",
-                    zeroLabel: nil
+                    zeroLabel: nil,
+                    dragSensitivity: 1.55
                 )
 
                 HStack(spacing: 10) {
@@ -510,9 +511,10 @@ struct WorkoutLaunchView: View {
 
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalWorkMinutes,
-                    valueRange: 1...30,
+                    valueRange: 1...20,
                     unitLabel: L10n.minutesUpper,
-                    zeroLabel: nil
+                    zeroLabel: nil,
+                    dragSensitivity: 1.45
                 )
 
                 HStack(spacing: 10) {
@@ -550,7 +552,8 @@ struct WorkoutLaunchView: View {
                     selectedValue: $viewModel.selectedIntervalBreakMinutes,
                     valueRange: 0...10,
                     unitLabel: L10n.minutesUpper,
-                    zeroLabel: L10n.current == .no ? "INGEN" : "NONE"
+                    zeroLabel: L10n.current == .no ? "INGEN" : "NONE",
+                    dragSensitivity: 1.35
                 )
 
                 Text(
@@ -651,6 +654,7 @@ struct CircularDialPicker: View {
     var dialSize: CGFloat = 220
     var trackWidth: CGFloat = 18
     var knobSize: CGFloat = 30
+    var dragSensitivity: Double = 1.0
 
     // Internal drag state (continuous, not snapped)
     @State private var currentAngle: Double = 0 // 0-360 degrees, 0 = 12 o'clock
@@ -668,7 +672,7 @@ struct CircularDialPicker: View {
     }
 
     private var progress: Double {
-        let raw = safeAngle / 360.0
+        let raw = (safeAngle / 360.0) * max(1.0, dragSensitivity)
         guard raw.isFinite else { return 0 }
         return max(0, min(1, raw))
     }
@@ -826,7 +830,7 @@ struct CircularDialPicker: View {
             return
         }
         let normalized = Double(clamped - minValue) / Double(span)
-        let nextAngle = normalized * 360.0
+        let nextAngle = (normalized / max(1.0, dragSensitivity)) * 360.0
         currentAngle = nextAngle.isFinite ? nextAngle : 0
     }
 }
