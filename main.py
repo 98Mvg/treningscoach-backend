@@ -15,6 +15,7 @@ import math
 import random
 import logging
 import time
+import inspect
 from datetime import datetime
 from urllib.parse import quote
 import config  # Import central configuration
@@ -1425,6 +1426,33 @@ def _phase_fallback_text(language: str, phase: str, elapsed_seconds: int) -> str
     return enforce_language_consistency(cue, lang, phase=normalized_phase)
 
 
+def _call_evaluate_zone_tick_compat(**kwargs):
+    """
+    Invoke evaluate_zone_tick with forward/backward compatibility filtering.
+
+    Protects /coach/continuous from hard failures during temporary deploy drift
+    where main.py sends newer kwargs than zone_event_motor supports.
+    """
+    try:
+        return evaluate_zone_tick(**kwargs)
+    except TypeError as exc:
+        error_text = str(exc)
+        if "unexpected keyword argument" not in error_text:
+            raise
+
+        signature = inspect.signature(evaluate_zone_tick)
+        accepted_keys = set(signature.parameters.keys())
+        filtered_kwargs = {key: value for key, value in kwargs.items() if key in accepted_keys}
+        dropped_keys = sorted(set(kwargs.keys()) - set(filtered_kwargs.keys()))
+
+        logger.warning(
+            "Zone tick compat fallback: dropping unsupported kwargs=%s due to signature drift (%s)",
+            dropped_keys,
+            error_text,
+        )
+        return evaluate_zone_tick(**filtered_kwargs)
+
+
 def _log_decision_debug(
     *,
     session_id: str,
@@ -2316,6 +2344,10 @@ def coach_continuous():
             workout_state["workout_mode"] = workout_mode
             workout_state["coaching_style"] = coaching_style
             workout_state["interval_template"] = interval_template
+            resolved_warmup_seconds = _coerce_int(warmup_seconds_raw)
+            if resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
+                # Keep timing config inside shared workout_state to avoid signature drift.
+                workout_state["warmup_seconds"] = int(resolved_warmup_seconds)
         latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema
@@ -2424,7 +2456,7 @@ def coach_continuous():
         zone_tick = None
         zone_forced_text = None
         if zone_mode_active and workout_state is not None:
-            zone_tick = evaluate_zone_tick(
+            zone_tick_kwargs = dict(
                 workout_state=workout_state,
                 workout_mode=workout_mode,
                 phase=phase,
@@ -2446,7 +2478,6 @@ def coach_continuous():
                 hr_max=request.form.get("hr_max"),
                 resting_hr=request.form.get("resting_hr"),
                 age=request.form.get("age"),
-                warmup_seconds=warmup_seconds_raw,
                 config_module=config,
                 breath_intensity=breath_data.get("intensity"),
                 breath_signal_quality=breath_data.get("signal_quality"),
@@ -2454,6 +2485,7 @@ def coach_continuous():
                 session_id=session_id,
                 paused=request.form.get("paused"),
             )
+            zone_tick = _call_evaluate_zone_tick_compat(**zone_tick_kwargs)
             if isinstance(zone_tick, dict):
                 zone_forced_text = zone_tick.get("coach_text")
                 breath_data["heart_rate"] = zone_tick.get("heart_rate")

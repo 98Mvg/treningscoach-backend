@@ -672,9 +672,28 @@ def _interval_target(
     }
 
 
-def _easy_run_target(phase: str, profile: Dict[str, Any], intensity: str, config_module) -> Dict[str, Any]:
+def _easy_run_target(
+    phase: str,
+    elapsed_seconds: int,
+    warmup_seconds: Optional[int],
+    profile: Dict[str, Any],
+    intensity: str,
+    config_module,
+) -> Dict[str, Any]:
     normalized_phase = (phase or "").strip().lower() or "intense"
     target_intensity = "easy" if normalized_phase in {"warmup", "cooldown"} else intensity
+    elapsed = max(0, int(elapsed_seconds))
+    configured_warmup = _safe_int(warmup_seconds)
+    if configured_warmup is None:
+        configured_warmup = _safe_int(getattr(config_module, "WARMUP_DURATION", 120))
+    configured_warmup = max(0, int(configured_warmup or 0))
+
+    segment_elapsed_seconds: Optional[int] = None
+    segment_remaining_seconds: Optional[int] = None
+    if normalized_phase == "warmup" and configured_warmup > 0:
+        segment_elapsed_seconds = min(elapsed, configured_warmup)
+        segment_remaining_seconds = max(0, configured_warmup - segment_elapsed_seconds)
+
     low, high, source = _resolve_intensity_target_bounds(
         workout_mode="easy_run",
         segment=normalized_phase,
@@ -692,8 +711,9 @@ def _easy_run_target(phase: str, profile: Dict[str, Any], intensity: str, config
         "target_source": source,
         "hr_enforced": low is not None and high is not None,
         "main_set": normalized_phase == "intense",
-        "segment_elapsed_seconds": None,
-        "segment_remaining_seconds": None,
+        "segment_elapsed_seconds": segment_elapsed_seconds,
+        "segment_remaining_seconds": segment_remaining_seconds,
+        "warmup_seconds": configured_warmup if normalized_phase == "warmup" else None,
         "work_seconds": None,
         "rest_seconds": None,
         "session_end_seconds": None,
@@ -706,6 +726,7 @@ def _resolve_target(
     coaching_style: Optional[str],
     interval_template: str,
     elapsed_seconds: int,
+    warmup_seconds: Optional[int],
     profile: Dict[str, Any],
     config_module,
 ) -> Dict[str, Any]:
@@ -713,7 +734,14 @@ def _resolve_target(
     intensity = _style_to_intensity(coaching_style)
     if mode == "interval":
         return _interval_target(interval_template, elapsed_seconds, profile, intensity, config_module)
-    return _easy_run_target(phase, profile, intensity, config_module)
+    return _easy_run_target(
+        phase=phase,
+        elapsed_seconds=elapsed_seconds,
+        warmup_seconds=warmup_seconds,
+        profile=profile,
+        intensity=intensity,
+        config_module=config_module,
+    )
 
 
 def _tick_delta_seconds(state: Dict[str, Any], elapsed_seconds: int, config_module) -> float:
@@ -849,6 +877,7 @@ def _resolve_sensor_mode(
     state: Dict[str, Any],
     hr_signal_state: str,
     breath_reliable: bool,
+    movement_available: bool,
     elapsed_seconds: int,
     config_module,
 ) -> List[str]:
@@ -857,6 +886,8 @@ def _resolve_sensor_mode(
         desired = "FULL_HR"
     elif breath_reliable:
         desired = "BREATH_FALLBACK"
+    elif movement_available:
+        desired = "MOVEMENT_FALLBACK"
     else:
         desired = "NO_SENSORS"
 
@@ -885,7 +916,7 @@ def _resolve_sensor_mode(
 
                 if (
                     previous_mode == "FULL_HR"
-                    and desired in {"BREATH_FALLBACK", "NO_SENSORS"}
+                    and desired in {"BREATH_FALLBACK", "MOVEMENT_FALLBACK", "NO_SENSORS"}
                     and not bool(state.get("notice_watch_disconnected_sent"))
                 ):
                     events.append("watch_disconnected_notice")
@@ -911,6 +942,31 @@ def _resolve_sensor_mode(
         state["sensor_mode_candidate_since"] = float(elapsed_seconds)
 
     return events
+
+
+def _resolve_sensor_fusion_mode(
+    *,
+    sensor_mode: str,
+    hr_ok_for_zone_events: bool,
+    target_enforced: bool,
+    breath_reliable: bool,
+    movement_available: bool,
+) -> str:
+    """
+    Normalize sensor usage into one deterministic fusion mode.
+
+    This keeps cadence/movement connected to coaching decisions whenever available,
+    while preserving HR as the primary source for zone enforcement.
+    """
+    if sensor_mode == "FULL_HR" and hr_ok_for_zone_events and target_enforced:
+        return "HR_ZONE"
+    if breath_reliable and movement_available:
+        return "BREATH_MOVEMENT"
+    if breath_reliable:
+        return "BREATH_ONLY"
+    if movement_available:
+        return "MOVEMENT_ONLY"
+    return "TIMING_ONLY"
 
 
 def _countdown_thresholds(recovery_seconds: int) -> List[int]:
@@ -1956,6 +2012,7 @@ def evaluate_zone_tick(
     resting_hr: Any,
     age: Any,
     config_module,
+    warmup_seconds: Any = None,
     breath_intensity: Any = None,
     breath_signal_quality: Any = None,
     breath_summary: Any = None,
@@ -2001,6 +2058,25 @@ def evaluate_zone_tick(
     )
     hr_signal_state = str(state.get("hr_signal_state") or "lost")
 
+    movement_signal = _resolve_movement_signal(
+        movement_score_value=movement_score,
+        cadence_spm_value=cadence_spm,
+        movement_source_value=movement_source,
+    )
+    movement_state, _movement_event = _apply_movement_state(
+        state=state,
+        movement_score=movement_signal.get("movement_score"),
+        hr_quality_state=hr_quality_info["state"],
+        hr_delta_bpm=hr_quality_info.get("hr_delta_bpm"),
+        hr_sample_gap_seconds=hr_quality_info.get("hr_sample_gap_seconds"),
+        elapsed_seconds=int(elapsed_seconds),
+        config_module=config_module,
+    )
+    movement_available = (
+        movement_signal.get("movement_score") is not None
+        or movement_signal.get("cadence_spm") is not None
+    )
+
     breath_reliable = _update_breath_reliability(
         state=state,
         breath_signal_quality=breath_signal_quality,
@@ -2012,6 +2088,7 @@ def evaluate_zone_tick(
         state=state,
         hr_signal_state=hr_signal_state,
         breath_reliable=breath_reliable,
+        movement_available=movement_available,
         elapsed_seconds=int(elapsed_seconds),
         config_module=config_module,
     )
@@ -2023,12 +2100,16 @@ def evaluate_zone_tick(
     breath_quality_sample_count = _safe_int(breath_summary_data.get("quality_sample_count"))
     breath_quality_reliable = bool(breath_summary_data.get("quality_reliable"))
 
+    state_warmup_seconds = _safe_int(workout_state.get("warmup_seconds"))
+    resolved_warmup_seconds = state_warmup_seconds if state_warmup_seconds is not None else _safe_int(warmup_seconds)
+
     target = _resolve_target(
         workout_mode=workout_mode,
         phase=phase,
         coaching_style=style,
         interval_template=template,
         elapsed_seconds=int(elapsed_seconds),
+        warmup_seconds=resolved_warmup_seconds,
         profile=profile,
         config_module=config_module,
     )
@@ -2051,11 +2132,7 @@ def evaluate_zone_tick(
             phase_events.append("warmup_started")
         elif canonical_phase == "cooldown":
             phase_events.append("cooldown_started")
-        if (
-            canonical_workout_type == "intervals"
-            and previous_phase == "warmup"
-            and canonical_phase in {"main", "work", "recovery"}
-        ):
+        if previous_phase == "warmup" and canonical_phase in {"main", "work", "recovery"}:
             phase_events.append("interval_countdown_start")
 
     if canonical_phase in {"main", "work", "recovery"} and not bool(state.get("main_started_emitted")):
@@ -2071,21 +2148,6 @@ def evaluate_zone_tick(
         phase_events.append("workout_finished")
         state["session_finished"] = True
 
-    movement_signal = _resolve_movement_signal(
-        movement_score_value=movement_score,
-        cadence_spm_value=cadence_spm,
-        movement_source_value=movement_source,
-    )
-    movement_state, _movement_event = _apply_movement_state(
-        state=state,
-        movement_score=movement_signal.get("movement_score"),
-        hr_quality_state=hr_quality_info["state"],
-        hr_delta_bpm=hr_quality_info.get("hr_delta_bpm"),
-        hr_sample_gap_seconds=hr_quality_info.get("hr_sample_gap_seconds"),
-        elapsed_seconds=int(elapsed_seconds),
-        config_module=config_module,
-    )
-
     pause_flag = (_safe_bool(paused) is True) or movement_state == "paused"
     target_enforced = bool(target.get("hr_enforced"))
     hr_available = (
@@ -2095,6 +2157,13 @@ def evaluate_zone_tick(
         and hr_bpm > 0
     )
     hr_ok_for_zone_events = hr_available and float(state.get("hr_valid_streak_seconds", 0.0)) >= 5.0
+    sensor_fusion_mode = _resolve_sensor_fusion_mode(
+        sensor_mode=sensor_mode,
+        hr_ok_for_zone_events=hr_ok_for_zone_events,
+        target_enforced=target_enforced,
+        breath_reliable=breath_reliable,
+        movement_available=movement_available,
+    )
 
     zone_status = "hr_unstable" if not hr_available else "timing_control"
     transition_event = None
@@ -2151,12 +2220,7 @@ def evaluate_zone_tick(
         if candidate_event and candidate_event not in event_types:
             event_types.append(candidate_event)
 
-    if (
-        canonical_workout_type == "intervals"
-        and canonical_phase == "warmup"
-        and not pause_flag
-        and target.get("segment_remaining_seconds") is not None
-    ):
+    if canonical_phase == "warmup" and not pause_flag and target.get("segment_remaining_seconds") is not None:
         warmup_seconds_total = int(target.get("warmup_seconds") or 0)
         remaining = int(max(0, target.get("segment_remaining_seconds") or 0))
         if warmup_seconds_total > 0:
@@ -2330,10 +2394,12 @@ def evaluate_zone_tick(
                         max_silence_allowed = False
 
                 if max_silence_allowed:
-                    if hr_available and target_enforced and sensor_mode == "FULL_HR":
+                    if sensor_fusion_mode == "HR_ZONE":
                         max_silence_candidate = "max_silence_override"
-                    elif breath_reliable:
+                    elif sensor_fusion_mode in {"BREATH_MOVEMENT", "BREATH_ONLY"}:
                         max_silence_candidate = "max_silence_breath_guide"
+                    elif sensor_fusion_mode in {"MOVEMENT_ONLY", "TIMING_ONLY"}:
+                        max_silence_candidate = "max_silence_go_by_feel"
                     elif not hr_available:
                         max_silence_candidate = "max_silence_go_by_feel"
                     else:
@@ -2461,6 +2527,9 @@ def evaluate_zone_tick(
         "elapsed_seconds": int(elapsed_seconds),
         "remaining_phase_seconds": int(remaining_phase_seconds) if remaining_phase_seconds is not None else None,
         "phase_id": phase_id_value,
+        "sensor_mode": sensor_mode,
+        "sensor_fusion_mode": sensor_fusion_mode,
+        "movement_available": bool(movement_available),
     }
     events_payload = []
     for event_name in event_types:
@@ -2580,6 +2649,8 @@ def evaluate_zone_tick(
                 "reason": reason,
                 "silence_seconds": _silence_secs,
                 "sensor_mode": sensor_mode,
+                "sensor_fusion_mode": sensor_fusion_mode,
+                "movement_available": bool(movement_available),
                 "breath_cue_due": breath_cue_due,
                 "breath_cue_interval_seconds": breath_cue_interval_seconds,
                 "breath_quality_median": breath_quality_median,
@@ -2607,6 +2678,8 @@ def evaluate_zone_tick(
         "events": events_payload,
         "meta": {
             "sensor_mode": sensor_mode,
+            "sensor_fusion_mode": sensor_fusion_mode,
+            "movement_available": bool(movement_available),
             "coaching_style": style,
             "workout_type": canonical_workout_type,
             "phase": canonical_phase,
@@ -2619,6 +2692,8 @@ def evaluate_zone_tick(
         },
         "phase_id": phase_id_value,
         "sensor_mode": sensor_mode,
+        "sensor_fusion_mode": sensor_fusion_mode,
+        "movement_available": bool(movement_available),
         "phase": canonical_phase,
         "zone_status": zone_status,
         "zone_state": canonical_zone,

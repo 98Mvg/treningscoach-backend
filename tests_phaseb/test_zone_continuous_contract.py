@@ -32,6 +32,124 @@ def _mock_breath_analysis_low_quality(_path: str):
     }
 
 
+def _legacy_evaluate_zone_tick_without_warmup_seconds(
+    *,
+    workout_state,
+    workout_mode,
+    phase,
+    elapsed_seconds,
+    language,
+    persona,
+    coaching_style,
+    interval_template,
+    heart_rate,
+    hr_quality,
+    hr_confidence,
+    hr_sample_age_seconds,
+    hr_sample_gap_seconds,
+    movement_score,
+    cadence_spm,
+    movement_source,
+    watch_connected,
+    watch_status,
+    hr_max,
+    resting_hr,
+    age,
+    config_module,
+    breath_intensity=None,
+    breath_signal_quality=None,
+    breath_summary=None,
+    session_id=None,
+    paused=None,
+):
+    _ = (
+        workout_state,
+        workout_mode,
+        phase,
+        elapsed_seconds,
+        language,
+        persona,
+        coaching_style,
+        interval_template,
+        heart_rate,
+        hr_quality,
+        hr_confidence,
+        hr_sample_age_seconds,
+        hr_sample_gap_seconds,
+        movement_score,
+        cadence_spm,
+        movement_source,
+        watch_connected,
+        watch_status,
+        hr_max,
+        resting_hr,
+        age,
+        config_module,
+        breath_intensity,
+        breath_signal_quality,
+        breath_summary,
+        session_id,
+        paused,
+    )
+    return {
+        "should_speak": False,
+        "reason": "zone_no_change",
+        "events": [],
+        "zone_status": "timing_control",
+        "heart_rate": 0,
+        "target_zone_label": "Easy",
+        "target_hr_low": None,
+        "target_hr_high": None,
+        "target_source": "none",
+        "target_hr_enforced": False,
+        "hr_quality": "poor",
+    }
+
+
+def test_continuous_zone_tick_signature_drift_does_not_500(monkeypatch, tmp_path, caplog):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "evaluate_zone_tick", _legacy_evaluate_zone_tick_without_warmup_seconds)
+
+    session_id = main.session_manager.create_session(user_id="zone_sig_drift_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="warmup")
+    state = main.session_manager.get_workout_state(session_id)
+    state["is_first_breath"] = False
+
+    caplog.set_level("WARNING", logger=main.logger.name)
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "warmup",
+            "elapsed_seconds": "42",
+            "language": "no",
+            "persona": "personal_trainer",
+            "workout_mode": "interval",
+            "coaching_style": "motivational",
+            "interval_template": "4x4",
+            "warmup_seconds": "120",
+            "heart_rate": "0",
+            "watch_connected": "false",
+            "watch_status": "disconnected",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["decision_owner"] == "zone_event"
+    assert payload["reason"] == "zone_no_change"
+    warning_messages = "\n".join(record.getMessage() for record in caplog.records)
+    assert "Zone tick compat fallback: dropping unsupported kwargs" not in warning_messages
+
+
 def test_continuous_zone_contract_exposes_zone_fields(monkeypatch, tmp_path):
     fake_audio = tmp_path / "dummy.mp3"
     fake_audio.write_bytes(b"ID3")
@@ -683,6 +801,64 @@ def test_interval_warmup_uses_short_tick_budget_for_countdowns(monkeypatch, tmp_
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["workout_mode"] == "interval"
+    assert payload.get("phase") == "warmup"
+    assert payload.get("remaining_phase_seconds") == 30
+    assert payload["wait_seconds"] <= int(getattr(main.config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))
+
+    event_names = [item.get("event_type") for item in (payload.get("events") or []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in event_names
+
+
+def test_easy_run_warmup_uses_short_tick_budget_for_countdowns(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+
+    session_id = main.session_manager.create_session(user_id="easy_warmup_tick_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="warmup")
+    state = main.session_manager.get_workout_state(session_id)
+    seeded = (datetime.now() - timedelta(seconds=60)).isoformat()
+    state["is_first_breath"] = False
+    state["coaching_history"] = [{"timestamp": seeded, "text": "Keep steady."}]
+    state["last_coaching_time"] = seeded
+
+    # easy_run warmup configured to 120s. elapsed=90 => 30s left in warmup.
+    elapsed = 90
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "warmup",
+            "elapsed_seconds": str(elapsed),
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+            "warmup_seconds": "120",
+            "heart_rate": "138",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+            "movement_score": "0.62",
+            "cadence_spm": "122.0",
+            "movement_source": "cadence",
+            "hr_max": "190",
+            "resting_hr": "55",
+            "age": "35",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["workout_mode"] == "easy_run"
     assert payload.get("phase") == "warmup"
     assert payload.get("remaining_phase_seconds") == 30
     assert payload["wait_seconds"] <= int(getattr(main.config, "INTERVAL_RECOVERY_FINAL_MAX_WAIT_SECONDS", 3))

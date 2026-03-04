@@ -612,6 +612,141 @@ def test_phase1_no_sensors_notice_emits_once_without_fallback_coaching_cues():
     assert "no_sensors_notice" not in later_events
 
 
+def test_phase1_movement_fallback_when_hr_lost_and_breath_unreliable():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            movement_score=0.62,
+            cadence_spm=112.0,
+            movement_source="cadence",
+        )
+    )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=0.58,
+            cadence_spm=108.0,
+            movement_source="cadence",
+        )
+    )
+    switched = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=0.58,
+            cadence_spm=108.0,
+            movement_source="cadence",
+        )
+    )
+    switched_events = [item.get("event_type") for item in switched.get("events", []) if isinstance(item, dict)]
+    assert switched["sensor_mode"] == "MOVEMENT_FALLBACK"
+    assert switched["sensor_fusion_mode"] == "MOVEMENT_ONLY"
+    assert switched["movement_available"] is True
+    assert "watch_disconnected_notice" in switched_events
+    assert "no_sensors_notice" not in switched_events
+
+
+def test_phase1_no_sensors_requires_missing_breath_and_movement():
+    state = {}
+
+    # Enter movement fallback first.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            movement_score=0.62,
+            cadence_spm=112.0,
+            movement_source="cadence",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=0.58,
+            cadence_spm=108.0,
+            movement_source="cadence",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=17,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=0.58,
+            cadence_spm=108.0,
+            movement_source="cadence",
+        )
+    )
+
+    # Remove movement too; no-sensors notice should emit after dwell.
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=21,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=None,
+            cadence_spm=None,
+            movement_source="none",
+        )
+    )
+    no_sensors = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=24,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            movement_score=None,
+            cadence_spm=None,
+            movement_source="none",
+        )
+    )
+    no_sensor_events = [item.get("event_type") for item in no_sensors.get("events", []) if isinstance(item, dict)]
+    assert no_sensors["sensor_mode"] == "NO_SENSORS"
+    assert no_sensors["sensor_fusion_mode"] == "TIMING_ONLY"
+    assert no_sensors["movement_available"] is False
+    assert "no_sensors_notice" in no_sensor_events
+
+
 def test_interval_warmup_end_emits_countdown_sequence():
     state = {}
 
@@ -675,3 +810,90 @@ def test_interval_warmup_end_emits_countdown_sequence():
     )
     events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_start" in events_start
+
+
+def test_easy_run_warmup_end_emits_countdown_sequence():
+    state = {}
+
+    tick_30 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=90,
+            heart_rate=135,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in events_30
+
+    tick_15 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=105,
+            heart_rate=136,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_15 = [item.get("event_type") for item in tick_15.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_15" in events_15
+
+    tick_5 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=120,
+            elapsed_seconds=115,
+            heart_rate=136,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_5 = [item.get("event_type") for item in tick_5.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_5" in events_5
+
+    tick_start = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            warmup_seconds=120,
+            elapsed_seconds=120,
+            heart_rate=144,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_start" in events_start
+
+
+def test_easy_run_warmup_countdown_uses_workout_state_warmup_seconds_without_kwarg():
+    state = {"warmup_seconds": 120}
+
+    tick_30 = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            elapsed_seconds=90,
+            heart_rate=135,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in events_30

@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -9,6 +10,19 @@ import config
 import breath_analyzer as breath_analyzer_module
 from breath_analyzer import BreathAnalyzer
 from breath_reliability import derive_breath_quality_samples, summarize_breath_quality
+
+
+def test_breath_analyzer_does_not_own_countdown_or_zone_event_scheduling():
+    source = Path(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "breath_analyzer.py")).read_text()
+    lowered = source.lower()
+    forbidden_tokens = (
+        "interval_countdown_",
+        "warmup_countdown",
+        "countdown_fired_map",
+        "evaluate_zone_tick(",
+    )
+    for token in forbidden_tokens:
+        assert token not in lowered, f"breath_analyzer must remain audio-only; found scheduling token: {token}"
 
 
 def test_derive_breath_quality_samples_normalizes_and_includes_current_signal():
