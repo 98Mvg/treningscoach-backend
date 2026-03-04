@@ -70,6 +70,11 @@ class AuthManager: ObservableObject {
     // MARK: - Apple Sign-In
 
     func signInWithApple() async -> Bool {
+        guard AppConfig.Auth.appleSignInEnabled else {
+            errorMessage = L10n.appleSignInFailedTryAgain
+            return false
+        }
+
         isLoading = true
         errorMessage = nil
 

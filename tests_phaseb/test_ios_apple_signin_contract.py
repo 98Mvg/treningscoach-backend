@@ -1,3 +1,4 @@
+import plistlib
 from pathlib import Path
 
 
@@ -23,6 +24,18 @@ ENTITLEMENTS = (
     / "TreningsCoach"
     / "TreningsCoach.entitlements"
 )
+INFO_PLIST = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Info.plist"
+)
+
+
+def _apple_signin_enabled() -> bool:
+    with INFO_PLIST.open("rb") as f:
+        info = plistlib.load(f)
+    return bool(info.get("APPLE_SIGN_IN_ENABLED", False))
 
 
 def test_auth_manager_has_real_apple_signin_flow():
@@ -40,7 +53,12 @@ def test_auth_view_uses_auth_manager_apple_signin():
     assert "await authManager.signInWithApple()" in text
 
 
-def test_entitlements_include_apple_signin_capability():
+def test_entitlements_match_apple_signin_flag():
     text = ENTITLEMENTS.read_text(encoding="utf-8")
-    assert "com.apple.developer.applesignin" in text
-    assert "<string>Default</string>" in text
+    has_apple_signin_entitlement = "com.apple.developer.applesignin" in text
+
+    if _apple_signin_enabled():
+        assert has_apple_signin_entitlement
+        assert "<string>Default</string>" in text
+    else:
+        assert not has_apple_signin_entitlement

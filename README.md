@@ -172,6 +172,15 @@ open TreningsCoach/TreningsCoach.xcodeproj
 # Press Cmd+R in Xcode to build and run
 ```
 
+### iOS Signing Notes (Personal Team-safe)
+
+- `APPLE_SIGN_IN_ENABLED` is `0` by default in
+  `/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Info.plist`.
+- Apple Sign-In UI is feature-flagged off in this mode.
+- Entitlements source of truth is
+  `/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/TreningsCoach.entitlements`.
+- Strict signing is enforced in project settings (`CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO`).
+
 ### Verify
 
 ```bash
