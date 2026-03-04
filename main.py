@@ -16,6 +16,7 @@ import random
 import logging
 import time
 import inspect
+import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 import config  # Import central configuration
@@ -351,6 +352,11 @@ def collect_workout_context(payload: dict | None = None, form=None) -> dict:
     heart_rate = _coerce_int(_pick("heart_rate", "workout_heart_rate"))
     target_low = _coerce_int(_pick("target_hr_low", "workout_target_hr_low"))
     target_high = _coerce_int(_pick("target_hr_high", "workout_target_hr_high"))
+    time_left_s = _coerce_int(_pick("time_left_s"))
+    rep_index = _coerce_int(_pick("rep_index"))
+    reps_total = _coerce_int(_pick("reps_total"))
+    rep_remaining_s = _coerce_int(_pick("rep_remaining_s"))
+    reps_remaining_including_current = _coerce_int(_pick("reps_remaining_including_current"))
 
     result = {}
     if phase:
@@ -363,7 +369,69 @@ def collect_workout_context(payload: dict | None = None, form=None) -> dict:
         result["target_hr_low"] = int(target_low)
     if target_high is not None:
         result["target_hr_high"] = int(target_high)
+    if time_left_s is not None:
+        result["time_left_s"] = max(0, int(time_left_s))
+    if rep_index is not None:
+        result["rep_index"] = max(0, int(rep_index))
+    if reps_total is not None:
+        result["reps_total"] = max(0, int(reps_total))
+    if rep_remaining_s is not None:
+        result["rep_remaining_s"] = max(0, int(rep_remaining_s))
+    if reps_remaining_including_current is not None:
+        result["reps_remaining_including_current"] = max(0, int(reps_remaining_including_current))
     return result
+
+
+def _workout_context_hr_valid(workout_context: dict | None = None) -> bool:
+    context = workout_context or {}
+    hr = _coerce_int(context.get("heart_rate"))
+    if hr is None or hr <= 0:
+        return False
+    zone_state = str(context.get("zone_state") or "").strip().lower()
+    if zone_state in {"hr_missing", "targets_unenforced"}:
+        return False
+    return True
+
+
+def _format_workout_progress_hint(language: str, workout_context: dict | None = None) -> str:
+    context = workout_context or {}
+    lang = normalize_language_code(language)
+    reps_left = _coerce_int(context.get("reps_remaining_including_current"))
+    time_left = _coerce_int(context.get("time_left_s"))
+
+    parts: list[str] = []
+    if reps_left is not None and reps_left > 0:
+        if lang == "no":
+            parts.append(f"Du har {reps_left} intervaller igjen.")
+        else:
+            parts.append(f"You have {reps_left} intervals left.")
+
+    if time_left is not None and time_left >= 0:
+        if time_left < 60:
+            if lang == "no":
+                parts.append("Det er under ett minutt igjen.")
+            else:
+                parts.append("There is less than a minute left.")
+        else:
+            minutes = max(1, int(round(time_left / 60.0)))
+            if lang == "no":
+                parts.append(f"Det er omtrent {minutes} minutter igjen.")
+            else:
+                parts.append(f"You are about {minutes} minutes from finishing.")
+    return " ".join(parts).strip()
+
+
+def _response_claims_invalid_hr(language: str, text: str, workout_context: dict | None = None) -> bool:
+    if _workout_context_hr_valid(workout_context):
+        return False
+    candidate = (text or "").strip().lower()
+    if not candidate:
+        return False
+    if re.search(r"\b\d{2,3}\s*(bpm|puls)\b", candidate):
+        return True
+    if language == "no":
+        return "pulsen din er" in candidate
+    return "your heart rate is" in candidate
 
 
 def workout_talk_fallback(language: str, workout_context: dict | None = None) -> str:
@@ -384,10 +452,18 @@ def workout_talk_fallback(language: str, workout_context: dict | None = None) ->
     selected = banks.get(lang, {}) if isinstance(banks, dict) else {}
     text = selected.get(bucket)
     if text:
+        progress_hint = _format_workout_progress_hint(lang, context)
+        if progress_hint:
+            return f"{text} {progress_hint}".strip()
         return text
     if lang == "no":
-        return "Hold det jevnt og kontrollert. Stabil pust hele veien."
-    return "Stay smooth and controlled. Keep your breathing steady."
+        base = "Hold det jevnt og kontrollert. Stabil pust hele veien."
+    else:
+        base = "Stay smooth and controlled. Keep your breathing steady."
+    progress_hint = _format_workout_progress_hint(lang, context)
+    if progress_hint:
+        return f"{base} {progress_hint}".strip()
+    return base
 
 
 def fallback_talk_prompt(language: str, workout_context: dict | None = None) -> str:
@@ -3649,10 +3725,17 @@ def coach_talk():
         timeout_budget = talk_timeout_budget(trigger_source)
         is_question = response_mode in {"qa", "qna", "question"} or is_question_request(user_message)
         fallback_used = False
+        prompt_for_router = user_message
+        if context == "workout" and bool(getattr(config, "TALK_CONTEXT_SUMMARY_ENABLED", True)):
+            prompt_for_router = brain_router.build_workout_talk_prompt(
+                question=user_message,
+                language=language,
+                workout_context=workout_context,
+            )
 
         if is_question:
             coach_text = brain_router.get_question_response(
-                user_message,
+                prompt_for_router,
                 language=language,
                 persona=persona,
                 context=context,
@@ -3686,6 +3769,14 @@ def coach_talk():
 
         if context == "workout" and fallback_used and not coach_text:
             coach_text = workout_talk_fallback(language, workout_context)
+
+        if context == "workout":
+            progress_hint = _format_workout_progress_hint(language, workout_context)
+            if progress_hint and progress_hint not in (coach_text or ""):
+                coach_text = f"{coach_text} {progress_hint}".strip()
+            if _response_claims_invalid_hr(language, coach_text, workout_context):
+                coach_text = workout_talk_fallback(language, workout_context)
+                fallback_used = True
 
         voice_file = generate_voice(
             coach_text,

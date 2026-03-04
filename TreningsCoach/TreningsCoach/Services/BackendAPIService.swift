@@ -13,6 +13,11 @@ struct WorkoutTalkContext {
     let targetHRLow: Int?
     let targetHRHigh: Int?
     let zoneState: String?
+    let timeLeftS: Int?
+    let repIndex: Int?
+    let repsTotal: Int?
+    let repRemainingS: Int?
+    let repsRemainingIncludingCurrent: Int?
 }
 
 struct BackendUserProfilePayload: Encodable {
@@ -688,6 +693,21 @@ class BackendAPIService {
         if let zoneState = workoutContext.zoneState, !zoneState.isEmpty {
             appendField(name: "zone_state", value: zoneState)
             appendField(name: "workout_zone_state", value: zoneState)
+        }
+        if let timeLeftS = workoutContext.timeLeftS {
+            appendField(name: "time_left_s", value: "\(timeLeftS)")
+        }
+        if let repIndex = workoutContext.repIndex {
+            appendField(name: "rep_index", value: "\(repIndex)")
+        }
+        if let repsTotal = workoutContext.repsTotal {
+            appendField(name: "reps_total", value: "\(repsTotal)")
+        }
+        if let repRemainingS = workoutContext.repRemainingS {
+            appendField(name: "rep_remaining_s", value: "\(repRemainingS)")
+        }
+        if let repsRemaining = workoutContext.repsRemainingIncludingCurrent {
+            appendField(name: "reps_remaining_including_current", value: "\(repsRemaining)")
         }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)

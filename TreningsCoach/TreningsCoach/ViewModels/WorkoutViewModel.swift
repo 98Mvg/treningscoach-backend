@@ -356,6 +356,7 @@ class WorkoutViewModel: ObservableObject {
     @Published private(set) var lastPersistedCoachScore: Int = 0
     @Published var zoneTimeInTargetPct: Double?
     @Published var zoneOvershoots: Int = 0
+    @Published var workoutContextSummary: WorkoutContextSummary?
     @Published var personalizationTip: String = ""
     @Published var recoveryLine: String = ""
     @Published var isSpotifyConnected: Bool = UserDefaults.standard.bool(forKey: "spotify_connected")
@@ -1227,7 +1228,12 @@ class WorkoutViewModel: ObservableObject {
             heartRate: watchConnected ? heartRate : 0,
             targetHRLow: targetHRLow,
             targetHRHigh: targetHRHigh,
-            zoneState: zoneStatus
+            zoneState: zoneStatus,
+            timeLeftS: workoutContextSummary?.timeLeftS,
+            repIndex: workoutContextSummary?.repIndex,
+            repsTotal: workoutContextSummary?.repsTotal,
+            repRemainingS: workoutContextSummary?.repRemainingS,
+            repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent
         )
     }
 
@@ -2379,6 +2385,7 @@ class WorkoutViewModel: ObservableObject {
                 }
                 zoneTimeInTargetPct = response.zoneTimeInTargetPct
                 zoneOvershoots = response.zoneOvershoots ?? zoneOvershoots
+                workoutContextSummary = response.workoutContextSummary
                 if let tip = response.personalizationTip, !tip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     personalizationTip = tip
                 }

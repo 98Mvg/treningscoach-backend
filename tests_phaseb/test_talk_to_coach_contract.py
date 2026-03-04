@@ -80,4 +80,5 @@ def test_api_service_workout_talk_multipart_contract_includes_trigger_and_contex
     assert 'appendField(name: "workout_phase", value: phase)' in text
     assert 'appendField(name: "workout_heart_rate", value: "\\(bpm)")' in text
     assert 'appendField(name: "workout_zone_state", value: zoneState)' in text
-
+    assert 'appendField(name: "time_left_s", value: "\\(timeLeftS)")' in text
+    assert 'appendField(name: "reps_remaining_including_current", value: "\\(repsRemaining)")' in text

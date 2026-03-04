@@ -228,6 +228,60 @@ class BrainRouter:
             f"{name_hint}"
         )
 
+    def build_workout_talk_prompt(
+        self,
+        *,
+        question: str,
+        language: str,
+        workout_context: Optional[dict],
+    ) -> str:
+        """
+        Build deterministic workout context hints for Q&A prompts.
+        This keeps /coach/talk grounded even without live HR.
+        """
+        context = workout_context if isinstance(workout_context, dict) else {}
+        lang = self._normalize_language(language)
+        parts = [f"Athlete question: {question.strip()}".strip()]
+        hints = []
+
+        phase = str(context.get("phase") or "").strip().lower()
+        if phase:
+            hints.append(f"phase={phase}")
+
+        reps_left = context.get("reps_remaining_including_current")
+        if isinstance(reps_left, (int, float)):
+            hints.append(f"reps_remaining_including_current={int(reps_left)}")
+
+        time_left = context.get("time_left_s")
+        if isinstance(time_left, (int, float)):
+            hints.append(f"time_left_s={max(0, int(time_left))}")
+
+        hr = context.get("heart_rate")
+        zone_state = str(context.get("zone_state") or "").strip().lower()
+        hr_valid = isinstance(hr, (int, float)) and int(hr) > 0 and zone_state not in {"hr_missing", "targets_unenforced"}
+        if hr_valid:
+            hints.append(f"heart_rate={int(hr)}")
+            low = context.get("target_hr_low")
+            high = context.get("target_hr_high")
+            if isinstance(low, (int, float)) and isinstance(high, (int, float)):
+                hints.append(f"target_hr_range={int(low)}-{int(high)}")
+        else:
+            hints.append("heart_rate=unavailable")
+
+        if hints:
+            parts.append("Workout context: " + ", ".join(hints))
+        if lang == "no":
+            parts.append(
+                "Instruksjon: Gi et kort, praktisk svar. Bruk reps/tid igjen når tilgjengelig. "
+                "Ikke oppgi puls-tall når heart_rate=unavailable."
+            )
+        else:
+            parts.append(
+                "Instruction: Give a short practical answer. Use sets/time left when available. "
+                "Do not state current HR numbers when heart_rate=unavailable."
+            )
+        return "\n".join(parts).strip()
+
     @staticmethod
     def _trim_to_sentence_limit(text: str, max_sentences: int = 5) -> str:
         cleaned = re.sub(r"\s+", " ", (text or "")).strip()
