@@ -3889,6 +3889,56 @@ def coach_talk():
         if not user_message:
             user_message = fallback_talk_prompt(language, workout_context)
 
+        talk_policy = brain_router.evaluate_talk_policy(
+            user_message,
+            language,
+            talk_context=context,
+        )
+        if talk_policy.get("policy_blocked"):
+            policy_category = str(talk_policy.get("policy_category") or "unknown")
+            policy_reason = str(talk_policy.get("policy_reason") or "Talk policy refusal")
+            policy_text = str(talk_policy.get("text") or workout_talk_fallback(language, workout_context))
+            coach_text = enforce_language_consistency(
+                policy_text,
+                language,
+                phase=phase if context == "workout" else None,
+            )
+            voice_file = generate_voice(
+                coach_text,
+                language=language,
+                persona=persona,
+                emotional_mode=_infer_emotional_mode(intensity),
+            )
+            relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
+            audio_url = f"/download/{relative_path}"
+            latency_ms = int(round((time.perf_counter() - started_at) * 1000))
+            mode = "workout_talk" if context == "workout" else "chat_talk"
+
+            logger.info(
+                "Coach talk policy block trigger=%s context=%s category=%s persona=%s user=%s provider=policy latency_ms=%s",
+                trigger_source,
+                context,
+                policy_category,
+                persona,
+                user_name or "anon",
+                latency_ms,
+            )
+            return jsonify({
+                "contract_version": contract_version,
+                "text": coach_text,
+                "audio_url": audio_url,
+                "personality": persona,
+                "trigger_source": trigger_source,
+                "provider": "policy",
+                "mode": mode,
+                "latency_ms": latency_ms,
+                "fallback_used": False,
+                "stt_source": stt_source,
+                "policy_blocked": True,
+                "policy_category": policy_category,
+                "policy_reason": policy_reason,
+            })
+
         logger.info(
             "Coach talk request trigger=%s context=%s phase=%s persona=%s user=%s stt=%s contract=%s msg='%s'",
             trigger_source,
@@ -3989,6 +4039,9 @@ def coach_talk():
             "latency_ms": latency_ms,
             "fallback_used": fallback_used,
             "stt_source": stt_source,
+            "policy_blocked": False,
+            "policy_category": None,
+            "policy_reason": None,
         })
 
     except Exception as e:

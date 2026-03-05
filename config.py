@@ -400,6 +400,20 @@ TALK_CONTEXT_SUMMARY_ENABLED = _env_bool("TALK_CONTEXT_SUMMARY_ENABLED", True)
 COACH_QA_MAX_TOKENS = _env_int("COACH_QA_MAX_TOKENS", 110)
 COACH_QA_MAX_SENTENCES = _env_int("COACH_QA_MAX_SENTENCES", 5)
 COACH_TALK_ALLOWED_TRIGGER_SOURCES = ("wake_word", "button")
+COACH_TALK_STRICT_SAFETY_ENABLED = _env_bool("COACH_TALK_STRICT_SAFETY_ENABLED", True)
+COACH_TALK_POLICY_ROTATE_ENABLED = _env_bool("COACH_TALK_POLICY_ROTATE_ENABLED", True)
+COACH_TALK_POLICY_REFUSAL_BANK = {
+    "en": [
+        "Lets talk about your workout instead",
+        "I am Your Coach and will only speak about related subjects",
+        "Lets not talk about that",
+    ],
+    "no": [
+        "La oss snakke om din treningsøkt isteden",
+        "Jeg er din Coach og holder meg til relevante temaer.",
+        "La oss ikke snakke om det nå",
+    ],
+}
 COACH_TALK_WORKOUT_FALLBACKS = {
     "en": {
         "above_zone": "Check in: ease off a touch and lengthen your exhale.",

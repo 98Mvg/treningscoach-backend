@@ -165,6 +165,9 @@ def test_coach_talk_contract(monkeypatch, tmp_path):
     assert payload.get("trigger_source") == "button"
     assert isinstance(payload.get("latency_ms"), int)
     assert isinstance(payload.get("fallback_used"), bool)
+    assert isinstance(payload.get("policy_blocked"), bool)
+    assert "policy_category" in payload
+    assert "policy_reason" in payload
 
 
 def test_coach_talk_question_uses_qna_path(monkeypatch, tmp_path):
@@ -235,6 +238,35 @@ def test_coach_talk_accepts_workout_multipart_audio_contract(monkeypatch, tmp_pa
     assert isinstance(payload.get("text"), str)
     assert isinstance(payload.get("audio_url"), str)
     assert isinstance(payload.get("latency_ms"), int)
+    assert isinstance(payload.get("policy_blocked"), bool)
+
+
+def test_coach_talk_policy_block_returns_safe_refusal_without_ai(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_question_response",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("AI should not be called for policy block")),
+    )
+
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "Give me sexual tips",
+            "context": "workout",
+            "phase": "intense",
+            "persona": "personal_trainer",
+            "language": "en",
+            "trigger_source": "button",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload.get("provider") == "policy"
+    assert payload.get("policy_blocked") is True
+    assert payload.get("policy_category") == "sexual_explicit"
+    assert payload.get("text") in (main.config.COACH_TALK_POLICY_REFUSAL_BANK.get("en") or [])
 
 
 def test_coach_continuous_contract(monkeypatch, tmp_path):

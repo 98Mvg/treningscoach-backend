@@ -16,6 +16,13 @@ BACKEND_API_SERVICE = (
     / "Services"
     / "BackendAPIService.swift"
 )
+MODELS_FILE = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Models"
+    / "Models.swift"
+)
 
 
 def _viewmodel_text() -> str:
@@ -24,6 +31,10 @@ def _viewmodel_text() -> str:
 
 def _api_service_text() -> str:
     return BACKEND_API_SERVICE.read_text(encoding="utf-8")
+
+
+def _models_text() -> str:
+    return MODELS_FILE.read_text(encoding="utf-8")
 
 
 def test_talk_button_requires_active_unpaused_workout() -> None:
@@ -65,6 +76,11 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
     assert "voiceState = isContinuousMode && !isPaused ? .listening : .idle" in text
 
 
+def test_talk_path_logs_policy_blocks_when_returned_by_backend() -> None:
+    text = _viewmodel_text()
+    assert "TALK_POLICY_BLOCKED category=" in text
+
+
 def test_talk_path_suppresses_event_speech_while_active() -> None:
     text = _viewmodel_text()
     assert "if isCoachTalkActive {" in text
@@ -82,3 +98,13 @@ def test_api_service_workout_talk_multipart_contract_includes_trigger_and_contex
     assert 'appendField(name: "workout_zone_state", value: zoneState)' in text
     assert 'appendField(name: "time_left_s", value: "\\(timeLeftS)")' in text
     assert 'appendField(name: "reps_remaining_including_current", value: "\\(repsRemaining)")' in text
+
+
+def test_coach_talk_response_model_decodes_policy_metadata_fields() -> None:
+    text = _models_text()
+    assert 'let policyBlocked: Bool?' in text
+    assert 'let policyCategory: String?' in text
+    assert 'let policyReason: String?' in text
+    assert 'case policyBlocked = "policy_blocked"' in text
+    assert 'case policyCategory = "policy_category"' in text
+    assert 'case policyReason = "policy_reason"' in text

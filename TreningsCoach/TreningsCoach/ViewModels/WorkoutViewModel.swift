@@ -1349,6 +1349,11 @@ class WorkoutViewModel: ObservableObject {
             print(
                 "🗣️ Coach talk response source=\(triggerSource.rawValue) latency_ms=\(latencyMs) provider=\(response.provider ?? "unknown") mode=\(response.mode ?? "unknown") fallback_used=\(response.fallbackUsed ?? false)"
             )
+            if response.policyBlocked == true {
+                print(
+                    "🛡️ TALK_POLICY_BLOCKED category=\(response.policyCategory ?? "unknown") reason=\(response.policyReason ?? "n/a")"
+                )
+            }
             coachMessage = response.text
             voiceState = .speaking
             _ = await playCoachAudio(response.audioURL, transcriptText: response.text)

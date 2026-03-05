@@ -639,6 +639,9 @@ struct CoachTalkResponse: Codable {
     let latencyMS: Int?
     let fallbackUsed: Bool?
     let sttSource: String?
+    let policyBlocked: Bool?
+    let policyCategory: String?
+    let policyReason: String?
 
     enum CodingKeys: String, CodingKey {
         case contractVersion = "contract_version"
@@ -651,6 +654,9 @@ struct CoachTalkResponse: Codable {
         case latencyMS = "latency_ms"
         case fallbackUsed = "fallback_used"
         case sttSource = "stt_source"
+        case policyBlocked = "policy_blocked"
+        case policyCategory = "policy_category"
+        case policyReason = "policy_reason"
     }
 }
 

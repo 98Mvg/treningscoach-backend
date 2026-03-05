@@ -81,6 +81,11 @@ iOS App plays coaching audio
 
 **Key design**: The iOS app never knows which AI provider is active. The Brain Router abstracts all provider selection, fallback, and timeout handling.
 
+### Talk Safety Policy
+
+- `/coach/talk` strict safety categories, refusal banks, and rotation behavior are documented in:
+  `/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-05-talk-safety-rules-integration.md`
+
 ### Brain Priority Chain
 
 ```

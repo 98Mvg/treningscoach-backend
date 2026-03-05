@@ -113,3 +113,15 @@ def test_coach_score_version_env_override(monkeypatch):
     monkeypatch.setenv("COACH_SCORE_VERSION", "invalid")
     importlib.reload(config)
     assert config.COACH_SCORE_VERSION == "cs_v2"
+
+
+def test_talk_safety_flags_env_override(monkeypatch):
+    monkeypatch.setenv("COACH_TALK_STRICT_SAFETY_ENABLED", "false")
+    monkeypatch.setenv("COACH_TALK_POLICY_ROTATE_ENABLED", "false")
+
+    importlib.reload(config)
+
+    assert config.COACH_TALK_STRICT_SAFETY_ENABLED is False
+    assert config.COACH_TALK_POLICY_ROTATE_ENABLED is False
+    assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("en"), list)
+    assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("no"), list)

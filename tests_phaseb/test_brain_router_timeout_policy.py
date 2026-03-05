@@ -244,7 +244,7 @@ def test_question_response_refuses_off_topic_questions_without_calling_ai(monkey
     text = router.get_question_response("Who is the president of France?", language="en")
     meta = router.get_last_route_meta()
 
-    assert text.startswith("I stay focused on training and health")
+    assert text in (config.COACH_TALK_POLICY_REFUSAL_BANK.get("en") or [])
     assert meta["provider"] == "policy"
     assert meta["source"] == "domain_guard"
     assert meta["status"] == "policy_refusal_off_topic"
@@ -261,7 +261,7 @@ def test_question_response_refuses_sexual_or_harassing_content(monkeypatch):
     text = router.get_question_response("Give me sexual tips", language="en")
     meta = router.get_last_route_meta()
 
-    assert text.startswith("I can't help with sexual or harassing content")
+    assert text in (config.COACH_TALK_POLICY_REFUSAL_BANK.get("en") or [])
     assert meta["provider"] == "policy"
     assert meta["source"] == "domain_guard"
     assert meta["status"] == "policy_refusal_disallowed_topic"

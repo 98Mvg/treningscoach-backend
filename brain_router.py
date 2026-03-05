@@ -22,6 +22,75 @@ class BrainRouter:
 
     STEP 4: Supports hybrid mode - Claude for patterns, config for speed.
     """
+    _SEXUAL_EXPLICIT_TOKENS = {
+        "sex", "sexual", "sexy", "porn", "porno", "nude", "nudes", "fetish",
+        "seksuell", "naken", "intimate", "explicit",
+    }
+    _HARASSMENT_TOKENS = {
+        "harass", "harassing", "bully", "bullying", "insult", "shame",
+        "idiot", "stupid", "loser", "worthless",
+        "trakassere", "trakassering", "mobbe", "mobbing", "dum", "verdiløs",
+    }
+    _PROTECTED_GROUP_TOKENS = {
+        "race", "religion", "gender", "sexuality", "nationality", "disability", "age",
+        "woman", "women", "man", "men", "gay", "lesbian", "trans", "muslim", "jew", "christian",
+        "menn", "kvinner", "jøde", "kristen", "homofil",
+        "hudfarge", "rase", "kjønn", "funksjonshemmet", "alder",
+    }
+    _HATE_TOKENS = {"hate", "racist", "racism", "homophobic", "sexist", "nazis", "nazi", "hater", "hateful"}
+    _HATE_STRONG_TOKENS = {"racist", "racism", "homophobic", "sexist", "nazi", "nazis"}
+    _HARMFUL_TOKENS = {
+        "selfharm", "suicide", "kill", "overdose", "starve", "dangerous", "unsafe",
+        "hurt", "harm", "violence", "violent", "drug", "drugs", "steroid",
+        "selvskading", "selvskade", "selvmord", "sult", "skad", "vold", "narkotika", "steroider",
+    }
+    _HARMFUL_PATTERNS = (
+        "hurt someone",
+        "kill someone",
+        "harm myself",
+        "hjelp meg å skade",
+        "hvordan skade",
+        "how to hurt",
+        "how to kill",
+    )
+    _DOMAIN_TOKENS = {
+        "train", "training", "workout", "run", "running", "interval", "intervals", "cardio",
+        "fitness", "exercise", "health", "body", "muscle", "protein", "nutrition", "diet",
+        "calorie", "calories", "carb", "carbs", "fat", "hydrate", "hydration", "water",
+        "recovery", "sleep", "stress", "injury", "sore", "soreness", "hr", "pulse", "heart",
+        "pace", "zone", "zones", "vo2", "endurance", "strength", "mobility",
+        "trening", "trene", "trenings", "okt", "økt", "lop", "løp", "intervall", "intervaller",
+        "utholdenhet", "helse", "kropp", "muskel", "ernaering", "ernæring",
+        "kosthold", "kalori", "kalorier", "karbo", "fett", "vaeske", "væske", "hydrering",
+        "restitusjon", "sovn", "søvn", "skade", "stol", "støl", "puls", "hjerte", "tempo", "sone",
+        "styrke", "mobilitet",
+    }
+    _WORKOUT_CONTEXT_PROMPT_EXACT = {
+        "what should i do now?",
+        "what should i do now",
+        "what should i do?",
+        "what should i do",
+        "what now?",
+        "what now",
+        "what next?",
+        "what next",
+        "hva skal jeg gjøre nå?",
+        "hva skal jeg gjøre nå",
+        "hva skal jeg gjøre?",
+        "hva skal jeg gjøre",
+        "hva nå?",
+        "hva nå",
+    }
+    _WORKOUT_CONTEXT_PROMPT_PREFIXES = (
+        "what should i do",
+        "what now",
+        "what next",
+        "how am i doing",
+        "hva skal jeg gjøre",
+        "hva nå",
+        "hvordan ligger jeg an",
+        "hvordan går det",
+    )
 
     def __init__(self, brain_type: Optional[str] = None, use_hybrid: Optional[bool] = None):
         """
@@ -56,6 +125,13 @@ class BrainRouter:
             "mode": None,
             "timestamp": None,
         }
+        self._talk_policy_rotation_state = {}
+        strict_enabled = bool(getattr(config, "COACH_TALK_STRICT_SAFETY_ENABLED", True))
+        rotate_enabled = bool(getattr(config, "COACH_TALK_POLICY_ROTATE_ENABLED", True))
+        print(
+            f"🛡️ COACH_TALK_POLICY enabled={str(strict_enabled).lower()} "
+            f"rotate={str(rotate_enabled).lower()}"
+        )
         self._executor = ThreadPoolExecutor(max_workers=4)
         self._initialize_brain()
 
@@ -319,48 +395,120 @@ class BrainRouter:
         lowered = (question or "").lower()
         return set(re.findall(r"[a-z0-9æøå]+", lowered))
 
-    def _qa_policy_response(self, question: str, language: str) -> tuple[str, Optional[str]]:
-        tokens = self._question_tokens(question)
+    def _classify_talk_policy_category(self, text: str) -> Optional[str]:
+        tokens = self._question_tokens(text)
+        lowered = (text or "").lower()
 
-        disallowed_tokens = {
-            "sex", "sexual", "sexy", "porn", "nude", "nudes", "fetish", "harass", "harassing",
-            "trakassere", "trakassering", "seksuell", "porno", "naken", "nudes",
-        }
-        if tokens.intersection(disallowed_tokens):
-            if language == "no":
-                return (
-                    "Jeg kan ikke hjelpe med seksuelt eller trakasserende innhold. "
-                    "Jeg kan hjelpe med trening, helse, restitusjon, puls og ernæring."
-                ), "policy_refusal_disallowed_topic"
-            return (
-                "I can't help with sexual or harassing content. "
-                "I can help with training, health, recovery, heart rate, and nutrition."
-            ), "policy_refusal_disallowed_topic"
+        if tokens.intersection(self._SEXUAL_EXPLICIT_TOKENS):
+            return "sexual_explicit"
 
-        domain_tokens = {
-            "train", "training", "workout", "run", "running", "interval", "intervals", "cardio",
-            "fitness", "exercise", "health", "body", "muscle", "protein", "nutrition", "diet",
-            "calorie", "calories", "carb", "carbs", "fat", "hydrate", "hydration", "water",
-            "recovery", "sleep", "stress", "injury", "sore", "soreness", "hr", "pulse", "heart",
-            "pace", "zone", "zones", "vo2", "endurance", "strength", "mobility",
-            "trening", "trene", "trenings", "okt", "økt", "lop", "løp", "intervall", "intervaller",
-            "utholdenhet", "helse", "kropp", "muskel", "protein", "ernaering", "ernæring",
-            "kosthold", "kalori", "kalorier", "karbo", "fett", "vaeske", "væske", "hydrering",
-            "restitusjon", "sovn", "søvn", "skade", "stol", "støl", "puls", "hjerte", "tempo", "sone",
-            "styrke", "mobilitet",
+        if tokens.intersection(self._HARASSMENT_TOKENS):
+            return "harassment_bullying"
+
+        if (tokens.intersection(self._HATE_TOKENS) and tokens.intersection(self._PROTECTED_GROUP_TOKENS)) or (
+            self._HATE_STRONG_TOKENS.intersection(tokens)
+        ):
+            return "hate_speech"
+
+        if tokens.intersection(self._HARMFUL_TOKENS) or any(pattern in lowered for pattern in self._HARMFUL_PATTERNS):
+            return "harmful_encouragement"
+
+        if tokens.intersection(self._DOMAIN_TOKENS):
+            return None
+
+        return "off_topic"
+
+    def _is_workout_context_prompt(self, text: str) -> bool:
+        lowered = (text or "").strip().lower()
+        if not lowered:
+            return False
+        if lowered in self._WORKOUT_CONTEXT_PROMPT_EXACT:
+            return True
+        return any(lowered.startswith(prefix) for prefix in self._WORKOUT_CONTEXT_PROMPT_PREFIXES)
+
+    def _next_talk_policy_refusal(self, language: str, category: str) -> tuple[str, str]:
+        normalized_language = self._normalize_language(language)
+        bank = getattr(config, "COACH_TALK_POLICY_REFUSAL_BANK", {}) or {}
+        phrases = bank.get(normalized_language) or bank.get("en") or [
+            "Lets talk about your workout instead"
+        ]
+
+        if not phrases:
+            return "Lets talk about your workout instead", f"talk_policy.{normalized_language}.{category}.1"
+
+        idx_key = (normalized_language, category)
+        rotate_enabled = bool(getattr(config, "COACH_TALK_POLICY_ROTATE_ENABLED", True))
+        if rotate_enabled and len(phrases) > 1:
+            last_idx = int(self._talk_policy_rotation_state.get(idx_key, -1))
+            idx = (last_idx + 1) % len(phrases)
+            self._talk_policy_rotation_state[idx_key] = idx
+        else:
+            idx = 0
+            self._talk_policy_rotation_state[idx_key] = idx
+
+        return phrases[idx], f"talk_policy.{normalized_language}.{category}.{idx + 1}"
+
+    def evaluate_talk_policy(self, message: str, language: str, talk_context: str = "chat") -> Dict[str, Any]:
+        strict_enabled = bool(getattr(config, "COACH_TALK_STRICT_SAFETY_ENABLED", True))
+        if not strict_enabled:
+            return {
+                "policy_blocked": False,
+                "policy_category": None,
+                "policy_phrase_id": None,
+                "policy_reason": None,
+                "policy_status": None,
+                "text": "",
+            }
+
+        normalized_context = (talk_context or "chat").strip().lower()
+        category = self._classify_talk_policy_category(message or "")
+        if category == "off_topic" and normalized_context == "workout" and self._is_workout_context_prompt(message):
+            category = None
+
+        if not category:
+            return {
+                "policy_blocked": False,
+                "policy_category": None,
+                "policy_phrase_id": None,
+                "policy_reason": None,
+                "policy_status": None,
+                "text": "",
+            }
+
+        normalized_language = self._normalize_language(language)
+        text, phrase_id = self._next_talk_policy_refusal(normalized_language, category)
+        status_map = {
+            "off_topic": "policy_refusal_off_topic",
+            "sexual_explicit": "policy_refusal_disallowed_topic",
+            "harassment_bullying": "policy_refusal_disallowed_topic",
+            "hate_speech": "policy_refusal_hate_speech",
+            "harmful_encouragement": "policy_refusal_harmful_encouragement",
         }
-        if tokens.intersection(domain_tokens):
+        reason_map = {
+            "off_topic": "Lets talk about workout-relevant topics.",
+            "sexual_explicit": "Sexual or explicit content is disallowed.",
+            "harassment_bullying": "Harassment and bullying content is disallowed.",
+            "hate_speech": "Hate speech content is disallowed.",
+            "harmful_encouragement": "Unsafe and harmful encouragement is disallowed.",
+        }
+        print(
+            f"🛡️ TALK_POLICY category={category} blocked=true "
+            f"lang={normalized_language} context={normalized_context}"
+        )
+        return {
+            "policy_blocked": True,
+            "policy_category": category,
+            "policy_phrase_id": phrase_id,
+            "policy_reason": reason_map.get(category),
+            "policy_status": status_map.get(category, "policy_refusal"),
+            "text": text,
+        }
+
+    def _qa_policy_response(self, question: str, language: str, context: str = "chat") -> tuple[str, Optional[str]]:
+        policy = self.evaluate_talk_policy(question, language, talk_context=context)
+        if not policy.get("policy_blocked"):
             return "", None
-
-        if language == "no":
-            return (
-                "Jeg holder meg til trening og helse. "
-                "Spør meg gjerne om løping, puls-soner, restitusjon eller ernæring."
-            ), "policy_refusal_off_topic"
-        return (
-            "I stay focused on training and health. "
-            "Ask me about running, HR zones, recovery, or nutrition."
-        ), "policy_refusal_off_topic"
+        return str(policy.get("text") or ""), str(policy.get("policy_status") or "policy_refusal")
 
     def _qa_fallback(self, language: str) -> str:
         if language == "no":
@@ -433,7 +581,7 @@ class BrainRouter:
             )
             return fallback
 
-        policy_reply, policy_status = self._qa_policy_response(prompt, lang)
+        policy_reply, policy_status = self._qa_policy_response(prompt, lang, context=context)
         if policy_reply:
             self._set_last_route_meta(
                 provider="policy",
@@ -441,10 +589,7 @@ class BrainRouter:
                 status=policy_status or "policy_refusal",
                 mode="question_qa",
             )
-            return self._trim_to_sentence_limit(
-                policy_reply,
-                max_sentences=self._qa_max_sentences(),
-            )
+            return policy_reply.strip()
 
         attempted = []
         candidate_brains = ["grok"]

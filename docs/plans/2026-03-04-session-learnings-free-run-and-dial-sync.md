@@ -55,3 +55,7 @@ The dial used `dragSensitivity` in display progress math, which made arc fill an
 - [ ] Free Run launch wheels are locked and non-interactive
 - [ ] Interval set/time wheels still cap at `2...10` and `1...20`
 - [ ] Max dial value visually reaches full circle with knob aligned
+
+## DB migration reminder (keep this rule)
+When starting with SQLite, keep all data access through SQLAlchemy ORM models and Alembic migrations.
+This keeps the SQLite -> Postgres switch low-risk: set `DATABASE_URL`, run migration, redeploy, without rewriting runtime query logic.
