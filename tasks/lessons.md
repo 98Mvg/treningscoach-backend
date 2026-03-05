@@ -81,3 +81,9 @@ Updated: 2026-03-03
 - 2026-03-03: In zone-event runtime, do not emit `hr_signal_lost` on first bootstrap tick when HR starts missing; only emit after a stable connected->disconnected transition.
 - 2026-03-03: Interval cue order must explicitly include warmup-end countdowns (`30/15/5/start`) before main-zone coaching.
 - 2026-03-03: Countdown reliability depends on poll cadence; keep interval warmup/recovery on tighter `/coach/continuous` wait budgets to avoid skipping countdown windows.
+- 2026-03-05: Real Apple Watch workout testing requires proper Apple Developer Program provisioning; Personal Team profiles cannot ship Watch HealthKit workout capabilities for production-style device validation.
+- 2026-03-05: Keep watch-gated start non-blocking on iPhone: always preserve immediate local fallback and send deferred watch payload via `updateApplicationContext` when Watch is unreachable.
+- 2026-03-05: Start/ACK correlation must use `request_id`; late watch ACKs should never restart an already-running iPhone workout.
+- 2026-03-05: BLE live HR reliability improves with explicit scan timeout + reconnect backoff + cancellation of pending reconnect/scan work items during stop/power-state transitions.
+- 2026-03-05: Arbiter edge-case tests should use an injected clock (`nowProvider`) and deterministic evaluate hook to validate freshness/promotion/demotion without timing flakes.
+- 2026-03-05: For iOS 17+, use `AVAudioApplication.shared.recordPermission` instead of deprecated `AVAudioSession.recordPermission` in workout payload preflight checks.
