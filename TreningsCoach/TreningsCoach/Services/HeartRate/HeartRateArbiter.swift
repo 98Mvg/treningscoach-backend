@@ -122,8 +122,8 @@ final class HeartRateArbiter {
 
         let bleState = providerStates[.ble] ?? .disconnected
         let wcState = providerStates[.wc] ?? .disconnected
-        let bleConnected = isProviderConnected(bleState)
-        let watchConnected = isProviderConnected(wcState)
+        let bleConnected = isProviderReady(bleState)
+        let watchConnected = isProviderReady(wcState)
 
         let output = Output(
             currentBPM: sample?.bpm,
@@ -194,11 +194,11 @@ final class HeartRateArbiter {
         }
     }
 
-    private func isProviderConnected(_ status: ProviderStatus) -> Bool {
+    private func isProviderReady(_ status: ProviderStatus) -> Bool {
         switch status {
-        case .ready, .connecting, .degraded:
+        case .ready:
             return true
-        case .disconnected, .error:
+        case .connecting, .degraded, .disconnected, .error:
             return false
         }
     }

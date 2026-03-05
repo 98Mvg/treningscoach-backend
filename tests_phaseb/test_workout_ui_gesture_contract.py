@@ -128,7 +128,8 @@ def test_workout_launch_uses_staged_wheel_setup_for_easy_run() -> None:
     assert "case easyDuration" in text
     assert "valueRange: 0...120" in text
     assert "Confirm duration" in text
-    assert ".disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)" in text
+    assert "let canStartAction = canStartWorkout &&" in text
+    assert ".disabled(!canStartAction)" in text
 
 
 def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
@@ -167,8 +168,9 @@ def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:
     text = _workout_launch_view_text()
     assert "Text(viewModel.launchStartButtonTitle)" in text
     assert "Text(viewModel.launchStartSubtext)" in text
+    assert "if let authHelper = viewModel.launchAuthRequirementText {" in text
     assert "if let helper = viewModel.watchReachabilityHelperText {" in text
-    assert ".disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)" in text
+    assert ".disabled(!canStartAction)" in text
     assert "if let watchStatus = viewModel.watchStartStatusLine {" in text
 
 

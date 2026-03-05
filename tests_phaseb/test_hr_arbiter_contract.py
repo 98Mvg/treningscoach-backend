@@ -35,8 +35,11 @@ def test_arbiter_uses_single_source_priority_wc_ble_hk_none() -> None:
 
 def test_arbiter_exposes_watch_and_ble_connectivity_flags() -> None:
     text = ARBITER_FILE.read_text(encoding="utf-8")
-    assert "let bleConnected = isProviderConnected(bleState)" in text
-    assert "let watchConnected = isProviderConnected(wcState)" in text
+    assert "let bleConnected = isProviderReady(bleState)" in text
+    assert "let watchConnected = isProviderReady(wcState)" in text
+    assert "private func isProviderReady(_ status: ProviderStatus) -> Bool {" in text
+    assert "case .ready:" in text
+    assert "case .connecting, .degraded, .disconnected, .error:" in text
     assert "watchStatus: watchStatus(for: selectedSource)" in text
     assert "case .ble:" in text
     assert 'return "ble_connected"' in text
@@ -49,4 +52,3 @@ def test_view_model_uses_arbiter_outputs_for_request_payload_inputs() -> None:
     assert "watchStatus: latestWatchStatusForBackend" in text
     assert "if let hr = response.heartRate {" not in text
     assert "if let quality = response.hrQuality {" not in text
-

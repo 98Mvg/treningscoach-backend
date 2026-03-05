@@ -122,6 +122,10 @@ struct WorkoutLaunchView: View {
                         .buttonStyle(.plain)
                         .padding(.top, 4)
                     } else {
+                        let canStartAction = canStartWorkout &&
+                            !viewModel.isWaitingForWatchStart &&
+                            viewModel.canInitiateWorkoutStart
+
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Quick setup")
                                 .font(.system(size: 24, weight: .bold))
@@ -258,7 +262,7 @@ struct WorkoutLaunchView: View {
                                     .frame(maxWidth: .infinity, minHeight: 52)
                                     .background(
                                         Group {
-                                            if canStartWorkout && !viewModel.isWaitingForWatchStart {
+                                            if canStartAction {
                                                 CoachiTheme.primaryGradient
                                             } else {
                                                 LinearGradient(
@@ -271,14 +275,14 @@ struct WorkoutLaunchView: View {
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                                     .shadow(
-                                        color: (canStartWorkout && !viewModel.isWaitingForWatchStart)
+                                        color: canStartAction
                                             ? CoachiTheme.primary.opacity(0.28)
                                             : .clear,
                                         radius: 10,
                                         y: 3
                                     )
                             }
-                            .disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)
+                            .disabled(!canStartAction)
                             .buttonStyle(.plain)
                         }
                         .padding(.top, 4)
@@ -288,6 +292,14 @@ struct WorkoutLaunchView: View {
                             .foregroundColor(CoachiTheme.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 4)
+
+                        if let authHelper = viewModel.launchAuthRequirementText {
+                            Text(authHelper)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(CoachiTheme.warning)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 2)
+                        }
 
                         if let helper = viewModel.watchReachabilityHelperText {
                             Text(helper)

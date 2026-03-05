@@ -485,6 +485,17 @@ class WorkoutViewModel: ObservableObject {
         return currentLanguage == "no" ? "Ingen live puls (du kan fortsatt coache)" : "No live HR (you can still coach)"
     }
 
+    var canInitiateWorkoutStart: Bool {
+        hasValidAuthToken()
+    }
+
+    var launchAuthRequirementText: String? {
+        guard !canInitiateWorkoutStart else { return nil }
+        return currentLanguage == "no"
+            ? "Logg inn for å starte coaching."
+            : "Sign in to start coaching."
+    }
+
     var watchReachabilityHelperText: String? {
         guard !watchSessionReachable, phoneWCManager.isPaired, phoneWCManager.isWatchAppInstalled else {
             return nil
@@ -624,6 +635,18 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Coachi Convenience Methods
 
     func startWorkout() {
+        guard hasValidAuthToken() else {
+            clearWatchStartPendingState()
+            activeWatchRequestId = nil
+            watchStartStatusLine = launchAuthRequirementText
+            workoutState = .idle
+            let message = currentLanguage == "no"
+                ? "Du må logge inn for å starte coaching."
+                : "You must sign in to start coaching."
+            showErrorAlert(message)
+            return
+        }
+
         activeSessionPlan = buildSessionPlanFromSelections()
         clearWatchStartPendingState()
         watchStartStatusLine = nil
