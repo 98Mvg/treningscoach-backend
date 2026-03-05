@@ -2425,6 +2425,17 @@ class WorkoutViewModel: ObservableObject {
 
     private func startContinuousWorkoutInternal() {
         guard !isContinuousMode else { return }
+        guard hasValidAuthToken() else {
+            clearWatchStartPendingState()
+            watchStartStatusLine = nil
+            workoutState = .idle
+            let message = currentLanguage == "no"
+                ? "Du må logge inn for å starte coaching."
+                : "You must sign in to start coaching."
+            showErrorAlert(message)
+            print("⚠️ Continuous workout blocked: missing auth token")
+            return
+        }
         clearWatchStartPendingState()
         watchStartStatusLine = nil
         workoutState = .active
@@ -2521,7 +2532,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func syncProfileSnapshotToBackend(reason: String) async {
-        guard KeychainHelper.readString(key: KeychainHelper.tokenKey) != nil else { return }
+        guard hasValidAuthToken() else { return }
 
         let defaults = UserDefaults.standard
         let payload = BackendUserProfilePayload(
@@ -2931,6 +2942,9 @@ class WorkoutViewModel: ObservableObject {
             } catch {
                 // Network/decode error: skip this cycle, continue next
                 print("❌ Coaching cycle failed: \(error)")
+                if handleAuthFailureIfNeeded(error) {
+                    return
+                }
                 // Show full error (not just localizedDescription) to catch JSON decode details
                 let errorDetail: String
                 if let decodingError = error as? DecodingError {
@@ -2955,6 +2969,44 @@ class WorkoutViewModel: ObservableObject {
             // Always schedule next tick (loop continues)
             scheduleNextTick()
         }
+    }
+
+    private func hasValidAuthToken() -> Bool {
+        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !token.isEmpty else {
+            return false
+        }
+        return true
+    }
+
+    private func isAuthFailure(_ error: Error) -> Bool {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .authenticationRequired:
+                return true
+            case .httpError(let statusCode):
+                return statusCode == 401 || statusCode == 403
+            case .serverError(let message):
+                let normalized = message.lowercased()
+                return normalized.contains("authorization") || normalized.contains("unauthorized")
+            case .invalidURL, .invalidResponse, .downloadFailed, .networkError:
+                return false
+            }
+        }
+        return false
+    }
+
+    private func handleAuthFailureIfNeeded(_ error: Error) -> Bool {
+        guard isAuthFailure(error) else { return false }
+        print("🛑 Stopping continuous workout due to auth failure")
+        stopContinuousWorkout()
+        workoutState = .idle
+        let message = currentLanguage == "no"
+            ? "Innloggingen mangler eller er utløpt. Logg inn igjen."
+            : "Your sign-in is missing or expired. Please sign in again."
+        showErrorAlert(message)
+        return true
     }
 
     private func scheduleNextTick() {

@@ -69,11 +69,21 @@ class BackendAPIService {
 
     // MARK: - Auth Header
 
-    /// Adds JWT auth token to request if available
-    private func addAuthHeader(to request: inout URLRequest) {
-        if let token = KeychainHelper.readString(key: KeychainHelper.tokenKey) {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    private func currentAuthToken() -> String? {
+        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !token.isEmpty else {
+            return nil
         }
+        return token
+    }
+
+    /// Adds JWT auth token to request if available.
+    @discardableResult
+    private func addAuthHeader(to request: inout URLRequest) -> Bool {
+        guard let token = currentAuthToken() else { return false }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return true
     }
 
     /// Creates an authenticated GET request
@@ -586,7 +596,9 @@ class BackendAPIService {
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        addAuthHeader(to: &request)
+        guard addAuthHeader(to: &request) else {
+            throw APIError.authenticationRequired
+        }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -862,6 +874,7 @@ enum APIError: LocalizedError {
     case invalidResponse
     case httpError(statusCode: Int)
     case serverError(message: String)
+    case authenticationRequired
     case downloadFailed
     case networkError(Error)
 
@@ -875,6 +888,8 @@ enum APIError: LocalizedError {
             return "HTTP error: \(statusCode)"
         case .serverError(let message):
             return "Server error: \(message)"
+        case .authenticationRequired:
+            return "Authentication required"
         case .downloadFailed:
             return "Failed to resolve audio source"
         case .networkError(let error):
