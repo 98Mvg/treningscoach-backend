@@ -252,13 +252,13 @@ struct WorkoutLaunchView: View {
                                 }
                                 withAnimation(AppConfig.Anim.transitionSpring) { viewModel.startWorkout() }
                             } label: {
-                                Text("Start coaching")
+                                Text(viewModel.launchStartButtonTitle)
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity, minHeight: 52)
                                     .background(
                                         Group {
-                                            if canStartWorkout {
+                                            if canStartWorkout && !viewModel.isWaitingForWatchStart {
                                                 CoachiTheme.primaryGradient
                                             } else {
                                                 LinearGradient(
@@ -270,12 +270,26 @@ struct WorkoutLaunchView: View {
                                         }
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                    .shadow(color: canStartWorkout ? CoachiTheme.primary.opacity(0.28) : .clear, radius: 10, y: 3)
+                                    .shadow(
+                                        color: (canStartWorkout && !viewModel.isWaitingForWatchStart)
+                                            ? CoachiTheme.primary.opacity(0.28)
+                                            : .clear,
+                                        radius: 10,
+                                        y: 3
+                                    )
                             }
-                            .disabled(!canStartWorkout)
+                            .disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)
                             .buttonStyle(.plain)
                         }
                         .padding(.top, 4)
+
+                        if let watchStatus = viewModel.watchStartStatusLine {
+                            Text(watchStatus)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 6)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)

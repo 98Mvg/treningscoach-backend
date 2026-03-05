@@ -25,6 +25,12 @@ private enum TalkTriggerSource: String {
     case button = "button"
 }
 
+enum HRSource: String {
+    case wc = "wc"
+    case hk = "hk"
+    case none = "none"
+}
+
 struct SpeechTranscriptEntry: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -350,8 +356,12 @@ class WorkoutViewModel: ObservableObject {
             UserDefaults.standard.set(useBreathingMicCues, forKey: breathAnalysisEnabledKey)
         }
     }
+    @Published var watchSessionReachable: Bool = false
+    @Published var isWaitingForWatchStart: Bool = false
+    @Published var watchStartStatusLine: String?
     @Published var watchConnected: Bool = false
     @Published var hrSignalQuality: String = "poor"
+    @Published private(set) var hrSource: HRSource = .none
     @Published var heartRate: Int?
     @Published var movementScore: Double?
     @Published var cadenceSPM: Double?
@@ -621,6 +631,13 @@ class WorkoutViewModel: ObservableObject {
         return "\(value) BPM"
     }
 
+    var launchStartButtonTitle: String {
+        if watchSessionReachable {
+            return currentLanguage == "no" ? "Start økt på Watch" : "Start workout on Watch"
+        }
+        return currentLanguage == "no" ? "Start coaching på iPhone" : "Start coaching on iPhone"
+    }
+
     var isCoachTalkActive: Bool {
         coachInteractionState == .commandMode ||
             coachInteractionState == .responding ||
@@ -743,7 +760,9 @@ class WorkoutViewModel: ObservableObject {
 
     func startWorkout() {
         activeSessionPlan = buildSessionPlanFromSelections()
-        workoutState = .active
+        clearWatchStartPendingState()
+        watchStartStatusLine = nil
+        workoutState = .idle
         showComplete = false
         coachScore = 0
         coachScoreLine = ""
@@ -778,7 +797,7 @@ class WorkoutViewModel: ObservableObject {
         } else {
             hasSkippedWarmup = false
         }
-        startContinuousWorkout()
+        requestWatchStartOrFallback()
     }
 
     func pauseWorkout() {
@@ -791,13 +810,18 @@ class WorkoutViewModel: ObservableObject {
         resumeContinuousWorkout()
     }
 
-    func stopWorkout() {
+    func stopWorkout(notifyWatch: Bool = true) {
+        if notifyWatch {
+            phoneWCManager.sendWorkoutStopped(timestamp: Date().timeIntervalSince1970)
+        }
         stopContinuousWorkout()
         workoutState = .complete
         showComplete = true
     }
 
     func resetWorkout() {
+        clearWatchStartPendingState()
+        watchStartStatusLine = nil
         workoutState = .idle
         showComplete = false
         elapsedTime = 0
@@ -1056,7 +1080,13 @@ class WorkoutViewModel: ObservableObject {
     private var lastAudioRecoveryAttempt: Date?
     private let healthKitService = HealthKitHeartRateService()
     private let motionCadenceService = MotionCadenceService()
+    private let phoneWCManager = PhoneWCManager()
     private var latestHeartRateSampleDate: Date?
+    private var lastWCHRSampleAt: Date?
+    private var pendingWatchRequestTimestamp: TimeInterval?
+    private var watchStartAckTimeoutTask: Task<Void, Never>?
+    private let watchStartAckTimeoutSeconds: TimeInterval = 15.0
+    private let wcFreshnessThresholdSeconds: TimeInterval = 10.0
     private var previousHeartRate: Int?
     private var previousHeartRateSampleDate: Date?
     private var latestMovementSampleDate: Date?
@@ -1079,6 +1109,8 @@ class WorkoutViewModel: ObservableObject {
     init() {
         loadPersistedCoachScores()
         loadWorkoutSetupPreferences()
+        configureWatchConnectivity()
+        watchSessionReachable = phoneWCManager.isReachable
 
         // Configure audio session for playback
         setupAudioSession()
@@ -2085,12 +2117,164 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Watch Connectivity
+
+    private func configureWatchConnectivity() {
+        phoneWCManager.onReachabilityChanged = { [weak self] reachable in
+            self?.watchSessionReachable = reachable
+        }
+        phoneWCManager.onHeartRate = { [weak self] bpm, ts in
+            self?.handleWCHRUpdate(bpm: bpm, timestamp: ts)
+        }
+        phoneWCManager.onWorkoutStartedAck = { [weak self] workoutType, ts in
+            self?.handleWatchWorkoutStartedAck(workoutType: workoutType, timestamp: ts)
+        }
+        phoneWCManager.onWorkoutStartFailed = { [weak self] error, ts in
+            self?.handleWatchWorkoutStartFailed(error: error, timestamp: ts)
+        }
+        phoneWCManager.onWorkoutStopped = { [weak self] ts in
+            self?.handleWatchWorkoutStopped(timestamp: ts)
+        }
+    }
+
+    private var requestedWatchWorkoutType: String {
+        runtimeWorkoutMode == .intervals ? WCKeys.WorkoutType.intervals : WCKeys.WorkoutType.easyRun
+    }
+
+    private func requestWatchStartOrFallback() {
+        let requestTimestamp = Date().timeIntervalSince1970
+        pendingWatchRequestTimestamp = requestTimestamp
+        let workoutType = requestedWatchWorkoutType
+
+        let result = phoneWCManager.sendStartRequest(
+            workoutType: workoutType,
+            timestamp: requestTimestamp
+        )
+
+        switch result {
+        case .liveRequestSent:
+            isWaitingForWatchStart = true
+            watchStartStatusLine = currentLanguage == "no"
+                ? "Venter på bekreftelse fra Watch…"
+                : "Waiting for Watch confirmation..."
+            scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp)
+        case .deferredAndFallback:
+            isWaitingForWatchStart = false
+            watchStartStatusLine = currentLanguage == "no"
+                ? "Watch ikke tilgjengelig. Starter på iPhone nå."
+                : "Watch unavailable. Starting on iPhone now."
+            startContinuousWorkoutInternal()
+        case .failed(let reason):
+            isWaitingForWatchStart = false
+            watchStartStatusLine = currentLanguage == "no"
+                ? "Kunne ikke nå Watch (\(reason)). Starter på iPhone."
+                : "Could not reach Watch (\(reason)). Starting on iPhone."
+            startContinuousWorkoutInternal()
+        }
+    }
+
+    private func scheduleWatchStartAckTimeout(requestTimestamp: TimeInterval) {
+        watchStartAckTimeoutTask?.cancel()
+        watchStartAckTimeoutTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(self.watchStartAckTimeoutSeconds * 1_000_000_000))
+            await MainActor.run {
+                guard self.isWaitingForWatchStart else { return }
+                guard self.pendingWatchRequestTimestamp == requestTimestamp else { return }
+                self.isWaitingForWatchStart = false
+                self.pendingWatchRequestTimestamp = nil
+                self.watchStartStatusLine = self.currentLanguage == "no"
+                    ? "Ingen svar fra Watch. Starter på iPhone."
+                    : "No Watch response. Starting on iPhone."
+                self.startContinuousWorkoutInternal()
+            }
+        }
+    }
+
+    private func clearWatchStartPendingState() {
+        watchStartAckTimeoutTask?.cancel()
+        watchStartAckTimeoutTask = nil
+        isWaitingForWatchStart = false
+        pendingWatchRequestTimestamp = nil
+    }
+
+    private func handleWatchWorkoutStartedAck(workoutType _: String, timestamp: TimeInterval) {
+        guard isWaitingForWatchStart else { return }
+        guard let pendingTimestamp = pendingWatchRequestTimestamp,
+              abs(pendingTimestamp - timestamp) <= 1.0 else { return }
+
+        clearWatchStartPendingState()
+        watchStartStatusLine = currentLanguage == "no"
+            ? "Watch startet økten."
+            : "Workout started on Watch."
+        startContinuousWorkoutInternal()
+    }
+
+    private func handleWatchWorkoutStartFailed(error: String, timestamp: TimeInterval) {
+        guard isWaitingForWatchStart else { return }
+        guard let pendingTimestamp = pendingWatchRequestTimestamp,
+              abs(pendingTimestamp - timestamp) <= 1.0 else { return }
+
+        clearWatchStartPendingState()
+        watchStartStatusLine = currentLanguage == "no"
+            ? "Watch-feil (\(error)). Starter på iPhone."
+            : "Watch failed (\(error)). Starting on iPhone."
+        startContinuousWorkoutInternal()
+    }
+
+    private func handleWatchWorkoutStopped(timestamp _: TimeInterval) {
+        clearWatchStartPendingState()
+        if isContinuousMode {
+            stopWorkout(notifyWatch: false)
+        }
+    }
+
+    private func handleWCHRUpdate(bpm: Double, timestamp: TimeInterval) {
+        let rounded = Int(round(bpm))
+        guard rounded > 0 else { return }
+        let sampleDate = Date(timeIntervalSince1970: timestamp)
+
+        heartRate = rounded
+        latestHeartRateSampleDate = sampleDate
+        lastWCHRSampleAt = sampleDate
+        hrSource = .wc
+        watchConnected = true
+        hrSignalQuality = "good"
+    }
+
+    private func refreshWCLiveness() {
+        guard hrSource == .wc else { return }
+        guard let lastSampleAt = lastWCHRSampleAt else {
+            hrSource = .none
+            watchConnected = false
+            hrSignalQuality = "poor"
+            return
+        }
+
+        let age = Date().timeIntervalSince(lastSampleAt)
+        if age <= wcFreshnessThresholdSeconds {
+            return
+        }
+
+        // WC stream stalled; move to HK fallback if HK has fresher data.
+        if let latest = latestHeartRateSampleDate, latest > lastSampleAt {
+            hrSource = .hk
+        } else {
+            hrSource = .none
+            heartRate = nil
+            latestHeartRateSampleDate = nil
+            hrSignalQuality = "poor"
+        }
+        watchConnected = false
+    }
+
     // MARK: - HealthKit HR Signals
 
     private func setupHealthSignals() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             watchConnected = false
             hrSignalQuality = "poor"
+            hrSource = .none
             return
         }
 
@@ -2098,6 +2282,7 @@ class WorkoutViewModel: ObservableObject {
         guard authorized else {
             watchConnected = false
             hrSignalQuality = "poor"
+            hrSource = .none
             return
         }
 
@@ -2141,6 +2326,12 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func applyHeartRateUpdate(_ update: HealthKitHeartRateService.Update) {
+        if let lastWCSampleAt = lastWCHRSampleAt,
+           Date().timeIntervalSince(lastWCSampleAt) < wcFreshnessThresholdSeconds {
+            // WC remains primary while fresh to prevent source conflicts.
+            return
+        }
+
         heartRate = update.bpm
         latestHeartRateSampleDate = update.date
 
@@ -2157,6 +2348,7 @@ class WorkoutViewModel: ObservableObject {
         }
 
         watchConnected = update.isWatchSource && !stale
+        hrSource = .hk
         hrSignalQuality = quality
         previousHeartRate = update.bpm
         previousHeartRateSampleDate = update.date
@@ -2168,19 +2360,34 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func refreshHeartRateSignalQualityFromAge() {
+        refreshWCLiveness()
+
         guard let age = hrSampleAgeSecondsForRequest else {
             watchConnected = false
             hrSignalQuality = "poor"
+            hrSource = .none
             return
         }
         if age > AppConfig.Health.hrStaleThresholdSeconds {
             watchConnected = false
             hrSignalQuality = "poor"
+            if hrSource == .wc {
+                hrSource = .none
+            }
         }
     }
 
-    private func resolvedHRQualityForRequest(heartRate: Int?, watchConnected: Bool, currentQuality: String) -> String {
-        guard heartRate != nil, watchConnected else { return "poor" }
+    private func resolvedHRQualityForRequest(
+        heartRate: Int?,
+        watchConnected: Bool,
+        currentQuality: String,
+        source: HRSource
+    ) -> String {
+        guard heartRate != nil else { return "poor" }
+        if source == .wc || source == .hk {
+            return currentQuality == "good" ? "good" : "poor"
+        }
+        guard watchConnected else { return "poor" }
         return currentQuality == "good" ? "good" : "poor"
     }
 
@@ -2213,7 +2420,14 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Continuous Coaching Loop
 
     func startContinuousWorkout() {
+        startContinuousWorkoutInternal()
+    }
+
+    private func startContinuousWorkoutInternal() {
         guard !isContinuousMode else { return }
+        clearWatchStartPendingState()
+        watchStartStatusLine = nil
+        workoutState = .active
 
         print("🎯 Starting continuous workout")
         if activeSessionPlan == nil {
@@ -2231,6 +2445,8 @@ class WorkoutViewModel: ObservableObject {
             isTalkingToCoach = false
             talkCaptureTask?.cancel()
             talkCaptureTask = nil
+            hrSource = .none
+            lastWCHRSampleAt = nil
             sessionStartTime = Date()
             workoutDuration = 0
 
@@ -2255,6 +2471,7 @@ class WorkoutViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self = self, let start = self.sessionStartTime else { return }
                     self.elapsedTime = Date().timeIntervalSince(start)
+                    self.refreshWCLiveness()
                 }
             }
 
@@ -2390,6 +2607,7 @@ class WorkoutViewModel: ObservableObject {
             Task { @MainActor in
                 guard let self = self, let start = self.sessionStartTime else { return }
                 self.elapsedTime = Date().timeIntervalSince(start)
+                self.refreshWCLiveness()
             }
         }
 
@@ -2431,6 +2649,8 @@ class WorkoutViewModel: ObservableObject {
         elapsedTimeTimer = nil
 
         // Update state
+        clearWatchStartPendingState()
+        watchStartStatusLine = nil
         isContinuousMode = false
         isPaused = false
         voiceState = .idle
@@ -2449,10 +2669,14 @@ class WorkoutViewModel: ObservableObject {
         movementState = "unknown"
         latestMovementSource = "none"
         latestMovementSampleDate = nil
+        hrSource = .none
+        lastWCHRSampleAt = nil
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
+        hrSource = .none
+        lastWCHRSampleAt = nil
 
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
@@ -2547,7 +2771,8 @@ class WorkoutViewModel: ObservableObject {
                 let tickQuality = resolvedHRQualityForRequest(
                     heartRate: tickHeartRate,
                     watchConnected: watchConnected,
-                    currentQuality: hrSignalQuality
+                    currentQuality: hrSignalQuality,
+                    source: hrSource
                 )
                 let tickMovementScore = movementScore
                 let tickCadenceSPM = cadenceSPM

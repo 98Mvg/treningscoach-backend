@@ -166,6 +166,13 @@ def test_workout_launch_shows_explicit_bpm_readout_when_watch_disconnected() -> 
     assert "Text(viewModel.watchBPMDisplayText)" in text
 
 
+def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:
+    text = _workout_launch_view_text()
+    assert "Text(viewModel.launchStartButtonTitle)" in text
+    assert ".disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)" in text
+    assert "if let watchStatus = viewModel.watchStartStatusLine {" in text
+
+
 def test_warmup_stage_labels_easy_intensity_cue() -> None:
     text = _workout_launch_view_text()
     assert 'return "\\(L10n.warmupTime) · \\(L10n.intensityEasy)"' in text
