@@ -287,11 +287,13 @@ struct WorkoutLaunchView: View {
                         }
                         .padding(.top, 4)
 
-                        Text(viewModel.launchStartSubtext)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 4)
+                        if !viewModel.launchStartSubtext.isEmpty {
+                            Text(viewModel.launchStartSubtext)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 4)
+                        }
 
                         if let authHelper = viewModel.launchAuthRequirementText {
                             Text(authHelper)
@@ -825,7 +827,7 @@ struct CircularDialPicker: View {
     }
 
     private var displayAngle: Double {
-        displayProgress * 360.0
+        isDragging ? safeAngle : (displayProgress * 360.0)
     }
 
     private var valueUnitText: String {
@@ -951,10 +953,10 @@ struct CircularDialPicker: View {
         var angle = atan2(dx, -dy) * 180 / .pi // degrees, 0 = 12 o'clock, clockwise positive
         if angle < 0 { angle += 360 }
 
-        let newPreview = nearestValue(forVisualAngle: angle)
         let oldPreview = previewValue ?? committedValue
+        let newPreview = nearestValue(forVisualAngle: angle, previousValue: oldPreview)
         previewValue = newPreview
-        currentAngle = normalizedProgress(for: newPreview) * 360.0
+        currentAngle = angle
 
         if newPreview != oldPreview {
             hapticGenerator.impactOccurred(intensity: 0.4)
@@ -967,10 +969,20 @@ struct CircularDialPicker: View {
         return Double(clamped - minValue) / Double(span)
     }
 
-    private func nearestValue(forVisualAngle angle: Double) -> Int {
+    private func nearestValue(forVisualAngle angle: Double, previousValue: Int? = nil) -> Int {
         let normalized = min(1.0, max(0.0, angle / 360.0))
-        let raw = normalized * valueSpan
-        let rounded = Int(round(raw))
+        let raw = normalized * Double(valueSpan)
+
+        let adjustedRaw: Double
+        if let previousValue {
+            let previousRaw = Double(max(minValue, min(maxValue, previousValue)) - minValue)
+            let smoothingFactor = max(1.0, dragSensitivity)
+            adjustedRaw = previousRaw + ((raw - previousRaw) / smoothingFactor)
+        } else {
+            adjustedRaw = raw
+        }
+
+        let rounded = Int(round(adjustedRaw))
         return max(minValue, min(maxValue, minValue + rounded))
     }
 

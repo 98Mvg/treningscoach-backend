@@ -2017,17 +2017,17 @@ def _event_text(
         return "30 sekunder igjen." if lang == "no" else "30 seconds left."
 
     if event_type == "interval_countdown_15":
-        return "15 sekunder igjen." if lang == "no" else "15 seconds left."
+        return "15" if lang == "no" else "15 seconds left."
 
     if event_type == "interval_countdown_5":
-        return "5 sekunder igjen." if lang == "no" else "5 seconds left."
+        return "5" if lang == "no" else "5 seconds left."
 
     if event_type == "interval_countdown_start":
-        return "Neste drag nå." if lang == "no" else "Next interval now."
+        return "Kjør på nå" if lang == "no" else "Next interval now."
 
     if event_type == "main_started":
         if lang == "no":
-            return "Hoveddel nå. Hold kontroll."
+            return "Bra jobba"
         return "Main set now. Stay controlled."
 
     if event_type == "workout_finished":
@@ -2104,7 +2104,7 @@ def _event_text(
 
     if event_type == "phase_change_warmup":
         if lang == "no":
-            return "Oppvarming nå. Hold det lett."
+            return "Nå er vi i oppvarmingsdelen."
         return "Warm-up now. Keep it easy."
 
     if event_type == "phase_change_cooldown":
@@ -2131,14 +2131,14 @@ def _event_text(
 
     if event_type == "max_silence_breath_guide":
         if segment == "work":
-            return "Pust gjennom innsatsen." if lang == "no" else "Breathe through the effort."
+            return "Herlig" if lang == "no" else "Breathe through the effort."
         if segment in {"rest", "recovery"}:
             return "Senk pustetakten." if lang == "no" else "Slow your breathing down."
         return "Tilpass pusten til tempoet." if lang == "no" else "Match your breathing to your pace."
 
     if event_type == "max_silence_go_by_feel":
         if segment == "work":
-            return "Trykk hardt men kontrollert." if lang == "no" else "Push hard but controlled."
+            return "Hold en jevn rytme" if lang == "no" else "Push hard but controlled."
         if segment in {"rest", "recovery"}:
             return "Slipp av. La kroppen hente seg inn." if lang == "no" else "Ease off. Let your body recover."
         return "Jevn innsats. Hold det behagelig." if lang == "no" else "Steady effort. Stay comfortable."

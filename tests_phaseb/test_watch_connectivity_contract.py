@@ -29,12 +29,22 @@ def test_wc_keys_define_required_commands_on_both_sides() -> None:
 
 def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     text = PHONE_WC.read_text(encoding="utf-8")
+    assert "enum WatchCapabilityState: String" in text
+    assert "case noWatchSupport" in text
+    assert "case watchNotInstalled" in text
+    assert "case watchInstalledNotReachable" in text
+    assert "case watchReady" in text
+    assert "var canUseWatchTransport: Bool" in text
+    assert "var onSessionStateChanged: ((WatchCapabilityState) -> Void)?" in text
     assert "enum StartRequestOutcome" in text
     assert "session.sendMessage(payload" in text
     assert "session.updateApplicationContext(payload)" in text
     assert ".liveRequestSent" in text
     assert ".deferredAndFallback" in text
     assert "WCKeys.requestId: requestID" in text
+    assert "guard canUseWatchTransport else {" in text
+    assert "guard canUseWatchTransport else {" in text
+    assert "WATCH_NOTIFY_SKIPPED reason=watch_unavailable" in text
 
 
 def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:

@@ -9,15 +9,41 @@ final class PhoneWCManager: NSObject, ObservableObject {
         case failed(String)
     }
 
+    enum WatchCapabilityState: String {
+        case noWatchSupport
+        case watchNotInstalled
+        case watchInstalledNotReachable
+        case watchReady
+    }
+
     @Published private(set) var isReachable: Bool = false
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var isWatchAppInstalled: Bool = false
 
+    var watchCapabilityState: WatchCapabilityState {
+        if !WCSession.isSupported() || !isPaired {
+            return .noWatchSupport
+        }
+        if !isWatchAppInstalled {
+            return .watchNotInstalled
+        }
+        if isReachable {
+            return .watchReady
+        }
+        return .watchInstalledNotReachable
+    }
+
+    var canUseWatchTransport: Bool {
+        isPaired && isWatchAppInstalled
+    }
+
     var onReachabilityChanged: ((Bool) -> Void)?
+    var onSessionStateChanged: ((WatchCapabilityState) -> Void)?
     var onWorkoutStartedAck: ((String, TimeInterval, String) -> Void)?
     var onWorkoutStartFailed: ((String, TimeInterval, String) -> Void)?
     var onWorkoutStopped: ((TimeInterval, String) -> Void)?
     var onHeartRate: ((Double, TimeInterval) -> Void)?
+    private var lastCapabilitySnapshot: String?
 
     override init() {
         super.init()
@@ -25,22 +51,27 @@ final class PhoneWCManager: NSObject, ObservableObject {
     }
 
     func activate() {
-        guard WCSession.isSupported() else { return }
+        guard WCSession.isSupported() else {
+            isReachable = false
+            isPaired = false
+            isWatchAppInstalled = false
+            emitCapabilityState(from: .noWatchSupport)
+            return
+        }
         let session = WCSession.default
         session.delegate = self
         session.activate()
-        refreshState(from: session)
     }
 
     func sendStartRequest(workoutType: String, timestamp: TimeInterval, requestID: String) -> StartRequestOutcome {
         guard WCSession.isSupported() else {
-            return .failed("watch_connectivity_unsupported")
+            return .failed("watch_unavailable")
         }
 
         let session = WCSession.default
         refreshState(from: session)
 
-        guard session.isPaired, session.isWatchAppInstalled else {
+        guard canUseWatchTransport else {
             return .failed("watch_unavailable")
         }
 
@@ -51,26 +82,35 @@ final class PhoneWCManager: NSObject, ObservableObject {
             WCKeys.timestamp: timestamp,
         ]
 
-        if session.isReachable {
+        switch watchCapabilityState {
+        case .watchReady:
             session.sendMessage(payload, replyHandler: nil) { error in
                 Task { @MainActor in
                     self.onWorkoutStartFailed?(error.localizedDescription, timestamp, requestID)
                 }
             }
             return .liveRequestSent
-        }
-
-        do {
-            try session.updateApplicationContext(payload)
-            return .deferredAndFallback
-        } catch {
-            return .failed(error.localizedDescription)
+        case .watchInstalledNotReachable:
+            do {
+                try session.updateApplicationContext(payload)
+                return .deferredAndFallback
+            } catch {
+                return .failed(error.localizedDescription)
+            }
+        case .noWatchSupport, .watchNotInstalled:
+            return .failed("watch_unavailable")
         }
     }
 
     func sendWorkoutStopped(timestamp: TimeInterval, requestID: String) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
+        refreshState(from: session)
+
+        guard canUseWatchTransport else {
+            print("WATCH_NOTIFY_SKIPPED reason=watch_unavailable capability=\(watchCapabilityState.rawValue)")
+            return
+        }
 
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.workoutStopped,
@@ -78,7 +118,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
             WCKeys.timestamp: timestamp,
         ]
 
-        if session.isReachable {
+        if watchCapabilityState == .watchReady {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
 
@@ -90,6 +130,16 @@ final class PhoneWCManager: NSObject, ObservableObject {
         isPaired = session.isPaired
         isWatchAppInstalled = session.isWatchAppInstalled
         onReachabilityChanged?(isReachable)
+        emitCapabilityState(from: watchCapabilityState)
+    }
+
+    private func emitCapabilityState(from state: WatchCapabilityState) {
+        let snapshot = "WATCH_CAPABILITY state=\(state.rawValue) paired=\(isPaired) installed=\(isWatchAppInstalled) reachable=\(isReachable)"
+        if lastCapabilitySnapshot != snapshot {
+            print(snapshot)
+            lastCapabilitySnapshot = snapshot
+        }
+        onSessionStateChanged?(state)
     }
 
     private func parseTimestamp(_ value: Any?) -> TimeInterval {

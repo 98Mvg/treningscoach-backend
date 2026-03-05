@@ -1,13 +1,13 @@
 {
   "version": "v1",
-  "generated_at": "2026-03-04T12:23:37.770111+00:00",
+  "generated_at": "2026-03-05T20:04:04.984679+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
   "total_files": 518,
-  "total_size_bytes": 16226845,
+  "total_size_bytes": 16143252,
   "phrases": [
     {
       "id": "breath.cooldown.1",
@@ -2527,8 +2527,8 @@
       },
       "no": {
         "file": "no/welcome.standard.1.mp3",
-        "size": 26375,
-        "sha256": "de999ea85a3ace63e54155076ec241efe5343651da4158706cd23e5552374343"
+        "size": 15926,
+        "sha256": "e3bca32a3edf24a892daa020a3fcf544049c2d239f48d9ab45ee77284c7cfee0"
       }
     },
     {
@@ -2982,8 +2982,8 @@
       },
       "no": {
         "file": "no/zone.breath.work.1.mp3",
-        "size": 21777,
-        "sha256": "09fda4a1856383d8819d4b0341b5139d6e7da33c9cef006c4e3e974e41f8a41a"
+        "size": 10911,
+        "sha256": "151b9a78d74d98c3455fb6b23d851f3ed88a1b1a1696929302de919407579980"
       }
     },
     {
@@ -2995,8 +2995,8 @@
       },
       "no": {
         "file": "no/zone.countdown.15.mp3",
-        "size": 20524,
-        "sha256": "2e6f374beb87d1a67f70b1bb6d74adffd7bcc90e6a707e068a379f5b2aed30db"
+        "size": 12164,
+        "sha256": "f37c6facdc02f201b918ec3b6bec13455591db851b69489e3c681f27d6964ff8"
       }
     },
     {
@@ -3021,8 +3021,8 @@
       },
       "no": {
         "file": "no/zone.countdown.5.mp3",
-        "size": 19688,
-        "sha256": "c8b6de88c6a172bb1cb4542acded6cb7ce4756192897bb56ab88b6d7fbc3b2a6"
+        "size": 7567,
+        "sha256": "34cfcd44d5cac8c88eb8c3147b98d4e15a2b6ec473bc7343b11590e26805fbd6"
       }
     },
     {
@@ -3034,8 +3034,8 @@
       },
       "no": {
         "file": "no/zone.countdown.start.mp3",
-        "size": 16762,
-        "sha256": "946395e6f6342b937220c715f0513181129d513754726a93bf9de45835ff6f4c"
+        "size": 15926,
+        "sha256": "068239e461a2d4074ebe7c59c545090b054bd62c77cedf6e05cfaf55dde0bba8"
       }
     },
     {
@@ -3112,8 +3112,8 @@
       },
       "no": {
         "file": "no/zone.feel.work.1.mp3",
-        "size": 30137,
-        "sha256": "a988d9173488552fe7860cbf3a3928e8342a8501e7a6c6d06c21882968c5871b"
+        "size": 20524,
+        "sha256": "384ea6fcccc972f052b3ef51c9972229f0b25e1053ae116dd7b2245cc425b1c4"
       }
     },
     {
@@ -3190,8 +3190,8 @@
       },
       "no": {
         "file": "no/zone.main_started.1.mp3",
-        "size": 39750,
-        "sha256": "69544cb0196dd6cdf4d016c4a244d3f08df9af95eaf853c119d812d4854e247c"
+        "size": 12164,
+        "sha256": "3bbdadf8ee0432c019c7e4741fa5956e496760f8493416935e7fffc9f66278c7"
       }
     },
     {
@@ -3268,8 +3268,8 @@
       },
       "no": {
         "file": "no/zone.phase.warmup.1.mp3",
-        "size": 30973,
-        "sha256": "76f69da054ea8db4f6035340115a73034c71327ec75bd7f0485cb9014e1c1027"
+        "size": 27211,
+        "sha256": "458fc20c2b0cde2b3521f5e5e983aa2ab4c4e70edbd46a622558b3341ef3a969"
       }
     },
     {

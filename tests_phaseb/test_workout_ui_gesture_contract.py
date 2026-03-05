@@ -174,6 +174,15 @@ def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:
     assert "if let watchStatus = viewModel.watchStartStatusLine {" in text
 
 
+def test_workout_view_model_launch_cta_and_helper_are_watch_capability_driven() -> None:
+    text = _workout_view_model_text()
+    assert "@Published private(set) var watchCapabilityState: PhoneWCManager.WatchCapabilityState = .noWatchSupport" in text
+    assert "if watchCapabilityState == .watchReady {" in text
+    assert "guard watchCapabilityState == .watchInstalledNotReachable else {" in text
+    assert ' ? "Åpne TreningsCoach på Apple Watch for live puls."' in text
+    assert ' : "Open TreningsCoach on Apple Watch for live HR."' in text
+
+
 def test_warmup_stage_labels_easy_intensity_cue() -> None:
     text = _workout_launch_view_text()
     assert 'return "\\(L10n.warmupTime) · \\(L10n.intensityEasy)"' in text
@@ -188,12 +197,13 @@ def test_active_workout_hr_fallback_is_zero_bpm() -> None:
 
 def test_active_workout_ring_uses_time_remaining_text_inside_circle() -> None:
     text = _active_workout_view_text()
-    assert "Text(viewModel.timerRingTitleText)" in text
     assert "Text(viewModel.timerRingTimeText)" in text
+    assert "Text(viewModel.timerRingTitleText)" not in text
 
 
 def test_active_workout_interval_panel_shows_countdown_cue_and_set_dots() -> None:
     text = _active_workout_view_text()
+    assert "Text(viewModel.phaseCountdownPrimaryText)" not in text
     assert "if let tertiary = viewModel.phaseCountdownTertiaryText {" in text
     assert "if !viewModel.intervalSetProgressDots.isEmpty {" in text
     assert "viewModel.intervalSetProgressDots.enumerated()" in text
@@ -219,6 +229,13 @@ def test_view_model_interval_progress_supports_recovery_start_countdown_and_done
     assert 'case 15:' in text
     assert 'case 5:' in text
     assert 'case 0 ... 1:' in text
+
+
+def test_workout_launch_hides_no_live_hr_subtext_when_no_source_is_connected() -> None:
+    text = _workout_view_model_text()
+    assert 'return currentLanguage == "no" ? "Live puls + sonecoaching" : "Live HR + zone coaching"' in text
+    assert 'return currentLanguage == "no" ? "Live puls via Bluetooth-sensor" : "Live HR via Bluetooth sensor"' in text
+    assert 'return ""' in text
 
 
 def test_view_model_persists_final_coach_score_history_for_home() -> None:

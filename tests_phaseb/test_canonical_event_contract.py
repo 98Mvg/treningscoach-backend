@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
 import zone_event_motor
-from zone_event_motor import _resolve_phrase_id, evaluate_zone_tick
+from tts_phrase_catalog import get_phrase_text
+from zone_event_motor import _event_text, _resolve_phrase_id, evaluate_zone_tick
 
 
 def _base_tick(**overrides):
@@ -302,6 +303,27 @@ def test_resolve_motivation():
 def test_resolve_unknown_returns_none():
     assert _resolve_phrase_id("some_future_event", "main") is None
     assert _resolve_phrase_id(None, "main") is None
+
+
+def test_requested_norwegian_phrase_catalog_copy():
+    assert get_phrase_text("welcome.standard.1", "no") == "Varm opp kroppen"
+    assert get_phrase_text("zone.phase.warmup.1", "no") == "Nå er vi i oppvarmingsdelen."
+    assert get_phrase_text("zone.countdown.15", "no") == "15"
+    assert get_phrase_text("zone.countdown.5", "no") == "5"
+    assert get_phrase_text("zone.countdown.start", "no") == "Kjør på nå"
+    assert get_phrase_text("zone.main_started.1", "no") == "Bra jobba"
+    assert get_phrase_text("zone.breath.work.1", "no") == "Herlig"
+    assert get_phrase_text("zone.feel.work.1", "no") == "Hold en jevn rytme"
+
+
+def test_requested_norwegian_zone_fallback_copy():
+    assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15"
+    assert _event_text(event_type="interval_countdown_5", language="no", style="normal", target_low=None, target_high=None, segment="work") == "5"
+    assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Kjør på nå"
+    assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Bra jobba"
+    assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Nå er vi i oppvarmingsdelen."
+    assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Herlig"
+    assert _event_text(event_type="max_silence_go_by_feel", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold en jevn rytme"
 
 
 # ── (Step 7) Structured logging ───────────────────────────────────────

@@ -49,12 +49,6 @@ struct ActiveWorkoutView: View {
                             .allowsHitTesting(false)
 
                         VStack(spacing: max(4, ringSize * 0.02)) {
-                            Text(viewModel.timerRingTitleText)
-                                .font(.system(size: ringSize * 0.08, weight: .medium))
-                                .foregroundColor(.white.opacity(0.86))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-
                             Text(viewModel.timerRingTimeText)
                                 .font(.system(size: ringSize * 0.22, weight: .semibold, design: .monospaced))
                                 .foregroundColor(.white.opacity(0.96))
@@ -79,8 +73,10 @@ struct ActiveWorkoutView: View {
                     bpmStatusPill
                         .padding(.top, 22)
 
-                    phaseCountdownPanel
-                        .padding(.top, 10)
+                    if shouldShowPhaseCountdownPanel {
+                        phaseCountdownPanel
+                            .padding(.top, 10)
+                    }
 
                     if let liveBanner = viewModel.liveHRBannerText {
                         Text(liveBanner)
@@ -253,12 +249,6 @@ struct ActiveWorkoutView: View {
 
     private var phaseCountdownPanel: some View {
         VStack(spacing: 4) {
-            Text(viewModel.phaseCountdownPrimaryText)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(Color.white.opacity(0.96))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
             if let secondary = viewModel.phaseCountdownSecondaryText {
                 Text(secondary)
                     .font(.system(size: 13, weight: .medium))
@@ -301,6 +291,12 @@ struct ActiveWorkoutView: View {
                 )
         )
         .padding(.horizontal, 20)
+    }
+
+    private var shouldShowPhaseCountdownPanel: Bool {
+        viewModel.phaseCountdownSecondaryText != nil ||
+            viewModel.phaseCountdownTertiaryText != nil ||
+            !viewModel.intervalSetProgressDots.isEmpty
     }
 
     @ViewBuilder

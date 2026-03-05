@@ -200,6 +200,7 @@ class WorkoutViewModel: ObservableObject {
         }
     }
     @Published var watchSessionReachable: Bool = false
+    @Published private(set) var watchCapabilityState: PhoneWCManager.WatchCapabilityState = .noWatchSupport
     @Published var isWaitingForWatchStart: Bool = false
     @Published var watchStartStatusLine: String?
     @Published var watchConnected: Bool = false
@@ -523,20 +524,20 @@ class WorkoutViewModel: ObservableObject {
     }
 
     var launchStartButtonTitle: String {
-        if watchSessionReachable {
+        if watchCapabilityState == .watchReady {
             return currentLanguage == "no" ? "Start på Watch" : "Start on Watch"
         }
         return currentLanguage == "no" ? "Start" : "Start"
     }
 
     var launchStartSubtext: String {
-        if watchSessionReachable {
+        if watchCapabilityState == .watchReady {
             return currentLanguage == "no" ? "Live puls + sonecoaching" : "Live HR + zone coaching"
         }
         if bleConnected {
             return currentLanguage == "no" ? "Live puls via Bluetooth-sensor" : "Live HR via Bluetooth sensor"
         }
-        return currentLanguage == "no" ? "Ingen live puls (du kan fortsatt coache)" : "No live HR (you can still coach)"
+        return ""
     }
 
     var canInitiateWorkoutStart: Bool {
@@ -553,12 +554,12 @@ class WorkoutViewModel: ObservableObject {
     }
 
     var watchReachabilityHelperText: String? {
-        guard !watchSessionReachable, phoneWCManager.isPaired, phoneWCManager.isWatchAppInstalled else {
+        guard watchCapabilityState == .watchInstalledNotReachable else {
             return nil
         }
         return currentLanguage == "no"
-            ? "Åpne TreningsCoach på Watch for å aktivere live puls"
-            : "Open TreningsCoach on Watch to enable live HR"
+            ? "Åpne TreningsCoach på Apple Watch for live puls."
+            : "Open TreningsCoach on Apple Watch for live HR."
     }
 
     var isCoachTalkActive: Bool {
@@ -693,6 +694,7 @@ class WorkoutViewModel: ObservableObject {
     func startWorkout() {
         activeSessionPlan = buildSessionPlanFromSelections()
         clearWatchStartPendingState()
+        activeWatchRequestId = nil
         watchStartStatusLine = nil
         coachingStatusLine = nil
         workoutState = .idle
@@ -730,7 +732,15 @@ class WorkoutViewModel: ObservableObject {
         } else {
             hasSkippedWarmup = false
         }
-        requestWatchStartOrFallback()
+        switch watchCapabilityState {
+        case .watchReady, .watchInstalledNotReachable:
+            requestWatchStartOrFallback()
+        case .watchNotInstalled, .noWatchSupport:
+            print(
+                "START_REQUEST request_id=none workout_type=\(requestedWatchWorkoutType) path=local reason=watch_unavailable capability=\(watchCapabilityState.rawValue)"
+            )
+            startContinuousWorkoutInternal()
+        }
     }
 
     func pauseWorkout() {
@@ -745,8 +755,13 @@ class WorkoutViewModel: ObservableObject {
 
     func stopWorkout(notifyWatch: Bool = true) {
         if notifyWatch {
-            let requestID = activeWatchRequestId ?? pendingWatchRequestId ?? UUID().uuidString
-            phoneWCManager.sendWorkoutStopped(timestamp: Date().timeIntervalSince1970, requestID: requestID)
+            if !phoneWCManager.canUseWatchTransport {
+                print("WATCH_NOTIFY_SKIPPED reason=watch_unavailable capability=\(watchCapabilityState.rawValue)")
+            } else if let requestID = activeWatchRequestId ?? pendingWatchRequestId, !requestID.isEmpty {
+                phoneWCManager.sendWorkoutStopped(timestamp: Date().timeIntervalSince1970, requestID: requestID)
+            } else {
+                print("WATCH_NOTIFY_SKIPPED reason=no_active_watch_request capability=\(watchCapabilityState.rawValue)")
+            }
         }
         stopContinuousWorkout()
         workoutState = .complete
@@ -1151,7 +1166,8 @@ class WorkoutViewModel: ObservableObject {
         loadWorkoutSetupPreferences()
         configureHeartRatePipeline()
         configureWatchConnectivity()
-        watchSessionReachable = phoneWCManager.isReachable
+        watchCapabilityState = phoneWCManager.watchCapabilityState
+        watchSessionReachable = watchCapabilityState == .watchReady
         watchHRProvider.updateSessionState(
             reachable: phoneWCManager.isReachable,
             paired: phoneWCManager.isPaired,
@@ -2226,6 +2242,19 @@ class WorkoutViewModel: ObservableObject {
                 installed: self.phoneWCManager.isWatchAppInstalled
             )
         }
+        phoneWCManager.onSessionStateChanged = { [weak self] capabilityState in
+            guard let self else { return }
+            self.watchCapabilityState = capabilityState
+            self.watchSessionReachable = capabilityState == .watchReady
+            self.watchHRProvider.updateSessionState(
+                reachable: self.phoneWCManager.isReachable,
+                paired: self.phoneWCManager.isPaired,
+                installed: self.phoneWCManager.isWatchAppInstalled
+            )
+            print(
+                "WATCH_CAPABILITY state=\(capabilityState.rawValue) paired=\(self.phoneWCManager.isPaired) installed=\(self.phoneWCManager.isWatchAppInstalled) reachable=\(self.phoneWCManager.isReachable)"
+            )
+        }
         phoneWCManager.onHeartRate = { [weak self] bpm, ts in
             self?.handleWCHRUpdate(bpm: bpm, timestamp: ts)
         }
@@ -2260,21 +2289,27 @@ class WorkoutViewModel: ObservableObject {
 
         switch result {
         case .liveRequestSent:
-            print("START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=watch")
+            print(
+                "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=watch capability=\(watchCapabilityState.rawValue)"
+            )
             isWaitingForWatchStart = true
             watchStartStatusLine = currentLanguage == "no"
                 ? "Venter på bekreftelse fra Watch…"
                 : "Waiting for Watch confirmation..."
             scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp, requestID: requestID)
         case .deferredAndFallback:
-            print("START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local")
+            print(
+                "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=watch_not_reachable capability=\(watchCapabilityState.rawValue)"
+            )
             isWaitingForWatchStart = false
             watchStartStatusLine = currentLanguage == "no"
                 ? "Watch ikke tilgjengelig. Starter på iPhone nå."
                 : "Watch unavailable. Starting on iPhone now."
             startContinuousWorkoutInternal()
         case .failed(let reason):
-            print("START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=\(reason)")
+            print(
+                "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=\(reason) capability=\(watchCapabilityState.rawValue)"
+            )
             isWaitingForWatchStart = false
             watchStartStatusLine = currentLanguage == "no"
                 ? "Kunne ikke nå Watch (\(reason)). Starter på iPhone."
