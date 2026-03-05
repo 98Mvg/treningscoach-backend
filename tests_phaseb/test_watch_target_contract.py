@@ -19,6 +19,7 @@ def test_watch_target_contains_healthkit_usage_key_in_build_settings() -> None:
     text = PBXPROJ.read_text(encoding="utf-8")
     assert "INFOPLIST_KEY_NSHealthShareUsageDescription" in text
     assert "TreningsCoachWatchApp/Info.plist" in text
+    assert "INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription" in text
 
 
 def test_watch_support_files_exist() -> None:

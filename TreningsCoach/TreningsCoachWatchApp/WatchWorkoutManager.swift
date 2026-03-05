@@ -8,6 +8,8 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     private var workoutSession: HKWorkoutSession?
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var requestTimestamp: TimeInterval?
+    private var requestID: String?
+    private var didSendStopForCurrentSession = false
 
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var currentHR: Double?
@@ -20,8 +22,10 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         try await healthStore.requestAuthorization(toShare: [], read: [hrType])
     }
 
-    func startWorkout(workoutType: String, requestTimestamp: TimeInterval) async {
+    func startWorkout(workoutType: String, requestTimestamp: TimeInterval, requestID: String) async {
         self.requestTimestamp = requestTimestamp
+        self.requestID = requestID
+        didSendStopForCurrentSession = false
         let normalized = WCKeys.WorkoutType.normalized(workoutType)
         let activityType: HKWorkoutActivityType = normalized == WCKeys.WorkoutType.intervals
             ? .highIntensityIntervalTraining
@@ -80,6 +84,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         let ts = requestTimestamp ?? Date().timeIntervalSince1970
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.workoutStarted,
+            WCKeys.requestId: requestID ?? "",
             WCKeys.workoutType: workoutType,
             WCKeys.timestamp: ts,
         ]
@@ -94,6 +99,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         let ts = requestTimestamp ?? Date().timeIntervalSince1970
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.workoutStartFailed,
+            WCKeys.requestId: requestID ?? "",
             WCKeys.error: sanitized.isEmpty ? "workout_start_failed" : sanitized,
             WCKeys.timestamp: ts,
         ]
@@ -105,8 +111,11 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     }
 
     private func sendWorkoutStoppedSignal() {
+        guard !didSendStopForCurrentSession else { return }
+        didSendStopForCurrentSession = true
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.workoutStopped,
+            WCKeys.requestId: requestID ?? "",
             WCKeys.timestamp: Date().timeIntervalSince1970,
         ]
 

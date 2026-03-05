@@ -1,0 +1,820 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		955D713B2F544FE0001A88FA /* AudioPackSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 955D713A2F544FE0001A88FA /* AudioPackSyncManager.swift */; };
+		AA0001 /* TreningsCoachApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000 /* TreningsCoachApp.swift */; };
+		AA0003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002 /* ContentView.swift */; };
+		AA0005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0004 /* Assets.xcassets */; };
+		AA0010 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0009 /* Models.swift */; };
+		AA0012 /* AudioRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011 /* AudioRecordingManager.swift */; };
+		AA0014 /* BackendAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0013 /* BackendAPIService.swift */; };
+		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
+		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
+		HR1001 /* HeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1000 /* HeartRateProvider.swift */; };
+		HR1003 /* AppleWatchWCProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1002 /* AppleWatchWCProvider.swift */; };
+		HR1005 /* BLEHeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1004 /* BLEHeartRateProvider.swift */; };
+		HR1007 /* HealthKitFallbackProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1006 /* HealthKitFallbackProvider.swift */; };
+		HR1009 /* HeartRateArbiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1008 /* HeartRateArbiter.swift */; };
+		WD1001 /* TreningsCoachWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1000 /* TreningsCoachWatchApp.swift */; };
+		WD1003 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1002 /* WatchRootView.swift */; };
+		WD1005 /* WatchStartWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1004 /* WatchStartWorkoutView.swift */; };
+		WD1007 /* WatchWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1006 /* WatchWCManager.swift */; };
+		WD1009 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1008 /* WatchWorkoutManager.swift */; };
+		WD1011 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1010 /* WCKeys.swift */; };
+		AA0016 /* WorkoutViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0015 /* WorkoutViewModel.swift */; };
+		AA0020 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0019 /* Config.swift */; };
+		AA0022 /* ContinuousRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0021 /* ContinuousRecordingManager.swift */; };
+		AA1001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1000 /* AppTheme.swift */; };
+		AA1003 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1002 /* HomeView.swift */; };
+		AA1007 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1006 /* ProfileView.swift */; };
+		AA1009 /* TimerRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1008 /* TimerRingView.swift */; };
+		AA1011 /* StatCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1010 /* StatCardView.swift */; };
+		AA2001 /* CoachPersonality.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000 /* CoachPersonality.swift */; };
+		AA2003 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2002 /* UserProfile.swift */; };
+		AA2005 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2004 /* AuthManager.swift */; };
+		AA2007 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2006 /* KeychainHelper.swift */; };
+		AA2009 /* WakeWordManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2008 /* WakeWordManager.swift */; };
+		AA2013 /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2012 /* OnboardingContainerView.swift */; };
+		AA2015 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2014 /* AuthView.swift */; };
+		AA2017 /* LanguageSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2016 /* LanguageSelectionView.swift */; };
+		AA2019 /* TrainingLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2018 /* TrainingLevelView.swift */; };
+		AA2021 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2020 /* L10n.swift */; };
+		AA3001 /* AudioPipelineDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3000 /* AudioPipelineDiagnostics.swift */; };
+		AA3003 /* AudioDiagnosticOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3002 /* AudioDiagnosticOverlayView.swift */; };
+		AA4001 /* LanguageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4000 /* LanguageSettingsView.swift */; };
+		AA5001 /* CoreAudioPack in Resources */ = {isa = PBXBuildFile; fileRef = AA5000 /* CoreAudioPack */; };
+		BB0001 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000 /* AppViewModel.swift */; };
+		BB0003 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0002 /* HomeViewModel.swift */; };
+		BB0005 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0004 /* ProfileViewModel.swift */; };
+		BB0011 /* CoachOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0010 /* CoachOrbView.swift */; };
+		BB0013 /* CoachiLogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0012 /* CoachiLogoView.swift */; };
+		BB0015 /* CustomTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0014 /* CustomTabBar.swift */; };
+		BB0017 /* GlassCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0016 /* GlassCardView.swift */; };
+		BB0019 /* ParticleBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0018 /* ParticleBackgroundView.swift */; };
+		BB0021 /* PersonaChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0020 /* PersonaChipView.swift */; };
+		BB0023 /* PulseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0022 /* PulseButtonView.swift */; };
+		BB0025 /* RecentWorkoutRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0024 /* RecentWorkoutRow.swift */; };
+		BB0027 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0026 /* WaveformView.swift */; };
+		BB0029 /* WeeklyProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0028 /* WeeklyProgressRing.swift */; };
+		BB0031 /* FeaturesPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0030 /* FeaturesPageView.swift */; };
+		BB0033 /* SetupPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0032 /* SetupPageView.swift */; };
+		BB0035 /* WelcomePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0034 /* WelcomePageView.swift */; };
+		BB0037 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0036 /* RootView.swift */; };
+		BB0039 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0038 /* SettingsView.swift */; };
+		BB0041 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0040 /* ActiveWorkoutView.swift */; };
+		BB0043 /* WorkoutCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0042 /* WorkoutCompleteView.swift */; };
+		BB0045 /* WorkoutLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0044 /* WorkoutLaunchView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		955D713A2F544FE0001A88FA /* AudioPackSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPackSyncManager.swift; sourceTree = "<group>"; };
+		95A759292F47B286002D296C /* TreningsCoach.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TreningsCoach.entitlements; sourceTree = "<group>"; };
+		AA0000 /* TreningsCoachApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreningsCoachApp.swift; sourceTree = "<group>"; };
+		AA0002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA0004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA0009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		AA0011 /* AudioRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingManager.swift; sourceTree = "<group>"; };
+		AA0013 /* BackendAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIService.swift; sourceTree = "<group>"; };
+		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
+		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
+		HR1000 /* HeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateProvider.swift; sourceTree = "<group>"; };
+		HR1002 /* AppleWatchWCProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleWatchWCProvider.swift; sourceTree = "<group>"; };
+		HR1004 /* BLEHeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEHeartRateProvider.swift; sourceTree = "<group>"; };
+		HR1006 /* HealthKitFallbackProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitFallbackProvider.swift; sourceTree = "<group>"; };
+		HR1008 /* HeartRateArbiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateArbiter.swift; sourceTree = "<group>"; };
+		WD1000 /* TreningsCoachWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreningsCoachWatchApp.swift; sourceTree = "<group>"; };
+		WD1002 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
+		WD1004 /* WatchStartWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStartWorkoutView.swift; sourceTree = "<group>"; };
+		WD1006 /* WatchWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWCManager.swift; sourceTree = "<group>"; };
+		WD1008 /* WatchWorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
+		WD1010 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
+		WD1012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		WD1013 /* TreningsCoachWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TreningsCoachWatchApp.entitlements; sourceTree = "<group>"; };
+		WDWATCHAPP /* TreningsCoachWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TreningsCoachWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0015 /* WorkoutViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutViewModel.swift; sourceTree = "<group>"; };
+		AA0019 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		AA0021 /* ContinuousRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuousRecordingManager.swift; sourceTree = "<group>"; };
+		AA1000 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		AA1002 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AA1006 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		AA1008 /* TimerRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerRingView.swift; sourceTree = "<group>"; };
+		AA1010 /* StatCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCardView.swift; sourceTree = "<group>"; };
+		AA2000 /* CoachPersonality.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachPersonality.swift; sourceTree = "<group>"; };
+		AA2002 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
+		AA2004 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		AA2006 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
+		AA2008 /* WakeWordManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeWordManager.swift; sourceTree = "<group>"; };
+		AA2012 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
+		AA2014 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		AA2016 /* LanguageSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageSelectionView.swift; sourceTree = "<group>"; };
+		AA2018 /* TrainingLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingLevelView.swift; sourceTree = "<group>"; };
+		AA2020 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
+		AA3000 /* AudioPipelineDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipelineDiagnostics.swift; sourceTree = "<group>"; };
+		AA3002 /* AudioDiagnosticOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDiagnosticOverlayView.swift; sourceTree = "<group>"; };
+		AA4000 /* LanguageSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageSettingsView.swift; sourceTree = "<group>"; };
+		AA5000 /* CoreAudioPack */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CoreAudioPack; sourceTree = "<group>"; };
+		AAAPP /* TreningsCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TreningsCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAINFO /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BB0000 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		BB0002 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
+		BB0004 /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
+		BB0010 /* CoachOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachOrbView.swift; sourceTree = "<group>"; };
+		BB0012 /* CoachiLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachiLogoView.swift; sourceTree = "<group>"; };
+		BB0014 /* CustomTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTabBar.swift; sourceTree = "<group>"; };
+		BB0016 /* GlassCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCardView.swift; sourceTree = "<group>"; };
+		BB0018 /* ParticleBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParticleBackgroundView.swift; sourceTree = "<group>"; };
+		BB0020 /* PersonaChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaChipView.swift; sourceTree = "<group>"; };
+		BB0022 /* PulseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulseButtonView.swift; sourceTree = "<group>"; };
+		BB0024 /* RecentWorkoutRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentWorkoutRow.swift; sourceTree = "<group>"; };
+		BB0026 /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
+		BB0028 /* WeeklyProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressRing.swift; sourceTree = "<group>"; };
+		BB0030 /* FeaturesPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturesPageView.swift; sourceTree = "<group>"; };
+		BB0032 /* SetupPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupPageView.swift; sourceTree = "<group>"; };
+		BB0034 /* WelcomePageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomePageView.swift; sourceTree = "<group>"; };
+		BB0036 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		BB0038 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		BB0040 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutView.swift; sourceTree = "<group>"; };
+		BB0042 /* WorkoutCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCompleteView.swift; sourceTree = "<group>"; };
+		BB0044 /* WorkoutLaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLaunchView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AAFRAMEWORKS /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		WD2000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AACOMPONENTS /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				AA1008 /* TimerRingView.swift */,
+				AA1010 /* StatCardView.swift */,
+				AA3002 /* AudioDiagnosticOverlayView.swift */,
+				BB0010 /* CoachOrbView.swift */,
+				BB0012 /* CoachiLogoView.swift */,
+				BB0014 /* CustomTabBar.swift */,
+				BB0016 /* GlassCardView.swift */,
+				BB0018 /* ParticleBackgroundView.swift */,
+				BB0020 /* PersonaChipView.swift */,
+				BB0022 /* PulseButtonView.swift */,
+				BB0024 /* RecentWorkoutRow.swift */,
+				BB0026 /* WaveformView.swift */,
+				BB0028 /* WeeklyProgressRing.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		AALOCALIZATION /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				AA2020 /* L10n.swift */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
+		AAMODELS /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AA0009 /* Models.swift */,
+				AA2000 /* CoachPersonality.swift */,
+				AA2002 /* UserProfile.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		AAONBOARDING /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				AA2012 /* OnboardingContainerView.swift */,
+				AA2014 /* AuthView.swift */,
+				AA2016 /* LanguageSelectionView.swift */,
+				AA2018 /* TrainingLevelView.swift */,
+				BB0030 /* FeaturesPageView.swift */,
+				BB0032 /* SetupPageView.swift */,
+				BB0034 /* WelcomePageView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		AAPRODUCTS /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AAAPP /* TreningsCoach.app */,
+				WDWATCHAPP /* TreningsCoachWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AARESOURCES /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AA0004 /* Assets.xcassets */,
+				AA5000 /* CoreAudioPack */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AAROOT = {
+			isa = PBXGroup;
+			children = (
+				AATRENINGSCOACH /* TreningsCoach */,
+				WDWATCHGROUP /* TreningsCoachWatchApp */,
+				AAPRODUCTS /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AASERVICES /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AA0011 /* AudioRecordingManager.swift */,
+				AA0013 /* BackendAPIService.swift */,
+				CC1000 /* PhoneWCManager.swift */,
+				AA0021 /* ContinuousRecordingManager.swift */,
+				AA2004 /* AuthManager.swift */,
+				AA2006 /* KeychainHelper.swift */,
+				AA2008 /* WakeWordManager.swift */,
+				AA3000 /* AudioPipelineDiagnostics.swift */,
+				955D713A2F544FE0001A88FA /* AudioPackSyncManager.swift */,
+				HR1010 /* HeartRate */,
+				CC1004 /* WC */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		HR1010 /* HeartRate */ = {
+			isa = PBXGroup;
+			children = (
+				HR1000 /* HeartRateProvider.swift */,
+				HR1002 /* AppleWatchWCProvider.swift */,
+				HR1004 /* BLEHeartRateProvider.swift */,
+				HR1006 /* HealthKitFallbackProvider.swift */,
+				HR1008 /* HeartRateArbiter.swift */,
+			);
+			path = HeartRate;
+			sourceTree = "<group>";
+		};
+		CC1004 /* WC */ = {
+			isa = PBXGroup;
+			children = (
+				CC1002 /* WCKeys.swift */,
+			);
+			path = WC;
+			sourceTree = "<group>";
+		};
+		AASETTINGS /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				AA4000 /* LanguageSettingsView.swift */,
+				BB0038 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		AATABS /* Tabs */ = {
+			isa = PBXGroup;
+			children = (
+				AA1002 /* HomeView.swift */,
+				AA1006 /* ProfileView.swift */,
+				BB0040 /* ActiveWorkoutView.swift */,
+				BB0042 /* WorkoutCompleteView.swift */,
+				BB0044 /* WorkoutLaunchView.swift */,
+			);
+			path = Tabs;
+			sourceTree = "<group>";
+		};
+		AATHEME /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				AA1000 /* AppTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		AATRENINGSCOACH /* TreningsCoach */ = {
+			isa = PBXGroup;
+			children = (
+				95A759292F47B286002D296C /* TreningsCoach.entitlements */,
+				AA0000 /* TreningsCoachApp.swift */,
+				AA0019 /* Config.swift */,
+				AAVIEWS /* Views */,
+				AAVIEWMODELS /* ViewModels */,
+				AASERVICES /* Services */,
+				AAMODELS /* Models */,
+				AALOCALIZATION /* Localization */,
+				AARESOURCES /* Resources */,
+				AAINFO /* Info.plist */,
+			);
+			path = TreningsCoach;
+			sourceTree = "<group>";
+		};
+		AAVIEWMODELS /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				AA0015 /* WorkoutViewModel.swift */,
+				BB0000 /* AppViewModel.swift */,
+				BB0002 /* HomeViewModel.swift */,
+				BB0004 /* ProfileViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		AAVIEWS /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				AA0002 /* ContentView.swift */,
+				BB0036 /* RootView.swift */,
+				AATHEME /* Theme */,
+				AATABS /* Tabs */,
+				AACOMPONENTS /* Components */,
+				AAONBOARDING /* Onboarding */,
+				AASETTINGS /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		WDWATCHGROUP /* TreningsCoachWatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				WD1013 /* TreningsCoachWatchApp.entitlements */,
+				WD1000 /* TreningsCoachWatchApp.swift */,
+				WD1002 /* WatchRootView.swift */,
+				WD1004 /* WatchStartWorkoutView.swift */,
+				WD1006 /* WatchWCManager.swift */,
+				WD1008 /* WatchWorkoutManager.swift */,
+				WD1010 /* WCKeys.swift */,
+				WD1012 /* Info.plist */,
+			);
+			path = TreningsCoachWatchApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AATARGET /* TreningsCoach */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AABUILDCONFIG /* Build configuration list for PBXNativeTarget "TreningsCoach" */;
+			buildPhases = (
+				AASOURCES /* Sources */,
+				AAFRAMEWORKS /* Frameworks */,
+				AARESOURCESBUILD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TreningsCoach;
+			productName = TreningsCoach;
+			productReference = AAAPP /* TreningsCoach.app */;
+			productType = "com.apple.product-type.application";
+		};
+		WDTARGET /* TreningsCoachWatchApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = WD3000 /* Build configuration list for PBXNativeTarget "TreningsCoachWatchApp" */;
+			buildPhases = (
+				WD2001 /* Sources */,
+				WD2000 /* Frameworks */,
+				WD2002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TreningsCoachWatchApp;
+			productName = TreningsCoachWatchApp;
+			productReference = WDWATCHAPP /* TreningsCoachWatch.app */;
+			productType = "com.apple.product-type.application.watchapp2";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AAPROJECT /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 2620;
+				ORGANIZATIONNAME = "Marius Gaarder";
+				TargetAttributes = {
+					AATARGET = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					WDTARGET = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = AAPROJECTCONFIG /* Build configuration list for PBXProject "TreningsCoach" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = AAROOT;
+			productRefGroup = AAPRODUCTS /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AATARGET /* TreningsCoach */,
+				WDTARGET /* TreningsCoachWatchApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AARESOURCESBUILD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0005 /* Assets.xcassets in Resources */,
+				AA5001 /* CoreAudioPack in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		WD2002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AASOURCES /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0003 /* ContentView.swift in Sources */,
+				AA0001 /* TreningsCoachApp.swift in Sources */,
+				AA0010 /* Models.swift in Sources */,
+				AA0012 /* AudioRecordingManager.swift in Sources */,
+				AA0014 /* BackendAPIService.swift in Sources */,
+				CC1001 /* PhoneWCManager.swift in Sources */,
+				CC1003 /* WCKeys.swift in Sources */,
+				HR1003 /* AppleWatchWCProvider.swift in Sources */,
+				HR1005 /* BLEHeartRateProvider.swift in Sources */,
+				HR1007 /* HealthKitFallbackProvider.swift in Sources */,
+				HR1009 /* HeartRateArbiter.swift in Sources */,
+				HR1001 /* HeartRateProvider.swift in Sources */,
+				AA0016 /* WorkoutViewModel.swift in Sources */,
+				AA0020 /* Config.swift in Sources */,
+				AA0022 /* ContinuousRecordingManager.swift in Sources */,
+				AA1001 /* AppTheme.swift in Sources */,
+				AA1003 /* HomeView.swift in Sources */,
+				AA1007 /* ProfileView.swift in Sources */,
+				AA1009 /* TimerRingView.swift in Sources */,
+				AA1011 /* StatCardView.swift in Sources */,
+				AA2001 /* CoachPersonality.swift in Sources */,
+				AA2003 /* UserProfile.swift in Sources */,
+				AA2005 /* AuthManager.swift in Sources */,
+				AA2007 /* KeychainHelper.swift in Sources */,
+				AA2009 /* WakeWordManager.swift in Sources */,
+				AA2013 /* OnboardingContainerView.swift in Sources */,
+				AA2015 /* AuthView.swift in Sources */,
+				AA2017 /* LanguageSelectionView.swift in Sources */,
+				AA2019 /* TrainingLevelView.swift in Sources */,
+				AA2021 /* L10n.swift in Sources */,
+				AA3001 /* AudioPipelineDiagnostics.swift in Sources */,
+				AA3003 /* AudioDiagnosticOverlayView.swift in Sources */,
+				AA4001 /* LanguageSettingsView.swift in Sources */,
+				BB0001 /* AppViewModel.swift in Sources */,
+				BB0003 /* HomeViewModel.swift in Sources */,
+				BB0005 /* ProfileViewModel.swift in Sources */,
+				BB0011 /* CoachOrbView.swift in Sources */,
+				955D713B2F544FE0001A88FA /* AudioPackSyncManager.swift in Sources */,
+				BB0013 /* CoachiLogoView.swift in Sources */,
+				BB0015 /* CustomTabBar.swift in Sources */,
+				BB0017 /* GlassCardView.swift in Sources */,
+				BB0019 /* ParticleBackgroundView.swift in Sources */,
+				BB0021 /* PersonaChipView.swift in Sources */,
+				BB0023 /* PulseButtonView.swift in Sources */,
+				BB0025 /* RecentWorkoutRow.swift in Sources */,
+				BB0027 /* WaveformView.swift in Sources */,
+				BB0029 /* WeeklyProgressRing.swift in Sources */,
+				BB0031 /* FeaturesPageView.swift in Sources */,
+				BB0033 /* SetupPageView.swift in Sources */,
+				BB0035 /* WelcomePageView.swift in Sources */,
+				BB0037 /* RootView.swift in Sources */,
+				BB0039 /* SettingsView.swift in Sources */,
+				BB0041 /* ActiveWorkoutView.swift in Sources */,
+				BB0043 /* WorkoutCompleteView.swift in Sources */,
+				BB0045 /* WorkoutLaunchView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		WD2001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				WD1001 /* TreningsCoachWatchApp.swift in Sources */,
+				WD1003 /* WatchRootView.swift in Sources */,
+				WD1005 /* WatchStartWorkoutView.swift in Sources */,
+				WD1007 /* WatchWCManager.swift in Sources */,
+				WD1009 /* WatchWorkoutManager.swift in Sources */,
+				WD1011 /* WCKeys.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AADEBUG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 74WYNBLYTQ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AARELEASE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 74WYNBLYTQ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AATARGETDEBUG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
+				CODE_SIGN_ENTITLEMENTS = TreningsCoach/TreningsCoach.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TreningsCoach/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Treningscoach;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth access is used to connect to live heart-rate sensors during workouts.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Health access is used to read heart rate and resting heart rate so coaching can keep you in the right training zone.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record your breathing during workouts and provide real-time coaching feedback.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion access is used to estimate cadence and movement so coaching stays accurate when heart-rate signal is weak.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speech recognition is used for hands-free voice commands during workouts, like saying \"Coach\" to talk to your trainer.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach;
+				PRODUCT_NAME = TreningsCoach;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AATARGETRELEASE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
+				CODE_SIGN_ENTITLEMENTS = TreningsCoach/TreningsCoach.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TreningsCoach/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Treningscoach;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth access is used to connect to live heart-rate sensors during workouts.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Health access is used to read heart rate and resting heart rate so coaching can keep you in the right training zone.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record your breathing during workouts and provide real-time coaching feedback.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion access is used to estimate cadence and movement so coaching stays accurate when heart-rate signal is weak.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speech recognition is used for hands-free voice commands during workouts, like saying \"Coach\" to talk to your trainer.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach;
+				PRODUCT_NAME = TreningsCoach;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		WDTARGETDEBUG /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
+				CODE_SIGN_ENTITLEMENTS = TreningsCoachWatchApp/TreningsCoachWatchApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TreningsCoachWatchApp/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read heart rate during workouts to coach you live.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mariusgaarder.TreningsCoach;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach.watchapp;
+				PRODUCT_NAME = TreningsCoachWatch;
+				SDKROOT = watchos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		WDTARGETRELEASE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
+				CODE_SIGN_ENTITLEMENTS = TreningsCoachWatchApp/TreningsCoachWatchApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TreningsCoachWatchApp/Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read heart rate during workouts to coach you live.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mariusgaarder.TreningsCoach;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach.watchapp;
+				PRODUCT_NAME = TreningsCoachWatch;
+				SDKROOT = watchos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AABUILDCONFIG /* Build configuration list for PBXNativeTarget "TreningsCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AATARGETDEBUG /* Debug */,
+				AATARGETRELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAPROJECTCONFIG /* Build configuration list for PBXProject "TreningsCoach" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AADEBUG /* Debug */,
+				AARELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		WD3000 /* Build configuration list for PBXNativeTarget "TreningsCoachWatchApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				WDTARGETDEBUG /* Debug */,
+				WDTARGETRELEASE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AAPROJECT /* Project object */;
+}

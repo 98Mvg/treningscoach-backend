@@ -2,6 +2,7 @@ import Foundation
 
 enum WCKeys {
     static let cmd = "cmd"
+    static let requestId = "request_id"
     static let workoutType = "workout_type"
     static let timestamp = "ts"
     static let heartRate = "hr"

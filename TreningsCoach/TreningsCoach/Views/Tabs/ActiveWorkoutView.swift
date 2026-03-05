@@ -74,6 +74,19 @@ struct ActiveWorkoutView: View {
                     phaseCountdownPanel
                         .padding(.top, 10)
 
+                    if let liveBanner = viewModel.liveHRBannerText {
+                        Text(liveBanner)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.82))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.22))
+                            )
+                            .padding(.top, 8)
+                    }
+
                     Spacer()
 
                     bottomControlPanel
@@ -131,14 +144,24 @@ struct ActiveWorkoutView: View {
     }
 
     private var bpmText: String {
-        if viewModel.watchConnected {
+        if viewModel.hrSource == .wc || viewModel.hrSource == .ble {
             return "LIVE \(viewModel.watchBPMDisplayText)"
+        }
+        if viewModel.hrSource == .hk {
+            return "HK \(viewModel.watchBPMDisplayText)"
         }
         return "0 BPM"
     }
 
     private var bpmColor: Color {
-        viewModel.watchConnected ? .green : .red
+        switch viewModel.hrSource {
+        case .wc, .ble:
+            return .green
+        case .hk:
+            return .orange
+        case .none:
+            return .red
+        }
     }
 
     private var consoleIconButton: some View {

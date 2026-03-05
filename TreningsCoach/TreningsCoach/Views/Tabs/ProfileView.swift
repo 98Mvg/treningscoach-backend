@@ -568,14 +568,24 @@ private struct BirthDateEditorSheet: View {
 }
 
 private enum MonitorBrand: String, CaseIterable, Identifiable {
+    case appleWatch = "Apple Watch"
+    case bluetoothSensor = "Bluetooth HR Sensor"
     case garmin = "Garmin"
     case polar = "Polar"
-    case fitbit = "Fitbit"
-    case appleWatch = "Apple Watch"
     case suunto = "Suunto"
+    case fitbit = "Fitbit"
     case withings = "Withings"
 
     var id: String { rawValue }
+
+    var capability: String {
+        switch self {
+        case .appleWatch, .bluetoothSensor:
+            return L10n.liveCapability
+        case .garmin, .polar, .suunto, .fitbit, .withings:
+            return L10n.historyCapability
+        }
+    }
 }
 
 struct HeartRateMonitorsView: View {
@@ -583,41 +593,23 @@ struct HeartRateMonitorsView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                ForEach(MonitorBrand.allCases) { brand in
-                    Button {
-                        if brand == .appleWatch {
-                            workoutViewModel.refreshHealthSensors()
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(brand.rawValue)
-                                .font(.system(size: 19, weight: .medium))
-                                .foregroundColor(Color(hex: "5B4FD1"))
+            VStack(alignment: .leading, spacing: 14) {
+                Text(L10n.liveCoachingSourceHint)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
 
-                            Spacer()
+                sectionHeader(label: L10n.liveCapability)
+                monitorRows(for: [.appleWatch, .bluetoothSensor])
 
-                            Text(statusText(for: brand))
-                                .font(.system(size: 19, weight: .regular))
-                                .foregroundColor(CoachiTheme.textSecondary)
+                sectionHeader(label: L10n.historyCapability)
+                monitorRows(for: [.garmin, .polar, .suunto, .fitbit, .withings])
 
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 18)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    if brand != MonitorBrand.allCases.last {
-                        Rectangle()
-                            .fill(CoachiTheme.borderSubtle.opacity(0.8))
-                            .frame(height: 1)
-                    }
-                }
+                Text(L10n.historySyncOnlyHint)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 80)
         }
@@ -626,13 +618,80 @@ struct HeartRateMonitorsView: View {
         .navigationBarTitleDisplayMode(.large)
         .task {
             workoutViewModel.refreshHealthSensors()
+            workoutViewModel.beginSensorDiscovery()
+        }
+        .onDisappear {
+            workoutViewModel.endSensorDiscovery()
         }
     }
 
-    private func statusText(for brand: MonitorBrand) -> String {
-        if brand == .appleWatch {
-            return workoutViewModel.watchConnected ? L10n.connected : L10n.notConnected
+    @ViewBuilder
+    private func sectionHeader(label: String) -> some View {
+        Text(label.uppercased())
+            .font(.system(size: 11, weight: .bold))
+            .foregroundColor(CoachiTheme.textSecondary)
+            .tracking(1)
+            .padding(.top, 6)
+    }
+
+    @ViewBuilder
+    private func monitorRows(for brands: [MonitorBrand]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(brands) { brand in
+                Button {
+                    if brand == .appleWatch || brand == .bluetoothSensor {
+                        workoutViewModel.refreshHealthSensors()
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(brand.rawValue)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+
+                            Text(brand.capability)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                        }
+
+                        Spacer()
+
+                        Text(statusText(for: brand))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if brand != brands.last {
+                    Rectangle()
+                        .fill(CoachiTheme.borderSubtle.opacity(0.7))
+                        .frame(height: 1)
+                        .padding(.leading, 16)
+                }
+            }
         }
-        return L10n.notConnected
+        .background(CoachiTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func statusText(for brand: MonitorBrand) -> String {
+        switch brand {
+        case .appleWatch:
+            return workoutViewModel.watchConnected ? L10n.connected : L10n.notConnected
+        case .bluetoothSensor:
+            return workoutViewModel.bleConnected ? L10n.connected : L10n.notConnected
+        case .fitbit, .withings:
+            return L10n.historyCapability
+        case .garmin, .polar, .suunto:
+            return L10n.historyViaBroadcastHint
+        }
     }
 }

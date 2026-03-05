@@ -4,13 +4,14 @@ import WatchConnectivity
 @MainActor
 final class WatchWCManager: NSObject, ObservableObject {
     @Published var pendingWorkoutType: String?
+    @Published var pendingRequestId: String?
     @Published var pendingRequestTimestamp: TimeInterval?
     @Published var showStartScreen: Bool = false
 
-    private var lastHandledStartRequestTs: TimeInterval = 0
+    private var handledRequestIDs: [String: TimeInterval] = [:]
     private let requestTTLSeconds: TimeInterval = 120
 
-    var onRemoteStopRequest: (() -> Void)?
+    var onRemoteStopRequest: ((String) -> Void)?
 
     override init() {
         super.init()
@@ -32,12 +33,20 @@ final class WatchWCManager: NSObject, ObservableObject {
     }
 
     private func handleStartRequest(_ payload: [String: Any]) {
+        let requestID = (payload[WCKeys.requestId] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !requestID.isEmpty else { return }
+
         let timestamp = parseTimestamp(payload[WCKeys.timestamp])
         let age = Date().timeIntervalSince1970 - timestamp
         guard age <= requestTTLSeconds else { return }
-        guard timestamp > lastHandledStartRequestTs else { return }
+        if let previousTimestamp = handledRequestIDs[requestID], timestamp <= previousTimestamp {
+            return
+        }
 
-        lastHandledStartRequestTs = timestamp
+        handledRequestIDs = handledRequestIDs.filter { Date().timeIntervalSince1970 - $0.value <= requestTTLSeconds }
+        handledRequestIDs[requestID] = timestamp
+        pendingRequestId = requestID
         pendingRequestTimestamp = timestamp
         pendingWorkoutType = WCKeys.WorkoutType.normalized(payload[WCKeys.workoutType] as? String)
         showStartScreen = true
@@ -50,7 +59,9 @@ final class WatchWCManager: NSObject, ObservableObject {
         case WCKeys.Command.requestStartWorkout:
             handleStartRequest(payload)
         case WCKeys.Command.workoutStopped:
-            onRemoteStopRequest?()
+            let requestID = (payload[WCKeys.requestId] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            onRemoteStopRequest?(requestID)
         default:
             break
         }

@@ -3,39 +3,48 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKOUT_VM = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "ViewModels" / "WorkoutViewModel.swift"
+ARBiter = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "HeartRate" / "HeartRateArbiter.swift"
+PROVIDER = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "HeartRate" / "HeartRateProvider.swift"
 
 
-def test_hr_source_and_wc_freshness_state_exists() -> None:
-    text = WORKOUT_VM.read_text(encoding="utf-8")
+def test_provider_contract_defines_sources_and_quality() -> None:
+    text = PROVIDER.read_text(encoding="utf-8")
     assert "enum HRSource: String" in text
-    assert "case wc = \"wc\"" in text
-    assert "case hk = \"hk\"" in text
-    assert "case none = \"none\"" in text
-    assert "@Published private(set) var hrSource: HRSource = .none" in text
-    assert "private var lastWCHRSampleAt: Date?" in text
-    assert "private let wcFreshnessThresholdSeconds: TimeInterval = 10.0" in text
+    assert "case wc" in text
+    assert "case ble" in text
+    assert "case hk" in text
+    assert "case none" in text
+    assert "enum HRQuality: String" in text
+    assert "protocol HeartRateProvider: AnyObject" in text
 
 
-def test_hk_updates_are_ignored_while_wc_is_fresh() -> None:
+def test_arbiter_has_freshness_windows_and_priority_order() -> None:
+    text = ARBiter.read_text(encoding="utf-8")
+    assert "private let liveFreshnessSeconds: TimeInterval = 10.0" in text
+    assert "private let hkFreshnessSeconds: TimeInterval = 120.0" in text
+    assert "if wcFresh {" in text
+    assert "} else if bleFresh {" in text
+    assert "} else if hkFresh {" in text
+    assert "selectedSource = .none" in text
+
+
+def test_arbiter_tracks_wc_ble_hk_sample_timestamps() -> None:
+    text = ARBiter.read_text(encoding="utf-8")
+    assert "private(set) var lastWCHRSampleAt: Date?" in text
+    assert "private(set) var lastBLEHRSampleAt: Date?" in text
+    assert "private(set) var lastHKSampleAt: Date?" in text
+    assert "case .wc:" in text
+    assert "case .ble:" in text
+    assert "case .hk:" in text
+
+
+def test_workout_view_model_uses_arbiter_as_single_hr_output_path() -> None:
     text = WORKOUT_VM.read_text(encoding="utf-8")
-    assert "if let lastWCSampleAt = lastWCHRSampleAt," in text
-    assert "Date().timeIntervalSince(lastWCSampleAt) < wcFreshnessThresholdSeconds" in text
-    assert "// WC remains primary while fresh to prevent source conflicts." in text
-
-
-def test_wc_stall_demotes_to_hk_or_none_until_wc_resumes() -> None:
-    text = WORKOUT_VM.read_text(encoding="utf-8")
-    assert "private func refreshWCLiveness()" in text
-    assert "if age <= wcFreshnessThresholdSeconds" in text
-    assert "if let latest = latestHeartRateSampleDate, latest > lastSampleAt" in text
-    assert "hrSource = .hk" in text
-    assert "hrSource = .none" in text
-    assert "watchConnected = false" in text
-
-
-def test_wc_updates_promote_source_to_wc() -> None:
-    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private let heartRateArbiter = HeartRateArbiter()" in text
+    assert "heartRateArbiter.onOutput = { [weak self] output in" in text
+    assert "self.heartRate = output.currentBPM" in text
+    assert "self.hrSource = output.hrSource" in text
+    assert "self.hrSignalQuality = output.hrSignalQuality.rawValue" in text
     assert "private func handleWCHRUpdate(bpm: Double, timestamp: TimeInterval)" in text
-    assert "lastWCHRSampleAt = sampleDate" in text
-    assert "hrSource = .wc" in text
-    assert "hrSignalQuality = \"good\"" in text
+    assert "watchHRProvider.ingestHeartRate(bpm: bpm, timestamp: timestamp)" in text
+

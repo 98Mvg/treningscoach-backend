@@ -62,34 +62,32 @@ def _waveform_view_text() -> str:
     return WAVEFORM_VIEW.read_text(encoding="utf-8")
 
 
-def test_orb_stop_requires_long_press_and_confirmation() -> None:
+def test_finish_control_requires_confirmation_alert() -> None:
     text = _active_workout_view_text()
-    assert ".onLongPressGesture(minimumDuration: 2.0" in text
+    assert ".onLongPressGesture(minimumDuration: 2.0" not in text
     assert "showStopConfirmation = true" in text
-
-    start = text.index(".onLongPressGesture(minimumDuration: 2.0")
-    snippet = text[start : start + 320]
-    assert "stopWorkout()" not in snippet
+    assert ".alert(" in text
+    assert "viewModel.stopWorkout()" in text
 
 
 def test_primary_talk_button_uses_tap_to_talk() -> None:
     text = _active_workout_view_text()
-    assert 'Text(L10n.current == .no ? "Snakk med coach" : "Talk to coach")' in text
+    assert "Text(L10n.talkToCoachButton)" in text
     assert "viewModel.talkToCoachButtonPressed()" in text
     assert "LongPressGesture(minimumDuration: 1.5" not in text
 
 
 def test_active_workout_has_visible_finish_button() -> None:
     text = _active_workout_view_text()
-    assert "private var finishWorkoutButton: some View" in text
-    assert 'Text(L10n.current == .no ? "Avslutt økt" : "Finish workout")' in text
+    assert "Image(systemName: \"figure.run\")" in text
     assert "showStopConfirmation = true" in text
+    assert "\"End workout?\"" in text
 
 
 def test_spotify_is_in_top_row_corner_button() -> None:
     text = _active_workout_view_text()
-    assert "spotifyCornerButton" in text
-    assert "SpotifyLogoBadge(size: 34)" in text
+    assert "spotifyIconButton" in text
+    assert "SpotifyLogoBadge(size: 22)" in text
 
 
 def test_diagnostics_panel_uses_sheet_presentation() -> None:
@@ -102,11 +100,10 @@ def test_main_workout_surface_has_no_coach_text_line() -> None:
     assert "Text(guidanceLine)" not in text
 
 
-def test_mic_haptics_run_only_during_user_speech_capture() -> None:
+def test_active_workout_shows_live_hr_degraded_banner_hook() -> None:
     text = _active_workout_view_text()
-    assert "guard isTalkCaptureActive else { return }" in text
-    assert "private var isTalkCaptureActive: Bool {" in text
-    assert "viewModel.isCoachCapturingSpeech" in text
+    assert "if let liveBanner = viewModel.liveHRBannerText {" in text
+    assert "Text(liveBanner)" in text
 
 
 def test_hidden_workout_tab_disables_animated_background() -> None:
@@ -131,7 +128,7 @@ def test_workout_launch_uses_staged_wheel_setup_for_easy_run() -> None:
     assert "case easyDuration" in text
     assert "valueRange: 0...120" in text
     assert "Confirm duration" in text
-    assert ".disabled(!canStartWorkout)" in text
+    assert ".disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)" in text
 
 
 def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
@@ -169,6 +166,8 @@ def test_workout_launch_shows_explicit_bpm_readout_when_watch_disconnected() -> 
 def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:
     text = _workout_launch_view_text()
     assert "Text(viewModel.launchStartButtonTitle)" in text
+    assert "Text(viewModel.launchStartSubtext)" in text
+    assert "if let helper = viewModel.watchReachabilityHelperText {" in text
     assert ".disabled(!canStartWorkout || viewModel.isWaitingForWatchStart)" in text
     assert "if let watchStatus = viewModel.watchStartStatusLine {" in text
 
@@ -181,7 +180,8 @@ def test_warmup_stage_labels_easy_intensity_cue() -> None:
 
 def test_active_workout_hr_fallback_is_zero_bpm() -> None:
     text = _active_workout_view_text()
-    assert 'return "HR 0 BPM"' in text
+    assert 'return "0 BPM"' in text
+    assert 'return "HK \\(viewModel.watchBPMDisplayText)"' in text
 
 
 def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
@@ -189,7 +189,9 @@ def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     assert "@Published var selectedIntervalSets: Int = 6" in text
     assert "@Published var selectedIntervalWorkMinutes: Int = 2" in text
     assert "@Published var selectedIntervalBreakMinutes: Int = 1" in text
-    assert "let totalMinutes = (sets * work) + (max(0, sets - 1) * pause)" in text
+    assert "let repeats = max(2, min(10, selectedIntervalSets))" in text
+    assert "let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60" in text
+    assert "let recoverySeconds = max(0, min(10, selectedIntervalBreakMinutes)) * 60" in text
 
 
 def test_view_model_persists_final_coach_score_history_for_home() -> None:

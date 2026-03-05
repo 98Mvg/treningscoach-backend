@@ -14,9 +14,9 @@ final class PhoneWCManager: NSObject, ObservableObject {
     @Published private(set) var isWatchAppInstalled: Bool = false
 
     var onReachabilityChanged: ((Bool) -> Void)?
-    var onWorkoutStartedAck: ((String, TimeInterval) -> Void)?
-    var onWorkoutStartFailed: ((String, TimeInterval) -> Void)?
-    var onWorkoutStopped: ((TimeInterval) -> Void)?
+    var onWorkoutStartedAck: ((String, TimeInterval, String) -> Void)?
+    var onWorkoutStartFailed: ((String, TimeInterval, String) -> Void)?
+    var onWorkoutStopped: ((TimeInterval, String) -> Void)?
     var onHeartRate: ((Double, TimeInterval) -> Void)?
 
     override init() {
@@ -32,7 +32,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
         refreshState(from: session)
     }
 
-    func sendStartRequest(workoutType: String, timestamp: TimeInterval) -> StartRequestOutcome {
+    func sendStartRequest(workoutType: String, timestamp: TimeInterval, requestID: String) -> StartRequestOutcome {
         guard WCSession.isSupported() else {
             return .failed("watch_connectivity_unsupported")
         }
@@ -46,6 +46,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
 
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.requestStartWorkout,
+            WCKeys.requestId: requestID,
             WCKeys.workoutType: WCKeys.WorkoutType.normalized(workoutType),
             WCKeys.timestamp: timestamp,
         ]
@@ -53,7 +54,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil) { error in
                 Task { @MainActor in
-                    self.onWorkoutStartFailed?(error.localizedDescription, timestamp)
+                    self.onWorkoutStartFailed?(error.localizedDescription, timestamp, requestID)
                 }
             }
             return .liveRequestSent
@@ -67,12 +68,13 @@ final class PhoneWCManager: NSObject, ObservableObject {
         }
     }
 
-    func sendWorkoutStopped(timestamp: TimeInterval) {
+    func sendWorkoutStopped(timestamp: TimeInterval, requestID: String) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
 
         let payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.workoutStopped,
+            WCKeys.requestId: requestID,
             WCKeys.timestamp: timestamp,
         ]
 
@@ -109,16 +111,18 @@ final class PhoneWCManager: NSObject, ObservableObject {
 
         guard let cmd = payload[WCKeys.cmd] as? String else { return }
         let timestamp = parseTimestamp(payload[WCKeys.timestamp])
+        let requestID = (payload[WCKeys.requestId] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         switch cmd {
         case WCKeys.Command.workoutStarted:
             let type = WCKeys.WorkoutType.normalized(payload[WCKeys.workoutType] as? String)
-            onWorkoutStartedAck?(type, timestamp)
+            onWorkoutStartedAck?(type, timestamp, requestID)
         case WCKeys.Command.workoutStartFailed:
             let reason = (payload[WCKeys.error] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            onWorkoutStartFailed?(reason?.isEmpty == false ? reason! : "workout_start_failed", timestamp)
+            onWorkoutStartFailed?(reason?.isEmpty == false ? reason! : "workout_start_failed", timestamp, requestID)
         case WCKeys.Command.workoutStopped:
-            onWorkoutStopped?(timestamp)
+            onWorkoutStopped?(timestamp, requestID)
         default:
             break
         }

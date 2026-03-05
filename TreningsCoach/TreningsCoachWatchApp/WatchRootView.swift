@@ -23,7 +23,7 @@ struct WatchRootView: View {
             }
             .padding()
             .onAppear {
-                wcManager.onRemoteStopRequest = {
+                wcManager.onRemoteStopRequest = { _ in
                     workoutManager.stopWorkout(sendRemoteSignal: false)
                 }
             }

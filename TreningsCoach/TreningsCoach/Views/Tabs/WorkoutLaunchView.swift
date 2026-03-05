@@ -283,6 +283,20 @@ struct WorkoutLaunchView: View {
                         }
                         .padding(.top, 4)
 
+                        Text(viewModel.launchStartSubtext)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 4)
+
+                        if let helper = viewModel.watchReachabilityHelperText {
+                            Text(helper)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 2)
+                        }
+
                         if let watchStatus = viewModel.watchStartStatusLine {
                             Text(watchStatus)
                                 .font(.system(size: 12, weight: .medium))

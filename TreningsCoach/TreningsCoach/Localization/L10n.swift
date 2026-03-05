@@ -31,8 +31,33 @@ struct L10n {
     static var startWorkout: String { current == .no ? "Start trening" : "Start Workout" }
     static var audioCoachingStarts: String { current == .no ? "Lydcoaching starter umiddelbart" : "Audio coaching starts immediately" }
     static var connectHeartRateMonitorTitle: String { current == .no ? "Koble til pulsmåleren din" : "Connect your heart rate monitor" }
+    static var connectHeartRateMonitorBody: String {
+        current == .no
+            ? "For live coaching, bruk Apple Watch eller Bluetooth-sensor."
+            : "For live coaching, use Apple Watch or a Bluetooth HR sensor."
+    }
+    static var goToManageMonitors: String {
+        current == .no ? "Gå til pulsmålere" : "Go to heart-rate monitors"
+    }
     static var connected: String { current == .no ? "Tilkoblet" : "Connected" }
     static var notConnected: String { current == .no ? "Ikke tilkoblet" : "Not connected" }
+    static var liveCapability: String { current == .no ? "Live" : "Live" }
+    static var historyCapability: String { current == .no ? "Historikk" : "History" }
+    static var liveCoachingSourceHint: String {
+        current == .no
+            ? "For live coaching, bruk Apple Watch eller en Bluetooth HR-sensor (stropp/klokke med broadcast)."
+            : "For live coaching, use Apple Watch or a Bluetooth HR sensor (strap/watch broadcast)."
+    }
+    static var historySyncOnlyHint: String {
+        current == .no
+            ? "Fitbit/Withings synker historikk etter økten. Dette er ikke live puls."
+            : "Fitbit/Withings connect for history only. This is not live HR."
+    }
+    static var historyViaBroadcastHint: String {
+        current == .no
+            ? "Live kun ved Bluetooth-broadcast"
+            : "Live only if broadcasting Bluetooth HR"
+    }
     static var thisWeek: String { current == .no ? "Denne uken" : "This week" }
     static var workoutsCompleted: String { current == .no ? "treninger fullfort" : "workouts completed" }
     static var recentWorkouts: String { current == .no ? "Siste treninger" : "Recent Workouts" }

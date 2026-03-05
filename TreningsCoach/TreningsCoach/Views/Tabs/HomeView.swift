@@ -46,25 +46,22 @@ struct HomeView: View {
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(
-                                    workoutViewModel.watchConnected
-                                        ? (L10n.current == .no ? "Pulsmåler tilkoblet" : "Heart-rate monitor connected")
+                                    workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble
+                                        ? (L10n.current == .no ? "Live puls klar" : "Live heart-rate ready")
                                         : L10n.connectHeartRateMonitorTitle
                                 )
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(CoachiTheme.textPrimary)
 
-                                if workoutViewModel.watchConnected, let hr = workoutViewModel.heartRate {
+                                if workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble,
+                                   let hr = workoutViewModel.heartRate {
                                     Text("HR \(hr)")
                                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                                         .foregroundColor(CoachiTheme.textSecondary)
                                 } else {
-                                    Text(
-                                        L10n.current == .no
-                                            ? "Mer presis pulscoaching under løp."
-                                            : "More precise HR coaching while running."
-                                    )
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(CoachiTheme.textSecondary)
+                                    Text(L10n.connectHeartRateMonitorBody)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(CoachiTheme.textSecondary)
                                 }
                             }
 

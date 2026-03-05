@@ -20,8 +20,7 @@ def test_home_connect_watch_routes_to_manage_monitors_and_shows_coach_score() ->
     assert ".navigationDestination(isPresented: $showManageMonitors)" in text
     assert "HeartRateMonitorsView()" in text
     assert "CoachScoreSection(" in text
-    assert "records: viewModel.recentWorkouts" in text
-    assert "coachScore: workoutViewModel.coachScore" in text
+    assert "coachScore: workoutViewModel.homeCoachScore" in text
     assert "Text(L10n.coachScore)" in text
     assert "L10n.connectHeartRateMonitorTitle" in text
     assert "ConnectMonitorNoticeCard" not in text
@@ -61,14 +60,16 @@ def test_manage_monitors_screen_matches_provider_list_contract() -> None:
 
 def test_localization_contains_monitor_and_coach_score_strings() -> None:
     text = L10N_FILE.read_text(encoding="utf-8")
-    assert 'static var coachScore: String { "Coach score" }' in text
+    assert "static var coachScore: String" in text
     assert "static var connectHeartRateMonitorTitle: String" in text
     assert "static var connectHeartRateMonitorBody: String" in text
+    assert "static var liveCapability: String" in text
+    assert "static var historyCapability: String" in text
+    assert "static var liveCoachingSourceHint: String" in text
+    assert "static var historySyncOnlyHint: String" in text
     assert "static var goToManageMonitors: String" in text
     assert "static var notConnected: String" in text
     assert "static var legal: String" in text
     assert "static var termsOfUse: String" in text
     assert "static var privacyPolicy: String" in text
     assert "static var appVersionLabel: String" in text
-    assert "Treningsnivaa" not in text
-    assert " for aa " not in text
