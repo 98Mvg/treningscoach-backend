@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_INSECURE_JWT_SECRET = "treningscoach-dev-secret-change-in-production"
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_EXPIRY_DAYS = max(1, int(getattr(config, "JWT_ACCESS_TOKEN_MAX_DAYS", 7)))
-JWT_REFRESH_EXPIRY_DAYS = max(1, int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 30)))
+JWT_REFRESH_EXPIRY_DAYS = max(1, int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 7)))
 JWT_SECRET_MAX_AGE_DAYS = max(1, int(getattr(config, "JWT_SECRET_MAX_AGE_DAYS", 90)))
 
 

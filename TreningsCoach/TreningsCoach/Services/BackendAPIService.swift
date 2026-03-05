@@ -42,6 +42,26 @@ struct BackendUserProfilePayload: Encodable {
     }
 }
 
+private struct TokenRefreshResponse: Codable {
+    let token: String?
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresIn: Int?
+    let refreshExpiresIn: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case token
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+        case refreshExpiresIn = "refresh_expires_in"
+    }
+
+    var resolvedAccessToken: String {
+        (accessToken ?? token ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 class BackendAPIService {
     // MARK: - Configuration
 
@@ -49,6 +69,8 @@ class BackendAPIService {
 
     private let baseURL = AppConfig.backendURL
     private let session: URLSession
+    private let jsonDecoder = JSONDecoder()
+    private let jsonEncoder = JSONEncoder()
 
     private init() {
         let configuration = URLSessionConfiguration.default
@@ -70,12 +92,35 @@ class BackendAPIService {
     // MARK: - Auth Header
 
     private func currentAuthToken() -> String? {
-        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
+        if let accessToken = KeychainHelper.readString(key: KeychainHelper.accessTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !accessToken.isEmpty {
+            return accessToken
+        }
+        if let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !token.isEmpty {
+            return token
+        }
+        return nil
+    }
+
+    private func currentRefreshToken() -> String? {
+        guard let token = KeychainHelper.readString(key: KeychainHelper.refreshTokenKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !token.isEmpty else {
             return nil
         }
         return token
+    }
+
+    private func isExpired(expiresAtKey: String) -> Bool {
+        guard let raw = KeychainHelper.readString(key: expiresAtKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            let expiresAt = Double(raw) else {
+            return false
+        }
+        return Date().timeIntervalSince1970 >= expiresAt
     }
 
     /// Adds JWT auth token to request if available.
@@ -93,6 +138,113 @@ class BackendAPIService {
         return request
     }
 
+    private func persistTokenBundle(accessToken: String, refreshToken: String?, expiresIn: Int?, refreshExpiresIn: Int?) {
+        _ = KeychainHelper.save(key: KeychainHelper.tokenKey, string: accessToken)
+        _ = KeychainHelper.save(key: KeychainHelper.accessTokenKey, string: accessToken)
+
+        if let refreshToken, !refreshToken.isEmpty {
+            _ = KeychainHelper.save(key: KeychainHelper.refreshTokenKey, string: refreshToken)
+        }
+
+        if let expiresIn {
+            let expiresAt = Date().addingTimeInterval(TimeInterval(max(0, expiresIn))).timeIntervalSince1970
+            _ = KeychainHelper.save(key: KeychainHelper.accessTokenExpiresAtKey, string: String(format: "%.3f", expiresAt))
+        }
+
+        if let refreshExpiresIn {
+            let expiresAt = Date().addingTimeInterval(TimeInterval(max(0, refreshExpiresIn))).timeIntervalSince1970
+            _ = KeychainHelper.save(key: KeychainHelper.refreshTokenExpiresAtKey, string: String(format: "%.3f", expiresAt))
+        }
+    }
+
+    private func clearTokenBundle() {
+        KeychainHelper.delete(key: KeychainHelper.tokenKey)
+        KeychainHelper.delete(key: KeychainHelper.accessTokenKey)
+        KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
+        KeychainHelper.delete(key: KeychainHelper.accessTokenExpiresAtKey)
+        KeychainHelper.delete(key: KeychainHelper.refreshTokenExpiresAtKey)
+    }
+
+    func refreshAuthTokenIfNeeded() async -> Bool {
+        guard let refreshToken = currentRefreshToken(), !refreshToken.isEmpty else {
+            print("AUTH_REFRESH skipped reason=missing_refresh_token")
+            return false
+        }
+        if isExpired(expiresAtKey: KeychainHelper.refreshTokenExpiresAtKey) {
+            print("AUTH_REFRESH skipped reason=refresh_token_expired")
+            clearTokenBundle()
+            return false
+        }
+
+        guard let url = URL(string: "\(baseURL)/auth/refresh") else {
+            return false
+        }
+
+        do {
+            print("AUTH_REFRESH attempt=true")
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try jsonEncoder.encode(["refresh_token": refreshToken])
+
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return false
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                print("AUTH_REFRESH success=false status=\(httpResponse.statusCode)")
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    clearTokenBundle()
+                }
+                return false
+            }
+
+            let payload = try jsonDecoder.decode(TokenRefreshResponse.self, from: data)
+            let accessToken = payload.resolvedAccessToken
+            guard !accessToken.isEmpty else {
+                return false
+            }
+
+            let normalizedRefresh = payload.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+            persistTokenBundle(
+                accessToken: accessToken,
+                refreshToken: normalizedRefresh?.isEmpty == false ? normalizedRefresh : nil,
+                expiresIn: payload.expiresIn,
+                refreshExpiresIn: payload.refreshExpiresIn
+            )
+            print("AUTH_REFRESH success=true")
+            return true
+        } catch {
+            print("AUTH_REFRESH success=false reason=\(error.localizedDescription)")
+            return false
+        }
+    }
+
+    private func dataWithAuthRetry(for request: URLRequest) async throws -> (Data, URLResponse) {
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return (data, response)
+        }
+        guard httpResponse.statusCode == 401 || httpResponse.statusCode == 403 else {
+            return (data, response)
+        }
+
+        print("AUTH_RETRY status=\(httpResponse.statusCode) path=\(request.url?.path ?? "unknown")")
+        let refreshed = await refreshAuthTokenIfNeeded()
+        guard refreshed else {
+            return (data, response)
+        }
+
+        var retryRequest = request
+        guard addAuthHeader(to: &retryRequest) else {
+            return (data, response)
+        }
+
+        return try await session.data(for: retryRequest)
+    }
+
     // MARK: - API Methods
 
     /// Check backend health
@@ -108,7 +260,7 @@ class BackendAPIService {
         var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: nil)
         addAuthHeader(to: &request)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -127,7 +279,7 @@ class BackendAPIService {
         var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: phase)
         addAuthHeader(to: &request)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -149,7 +301,7 @@ class BackendAPIService {
         }
         let url = URL(string: urlString)!
         let request = authenticatedRequest(url: url)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
@@ -252,7 +404,7 @@ class BackendAPIService {
             micPermissionGranted: micPermissionGranted
         )
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -301,7 +453,7 @@ class BackendAPIService {
         body["trigger_source"] = triggerSource
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
@@ -336,7 +488,7 @@ class BackendAPIService {
                 userName: userName
             )
 
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await dataWithAuthRetry(for: request)
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
                 throw APIError.invalidResponse
@@ -389,7 +541,7 @@ class BackendAPIService {
         }
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
@@ -410,7 +562,7 @@ class BackendAPIService {
         let body: [String: String] = ["session_id": sessionId, "persona": persona]
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (_, response) = try await session.data(for: request)
+        let (_, response) = try await dataWithAuthRetry(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw APIError.invalidResponse
@@ -434,7 +586,7 @@ class BackendAPIService {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (_, response) = try await session.data(for: request)
+        let (_, response) = try await dataWithAuthRetry(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 || httpResponse.statusCode == 201 else {
             throw APIError.invalidResponse
@@ -444,14 +596,14 @@ class BackendAPIService {
     /// Get workout history from backend (raw)
     func getWorkouts() async throws -> [[String: Any]] {
         // Home/profile can load before auth is complete; treat as empty history.
-        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey), !token.isEmpty else {
+        guard currentAuthToken() != nil else {
             return []
         }
 
         let url = URL(string: "\(baseURL)/workouts")!
         let request = authenticatedRequest(url: url)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithAuthRetry(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -515,7 +667,7 @@ class BackendAPIService {
         addAuthHeader(to: &request)
         request.httpBody = try JSONEncoder().encode(profile)
 
-        let (_, response) = try await session.data(for: request)
+        let (_, response) = try await dataWithAuthRetry(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200 ... 299).contains(httpResponse.statusCode)
         else {
@@ -761,7 +913,9 @@ class BackendAPIService {
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        addAuthHeader(to: &request)
+        guard addAuthHeader(to: &request) else {
+            throw APIError.authenticationRequired
+        }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")

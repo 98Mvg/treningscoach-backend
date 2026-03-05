@@ -23,7 +23,13 @@ class AuthManager: ObservableObject {
     // MARK: - Token
 
     var authToken: String? {
-        KeychainHelper.readString(key: KeychainHelper.tokenKey)
+        if let access = KeychainHelper.readString(key: KeychainHelper.accessTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !access.isEmpty {
+            return access
+        }
+        return KeychainHelper.readString(key: KeychainHelper.tokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Init
@@ -42,6 +48,10 @@ class AuthManager: ObservableObject {
     // MARK: - Google Sign-In
 
     func signInWithGoogle() async {
+        guard AppConfig.Auth.googleSignInEnabled else {
+            errorMessage = "\(L10n.registerWithGoogle): \(L10n.comingSoon)"
+            return
+        }
         isLoading = true
         errorMessage = nil
 
@@ -113,6 +123,10 @@ class AuthManager: ObservableObject {
     // MARK: - Facebook Sign-In
 
     func signInWithFacebook() async {
+        guard AppConfig.Auth.facebookSignInEnabled else {
+            errorMessage = "\(L10n.signInWithFacebook): \(L10n.comingSoon)"
+            return
+        }
         isLoading = true
         errorMessage = nil
 
@@ -139,6 +153,10 @@ class AuthManager: ObservableObject {
     // MARK: - Vipps Sign-In
 
     func signInWithVipps() async {
+        guard AppConfig.Auth.vippsSignInEnabled else {
+            errorMessage = "\(L10n.signInWithVipps): \(L10n.comingSoon)"
+            return
+        }
         isLoading = true
         errorMessage = nil
 
@@ -165,7 +183,7 @@ class AuthManager: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
-        KeychainHelper.delete(key: KeychainHelper.tokenKey)
+        clearStoredTokens()
         isAuthenticated = false
         currentUser = nil
         UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
@@ -175,37 +193,44 @@ class AuthManager: ObservableObject {
     // MARK: - Profile
 
     func fetchProfile() async {
-        guard let token = authToken else { return }
+        guard let token = authToken, !token.isEmpty else { return }
 
         do {
-            let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                // Token may be expired
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+            let (data, response) = try await performProfileRequest(token: token)
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()
+                guard refreshed,
+                      let refreshedToken = authToken,
+                      !refreshedToken.isEmpty
+                else {
                     signOut()
+                    return
                 }
+
+                let (retryData, retryResponse) = try await performProfileRequest(token: refreshedToken)
+                guard let retryHTTP = retryResponse as? HTTPURLResponse,
+                      retryHTTP.statusCode == 200 else {
+                    signOut()
+                    return
+                }
+                try updateProfileFromResponseData(retryData)
                 return
             }
 
-            let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
-            currentUser = profileResponse.user
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                return
+            }
 
-            // Sync language preference
-            L10n.set(profileResponse.user.language)
-
+            try updateProfileFromResponseData(data)
         } catch {
             print("Failed to fetch profile: \(error.localizedDescription)")
         }
     }
 
     func updateProfile(language: AppLanguage? = nil, trainingLevel: TrainingLevel? = nil, persona: String? = nil) async {
-        guard let token = authToken else { return }
+        guard let token = authToken, !token.isEmpty else { return }
 
         var body: [String: String] = [:]
         if let lang = language { body["language"] = lang.rawValue }
@@ -213,17 +238,25 @@ class AuthManager: ObservableObject {
         if let p = persona { body["preferred_persona"] = p }
 
         do {
-            let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "PUT"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.httpBody = try JSONEncoder().encode(body)
-
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let payload = try JSONEncoder().encode(body)
+            var (data, response) = try await performProfileUpdateRequest(token: token, payload: payload)
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()
+                guard refreshed,
+                      let refreshedToken = authToken,
+                      !refreshedToken.isEmpty
+                else {
+                    signOut()
+                    return
+                }
+                (data, response) = try await performProfileUpdateRequest(token: refreshedToken, payload: payload)
+            }
 
             guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else { return }
+                  httpResponse.statusCode == 200 else {
+                return
+            }
 
             let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
             currentUser = profileResponse.user
@@ -324,8 +357,7 @@ class AuthManager: ObservableObject {
     }
 
     private func handleAuthSuccess(_ response: AuthResponse) {
-        // Save token to Keychain
-        KeychainHelper.save(key: KeychainHelper.tokenKey, string: response.token)
+        saveTokenBundle(response)
 
         // Update state
         currentUser = response.user
@@ -341,6 +373,61 @@ class AuthManager: ObservableObject {
         }
 
         print("Authenticated: \(response.user.email)")
+    }
+
+    private func performProfileRequest(token: String) async throws -> (Data, URLResponse) {
+        let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await URLSession.shared.data(for: request)
+    }
+
+    private func performProfileUpdateRequest(token: String, payload: Data) async throws -> (Data, URLResponse) {
+        let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = payload
+        return try await URLSession.shared.data(for: request)
+    }
+
+    private func updateProfileFromResponseData(_ data: Data) throws {
+        let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
+        currentUser = profileResponse.user
+        L10n.set(profileResponse.user.language)
+    }
+
+    private func saveTokenBundle(_ response: AuthResponse) {
+        let access = response.resolvedAccessToken
+        guard !access.isEmpty else { return }
+
+        _ = KeychainHelper.save(key: KeychainHelper.tokenKey, string: access)
+        _ = KeychainHelper.save(key: KeychainHelper.accessTokenKey, string: access)
+
+        if let refresh = response.refreshToken?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !refresh.isEmpty {
+            _ = KeychainHelper.save(key: KeychainHelper.refreshTokenKey, string: refresh)
+        }
+
+        if let expiresIn = response.expiresIn {
+            let expiresAt = Date().addingTimeInterval(TimeInterval(max(0, expiresIn))).timeIntervalSince1970
+            _ = KeychainHelper.save(key: KeychainHelper.accessTokenExpiresAtKey, string: String(format: "%.3f", expiresAt))
+        }
+
+        if let refreshExpiresIn = response.refreshExpiresIn {
+            let refreshExpiresAt = Date().addingTimeInterval(TimeInterval(max(0, refreshExpiresIn))).timeIntervalSince1970
+            _ = KeychainHelper.save(key: KeychainHelper.refreshTokenExpiresAtKey, string: String(format: "%.3f", refreshExpiresAt))
+        }
+    }
+
+    private func clearStoredTokens() {
+        KeychainHelper.delete(key: KeychainHelper.tokenKey)
+        KeychainHelper.delete(key: KeychainHelper.accessTokenKey)
+        KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
+        KeychainHelper.delete(key: KeychainHelper.accessTokenExpiresAtKey)
+        KeychainHelper.delete(key: KeychainHelper.refreshTokenExpiresAtKey)
     }
 }
 

@@ -87,6 +87,19 @@ struct ActiveWorkoutView: View {
                             .padding(.top, 8)
                     }
 
+                    if let statusLine = viewModel.coachingStatusLine {
+                        Text(statusLine)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.82))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.22))
+                            )
+                            .padding(.top, 6)
+                    }
+
                     Spacer()
 
                     bottomControlPanel

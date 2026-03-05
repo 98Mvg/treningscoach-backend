@@ -198,6 +198,7 @@ class WorkoutViewModel: ObservableObject {
     @Published var hrSignalQuality: String = "poor"
     @Published private(set) var hrSource: HRSource = .none
     @Published var liveHRBannerText: String?
+    @Published var coachingStatusLine: String?
     @Published var heartRate: Int?
     @Published var movementScore: Double?
     @Published var cadenceSPM: Double?
@@ -650,6 +651,7 @@ class WorkoutViewModel: ObservableObject {
         activeSessionPlan = buildSessionPlanFromSelections()
         clearWatchStartPendingState()
         watchStartStatusLine = nil
+        coachingStatusLine = nil
         workoutState = .idle
         showComplete = false
         coachScore = 0
@@ -712,6 +714,7 @@ class WorkoutViewModel: ObservableObject {
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         watchStartStatusLine = nil
+        coachingStatusLine = nil
         workoutState = .idle
         showComplete = false
         elapsedTime = 0
@@ -967,6 +970,7 @@ class WorkoutViewModel: ObservableObject {
     private var autoTimeoutTimer: Timer?
     private var elapsedTimeTimer: Timer?
     private var consecutiveChunkFailures: Int = 0
+    private var consecutiveBackendFailures: Int = 0
     private var lastAudioRecoveryAttempt: Date?
     private let motionCadenceService = MotionCadenceService()
     private let phoneWCManager = PhoneWCManager()
@@ -2388,6 +2392,7 @@ class WorkoutViewModel: ObservableObject {
             heartRate = nil
             hrSignalQuality = HRQuality.none.rawValue
             liveHRBannerText = nil
+            coachingStatusLine = nil
             latestWatchStatusForBackend = "no_live_hr"
             lastWCHRSampleAt = nil
             lastBLEHRSampleAt = nil
@@ -2405,6 +2410,7 @@ class WorkoutViewModel: ObservableObject {
             // Auto-detect initial phase
             autoDetectPhase()
             consecutiveChunkFailures = 0
+            consecutiveBackendFailures = 0
             lastAudioRecoveryAttempt = nil
 
             // Start live heart-rate monitoring from HealthKit/Watch
@@ -2514,6 +2520,8 @@ class WorkoutViewModel: ObservableObject {
         talkCaptureTask?.cancel()
         talkCaptureTask = nil
         consecutiveChunkFailures = 0
+        consecutiveBackendFailures = 0
+        coachingStatusLine = nil
 
         print("✅ Workout paused")
     }
@@ -2558,6 +2566,8 @@ class WorkoutViewModel: ObservableObject {
 
         // Resume coaching loop
         consecutiveChunkFailures = 0
+        consecutiveBackendFailures = 0
+        coachingStatusLine = nil
         scheduleNextTick()
 
         print("✅ Workout resumed")
@@ -2608,6 +2618,7 @@ class WorkoutViewModel: ObservableObject {
         sessionId = nil
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0
+        consecutiveBackendFailures = 0
         lastAudioRecoveryAttempt = nil
         movementScore = nil
         cadenceSPM = nil
@@ -2621,6 +2632,7 @@ class WorkoutViewModel: ObservableObject {
         heartRate = nil
         hrSignalQuality = HRQuality.none.rawValue
         liveHRBannerText = nil
+        coachingStatusLine = nil
         latestWatchStatusForBackend = "no_live_hr"
         lastWCHRSampleAt = nil
         lastBLEHRSampleAt = nil
@@ -2768,6 +2780,8 @@ class WorkoutViewModel: ObservableObject {
                 )
 
                 let responseTime = Date().timeIntervalSince(tickStart)
+                consecutiveBackendFailures = 0
+                coachingStatusLine = nil
 
                 // 3. Update metrics silently (NO UI state change)
                 breathAnalysis = response.breathAnalysis
@@ -2879,6 +2893,11 @@ class WorkoutViewModel: ObservableObject {
                 if handleAuthFailureIfNeeded(error) {
                     return
                 }
+                if isRetriableCoachingError(error) {
+                    consecutiveBackendFailures += 1
+                    applyCoachingFailureBackoff()
+                    attemptAudioPipelineRecoveryIfNeeded(reason: "backend_failure")
+                }
                 // Show full error (not just localizedDescription) to catch JSON decode details
                 let errorDetail: String
                 if let decodingError = error as? DecodingError {
@@ -2906,6 +2925,11 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func hasValidAuthToken() -> Bool {
+        if let accessToken = KeychainHelper.readString(key: KeychainHelper.accessTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !accessToken.isEmpty {
+            return true
+        }
         guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !token.isEmpty else {
@@ -2929,6 +2953,33 @@ class WorkoutViewModel: ObservableObject {
             }
         }
         return false
+    }
+
+    private func isRetriableCoachingError(_ error: Error) -> Bool {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .networkError, .invalidResponse:
+                return true
+            case .serverError:
+                return true
+            case .httpError(let statusCode):
+                return statusCode == 408 || statusCode == 425 || statusCode == 429 || (500 ... 599).contains(statusCode)
+            case .authenticationRequired, .invalidURL, .downloadFailed:
+                return false
+            }
+        }
+        return (error as? URLError) != nil
+    }
+
+    private func applyCoachingFailureBackoff() {
+        let baseInterval = AppConfig.ContinuousCoaching.defaultInterval
+        let growth = min(8.0, Double(max(1, consecutiveBackendFailures)) * 2.0)
+        coachingInterval = min(AppConfig.ContinuousCoaching.maxInterval, baseInterval + growth)
+
+        coachingStatusLine = currentLanguage == "no"
+            ? "Ustabil tilkobling. Fortsetter lokalt og prøver igjen."
+            : "Connection unstable. Continuing locally and retrying."
+        print("⚠️ BACKEND_RETRY failures=\(consecutiveBackendFailures) next_tick=\(Int(coachingInterval))s")
     }
 
     private func handleAuthFailureIfNeeded(_ error: Error) -> Bool {

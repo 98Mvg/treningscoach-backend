@@ -72,5 +72,9 @@ struct KeychainHelper {
 
     // MARK: - Convenience Keys
 
+    static let accessTokenKey = "auth_access_token"
+    static let refreshTokenKey = "auth_refresh_token"
+    static let accessTokenExpiresAtKey = "auth_access_expires_at"
+    static let refreshTokenExpiresAtKey = "auth_refresh_expires_at"
     static let tokenKey = "auth_token"
 }

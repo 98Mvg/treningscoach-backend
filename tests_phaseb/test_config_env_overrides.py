@@ -151,3 +151,13 @@ def test_security_env_overrides(monkeypatch):
     assert config.CONTINUOUS_RATE_LIMIT_PER_HOUR == 900
     assert config.CORS_ALLOWED_ORIGINS == ["https://coachi.app", "https://www.coachi.app"]
     assert config.AUDIO_SIGNATURE_BYPASS_FOR_TESTS is False
+
+
+def test_security_refresh_ttl_defaults_to_7_days(monkeypatch):
+    monkeypatch.delenv("JWT_ACCESS_TOKEN_MAX_DAYS", raising=False)
+    monkeypatch.delenv("JWT_REFRESH_TOKEN_MAX_DAYS", raising=False)
+
+    importlib.reload(config)
+
+    assert config.JWT_ACCESS_TOKEN_MAX_DAYS == 7
+    assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 7

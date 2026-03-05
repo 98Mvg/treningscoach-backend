@@ -85,7 +85,7 @@ if APP_FREE_MODE:
 
 # Security posture
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)
-JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 30)
+JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 7)
 JWT_SECRET_MAX_AGE_DAYS = _env_int("JWT_SECRET_MAX_AGE_DAYS", 90)
 
 # Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).

@@ -392,7 +392,7 @@ def refresh_tokens():
                 "refresh_token": new_refresh_token,
                 "token_type": "bearer",
                 "expires_in": int(getattr(config, "JWT_ACCESS_TOKEN_MAX_DAYS", 7) * 24 * 3600),
-                "refresh_expires_in": int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 30) * 24 * 3600),
+                "refresh_expires_in": int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 7) * 24 * 3600),
             }
         ), 200
     except ValueError as exc:

@@ -55,8 +55,21 @@ struct AuthView: View {
                                 }
                             }
                         }
-                        socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
-                            onContinue()
+                        if AppConfig.Auth.googleSignInEnabled {
+                            socialButton(title: L10n.registerWithGoogle, icon: "g.circle.fill") {
+                                Task {
+                                    await authManager.signInWithGoogle()
+                                    if authManager.isAuthenticated {
+                                        onContinue()
+                                    }
+                                }
+                            }
+                        } else {
+                            socialButton(
+                                title: "\(L10n.registerWithGoogle) (\(L10n.comingSoon))",
+                                icon: "g.circle.fill",
+                                isEnabled: false
+                            ) {}
                         }
                     }
                     .frame(width: contentWidth, alignment: .center)
@@ -184,27 +197,28 @@ struct AuthView: View {
         }
     }
 
-    private func socialButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func socialButton(title: String, icon: String, isEnabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.title3.weight(.semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
+                    .foregroundColor(isEnabled ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
                     .frame(width: 22)
                 Text(title)
                     .font(.body.weight(.bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
+                    .foregroundColor(isEnabled ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
                 Spacer()
             }
             .padding(.horizontal, 18)
             .frame(height: 54)
-            .background(CoachiTheme.surface)
+            .background(isEnabled ? CoachiTheme.surface : CoachiTheme.surfaceElevated.opacity(0.65))
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
             )
         }
+        .disabled(!isEnabled)
     }
 
     private func onboardingInputField(

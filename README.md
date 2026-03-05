@@ -285,7 +285,7 @@ Cloudflare deploy source of truth is now versioned in git:
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
 | `GEMINI_API_KEY` | If using Gemini | Gemini API key |
 | `JWT_ACCESS_TOKEN_MAX_DAYS` | Recommended | Access token TTL (default: 7 days) |
-| `JWT_REFRESH_TOKEN_MAX_DAYS` | Recommended | Refresh token TTL (default: 30 days) |
+| `JWT_REFRESH_TOKEN_MAX_DAYS` | Recommended | Refresh token TTL (default: 7 days) |
 | `CORS_ALLOWED_ORIGINS` | Recommended | Comma-separated strict CORS allow-list |
 | `AUDIO_SIGNATURE_BYPASS_FOR_TESTS` | Test only | Allows synthetic test audio without real file signatures |
 

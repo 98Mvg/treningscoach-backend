@@ -7,7 +7,7 @@ API = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "BackendAPISe
 
 def test_workout_history_handles_missing_auth_token_without_error() -> None:
     text = API.read_text(encoding="utf-8")
-    assert "guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey), !token.isEmpty else {" in text
+    assert "guard currentAuthToken() != nil else {" in text
     assert "return []" in text
 
 
