@@ -89,7 +89,8 @@ JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 7)
 JWT_SECRET_MAX_AGE_DAYS = _env_int("JWT_SECRET_MAX_AGE_DAYS", 90)
 
 # Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).
-MOBILE_API_AUTH_REQUIRED = _env_bool("MOBILE_API_AUTH_REQUIRED", True)
+# Default is guest-friendly for the current pre-launch phase; set env true to re-enable strict auth.
+MOBILE_API_AUTH_REQUIRED = _env_bool("MOBILE_API_AUTH_REQUIRED", False)
 # Test-only bypass for new mobile auth/rate-limit guards to preserve deterministic tests.
 AUTH_BYPASS_FOR_TESTS = _env_bool("AUTH_BYPASS_FOR_TESTS", True)
 RATE_LIMIT_BYPASS_FOR_TESTS = _env_bool("RATE_LIMIT_BYPASS_FOR_TESTS", True)

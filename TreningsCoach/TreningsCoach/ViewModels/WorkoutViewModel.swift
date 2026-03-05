@@ -636,18 +636,6 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Coachi Convenience Methods
 
     func startWorkout() {
-        guard hasValidAuthToken() else {
-            clearWatchStartPendingState()
-            activeWatchRequestId = nil
-            watchStartStatusLine = launchAuthRequirementText
-            workoutState = .idle
-            let message = currentLanguage == "no"
-                ? "Du må logge inn for å starte coaching."
-                : "You must sign in to start coaching."
-            showErrorAlert(message)
-            return
-        }
-
         activeSessionPlan = buildSessionPlanFromSelections()
         clearWatchStartPendingState()
         watchStartStatusLine = nil
@@ -2355,17 +2343,6 @@ class WorkoutViewModel: ObservableObject {
 
     private func startContinuousWorkoutInternal() {
         guard !isContinuousMode else { return }
-        guard hasValidAuthToken() else {
-            clearWatchStartPendingState()
-            watchStartStatusLine = nil
-            workoutState = .idle
-            let message = currentLanguage == "no"
-                ? "Du må logge inn for å starte coaching."
-                : "You must sign in to start coaching."
-            showErrorAlert(message)
-            print("⚠️ Continuous workout blocked: missing auth token")
-            return
-        }
         clearWatchStartPendingState()
         watchStartStatusLine = nil
         workoutState = .active

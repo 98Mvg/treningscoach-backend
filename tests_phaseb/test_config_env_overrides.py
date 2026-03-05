@@ -161,3 +161,11 @@ def test_security_refresh_ttl_defaults_to_7_days(monkeypatch):
 
     assert config.JWT_ACCESS_TOKEN_MAX_DAYS == 7
     assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 7
+
+
+def test_mobile_api_auth_defaults_to_guest_friendly(monkeypatch):
+    monkeypatch.delenv("MOBILE_API_AUTH_REQUIRED", raising=False)
+
+    importlib.reload(config)
+
+    assert config.MOBILE_API_AUTH_REQUIRED is False

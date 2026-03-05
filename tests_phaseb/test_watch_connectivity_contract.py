@@ -51,8 +51,8 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "handleWatchWorkoutStopped(timestamp:" in text
     assert "guard requestID == pendingWatchRequestId else { return }" in text
     assert "func startWorkout()" in text
-    assert "guard hasValidAuthToken() else {" in text
-    assert "watchStartStatusLine = launchAuthRequirementText" in text
+    assert "func startWorkout() {\n        activeSessionPlan = buildSessionPlanFromSelections()" in text
+    assert "watchStartStatusLine = launchAuthRequirementText" not in text
 
 
 def test_watch_side_receives_both_message_and_application_context() -> None:

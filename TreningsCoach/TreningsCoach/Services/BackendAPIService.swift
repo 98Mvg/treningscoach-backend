@@ -748,9 +748,7 @@ class BackendAPIService {
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        guard addAuthHeader(to: &request) else {
-            throw APIError.authenticationRequired
-        }
+        addAuthHeader(to: &request)
 
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -913,9 +911,7 @@ class BackendAPIService {
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        guard addAuthHeader(to: &request) else {
-            throw APIError.authenticationRequired
-        }
+        addAuthHeader(to: &request)
 
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
