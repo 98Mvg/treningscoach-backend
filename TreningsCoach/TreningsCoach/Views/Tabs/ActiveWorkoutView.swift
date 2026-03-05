@@ -48,12 +48,20 @@ struct ActiveWorkoutView: View {
                         TimerRingView(progress: viewModel.phaseProgress, size: ringSize, lineWidth: 12)
                             .allowsHitTesting(false)
 
-                        Text(viewModel.elapsedFormatted)
-                            .font(.system(size: ringSize * 0.22, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.96))
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
+                        VStack(spacing: max(4, ringSize * 0.02)) {
+                            Text(viewModel.timerRingTitleText)
+                                .font(.system(size: ringSize * 0.08, weight: .medium))
+                                .foregroundColor(.white.opacity(0.86))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+
+                            Text(viewModel.timerRingTimeText)
+                                .font(.system(size: ringSize * 0.22, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.96))
+                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
+                                .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 18)
@@ -257,6 +265,29 @@ struct ActiveWorkoutView: View {
                     .foregroundColor(Color.white.opacity(0.78))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+            }
+
+            if let tertiary = viewModel.phaseCountdownTertiaryText {
+                Text(tertiary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.9))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            if !viewModel.intervalSetProgressDots.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(Array(viewModel.intervalSetProgressDots.enumerated()), id: \.offset) { _, done in
+                        Circle()
+                            .fill(done ? Color.green : Color.red.opacity(0.85))
+                            .frame(width: 9, height: 9)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                            )
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding(.horizontal, 14)

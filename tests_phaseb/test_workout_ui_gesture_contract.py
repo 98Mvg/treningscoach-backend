@@ -186,6 +186,19 @@ def test_active_workout_hr_fallback_is_zero_bpm() -> None:
     assert 'return "HK \\(viewModel.watchBPMDisplayText)"' in text
 
 
+def test_active_workout_ring_uses_time_remaining_text_inside_circle() -> None:
+    text = _active_workout_view_text()
+    assert "Text(viewModel.timerRingTitleText)" in text
+    assert "Text(viewModel.timerRingTimeText)" in text
+
+
+def test_active_workout_interval_panel_shows_countdown_cue_and_set_dots() -> None:
+    text = _active_workout_view_text()
+    assert "if let tertiary = viewModel.phaseCountdownTertiaryText {" in text
+    assert "if !viewModel.intervalSetProgressDots.isEmpty {" in text
+    assert "viewModel.intervalSetProgressDots.enumerated()" in text
+
+
 def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     text = _workout_view_model_text()
     assert "@Published var selectedIntervalSets: Int = 6" in text
@@ -194,6 +207,18 @@ def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     assert "let repeats = max(2, min(10, selectedIntervalSets))" in text
     assert "let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60" in text
     assert "let recoverySeconds = max(0, min(10, selectedIntervalBreakMinutes)) * 60" in text
+
+
+def test_view_model_interval_progress_supports_recovery_start_countdown_and_done_left() -> None:
+    text = _workout_view_model_text()
+    assert "var intervalSetProgressDots: [Bool]" in text
+    assert "var phaseCountdownTertiaryText: String?" in text
+    assert "? \"Til pause: \\(remainingText)\"" in text
+    assert "? \"Til start: \\(remainingText)\"" in text
+    assert 'case 30:' in text
+    assert 'case 15:' in text
+    assert 'case 5:' in text
+    assert 'case 0 ... 1:' in text
 
 
 def test_view_model_persists_final_coach_score_history_for_home() -> None:

@@ -112,6 +112,15 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private struct IntervalProgressState {
+        let phaseKey: String
+        let repIndex: Int
+        let repsTotal: Int
+        let remainingSeconds: Int
+        let doneReps: Int
+        let repsLeft: Int
+    }
+
     private let spotifyPromptPendingKey = "spotify_prompt_pending"
     private let spotifyPromptSeenKey = "spotify_prompt_seen"
     private let goodCoachWorkoutCountKey = "good_coach_workout_count"
@@ -282,6 +291,20 @@ class WorkoutViewModel: ObservableObject {
         return String(format: "%02d:%02d", mins, secs)
     }
 
+    var timerRingTitleText: String {
+        if isEasyRunFreeRunActive && (resolvedPhaseKey == "main" || resolvedPhaseKey == "work") {
+            return currentLanguage == "no" ? "Total tid" : "Total time"
+        }
+        return currentLanguage == "no" ? "Tid igjen" : "Time remaining"
+    }
+
+    var timerRingTimeText: String {
+        if isEasyRunFreeRunActive && (resolvedPhaseKey == "main" || resolvedPhaseKey == "work") {
+            return elapsedFormatted
+        }
+        return formatPhaseRemaining(seconds: currentPhaseRemainingSeconds)
+    }
+
     private var effectiveSessionPlan: WorkoutSessionPlan {
         activeSessionPlan ?? buildSessionPlanFromSelections()
     }
@@ -296,6 +319,14 @@ class WorkoutViewModel: ObservableObject {
 
     var isEasyRunFreeRunActive: Bool {
         runtimeWorkoutMode == .easyRun && runtimeEasyRunSessionMode == .freeRun
+    }
+
+    var intervalSetProgressDots: [Bool] {
+        guard runtimeWorkoutMode == .intervals,
+              let progress = activeIntervalProgress else { return [] }
+        let total = max(1, progress.repsTotal)
+        let done = max(0, min(total, progress.doneReps))
+        return (1 ... total).map { $0 <= done }
     }
 
     var phaseCountdownPrimaryText: String {
@@ -315,14 +346,9 @@ class WorkoutViewModel: ObservableObject {
                 : "Warmup – \(remainingText) remaining"
         case "work":
             if runtimeWorkoutMode == .intervals {
-                if let (repIndex, repsTotal) = intervalRepProgress {
-                    return currentLanguage == "no"
-                        ? "Drag \(repIndex) / \(repsTotal) – \(remainingText) igjen"
-                        : "Interval \(repIndex) / \(repsTotal) – \(remainingText) remaining"
-                }
                 return currentLanguage == "no"
-                    ? "Intervall – \(remainingText) igjen"
-                    : "Interval – \(remainingText) remaining"
+                    ? "Til pause: \(remainingText)"
+                    : "To recovery: \(remainingText)"
             }
             return currentLanguage == "no"
                 ? "Hoveddel – \(remainingText) igjen"
@@ -330,8 +356,8 @@ class WorkoutViewModel: ObservableObject {
         case "recovery":
             if runtimeWorkoutMode == .intervals {
                 return currentLanguage == "no"
-                    ? "Pause – neste drag om \(remainingText)"
-                    : "Recovery – next interval in \(remainingText)"
+                    ? "Til start: \(remainingText)"
+                    : "To start: \(remainingText)"
             }
             return currentLanguage == "no"
                 ? "Hoveddel – \(remainingText) igjen"
@@ -353,16 +379,43 @@ class WorkoutViewModel: ObservableObject {
 
     var phaseCountdownSecondaryText: String? {
         guard runtimeWorkoutMode == .intervals else { return nil }
-        guard let summary = workoutContextSummary else { return nil }
-
-        guard let repsTotal = summary.repsTotal, repsTotal > 0 else { return nil }
-        let repIndex = max(1, summary.repIndex ?? 1)
-        let repsLeft = max(0, summary.repsRemainingIncludingCurrent ?? (repsTotal - repIndex + 1))
+        guard let progress = activeIntervalProgress else { return nil }
 
         if currentLanguage == "no" {
-            return "Drag \(min(repIndex, repsTotal))/\(repsTotal) · \(repsLeft) igjen"
+            return "\(progress.doneReps) ferdig · \(progress.repsLeft) igjen"
         }
-        return "Interval \(min(repIndex, repsTotal))/\(repsTotal) · \(repsLeft) left"
+        return "\(progress.doneReps) done · \(progress.repsLeft) left"
+    }
+
+    var phaseCountdownTertiaryText: String? {
+        guard runtimeWorkoutMode == .intervals,
+              let progress = activeIntervalProgress else { return nil }
+
+        let remainingSeconds = max(0, progress.remainingSeconds)
+        let milestone: String
+        switch remainingSeconds {
+        case 30:
+            milestone = "30"
+        case 15:
+            milestone = "15"
+        case 5:
+            milestone = "5"
+        case 0 ... 1:
+            milestone = "start"
+        default:
+            return nil
+        }
+
+        if currentLanguage == "no" {
+            if progress.phaseKey == "recovery" {
+                return milestone == "start" ? "Start drag!" : "Neste drag om \(milestone)"
+            }
+            return milestone == "start" ? "Pause!" : "Pause om \(milestone)"
+        }
+        if progress.phaseKey == "recovery" {
+            return milestone == "start" ? "Start interval!" : "Next interval in \(milestone)"
+        }
+        return milestone == "start" ? "Recovery!" : "Recovery in \(milestone)"
     }
 
     var coachScoreSummaryLine: String {
@@ -872,10 +925,112 @@ class WorkoutViewModel: ObservableObject {
 
     private var workoutContextSummaryReceivedAt: Date?
 
+    private var summaryPhaseKey: String? {
+        guard let phase = workoutContextSummary?.phase?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+            !phase.isEmpty else {
+            return nil
+        }
+        return phase
+    }
+
+    private var activeIntervalProgress: IntervalProgressState? {
+        summaryIntervalProgress ?? fallbackIntervalProgress
+    }
+
+    private var summaryIntervalProgress: IntervalProgressState? {
+        guard runtimeWorkoutMode == .intervals,
+              let summary = workoutContextSummary else {
+            return nil
+        }
+
+        let repsTotal = max(1, summary.repsTotal ?? (effectiveSessionPlan.intervalRepeats ?? max(2, selectedIntervalSets)))
+        let repIndex = max(1, min(repsTotal, summary.repIndex ?? 1))
+        let phase = summaryPhaseKey ?? "work"
+        let age = workoutContextSummaryAgeSeconds
+        let fallbackRemaining = fallbackIntervalProgress?.remainingSeconds ?? fallbackPhaseRemainingSeconds()
+        let rawRemaining = summary.repRemainingS ?? summary.timeLeftS ?? fallbackRemaining
+        let remaining = max(0, rawRemaining - age)
+        let doneReps = phase == "recovery" ? repIndex : max(0, repIndex - 1)
+        let repsLeft = max(0, repsTotal - doneReps)
+
+        return IntervalProgressState(
+            phaseKey: phase,
+            repIndex: repIndex,
+            repsTotal: repsTotal,
+            remainingSeconds: remaining,
+            doneReps: doneReps,
+            repsLeft: repsLeft
+        )
+    }
+
+    private var fallbackIntervalProgress: IntervalProgressState? {
+        guard runtimeWorkoutMode == .intervals, currentPhase == .intense else { return nil }
+
+        let repeats = max(1, effectiveSessionPlan.intervalRepeats ?? max(2, selectedIntervalSets))
+        let workSeconds = max(1, effectiveSessionPlan.intervalWorkSeconds ?? max(1, selectedIntervalWorkMinutes) * 60)
+        let recoverySeconds = max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakMinutes) * 60)
+        let warmupSeconds = Int(configuredWarmupDuration)
+        let elapsedInIntense = max(0, Int(elapsedTime) - warmupSeconds)
+
+        return buildFallbackIntervalProgress(
+            elapsedInIntense: elapsedInIntense,
+            repeats: repeats,
+            workSeconds: workSeconds,
+            recoverySeconds: recoverySeconds
+        )
+    }
+
+    private func buildFallbackIntervalProgress(
+        elapsedInIntense: Int,
+        repeats: Int,
+        workSeconds: Int,
+        recoverySeconds: Int
+    ) -> IntervalProgressState? {
+        guard repeats > 0, workSeconds > 0 else { return nil }
+
+        var cursor = 0
+        for rep in 1 ... repeats {
+            let workEnd = cursor + workSeconds
+            if elapsedInIntense < workEnd {
+                let doneReps = max(0, rep - 1)
+                return IntervalProgressState(
+                    phaseKey: "work",
+                    repIndex: rep,
+                    repsTotal: repeats,
+                    remainingSeconds: max(0, workEnd - elapsedInIntense),
+                    doneReps: doneReps,
+                    repsLeft: max(0, repeats - doneReps)
+                )
+            }
+            cursor = workEnd
+
+            if rep < repeats, recoverySeconds > 0 {
+                let recoveryEnd = cursor + recoverySeconds
+                if elapsedInIntense < recoveryEnd {
+                    let doneReps = rep
+                    return IntervalProgressState(
+                        phaseKey: "recovery",
+                        repIndex: rep,
+                        repsTotal: repeats,
+                        remainingSeconds: max(0, recoveryEnd - elapsedInIntense),
+                        doneReps: doneReps,
+                        repsLeft: max(0, repeats - doneReps)
+                    )
+                }
+                cursor = recoveryEnd
+            }
+        }
+        return nil
+    }
+
     private var resolvedPhaseKey: String {
-        if let phase = workoutContextSummary?.phase?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-           !phase.isEmpty {
+        if let phase = summaryPhaseKey {
             return phase
+        }
+        if let progress = fallbackIntervalProgress {
+            return progress.phaseKey
         }
         switch currentPhase {
         case .warmup:
@@ -893,20 +1048,16 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private var intervalRepProgress: (Int, Int)? {
-        guard let summary = workoutContextSummary,
-              let repsTotal = summary.repsTotal, repsTotal > 0 else { return nil }
-        let repIndex = max(1, min(repsTotal, summary.repIndex ?? 1))
-        return (repIndex, repsTotal)
+        guard let progress = activeIntervalProgress else { return nil }
+        return (progress.repIndex, progress.repsTotal)
     }
 
     private var currentPhaseRemainingSeconds: Int {
+        if let intervalProgress = activeIntervalProgress {
+            return max(0, intervalProgress.remainingSeconds)
+        }
         if let summary = workoutContextSummary {
             let age = workoutContextSummaryAgeSeconds
-            let phase = resolvedPhaseKey
-            if phase == "work" || phase == "recovery",
-               let repRemaining = summary.repRemainingS {
-                return max(0, repRemaining - age)
-            }
             if let timeLeft = summary.timeLeftS {
                 return max(0, timeLeft - age)
             }
