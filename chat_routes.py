@@ -7,6 +7,8 @@ import json
 from typing import Any
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
+import config
+from auth import require_mobile_auth, rate_limit
 
 
 def create_chat_blueprint(
@@ -20,6 +22,11 @@ def create_chat_blueprint(
     chat_bp = Blueprint("chat_routes", __name__)
 
     @chat_bp.route("/brain/health", methods=["GET"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.brain.health",
+    )
     def brain_health():
         """
         Check health of active brain.
@@ -45,6 +52,12 @@ def create_chat_blueprint(
             )
 
     @chat_bp.route("/brain/switch", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.brain.switch",
+    )
+    @require_mobile_auth
     def switch_brain():
         """
         Switch to a different brain at runtime.
@@ -104,6 +117,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Internal server error"}), 500
 
     @chat_bp.route("/chat/start", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.start",
+    )
+    @require_mobile_auth
     def chat_start():
         """
         Create new conversation session.
@@ -157,6 +176,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Failed to create session"}), 500
 
     @chat_bp.route("/chat/stream", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "CONTINUOUS_RATE_LIMIT_PER_HOUR", 1200),
+        window_seconds=3600,
+        key_prefix="chat.stream",
+    )
+    @require_mobile_auth
     def chat_stream():
         """
         Streaming chat endpoint (SSE).
@@ -260,6 +285,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Streaming failed"}), 500
 
     @chat_bp.route("/chat/message", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.message",
+    )
+    @require_mobile_auth
     def chat_message():
         """
         Non-streaming chat endpoint (fallback).
@@ -324,6 +355,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Chat failed"}), 500
 
     @chat_bp.route("/chat/sessions", methods=["GET"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.sessions.list",
+    )
+    @require_mobile_auth
     def list_sessions():
         """
         List all sessions.
@@ -347,6 +384,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Failed to list sessions"}), 500
 
     @chat_bp.route("/chat/sessions/<session_id>", methods=["DELETE"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.sessions.delete",
+    )
+    @require_mobile_auth
     def delete_session(session_id):
         """Delete a session."""
         try:
@@ -358,6 +401,12 @@ def create_chat_blueprint(
             return jsonify({"error": "Failed to delete session"}), 500
 
     @chat_bp.route("/chat/personas", methods=["GET"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="chat.personas",
+    )
+    @require_mobile_auth
     def list_personas():
         """
         List all available personas.
@@ -387,4 +436,3 @@ def create_chat_blueprint(
             return jsonify({"error": "Failed to list personas"}), 500
 
     return chat_bp
-

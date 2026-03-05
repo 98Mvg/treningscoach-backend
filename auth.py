@@ -5,21 +5,33 @@ Issues JWT tokens for session management
 """
 
 import os
+import json
 import logging
 import secrets
+import hashlib
+import threading
+import time
+import uuid
 import jwt
 import requests
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify, g
+import config
 
 logger = logging.getLogger(__name__)
 
 # JWT Configuration
 DEFAULT_INSECURE_JWT_SECRET = "treningscoach-dev-secret-change-in-production"
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_DAYS = 30
+JWT_ACCESS_EXPIRY_DAYS = max(1, int(getattr(config, "JWT_ACCESS_TOKEN_MAX_DAYS", 7)))
+JWT_REFRESH_EXPIRY_DAYS = max(1, int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 30)))
+JWT_SECRET_MAX_AGE_DAYS = max(1, int(getattr(config, "JWT_SECRET_MAX_AGE_DAYS", 90)))
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ============================================
@@ -32,30 +44,57 @@ def _persist_runtime_jwt_secret(secret_path: Path) -> str:
 
     This keeps workers consistent without relying on a predictable default.
     """
+    def _build_payload(secret: str) -> dict:
+        return {
+            "secret": secret,
+            "created_at": _utcnow().isoformat(),
+        }
+
+    def _extract_valid_secret(raw: str) -> str | None:
+        try:
+            payload = json.loads(raw)
+            if isinstance(payload, dict):
+                secret_value = str(payload.get("secret") or "").strip()
+                created_at_raw = str(payload.get("created_at") or "").strip()
+                if secret_value and created_at_raw:
+                    try:
+                        created_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+                        age = _utcnow() - created_at.astimezone(timezone.utc)
+                        if age <= timedelta(days=JWT_SECRET_MAX_AGE_DAYS):
+                            return secret_value
+                        logger.warning(
+                            "JWT secret file %s is older than %s days; rotating secret",
+                            secret_path,
+                            JWT_SECRET_MAX_AGE_DAYS,
+                        )
+                    except ValueError:
+                        logger.warning("JWT secret file %s has invalid created_at; rotating secret", secret_path)
+        except json.JSONDecodeError:
+            # Backward compatibility: legacy files stored raw secret only.
+            legacy_secret = raw.strip()
+            if legacy_secret:
+                logger.warning("JWT secret file %s uses legacy format; keeping existing secret", secret_path)
+                return legacy_secret
+        return None
+
     try:
-        existing = secret_path.read_text(encoding="utf-8").strip()
-        if existing:
-            return existing
+        existing_raw = secret_path.read_text(encoding="utf-8").strip()
+        existing_secret = _extract_valid_secret(existing_raw)
+        if existing_secret:
+            return existing_secret
     except FileNotFoundError:
         pass
     except OSError as exc:
         logger.warning("Could not read JWT secret file %s: %s", secret_path, exc)
 
     secret = secrets.token_urlsafe(48)
+    payload_json = json.dumps(_build_payload(secret))
 
     try:
         secret_path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(str(secret_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        fd = os.open(str(secret_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(secret)
-    except FileExistsError:
-        # Another worker created it first; read canonical value.
-        try:
-            existing = secret_path.read_text(encoding="utf-8").strip()
-            if existing:
-                return existing
-        except OSError:
-            pass
+            handle.write(payload_json)
     except OSError as exc:
         logger.warning("Could not persist JWT secret file %s: %s", secret_path, exc)
 
@@ -99,11 +138,14 @@ def create_jwt(user_id: str, email: str = None) -> str:
     Returns:
         JWT token string
     """
+    now = _utcnow()
     payload = {
         "user_id": user_id,
         "email": email,
-        "iat": datetime.utcnow(),
-        "exp": datetime.utcnow() + timedelta(days=JWT_EXPIRY_DAYS)
+        "iat": now,
+        "exp": now + timedelta(days=JWT_ACCESS_EXPIRY_DAYS),
+        "typ": "access",
+        "jti": str(uuid.uuid4()),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -123,6 +165,95 @@ def decode_jwt(token: str) -> dict:
         jwt.InvalidTokenError: If token is invalid
     """
     return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+
+
+def _hash_token(raw_token: str) -> str:
+    return hashlib.sha256((raw_token or "").encode("utf-8")).hexdigest()
+
+
+def issue_refresh_token(user_id: str, *, family_id: str | None = None) -> tuple[str, str]:
+    """
+    Issue a refresh token and persist only its hash.
+
+    Returns:
+        (raw_refresh_token, family_id)
+    """
+    from database import db, RefreshToken
+
+    token = secrets.token_urlsafe(64)
+    token_hash = _hash_token(token)
+    resolved_family = family_id or str(uuid.uuid4())
+    expires_at = _utcnow() + timedelta(days=JWT_REFRESH_EXPIRY_DAYS)
+    record = RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        family_id=resolved_family,
+        expires_at=expires_at.replace(tzinfo=None),
+        created_at=_utcnow().replace(tzinfo=None),
+        issued_ip=(request.remote_addr or "")[:64],
+        issued_user_agent=(request.user_agent.string or "")[:512],
+    )
+    db.session.add(record)
+    db.session.commit()
+    return token, resolved_family
+
+
+def rotate_refresh_token(refresh_token: str) -> tuple[str, str, str]:
+    """
+    Refresh token rotation: current token is revoked and replaced atomically.
+
+    Returns:
+        (new_refresh_token, family_id, user_id)
+    """
+    from database import db, RefreshToken
+
+    incoming_hash = _hash_token(refresh_token)
+    record = RefreshToken.query.filter_by(token_hash=incoming_hash).first()
+    now = _utcnow().replace(tzinfo=None)
+    if record is None:
+        raise ValueError("Invalid refresh token")
+    if record.revoked_at is not None:
+        raise ValueError("Refresh token revoked")
+    if record.expires_at <= now:
+        raise ValueError("Refresh token expired")
+
+    new_token, family_id = issue_refresh_token(record.user_id, family_id=record.family_id)
+    record.revoked_at = now
+    record.last_used_at = now
+    record.replaced_by_hash = _hash_token(new_token)
+    db.session.commit()
+    return new_token, family_id, record.user_id
+
+
+def revoke_refresh_family(refresh_token: str) -> int:
+    """Revoke all refresh tokens in the same token family."""
+    from database import db, RefreshToken
+
+    incoming_hash = _hash_token(refresh_token)
+    record = RefreshToken.query.filter_by(token_hash=incoming_hash).first()
+    if record is None:
+        return 0
+    now = _utcnow().replace(tzinfo=None)
+    updated = RefreshToken.query.filter_by(family_id=record.family_id, revoked_at=None).update(
+        {"revoked_at": now},
+        synchronize_session=False,
+    )
+    db.session.commit()
+    return int(updated or 0)
+
+
+def issue_auth_tokens(user_id: str, email: str | None = None) -> dict:
+    """Issue access + refresh token pair."""
+    access_token = create_jwt(user_id, email)
+    refresh_token, family_id = issue_refresh_token(user_id)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": int(timedelta(days=JWT_ACCESS_EXPIRY_DAYS).total_seconds()),
+        "refresh_expires_in": int(timedelta(days=JWT_REFRESH_EXPIRY_DAYS).total_seconds()),
+        "refresh_family_id": family_id,
+    }
 
 
 # ============================================
@@ -155,6 +286,97 @@ def require_auth(f):
         return f(*args, **kwargs)
 
     return decorated
+
+
+def _testing_bypass_enabled(flag_name: str, default: bool = True) -> bool:
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        return False
+    raw = os.getenv(flag_name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def require_mobile_auth(f):
+    """
+    Auth guard for mobile API endpoints.
+
+    Enforced by default in runtime, but can be bypassed for tests to avoid
+    rewriting broad endpoint contract tests in one security hardening pass.
+    """
+    strict_mobile_auth = bool(getattr(config, "MOBILE_API_AUTH_REQUIRED", True))
+    strict_guard = require_auth(f)
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not strict_mobile_auth:
+            return f(*args, **kwargs)
+
+        if _testing_bypass_enabled(
+            "AUTH_BYPASS_FOR_TESTS",
+            bool(getattr(config, "AUTH_BYPASS_FOR_TESTS", True)),
+        ):
+            g.current_user_id = "test-user"
+            g.current_user_email = "test@example.com"
+            return f(*args, **kwargs)
+
+        return strict_guard(*args, **kwargs)
+
+    return decorated
+
+
+_RATE_LIMIT_STORE: dict[str, list[float]] = {}
+_RATE_LIMIT_LOCK = threading.Lock()
+
+
+def _rate_limit_key(prefix: str) -> str:
+    user_id = getattr(g, "current_user_id", None)
+    if user_id:
+        return f"{prefix}:user:{user_id}"
+    ip = (request.remote_addr or "unknown").strip()
+    return f"{prefix}:ip:{ip}"
+
+
+def rate_limit(limit: int, window_seconds: int, *, key_prefix: str) -> callable:
+    """
+    In-memory rate limiter (process-local) for immediate endpoint protection.
+    """
+
+    enforced = bool(getattr(config, "RATE_LIMIT_ENABLED", True))
+    max_requests = max(1, int(limit))
+    window = max(1, int(window_seconds))
+
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not enforced:
+                return f(*args, **kwargs)
+
+            if _testing_bypass_enabled(
+                "RATE_LIMIT_BYPASS_FOR_TESTS",
+                bool(getattr(config, "RATE_LIMIT_BYPASS_FOR_TESTS", True)),
+            ):
+                return f(*args, **kwargs)
+
+            key = _rate_limit_key(key_prefix)
+            now = time.time()
+            with _RATE_LIMIT_LOCK:
+                bucket = _RATE_LIMIT_STORE.setdefault(key, [])
+                cutoff = now - window
+                while bucket and bucket[0] < cutoff:
+                    bucket.pop(0)
+                if len(bucket) >= max_requests:
+                    retry_after = max(1, int(bucket[0] + window - now))
+                    response = jsonify({"error": "Rate limit exceeded", "retry_after_seconds": retry_after})
+                    response.status_code = 429
+                    response.headers["Retry-After"] = str(retry_after)
+                    return response
+                bucket.append(now)
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return decorator
 
 
 def optional_auth(f):

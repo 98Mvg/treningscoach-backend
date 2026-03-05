@@ -260,16 +260,18 @@ Cloudflare deploy source of truth is now versioned in git:
 | 23 | POST | `/waitlist` | Capture waitlist email |
 | 24 | POST | `/analytics/event` | Capture lightweight landing analytics |
 
-### Auth Routes (`auth_routes.py`) — 6
+### Auth Routes (`auth_routes.py`) — 8
 
 | # | Method | Route | Purpose |
 |---|--------|-------|---------|
 | 25 | POST | `/auth/google` | Authenticate with Google |
 | 26 | POST | `/auth/facebook` | Authenticate with Facebook |
 | 27 | POST | `/auth/vipps` | Authenticate with Vipps |
-| 28 | GET | `/auth/me` | Get current user profile |
-| 29 | PUT | `/auth/me` | Update current user profile |
-| 30 | DELETE | `/auth/me` | Delete current user account |
+| 28 | POST | `/auth/refresh` | Rotate refresh token + issue new access token |
+| 29 | POST | `/auth/logout` | Revoke refresh-token family |
+| 30 | GET | `/auth/me` | Get current user profile |
+| 31 | PUT | `/auth/me` | Update current user profile |
+| 32 | DELETE | `/auth/me` | Delete current user account |
 
 ## 🔧 Environment Variables
 
@@ -282,6 +284,10 @@ Cloudflare deploy source of truth is now versioned in git:
 | `ANTHROPIC_API_KEY` | If using Claude | Claude API key |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
 | `GEMINI_API_KEY` | If using Gemini | Gemini API key |
+| `JWT_ACCESS_TOKEN_MAX_DAYS` | Recommended | Access token TTL (default: 7 days) |
+| `JWT_REFRESH_TOKEN_MAX_DAYS` | Recommended | Refresh token TTL (default: 30 days) |
+| `CORS_ALLOWED_ORIGINS` | Recommended | Comma-separated strict CORS allow-list |
+| `AUDIO_SIGNATURE_BYPASS_FOR_TESTS` | Test only | Allows synthetic test audio without real file signatures |
 
 ## 📝 Version History
 

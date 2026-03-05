@@ -9,13 +9,19 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from database import db, User, UserSettings
 from auth import (
-    create_jwt, require_auth,
+    create_jwt,
+    require_auth,
+    rate_limit,
+    issue_auth_tokens,
+    rotate_refresh_token,
+    revoke_refresh_family,
     AppleTokenVerificationError,
     verify_apple_token,
     verify_google_token,
     verify_facebook_token,
     verify_vipps_token,
 )
+import config
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +127,11 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
 # ============================================
 
 @auth_bp.route("/apple", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    window_seconds=3600,
+    key_prefix="auth.apple",
+)
 def auth_apple():
     """
     Authenticate with Apple Sign-In.
@@ -156,11 +167,16 @@ def auth_apple():
             full_name=data.get("full_name"),
         )
         user = find_or_create_user("apple", provider_info)
-        token = create_jwt(user.id, user.email)
+        token_bundle = issue_auth_tokens(user.id, user.email)
         _record_apple_auth_metric(success=True, reason="ok", started_at=started_at)
 
         return jsonify({
-            "token": token,
+            "token": token_bundle["access_token"],  # backward-compatible key
+            "access_token": token_bundle["access_token"],
+            "refresh_token": token_bundle["refresh_token"],
+            "token_type": token_bundle["token_type"],
+            "expires_in": token_bundle["expires_in"],
+            "refresh_expires_in": token_bundle["refresh_expires_in"],
             "user": user.to_dict()
         }), 200
 
@@ -184,6 +200,11 @@ def auth_apple():
 
 
 @auth_bp.route("/google", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    window_seconds=3600,
+    key_prefix="auth.google",
+)
 def auth_google():
     """
     Authenticate with Google Sign-In.
@@ -210,11 +231,15 @@ def auth_google():
         # Find or create user
         user = find_or_create_user("google", provider_info)
 
-        # Issue JWT
-        token = create_jwt(user.id, user.email)
+        token_bundle = issue_auth_tokens(user.id, user.email)
 
         return jsonify({
-            "token": token,
+            "token": token_bundle["access_token"],  # backward-compatible key
+            "access_token": token_bundle["access_token"],
+            "refresh_token": token_bundle["refresh_token"],
+            "token_type": token_bundle["token_type"],
+            "expires_in": token_bundle["expires_in"],
+            "refresh_expires_in": token_bundle["refresh_expires_in"],
             "user": user.to_dict()
         }), 200
 
@@ -227,6 +252,11 @@ def auth_google():
 
 
 @auth_bp.route("/facebook", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    window_seconds=3600,
+    key_prefix="auth.facebook",
+)
 def auth_facebook():
     """
     Authenticate with Facebook Login.
@@ -253,11 +283,15 @@ def auth_facebook():
         # Find or create user
         user = find_or_create_user("facebook", provider_info)
 
-        # Issue JWT
-        token = create_jwt(user.id, user.email)
+        token_bundle = issue_auth_tokens(user.id, user.email)
 
         return jsonify({
-            "token": token,
+            "token": token_bundle["access_token"],  # backward-compatible key
+            "access_token": token_bundle["access_token"],
+            "refresh_token": token_bundle["refresh_token"],
+            "token_type": token_bundle["token_type"],
+            "expires_in": token_bundle["expires_in"],
+            "refresh_expires_in": token_bundle["refresh_expires_in"],
             "user": user.to_dict()
         }), 200
 
@@ -270,6 +304,11 @@ def auth_facebook():
 
 
 @auth_bp.route("/vipps", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    window_seconds=3600,
+    key_prefix="auth.vipps",
+)
 def auth_vipps():
     """
     Authenticate with Vipps Login.
@@ -301,11 +340,15 @@ def auth_vipps():
             user.language = "no"
             db.session.commit()
 
-        # Issue JWT
-        token = create_jwt(user.id, user.email)
+        token_bundle = issue_auth_tokens(user.id, user.email)
 
         return jsonify({
-            "token": token,
+            "token": token_bundle["access_token"],  # backward-compatible key
+            "access_token": token_bundle["access_token"],
+            "refresh_token": token_bundle["refresh_token"],
+            "token_type": token_bundle["token_type"],
+            "expires_in": token_bundle["expires_in"],
+            "refresh_expires_in": token_bundle["refresh_expires_in"],
             "user": user.to_dict()
         }), 200
 
@@ -318,10 +361,75 @@ def auth_vipps():
 
 
 # ============================================
+# TOKEN REFRESH / LOGOUT
+# ============================================
+
+@auth_bp.route("/refresh", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "REFRESH_RATE_LIMIT_PER_HOUR", 60),
+    window_seconds=3600,
+    key_prefix="auth.refresh",
+)
+def refresh_tokens():
+    """
+    Rotate refresh token and issue a new access/refresh pair.
+    """
+    data = request.get_json(silent=True) or {}
+    refresh_token = str(data.get("refresh_token") or "").strip()
+    if not refresh_token:
+        return jsonify({"error": "Missing refresh_token"}), 400
+
+    try:
+        from database import User
+
+        new_refresh_token, _family_id, user_id = rotate_refresh_token(refresh_token)
+        user = User.query.get(user_id)
+        access_token = create_jwt(user_id, user.email if user is not None else None)
+        return jsonify(
+            {
+                "token": access_token,
+                "access_token": access_token,
+                "refresh_token": new_refresh_token,
+                "token_type": "bearer",
+                "expires_in": int(getattr(config, "JWT_ACCESS_TOKEN_MAX_DAYS", 7) * 24 * 3600),
+                "refresh_expires_in": int(getattr(config, "JWT_REFRESH_TOKEN_MAX_DAYS", 30) * 24 * 3600),
+            }
+        ), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    except Exception as exc:
+        logger.error("Refresh token rotation failed: %s", exc, exc_info=True)
+        return jsonify({"error": "Token refresh failed"}), 500
+
+
+@auth_bp.route("/logout", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "REFRESH_RATE_LIMIT_PER_HOUR", 60),
+    window_seconds=3600,
+    key_prefix="auth.logout",
+)
+def logout():
+    """
+    Revoke current refresh-token family.
+    """
+    data = request.get_json(silent=True) or {}
+    refresh_token = str(data.get("refresh_token") or "").strip()
+    if not refresh_token:
+        return jsonify({"error": "Missing refresh_token"}), 400
+    revoked = revoke_refresh_family(refresh_token)
+    return jsonify({"success": True, "revoked_tokens": revoked}), 200
+
+
+# ============================================
 # USER PROFILE ENDPOINTS
 # ============================================
 
 @auth_bp.route("/me", methods=["GET"])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="auth.me.get",
+)
 @require_auth
 def get_profile():
     """
@@ -342,6 +450,11 @@ def get_profile():
 
 
 @auth_bp.route("/me", methods=["PUT"])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="auth.me.put",
+)
 @require_auth
 def update_profile():
     """
@@ -397,6 +510,11 @@ def update_profile():
 
 
 @auth_bp.route("/me", methods=["DELETE"])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="auth.me.delete",
+)
 @require_auth
 def delete_account():
     """

@@ -172,6 +172,29 @@ class WorkoutHistory(db.Model):
 
 
 # ============================================
+# REFRESH TOKEN MODEL (ROTATION + REVOCATION)
+# ============================================
+
+class RefreshToken(db.Model):
+    __tablename__ = "refresh_tokens"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    family_id = db.Column(db.String(36), nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True, index=True)
+    replaced_by_hash = db.Column(db.String(64), nullable=True)
+    issued_ip = db.Column(db.String(64), nullable=True)
+    issued_user_agent = db.Column(db.String(512), nullable=True)
+
+    def is_active(self) -> bool:
+        return self.revoked_at is None and self.expires_at > datetime.utcnow()
+
+
+# ============================================
 # WAITLIST SIGNUP MODEL
 # ============================================
 

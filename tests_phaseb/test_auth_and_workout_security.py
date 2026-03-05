@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 import sys
 import uuid
@@ -50,7 +51,9 @@ def test_jwt_secret_uses_runtime_file_when_env_missing(monkeypatch, tmp_path):
     reloaded_again = importlib.reload(auth)
     assert reloaded_again.JWT_SECRET == first
     assert secret_file.exists()
-    assert secret_file.read_text(encoding="utf-8").strip() == first
+    secret_payload = json.loads(secret_file.read_text(encoding="utf-8").strip())
+    assert secret_payload["secret"] == first
+    assert isinstance(secret_payload.get("created_at"), str) and secret_payload["created_at"]
 
 
 def test_find_or_create_user_creates_settings_for_real_user_id():

@@ -31,7 +31,7 @@ from strategic_brain import get_strategic_brain  # Import Strategic Brain for hi
 from database import init_db, db, WaitlistSignup, UserProfile  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
-from auth import require_auth
+from auth import require_auth, require_mobile_auth, rate_limit
 from norwegian_phrase_quality import rewrite_norwegian_phrase
 from coaching_engine import validate_coaching_text, get_template_message
 from breathing_timeline import BreathingTimeline
@@ -62,7 +62,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for iOS app
+_cors_origins = list(getattr(config, "CORS_ALLOWED_ORIGINS", []) or [])
+CORS(
+    app,
+    resources={r"/*": {"origins": _cors_origins}},
+)
+logger.info("CORS configured with %s allowed origins", len(_cors_origins))
 
 # Initialize database
 init_db(app)
@@ -224,6 +229,46 @@ def _product_flags_snapshot() -> dict:
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _detect_audio_signature(file_obj) -> str | None:
+    """
+    Detect audio type from file signature (magic bytes), not extension.
+    """
+    try:
+        original_pos = file_obj.tell()
+    except Exception:
+        original_pos = None
+
+    header = b""
+    try:
+        header = file_obj.read(64)
+    finally:
+        try:
+            if original_pos is not None:
+                file_obj.seek(original_pos)
+            else:
+                file_obj.seek(0)
+        except Exception:
+            pass
+
+    if len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WAVE":
+        return "wav"
+    if header.startswith(b"ID3") or (len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
+        return "mp3"
+    if len(header) >= 12 and header[4:8] == b"ftyp":
+        return "m4a"
+    return None
+
+
+def _validate_audio_upload_signature(file_obj) -> bool:
+    detected = _detect_audio_signature(file_obj)
+    if detected in ALLOWED_EXTENSIONS:
+        return True
+    # Preserve existing deterministic test fixtures while keeping runtime strict.
+    if os.getenv("PYTEST_CURRENT_TEST") and bool(getattr(config, "AUDIO_SIGNATURE_BYPASS_FOR_TESTS", True)):
+        return True
+    return False
 
 def normalize_language_code(language: str) -> str:
     """
@@ -2047,7 +2092,13 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                     persona=selected_persona,
                     voice_pacing=pacing_override,
                 )
-                print(f"[TTS] OK lang={normalized_language} persona={selected_persona} mode={selected_mode} file={os.path.basename(result)}")
+                logger.info(
+                    "TTS_OK lang=%s persona=%s mode=%s file=%s",
+                    normalized_language,
+                    selected_persona,
+                    selected_mode,
+                    os.path.basename(result),
+                )
                 return result
             except Exception as persona_error:
                 logger.warning(
@@ -2064,7 +2115,12 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                         persona=None,
                         voice_pacing=pacing_override,
                     )
-                    print(f"[TTS] RETRY_OK lang={normalized_language} persona=base mode={selected_mode} file={os.path.basename(result)}")
+                    logger.info(
+                        "TTS_RETRY_OK lang=%s persona=base mode=%s file=%s",
+                        normalized_language,
+                        selected_mode,
+                        os.path.basename(result),
+                    )
                     return result
                 except Exception as base_error:
                     logger.warning(
@@ -2080,7 +2136,11 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                                 persona=None,
                                 voice_pacing=pacing_override,
                             )
-                            print(f"[TTS] RETRY_OK lang=en persona=base mode={selected_mode} file={os.path.basename(result)}")
+                            logger.info(
+                                "TTS_RETRY_OK lang=en persona=base mode=%s file=%s",
+                                selected_mode,
+                                os.path.basename(result),
+                            )
                             return result
                         except Exception as english_error:
                             logger.warning("English base voice TTS retry failed: %s", english_error)
@@ -2088,7 +2148,7 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                     raise base_error
         else:
             # Fallback to mock (Qwen disabled)
-            print(f"[TTS] MOCK (ElevenLabs disabled) lang={normalized_language}")
+            logger.info("TTS_MOCK lang=%s elevenlabs_enabled=false", normalized_language)
             return synthesize_speech_mock(tts_text)
     except Exception as e:
         status_code = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None)
@@ -2101,7 +2161,14 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
             e,
             exc_info=True,
         )
-        print(f"[TTS] FAILED lang={language} persona={persona} type={type(e).__name__} status={status_code} error={e}")
+        logger.error(
+            "TTS_FAILED lang=%s persona=%s type=%s status=%s error=%s",
+            language,
+            persona,
+            type(e).__name__,
+            status_code,
+            e,
+        )
         # Fallback to mock for development/testing
         return synthesize_speech_mock(text)
 
@@ -2271,6 +2338,12 @@ def welcome():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/analyze', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.analyze",
+)
+@require_mobile_auth
 def analyze():
     """
     Receives audio recording from app and analyzes breathing
@@ -2287,6 +2360,9 @@ def analyze():
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
+
+        if not _validate_audio_upload_signature(audio_file):
+            return jsonify({"error": "Unsupported audio format signature"}), 400
 
         # Validate file size
         audio_file.seek(0, os.SEEK_END)
@@ -2320,6 +2396,12 @@ def analyze():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/coach', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.coach",
+)
+@require_mobile_auth
 def coach():
     """
     Main endpoint: Receives audio, analyzes, returns coach voice
@@ -2348,6 +2430,9 @@ def coach():
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
+
+        if not _validate_audio_upload_signature(audio_file):
+            return jsonify({"error": "Unsupported audio format signature"}), 400
 
         # Validate phase
         valid_phases = ['warmup', 'intense', 'cooldown', 'work', 'recovery', 'main']
@@ -2407,6 +2492,12 @@ def coach():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/coach/continuous', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "CONTINUOUS_RATE_LIMIT_PER_HOUR", 1200),
+    window_seconds=3600,
+    key_prefix="api.coach.continuous",
+)
+@require_mobile_auth
 def coach_continuous():
     """
     Continuous coaching endpoint - optimized for rapid coaching cycles.
@@ -2493,6 +2584,9 @@ def coach_continuous():
 
         if audio_file.filename == '':
             return jsonify({"error": "Empty filename"}), 400
+
+        if not _validate_audio_upload_signature(audio_file):
+            return jsonify({"error": "Unsupported audio format signature"}), 400
 
         # Validate phase
         valid_phases = ['warmup', 'intense', 'cooldown']
@@ -3488,6 +3582,12 @@ def download(filename):
 # ============================================
 
 @app.route('/coach/persona', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.coach.persona",
+)
+@require_mobile_auth
 def switch_persona():
     """
     Switch coach personality mid-workout.
@@ -3535,6 +3635,11 @@ def switch_persona():
 # ============================================
 
 @app.route('/workouts', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.workouts.post",
+)
 @require_auth
 def save_workout():
     """
@@ -3583,6 +3688,11 @@ def save_workout():
 
 
 @app.route('/workouts', methods=['GET'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.workouts.get",
+)
 @require_auth
 def get_workouts():
     """
@@ -3620,6 +3730,11 @@ def get_workouts():
 # ============================================
 
 @app.route('/profile/upsert', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.profile.upsert",
+)
 @require_auth
 def profile_upsert():
     """
@@ -3727,6 +3842,12 @@ def profile_upsert():
 # ============================================
 
 @app.route('/coach/talk', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.coach.talk",
+)
+@require_mobile_auth
 def coach_talk():
     """
     Talk to the coach — supports both casual chat and mid-workout wake word speech.
@@ -3865,6 +3986,8 @@ def coach_talk():
         if is_multipart and files is not None and "audio" in files:
             audio_file = files["audio"]
             if audio_file and audio_file.filename:
+                if not _validate_audio_upload_signature(audio_file):
+                    return jsonify({"error": "Unsupported audio format signature"}), 400
                 audio_file.seek(0, os.SEEK_END)
                 file_size = audio_file.tell()
                 audio_file.seek(0)

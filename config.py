@@ -54,6 +54,18 @@ def _env_json_dict(name: str, default: dict) -> dict:
     except json.JSONDecodeError:
         return default
 
+
+def _env_csv_set(name: str, default: list[str]) -> list[str]:
+    raw = os.getenv(name)
+    if not raw:
+        return list(default)
+    values = []
+    for item in raw.split(","):
+        candidate = item.strip()
+        if candidate:
+            values.append(candidate)
+    return values or list(default)
+
 # ============================================
 # APP SETTINGS
 # ============================================
@@ -70,6 +82,36 @@ PREMIUM_SURFACES_ENABLED = _env_bool("PREMIUM_SURFACES_ENABLED", False)
 if APP_FREE_MODE:
     BILLING_ENABLED = False
     PREMIUM_SURFACES_ENABLED = False
+
+# Security posture
+JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)
+JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 30)
+JWT_SECRET_MAX_AGE_DAYS = _env_int("JWT_SECRET_MAX_AGE_DAYS", 90)
+
+# Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).
+MOBILE_API_AUTH_REQUIRED = _env_bool("MOBILE_API_AUTH_REQUIRED", True)
+# Test-only bypass for new mobile auth/rate-limit guards to preserve deterministic tests.
+AUTH_BYPASS_FOR_TESTS = _env_bool("AUTH_BYPASS_FOR_TESTS", True)
+RATE_LIMIT_BYPASS_FOR_TESTS = _env_bool("RATE_LIMIT_BYPASS_FOR_TESTS", True)
+# Test-only bypass for synthetic audio fixtures that do not carry real file signatures.
+AUDIO_SIGNATURE_BYPASS_FOR_TESTS = _env_bool("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", True)
+
+# In-memory API rate limits (per IP, with optional user/session scoping in code).
+RATE_LIMIT_ENABLED = _env_bool("RATE_LIMIT_ENABLED", True)
+API_RATE_LIMIT_PER_HOUR = _env_int("API_RATE_LIMIT_PER_HOUR", 100)
+AUTH_RATE_LIMIT_PER_HOUR = _env_int("AUTH_RATE_LIMIT_PER_HOUR", 40)
+REFRESH_RATE_LIMIT_PER_HOUR = _env_int("REFRESH_RATE_LIMIT_PER_HOUR", 60)
+PASSWORD_RESET_RATE_LIMIT_PER_HOUR = _env_int("PASSWORD_RESET_RATE_LIMIT_PER_HOUR", 3)
+CONTINUOUS_RATE_LIMIT_PER_HOUR = _env_int("CONTINUOUS_RATE_LIMIT_PER_HOUR", 1200)
+
+# Never use wildcard CORS in production.
+CORS_ALLOWED_ORIGINS = _env_csv_set(
+    "CORS_ALLOWED_ORIGINS",
+    [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+)
 
 # ============================================
 # LANGUAGE SETTINGS

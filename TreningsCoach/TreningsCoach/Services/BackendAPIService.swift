@@ -95,7 +95,8 @@ class BackendAPIService {
     /// Send audio for analysis only
     func analyzeAudio(_ audioURL: URL) async throws -> BreathAnalysis {
         let url = URL(string: "\(baseURL)/analyze")!
-        let request = try createMultipartRequest(url: url, audioURL: audioURL, phase: nil)
+        var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: nil)
+        addAuthHeader(to: &request)
 
         let (data, response) = try await session.data(for: request)
 
@@ -113,7 +114,8 @@ class BackendAPIService {
     /// Send audio to coach endpoint and get feedback
     func getCoachFeedback(_ audioURL: URL, phase: WorkoutPhase) async throws -> CoachResponse {
         let url = URL(string: "\(baseURL)/coach")!
-        let request = try createMultipartRequest(url: url, audioURL: audioURL, phase: phase)
+        var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: phase)
+        addAuthHeader(to: &request)
 
         let (data, response) = try await session.data(for: request)
 
@@ -268,6 +270,7 @@ class BackendAPIService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
 
         var body: [String: String] = ["message": message]
         if let language = language?.trimmingCharacters(in: .whitespacesAndNewlines), !language.isEmpty {

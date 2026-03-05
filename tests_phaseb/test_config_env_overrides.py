@@ -125,3 +125,29 @@ def test_talk_safety_flags_env_override(monkeypatch):
     assert config.COACH_TALK_POLICY_ROTATE_ENABLED is False
     assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("en"), list)
     assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("no"), list)
+
+
+def test_security_env_overrides(monkeypatch):
+    monkeypatch.setenv("JWT_ACCESS_TOKEN_MAX_DAYS", "5")
+    monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")
+    monkeypatch.setenv("JWT_SECRET_MAX_AGE_DAYS", "30")
+    monkeypatch.setenv("MOBILE_API_AUTH_REQUIRED", "true")
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("API_RATE_LIMIT_PER_HOUR", "150")
+    monkeypatch.setenv("AUTH_RATE_LIMIT_PER_HOUR", "20")
+    monkeypatch.setenv("CONTINUOUS_RATE_LIMIT_PER_HOUR", "900")
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://coachi.app,https://www.coachi.app")
+    monkeypatch.setenv("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", "false")
+
+    importlib.reload(config)
+
+    assert config.JWT_ACCESS_TOKEN_MAX_DAYS == 5
+    assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 20
+    assert config.JWT_SECRET_MAX_AGE_DAYS == 30
+    assert config.MOBILE_API_AUTH_REQUIRED is True
+    assert config.RATE_LIMIT_ENABLED is True
+    assert config.API_RATE_LIMIT_PER_HOUR == 150
+    assert config.AUTH_RATE_LIMIT_PER_HOUR == 20
+    assert config.CONTINUOUS_RATE_LIMIT_PER_HOUR == 900
+    assert config.CORS_ALLOWED_ORIGINS == ["https://coachi.app", "https://www.coachi.app"]
+    assert config.AUDIO_SIGNATURE_BYPASS_FOR_TESTS is False

@@ -13,6 +13,8 @@ from typing import Any, Callable
 
 from flask import Blueprint, jsonify, make_response, render_template, request
 from sqlalchemy.exc import IntegrityError
+from auth import rate_limit
+import config
 
 
 def create_web_blueprint(
@@ -95,6 +97,11 @@ def create_web_blueprint(
         )
 
     @web_bp.route("/waitlist", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="web.waitlist",
+    )
     def waitlist_signup():
         """
         Capture landing-page waitlist emails in database.
@@ -148,6 +155,11 @@ def create_web_blueprint(
         return jsonify({"success": True}), 200
 
     @web_bp.route("/analytics/event", methods=["POST"])
+    @rate_limit(
+        limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+        window_seconds=3600,
+        key_prefix="web.analytics.event",
+    )
     def analytics_event():
         """
         Lightweight landing analytics endpoint.
@@ -169,4 +181,3 @@ def create_web_blueprint(
         return jsonify({"success": True}), 200
 
     return web_bp
-
