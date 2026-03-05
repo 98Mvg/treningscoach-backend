@@ -6,5 +6,9 @@
 	<string>TreningsCoach Watch</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>We read heart rate during workouts to coach you live.</string>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
 </dict>
 </plist>

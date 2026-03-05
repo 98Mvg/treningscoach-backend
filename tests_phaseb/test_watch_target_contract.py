@@ -11,7 +11,7 @@ WATCH_ENTITLEMENTS = WATCH_ROOT / "TreningsCoachWatchApp.entitlements"
 def test_project_contains_watch_target_markers() -> None:
     text = PBXPROJ.read_text(encoding="utf-8")
     assert "WDTARGET /* TreningsCoachWatchApp */" in text
-    assert 'productType = "com.apple.product-type.application.watchapp2";' in text
+    assert 'productType = "com.apple.product-type.application";' in text
     assert "WDWATCHAPP /* TreningsCoachWatch.app */" in text
 
 
@@ -41,3 +41,9 @@ def test_watch_entitlements_include_healthkit_workout_access() -> None:
     assert "com.apple.developer.healthkit" in text
     assert "com.apple.developer.healthkit.access" in text
     assert "workout" in text
+
+
+def test_watch_plist_enables_workout_processing_background_mode() -> None:
+    text = WATCH_PLIST.read_text(encoding="utf-8")
+    assert "WKBackgroundModes" in text
+    assert "workout-processing" in text

@@ -400,7 +400,7 @@
 			name = TreningsCoachWatchApp;
 			productName = TreningsCoachWatchApp;
 			productReference = WDWATCHAPP /* TreningsCoachWatch.app */;
-			productType = "com.apple.product-type.application.watchapp2";
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
