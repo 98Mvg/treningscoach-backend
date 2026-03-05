@@ -2776,7 +2776,7 @@ class WorkoutViewModel: ObservableObject {
                     restingHR: storedRestingHR,
                     age: storedAge,
                     breathAnalysisEnabled: useBreathingMicCues,
-                    micPermissionGranted: AVAudioSession.sharedInstance().recordPermission == .granted
+                    micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted
                 )
 
                 let responseTime = Date().timeIntervalSince(tickStart)

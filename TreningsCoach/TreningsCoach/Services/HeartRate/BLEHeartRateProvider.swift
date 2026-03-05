@@ -12,16 +12,25 @@ final class BLEHeartRateProvider: NSObject, HeartRateProvider {
 
     private let favoriteDeviceUUIDKey = "ble_favorite_device_uuid"
     private let favoriteDeviceNameKey = "ble_favorite_device_name"
+    private let scanTimeoutSeconds: TimeInterval = 12.0
+    private let reconnectBaseDelaySeconds: TimeInterval = 1.5
+    private let maxReconnectBackoffSeconds: TimeInterval = 12.0
 
     private var central: CBCentralManager?
     private var connectedPeripheral: CBPeripheral?
     private var hrMeasurementCharacteristic: CBCharacteristic?
     private var shouldReconnect = false
     private var isStarted = false
+    private var reconnectAttempt = 0
+    private var reconnectWorkItem: DispatchWorkItem?
+    private var scanTimeoutWorkItem: DispatchWorkItem?
+    private var isScanningForHeartRate = false
 
     func start() {
         isStarted = true
         shouldReconnect = true
+        reconnectAttempt = 0
+        cancelReconnectWorkItem()
         ensureCentralManager()
         onStatus?(.connecting)
 
@@ -33,6 +42,9 @@ final class BLEHeartRateProvider: NSObject, HeartRateProvider {
     func stop() {
         isStarted = false
         shouldReconnect = false
+        reconnectAttempt = 0
+        cancelReconnectWorkItem()
+        cancelScanTimeoutWorkItem()
 
         if let peripheral = connectedPeripheral {
             central?.cancelPeripheralConnection(peripheral)
@@ -41,6 +53,7 @@ final class BLEHeartRateProvider: NSObject, HeartRateProvider {
         if central?.isScanning == true {
             central?.stopScan()
         }
+        isScanningForHeartRate = false
 
         connectedPeripheral = nil
         hrMeasurementCharacteristic = nil
@@ -70,8 +83,10 @@ final class BLEHeartRateProvider: NSObject, HeartRateProvider {
         if central.isScanning {
             central.stopScan()
         }
+        isScanningForHeartRate = true
         onStatus?(.connecting)
         central.scanForPeripherals(withServices: [hrServiceUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        scheduleScanTimeout()
     }
 
     private func favoritePeripheralUUID() -> UUID? {
@@ -88,10 +103,48 @@ final class BLEHeartRateProvider: NSObject, HeartRateProvider {
 
     private func reconnectWithBackoff() {
         guard shouldReconnect, isStarted else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        cancelReconnectWorkItem()
+        reconnectAttempt += 1
+        let delay = min(
+            maxReconnectBackoffSeconds,
+            reconnectBaseDelaySeconds * pow(2.0, Double(max(0, reconnectAttempt - 1)))
+        )
+
+        let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.shouldReconnect, self.isStarted else { return }
             self.connectFavoriteOrScan()
         }
+        reconnectWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func scheduleScanTimeout() {
+        cancelScanTimeoutWorkItem()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self,
+                  self.isStarted,
+                  self.connectedPeripheral == nil,
+                  self.isScanningForHeartRate else {
+                return
+            }
+
+            self.central?.stopScan()
+            self.isScanningForHeartRate = false
+            self.onStatus?(.degraded)
+            self.reconnectWithBackoff()
+        }
+        scanTimeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + scanTimeoutSeconds, execute: workItem)
+    }
+
+    private func cancelReconnectWorkItem() {
+        reconnectWorkItem?.cancel()
+        reconnectWorkItem = nil
+    }
+
+    private func cancelScanTimeoutWorkItem() {
+        scanTimeoutWorkItem?.cancel()
+        scanTimeoutWorkItem = nil
     }
 
     private func parseHeartRateBPM(from data: Data) -> Int? {
@@ -120,6 +173,9 @@ extension BLEHeartRateProvider: CBCentralManagerDelegate {
         case .poweredOn:
             connectFavoriteOrScan()
         case .poweredOff:
+            cancelScanTimeoutWorkItem()
+            cancelReconnectWorkItem()
+            isScanningForHeartRate = false
             onStatus?(.degraded)
         case .unauthorized:
             onStatus?(.error(reason: "bluetooth_unauthorized"))
@@ -145,6 +201,8 @@ extension BLEHeartRateProvider: CBCentralManagerDelegate {
         }
 
         central.stopScan()
+        isScanningForHeartRate = false
+        cancelScanTimeoutWorkItem()
         onStatus?(.connecting)
         central.connect(peripheral, options: nil)
     }
@@ -154,6 +212,10 @@ extension BLEHeartRateProvider: CBCentralManagerDelegate {
 
         connectedPeripheral = peripheral
         hrMeasurementCharacteristic = nil
+        reconnectAttempt = 0
+        cancelReconnectWorkItem()
+        cancelScanTimeoutWorkItem()
+        isScanningForHeartRate = false
 
         persistFavorite(peripheral: peripheral)
         onStatus?(.connecting)
@@ -168,6 +230,8 @@ extension BLEHeartRateProvider: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         _ = (central, peripheral)
+        cancelScanTimeoutWorkItem()
+        isScanningForHeartRate = false
         onStatus?(.error(reason: error?.localizedDescription ?? "ble_connect_failed"))
         reconnectWithBackoff()
     }
@@ -180,6 +244,8 @@ extension BLEHeartRateProvider: CBCentralManagerDelegate {
             connectedPeripheral = nil
             hrMeasurementCharacteristic = nil
         }
+        cancelScanTimeoutWorkItem()
+        isScanningForHeartRate = false
 
         if let error {
             onStatus?(.error(reason: error.localizedDescription))

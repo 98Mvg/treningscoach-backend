@@ -25,6 +25,7 @@ final class HeartRateArbiter {
     private var currentSource: HRSource = .none
     private var lastOutput: Output?
     private var lastNoLiveEventAt: Date?
+    private let nowProvider: () -> Date
 
     private let liveFreshnessSeconds: TimeInterval = 10.0
     private let hkFreshnessSeconds: TimeInterval = 120.0
@@ -32,6 +33,10 @@ final class HeartRateArbiter {
     private(set) var lastWCHRSampleAt: Date?
     private(set) var lastBLEHRSampleAt: Date?
     private(set) var lastHKSampleAt: Date?
+
+    init(nowProvider: @escaping () -> Date = { Date() }) {
+        self.nowProvider = nowProvider
+    }
 
     func ingest(sample: HeartRateSample) {
         latestSamples[sample.source] = sample
@@ -73,8 +78,13 @@ final class HeartRateArbiter {
         evaluate(reason: "liveness_tick")
     }
 
-    private func evaluate(reason: String) {
-        let now = Date()
+    /// Deterministic hook for edge-case verification without waiting on real clock time.
+    func evaluateForTesting(at now: Date) {
+        evaluate(reason: "test_tick", now: now)
+    }
+
+    private func evaluate(reason: String, now overrideNow: Date? = nil) {
+        let now = overrideNow ?? nowProvider()
 
         let wcFresh = isFresh(.wc, at: now)
         let bleFresh = isFresh(.ble, at: now)

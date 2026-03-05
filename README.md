@@ -86,6 +86,11 @@ iOS App plays coaching audio
 - `/coach/talk` strict safety categories, refusal banks, and rotation behavior are documented in:
   `/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-05-talk-safety-rules-integration.md`
 
+### Final Launch Gate (Watch)
+
+- Final pre-live watch hardware gate checklist (what is already prepared vs. what must pass on real devices):
+  `/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-05-final-step-before-live-launch-watch-gate.md`
+
 ### Brain Priority Chain
 
 ```
