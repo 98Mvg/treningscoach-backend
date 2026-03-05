@@ -83,6 +83,7 @@ struct AppConfig {
         static let googleSignInFeatureEnabled: Bool = boolInfoValue("GOOGLE_SIGN_IN_ENABLED", default: false)
         static let facebookSignInFeatureEnabled: Bool = boolInfoValue("FACEBOOK_SIGN_IN_ENABLED", default: false)
         static let vippsSignInFeatureEnabled: Bool = boolInfoValue("VIPPS_SIGN_IN_ENABLED", default: false)
+        static let requireSignInForWorkoutStart: Bool = boolInfoValue("REQUIRE_SIGN_IN_FOR_WORKOUT_START", default: false)
 
         // Show Apple auth only when explicitly enabled in build config.
         // Personal Team default is disabled to avoid capability/signing friction.

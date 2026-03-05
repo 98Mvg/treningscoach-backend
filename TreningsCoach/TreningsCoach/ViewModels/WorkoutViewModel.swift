@@ -487,10 +487,12 @@ class WorkoutViewModel: ObservableObject {
     }
 
     var canInitiateWorkoutStart: Bool {
-        hasValidAuthToken()
+        guard AppConfig.Auth.requireSignInForWorkoutStart else { return true }
+        return hasValidAuthToken()
     }
 
     var launchAuthRequirementText: String? {
+        guard AppConfig.Auth.requireSignInForWorkoutStart else { return nil }
         guard !canInitiateWorkoutStart else { return nil }
         return currentLanguage == "no"
             ? "Logg inn for å starte coaching."
@@ -2961,6 +2963,16 @@ class WorkoutViewModel: ObservableObject {
 
     private func handleAuthFailureIfNeeded(_ error: Error) -> Bool {
         guard isAuthFailure(error) else { return false }
+
+        // Pre-launch guest mode: keep workout running locally even if backend currently enforces auth.
+        if !AppConfig.Auth.requireSignInForWorkoutStart, !hasValidAuthToken() {
+            coachingStatusLine = currentLanguage == "no"
+                ? "Backend krever innlogging nå. Fortsetter lokalt."
+                : "Backend currently requires sign-in. Continuing locally."
+            print("⚠️ Ignoring auth failure in guest mode; continuing local workout")
+            return false
+        }
+
         print("🛑 Stopping continuous workout due to auth failure")
         stopContinuousWorkout()
         workoutState = .idle
