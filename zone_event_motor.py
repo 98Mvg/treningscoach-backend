@@ -591,6 +591,7 @@ def _interval_target(
     elapsed_seconds: int,
     profile: Dict[str, Any],
     intensity: str,
+    workout_state: Optional[Dict[str, Any]],
     config_module,
 ) -> Dict[str, Any]:
     templates = getattr(config_module, "INTERVAL_TEMPLATES", {})
@@ -601,6 +602,24 @@ def _interval_target(
     rest = int(cfg.get("rest_seconds", 180))
     reps = int(cfg.get("reps", 4))
     cooldown = int(cfg.get("cooldown_seconds", 480))
+
+    if isinstance(workout_state, dict):
+        plan_warmup = _safe_int(workout_state.get("plan_warmup_s"))
+        plan_repeats = _safe_int(workout_state.get("plan_interval_repeats"))
+        plan_work = _safe_int(workout_state.get("plan_interval_work_s"))
+        plan_recovery = _safe_int(workout_state.get("plan_interval_recovery_s"))
+        plan_cooldown = _safe_int(workout_state.get("plan_cooldown_s"))
+        if plan_warmup is not None:
+            warmup = max(0, int(plan_warmup))
+        if plan_work is not None:
+            work = max(1, int(plan_work))
+        if plan_recovery is not None:
+            rest = max(0, int(plan_recovery))
+        if plan_repeats is not None:
+            reps = max(1, int(plan_repeats))
+        if plan_cooldown is not None:
+            cooldown = max(0, int(plan_cooldown))
+
     cycle = max(1, work + rest)
     main_set_duration = reps * cycle
     session_end = warmup + main_set_duration + cooldown
@@ -680,16 +699,49 @@ def _interval_target(
 def _easy_run_target(
     phase: str,
     warmup_remaining_seconds: Optional[int],
+    elapsed_seconds: int,
     profile: Dict[str, Any],
     intensity: str,
+    workout_state: Optional[Dict[str, Any]],
     config_module,
 ) -> Dict[str, Any]:
     normalized_phase = (phase or "").strip().lower() or "intense"
     target_intensity = "easy" if normalized_phase in {"warmup", "cooldown"} else intensity
     segment_elapsed_seconds: Optional[int] = None
     segment_remaining_seconds: Optional[int] = None
-    if normalized_phase == "warmup" and warmup_remaining_seconds is not None:
-        segment_remaining_seconds = max(0, int(warmup_remaining_seconds))
+    session_end_seconds: Optional[int] = None
+    elapsed = max(0, int(elapsed_seconds))
+
+    plan_warmup = _safe_int(workout_state.get("plan_warmup_s")) if isinstance(workout_state, dict) else None
+    plan_main = _safe_int(workout_state.get("plan_main_s")) if isinstance(workout_state, dict) else None
+    plan_cooldown = _safe_int(workout_state.get("plan_cooldown_s")) if isinstance(workout_state, dict) else None
+    plan_free_run = bool(workout_state.get("plan_free_run")) if isinstance(workout_state, dict) else False
+
+    warmup_total = max(0, int(plan_warmup)) if plan_warmup is not None else None
+    main_total = max(0, int(plan_main)) if plan_main is not None else None
+    cooldown_total = max(0, int(plan_cooldown)) if plan_cooldown is not None else None
+
+    if normalized_phase == "warmup":
+        if warmup_remaining_seconds is not None:
+            segment_remaining_seconds = max(0, int(warmup_remaining_seconds))
+        elif warmup_total is not None:
+            segment_remaining_seconds = max(0, warmup_total - elapsed)
+            segment_elapsed_seconds = max(0, min(warmup_total, elapsed))
+    elif normalized_phase in {"intense", "main"} and not plan_free_run and main_total is not None:
+        warmup_offset = warmup_total or 0
+        elapsed_in_main = max(0, elapsed - warmup_offset)
+        segment_elapsed_seconds = max(0, min(main_total, elapsed_in_main))
+        segment_remaining_seconds = max(0, main_total - elapsed_in_main)
+    elif normalized_phase == "cooldown" and cooldown_total is not None:
+        warmup_offset = warmup_total or 0
+        main_offset = main_total or 0
+        elapsed_in_cooldown = max(0, elapsed - warmup_offset - main_offset)
+        segment_elapsed_seconds = max(0, min(cooldown_total, elapsed_in_cooldown))
+        segment_remaining_seconds = max(0, cooldown_total - elapsed_in_cooldown)
+
+    if not plan_free_run and main_total is not None:
+        total = (warmup_total or 0) + main_total + (cooldown_total or 0)
+        session_end_seconds = max(0, int(total))
 
     low, high, source = _resolve_intensity_target_bounds(
         workout_mode="easy_run",
@@ -707,12 +759,12 @@ def _easy_run_target(
         "target_high": high,
         "target_source": source,
         "hr_enforced": low is not None and high is not None,
-        "main_set": normalized_phase == "intense",
+        "main_set": normalized_phase in {"intense", "main"},
         "segment_elapsed_seconds": segment_elapsed_seconds,
         "segment_remaining_seconds": segment_remaining_seconds,
         "work_seconds": None,
         "rest_seconds": None,
-        "session_end_seconds": None,
+        "session_end_seconds": session_end_seconds,
     }
 
 
@@ -723,18 +775,21 @@ def _resolve_target(
     interval_template: str,
     elapsed_seconds: int,
     warmup_remaining_seconds: Optional[int],
+    workout_state: Optional[Dict[str, Any]],
     profile: Dict[str, Any],
     config_module,
 ) -> Dict[str, Any]:
     mode = (workout_mode or "").strip().lower()
     intensity = _style_to_intensity(coaching_style)
     if mode == "interval":
-        return _interval_target(interval_template, elapsed_seconds, profile, intensity, config_module)
+        return _interval_target(interval_template, elapsed_seconds, profile, intensity, workout_state, config_module)
     return _easy_run_target(
         phase=phase,
         warmup_remaining_seconds=warmup_remaining_seconds,
+        elapsed_seconds=elapsed_seconds,
         profile=profile,
         intensity=intensity,
+        workout_state=workout_state,
         config_module=config_module,
     )
 
@@ -2223,6 +2278,7 @@ def evaluate_zone_tick(
         interval_template=template,
         elapsed_seconds=int(elapsed_seconds),
         warmup_remaining_seconds=resolved_warmup_remaining,
+        workout_state=workout_state,
         profile=profile,
         config_module=config_module,
     )

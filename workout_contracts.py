@@ -70,7 +70,9 @@ def _parse_jsonish(value: Any) -> dict:
 class WorkoutPlan:
     workout_type: str = "easy_run"
     warmup_s: Optional[int] = None
+    main_s: Optional[int] = None
     cooldown_s: Optional[int] = None
+    free_run: Optional[bool] = None
     intervals: Dict[str, int] = field(default_factory=dict)
 
 
@@ -168,7 +170,13 @@ def normalize_continuous_contract(form, payload: Optional[dict] = None) -> dict:
     normalized_plan = WorkoutPlan(
         workout_type=str(workout_type).strip().lower(),
         warmup_s=_coerce_int(_pick(form, payload, "warmup_s", "warmup_seconds")) or _coerce_int(plan_raw.get("warmup_s")),
+        main_s=_coerce_int(_pick(form, payload, "main_s", "main_seconds")) or _coerce_int(plan_raw.get("main_s")),
         cooldown_s=_coerce_int(_pick(form, payload, "cooldown_s")) or _coerce_int(plan_raw.get("cooldown_s")),
+        free_run=(
+            _coerce_bool(_pick(form, payload, "free_run", "easy_run_free_mode"))
+            if _pick(form, payload, "free_run", "easy_run_free_mode") is not None
+            else _coerce_bool(plan_raw.get("free_run"))
+        ),
         intervals={
             "repeats": _coerce_int(_pick(form, payload, "repeats")) or _coerce_int(plan_raw.get("intervals", {}).get("repeats")),
             "work_s": _coerce_int(_pick(form, payload, "work_s")) or _coerce_int(plan_raw.get("intervals", {}).get("work_s")),

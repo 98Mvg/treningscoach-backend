@@ -257,6 +257,21 @@ private final class MotionCadenceService {
 
 @MainActor
 class WorkoutViewModel: ObservableObject {
+    private struct WorkoutSessionPlan {
+        let workoutMode: WorkoutMode
+        let easyRunSessionMode: EasyRunSessionMode
+        let warmupSeconds: Int
+        let mainSeconds: Int
+        let cooldownSeconds: Int
+        let intervalRepeats: Int?
+        let intervalWorkSeconds: Int?
+        let intervalRecoverySeconds: Int?
+
+        var isEasyRunFreeRun: Bool {
+            workoutMode == .easyRun && easyRunSessionMode == .freeRun
+        }
+    }
+
     private let spotifyPromptPendingKey = "spotify_prompt_pending"
     private let spotifyPromptSeenKey = "spotify_prompt_seen"
     private let goodCoachWorkoutCountKey = "good_coach_workout_count"
@@ -371,6 +386,7 @@ class WorkoutViewModel: ObservableObject {
     @Published private(set) var speechTranscript: [SpeechTranscriptEntry] = []
     private var timedEasyRunWarmupBackup: Int = 2
     private var timedEasyRunDurationBackup: Int = 30
+    private var activeSessionPlan: WorkoutSessionPlan?
 
     // Computed: map voiceState to OrbState
     var orbState: OrbState {
@@ -419,8 +435,20 @@ class WorkoutViewModel: ObservableObject {
         return String(format: "%02d:%02d", mins, secs)
     }
 
+    private var effectiveSessionPlan: WorkoutSessionPlan {
+        activeSessionPlan ?? buildSessionPlanFromSelections()
+    }
+
+    private var runtimeWorkoutMode: WorkoutMode {
+        effectiveSessionPlan.workoutMode
+    }
+
+    private var runtimeEasyRunSessionMode: EasyRunSessionMode {
+        effectiveSessionPlan.easyRunSessionMode
+    }
+
     var isEasyRunFreeRunActive: Bool {
-        selectedWorkoutMode == .easyRun && selectedEasyRunSessionMode == .freeRun
+        runtimeWorkoutMode == .easyRun && runtimeEasyRunSessionMode == .freeRun
     }
 
     var phaseCountdownPrimaryText: String {
@@ -439,18 +467,28 @@ class WorkoutViewModel: ObservableObject {
                 ? "Oppvarming – \(remainingText) igjen"
                 : "Warmup – \(remainingText) remaining"
         case "work":
-            if let (repIndex, repsTotal) = intervalRepProgress {
+            if runtimeWorkoutMode == .intervals {
+                if let (repIndex, repsTotal) = intervalRepProgress {
+                    return currentLanguage == "no"
+                        ? "Drag \(repIndex) / \(repsTotal) – \(remainingText) igjen"
+                        : "Interval \(repIndex) / \(repsTotal) – \(remainingText) remaining"
+                }
                 return currentLanguage == "no"
-                    ? "Drag \(repIndex) / \(repsTotal) – \(remainingText) igjen"
-                    : "Interval \(repIndex) / \(repsTotal) – \(remainingText) remaining"
+                    ? "Intervall – \(remainingText) igjen"
+                    : "Interval – \(remainingText) remaining"
             }
             return currentLanguage == "no"
-                ? "Intervall – \(remainingText) igjen"
-                : "Interval – \(remainingText) remaining"
+                ? "Hoveddel – \(remainingText) igjen"
+                : "Main set – \(remainingText) remaining"
         case "recovery":
+            if runtimeWorkoutMode == .intervals {
+                return currentLanguage == "no"
+                    ? "Pause – neste drag om \(remainingText)"
+                    : "Recovery – next interval in \(remainingText)"
+            }
             return currentLanguage == "no"
-                ? "Pause – neste drag om \(remainingText)"
-                : "Recovery – next interval in \(remainingText)"
+                ? "Hoveddel – \(remainingText) igjen"
+                : "Main set – \(remainingText) remaining"
         case "cooldown":
             return currentLanguage == "no"
                 ? "Nedtrapping – \(remainingText) igjen"
@@ -467,7 +505,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     var phaseCountdownSecondaryText: String? {
-        guard selectedWorkoutMode == .intervals else { return nil }
+        guard runtimeWorkoutMode == .intervals else { return nil }
         guard let summary = workoutContextSummary else { return nil }
 
         guard let repsTotal = summary.repsTotal, repsTotal > 0 else { return nil }
@@ -704,6 +742,7 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Coachi Convenience Methods
 
     func startWorkout() {
+        activeSessionPlan = buildSessionPlanFromSelections()
         workoutState = .active
         showComplete = false
         coachScore = 0
@@ -719,7 +758,7 @@ class WorkoutViewModel: ObservableObject {
         coachScoreZoneCompliance = nil
         breathAvailableReliable = false
         zoneStatus = "hr_unstable"
-        targetZoneLabel = selectedWorkoutMode == .easyRun ? "Z2" : "Z4"
+        targetZoneLabel = runtimeWorkoutMode == .easyRun ? "Z2" : "Z4"
         targetHRLow = nil
         targetHRHigh = nil
         zoneScoreConfidence = "low"
@@ -734,7 +773,7 @@ class WorkoutViewModel: ObservableObject {
         workoutContextSummary = nil
         workoutContextSummaryReceivedAt = nil
         // If no warmup selected, start directly in intense phase
-        if selectedWarmupMinutes == 0 {
+        if configuredWarmupDuration == 0 {
             hasSkippedWarmup = true
         } else {
             hasSkippedWarmup = false
@@ -794,6 +833,7 @@ class WorkoutViewModel: ObservableObject {
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
+        activeSessionPlan = nil
 
         // Cleanup stale audio pack files now that workout is idle
         AudioPackSyncManager.shared.purgeStaleFiles()
@@ -912,30 +952,15 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private var configuredWarmupDuration: TimeInterval {
-        TimeInterval(max(0, selectedWarmupMinutes) * 60)
+        TimeInterval(max(0, effectiveSessionPlan.warmupSeconds))
     }
 
     private var configuredIntenseDuration: TimeInterval {
-        switch selectedWorkoutMode {
-        case .easyRun:
-            if selectedEasyRunSessionMode == .freeRun {
-                return 0
-            }
-            return TimeInterval(selectedEasyRunMinutes * 60)
-        case .intervals:
-            let sets = max(1, selectedIntervalSets)
-            let work = max(0, selectedIntervalWorkMinutes)
-            let pause = max(0, selectedIntervalBreakMinutes)
-            let totalMinutes = (sets * work) + (max(0, sets - 1) * pause)
-            return TimeInterval(totalMinutes * 60)
-        case .standard:
-            return AppConfig.intenseDuration
-        }
+        TimeInterval(max(0, effectiveSessionPlan.mainSeconds))
     }
 
     private var configuredCooldownDuration: TimeInterval {
-        if selectedWorkoutMode == .intervals { return 6 * 60 }
-        return 5 * 60
+        TimeInterval(max(0, effectiveSessionPlan.cooldownSeconds))
     }
 
     private var workoutContextSummaryReceivedAt: Date?
@@ -951,7 +976,7 @@ class WorkoutViewModel: ObservableObject {
         case .cooldown:
             return "cooldown"
         case .intense:
-            return selectedWorkoutMode == .intervals ? "work" : "main"
+            return runtimeWorkoutMode == .intervals ? "work" : "main"
         }
     }
 
@@ -1471,7 +1496,7 @@ class WorkoutViewModel: ObservableObject {
         // After intense: cooldown
 
         guard let startTime = sessionStartTime else {
-            currentPhase = selectedWarmupMinutes > 0 ? .warmup : .intense
+            currentPhase = configuredWarmupDuration > 0 ? .warmup : .intense
             return
         }
 
@@ -1487,6 +1512,58 @@ class WorkoutViewModel: ObservableObject {
             currentPhase = .intense
         } else {
             currentPhase = .cooldown
+        }
+    }
+
+    private func buildSessionPlanFromSelections() -> WorkoutSessionPlan {
+        let mode = selectedWorkoutMode
+        let easyMode = selectedEasyRunSessionMode
+        let warmupSeconds = max(0, selectedWarmupMinutes * 60)
+
+        switch mode {
+        case .easyRun:
+            let mainSeconds: Int
+            if easyMode == .freeRun {
+                mainSeconds = 0
+            } else {
+                mainSeconds = max(0, selectedEasyRunMinutes * 60)
+            }
+            return WorkoutSessionPlan(
+                workoutMode: .easyRun,
+                easyRunSessionMode: easyMode,
+                warmupSeconds: easyMode == .freeRun ? 0 : warmupSeconds,
+                mainSeconds: mainSeconds,
+                cooldownSeconds: 5 * 60,
+                intervalRepeats: nil,
+                intervalWorkSeconds: nil,
+                intervalRecoverySeconds: nil
+            )
+        case .intervals:
+            let repeats = max(2, min(10, selectedIntervalSets))
+            let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60
+            let recoverySeconds = max(0, min(10, selectedIntervalBreakMinutes)) * 60
+            let mainSeconds = (repeats * workSeconds) + (max(0, repeats - 1) * recoverySeconds)
+            return WorkoutSessionPlan(
+                workoutMode: .intervals,
+                easyRunSessionMode: .timed,
+                warmupSeconds: warmupSeconds,
+                mainSeconds: mainSeconds,
+                cooldownSeconds: 6 * 60,
+                intervalRepeats: repeats,
+                intervalWorkSeconds: workSeconds,
+                intervalRecoverySeconds: recoverySeconds
+            )
+        case .standard:
+            return WorkoutSessionPlan(
+                workoutMode: .standard,
+                easyRunSessionMode: .timed,
+                warmupSeconds: Int(AppConfig.warmupDuration),
+                mainSeconds: Int(AppConfig.intenseDuration),
+                cooldownSeconds: 180,
+                intervalRepeats: nil,
+                intervalWorkSeconds: nil,
+                intervalRecoverySeconds: nil
+            )
         }
     }
 
@@ -2134,6 +2211,9 @@ class WorkoutViewModel: ObservableObject {
         guard !isContinuousMode else { return }
 
         print("🎯 Starting continuous workout")
+        if activeSessionPlan == nil {
+            activeSessionPlan = buildSessionPlanFromSelections()
+        }
 
         do {
             // Start ONE continuous recording session
@@ -2468,6 +2548,7 @@ class WorkoutViewModel: ObservableObject {
                 let tickCadenceSPM = cadenceSPM
                 let tickMovementSource = (tickMovementScore != nil || tickCadenceSPM != nil) ? latestMovementSource : "none"
                 hrSignalQuality = tickQuality
+                let sessionPlan = effectiveSessionPlan
                 let response = try await apiService.getContinuousCoachFeedback(
                     audioChunk,
                     sessionId: sessionId ?? "",
@@ -2478,11 +2559,16 @@ class WorkoutViewModel: ObservableObject {
                     trainingLevel: currentTrainingLevel,
                     persona: activePersonality.rawValue,
                     userName: currentUserName,
-                    workoutMode: selectedWorkoutMode,
+                    workoutMode: runtimeWorkoutMode,
                     easyRunFreeMode: isEasyRunFreeRunActive,
                     coachingStyle: coachingStyle,
                     intervalTemplate: selectedIntervalTemplate,
                     warmupSeconds: Int(configuredWarmupDuration),
+                    mainSeconds: Int(configuredIntenseDuration),
+                    cooldownSeconds: Int(configuredCooldownDuration),
+                    intervalRepeats: sessionPlan.intervalRepeats,
+                    intervalWorkSeconds: sessionPlan.intervalWorkSeconds,
+                    intervalRecoverySeconds: sessionPlan.intervalRecoverySeconds,
                     userProfileId: personalizationProfileId,
                     heartRate: tickHeartRate,
                     hrSampleAgeSeconds: tickSampleAge,

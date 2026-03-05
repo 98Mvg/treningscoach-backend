@@ -756,6 +756,7 @@ struct CircularDialPicker: View {
     // Internal drag state (continuous, not snapped)
     @State private var currentAngle: Double = 0 // 0-360 degrees, 0 = 12 o'clock
     @State private var isDragging = false
+    @State private var previewValue: Int?
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
 
     private var minValue: Int { valueRange.lowerBound }
@@ -768,17 +769,23 @@ struct CircularDialPicker: View {
         return max(0, min(360, currentAngle))
     }
 
-    private var progress: Double {
-        let raw = safeAngle / 360.0
-        guard raw.isFinite else { return 0 }
-        return max(0, min(1, raw))
+    private var committedValue: Int {
+        max(minValue, min(maxValue, selectedValue))
     }
 
     private var displayValue: Int {
-        let raw = progress * valueSpan
-        guard raw.isFinite else { return minValue }
-        let rounded = Int(round(raw))
-        return max(minValue, min(maxValue, minValue + rounded))
+        if isDragging, let previewValue {
+            return previewValue
+        }
+        return committedValue
+    }
+
+    private var displayProgress: Double {
+        normalizedProgress(for: displayValue)
+    }
+
+    private var displayAngle: Double {
+        displayProgress * 360.0
     }
 
     private var valueUnitText: String {
@@ -801,18 +808,10 @@ struct CircularDialPicker: View {
                 .frame(width: dialSize, height: dialSize)
 
             // Filled arc (purple → magenta gradient)
-            if progress > 0.001 {
+            if displayProgress > 0.001 {
                 Circle()
-                    .trim(from: 0, to: CGFloat(min(progress, 1.0)))
-                    .stroke(
-                        AngularGradient(
-                            colors: [CoachiTheme.dialPurple, CoachiTheme.dialMagenta, CoachiTheme.dialMagenta],
-                            center: .center,
-                            startAngle: .degrees(-90),
-                            endAngle: .degrees(-90 + 360 * progress)
-                        ),
-                        style: StrokeStyle(lineWidth: trackWidth, lineCap: .round)
-                    )
+                    .trim(from: 0, to: CGFloat(min(displayProgress, 1.0)))
+                    .stroke(CoachiTheme.dialMagenta, style: StrokeStyle(lineWidth: trackWidth, lineCap: .round))
                     .frame(width: dialSize, height: dialSize)
                     .rotationEffect(.degrees(-90))
             }
@@ -834,12 +833,15 @@ struct CircularDialPicker: View {
             // Draggable knob
             knobView
                 .offset(y: -dialSize / 2)
-                .rotationEffect(.degrees(safeAngle))
+                .rotationEffect(.degrees(displayAngle))
         }
         .frame(width: containerSize, height: containerSize)
         .contentShape(Circle()) // Make entire dial tappable
         .gesture(dialDragGesture)
-        .onAppear { syncAngleFromMinutes() }
+        .onAppear {
+            previewValue = nil
+            syncAngleFromMinutes()
+        }
         .onChange(of: selectedValue) { _, _ in
             if !isDragging { syncAngleFromMinutes() }
         }
@@ -892,8 +894,7 @@ struct CircularDialPicker: View {
             }
             .onEnded { _ in
                 isDragging = false
-                // Commit final value
-                selectedValue = displayValue
+                snapToNearestStepAndCommit()
             }
     }
 
@@ -910,24 +911,39 @@ struct CircularDialPicker: View {
         var angle = atan2(dx, -dy) * 180 / .pi // degrees, 0 = 12 o'clock, clockwise positive
         if angle < 0 { angle += 360 }
 
-        let oldMinutes = displayValue
-        let boostedProgress = min(1.0, max(0.0, (angle / 360.0) * max(1.0, dragSensitivity)))
-        currentAngle = boostedProgress * 360.0
+        let newPreview = nearestValue(forVisualAngle: angle)
+        let oldPreview = previewValue ?? committedValue
+        previewValue = newPreview
+        currentAngle = normalizedProgress(for: newPreview) * 360.0
 
-        let newMinutes = displayValue
-        if newMinutes != oldMinutes {
+        if newPreview != oldPreview {
             hapticGenerator.impactOccurred(intensity: 0.4)
         }
     }
 
-    private func syncAngleFromMinutes() {
-        let clamped = min(max(selectedValue, minValue), maxValue)
+    private func normalizedProgress(for value: Int) -> Double {
+        let clamped = max(minValue, min(maxValue, value))
         let span = max(1, maxValue - minValue)
-        guard span > 0 else {
-            currentAngle = 0
-            return
-        }
-        let normalized = Double(clamped - minValue) / Double(span)
+        return Double(clamped - minValue) / Double(span)
+    }
+
+    private func nearestValue(forVisualAngle angle: Double) -> Int {
+        let normalized = min(1.0, max(0.0, angle / 360.0))
+        let raw = normalized * valueSpan
+        let rounded = Int(round(raw))
+        return max(minValue, min(maxValue, minValue + rounded))
+    }
+
+    private func snapToNearestStepAndCommit() {
+        let snapped = nearestValue(forVisualAngle: safeAngle)
+        previewValue = nil
+        selectedValue = snapped
+        currentAngle = normalizedProgress(for: snapped) * 360.0
+    }
+
+    private func syncAngleFromMinutes() {
+        previewValue = nil
+        let normalized = normalizedProgress(for: committedValue)
         let nextAngle = normalized * 360.0
         currentAngle = nextAngle.isFinite ? nextAngle : 0
     }

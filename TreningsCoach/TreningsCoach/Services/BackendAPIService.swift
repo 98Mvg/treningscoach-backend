@@ -180,6 +180,11 @@ class BackendAPIService {
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         warmupSeconds: Int? = nil,
+        mainSeconds: Int? = nil,
+        cooldownSeconds: Int? = nil,
+        intervalRepeats: Int? = nil,
+        intervalWorkSeconds: Int? = nil,
+        intervalRecoverySeconds: Int? = nil,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
         hrSampleAgeSeconds: Double? = nil,
@@ -213,6 +218,11 @@ class BackendAPIService {
             coachingStyle: coachingStyle,
             intervalTemplate: intervalTemplate,
             warmupSeconds: warmupSeconds,
+            mainSeconds: mainSeconds,
+            cooldownSeconds: cooldownSeconds,
+            intervalRepeats: intervalRepeats,
+            intervalWorkSeconds: intervalWorkSeconds,
+            intervalRecoverySeconds: intervalRecoverySeconds,
             userProfileId: userProfileId,
             heartRate: heartRate,
             hrSampleAgeSeconds: hrSampleAgeSeconds,
@@ -420,21 +430,43 @@ class BackendAPIService {
 
     /// Get workout history from backend (raw)
     func getWorkouts() async throws -> [[String: Any]] {
+        // Home/profile can load before auth is complete; treat as empty history.
+        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey), !token.isEmpty else {
+            return []
+        }
+
         let url = URL(string: "\(baseURL)/workouts")!
         let request = authenticatedRequest(url: url)
 
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
 
-        let json = try JSONSerialization.jsonObject(with: data)
-        guard let dict = json as? [String: Any],
-              let workouts = dict["workouts"] as? [[String: Any]] else {
-            throw APIError.invalidResponse
+        // Not signed in / expired token should not surface as noisy UI error on home.
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            return []
         }
-        return workouts
+
+        guard httpResponse.statusCode == 200 else {
+            let errorMessage = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            if let message = errorMessage?.error, !message.isEmpty {
+                throw APIError.serverError(message: message)
+            }
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data)
+        if let dict = json as? [String: Any],
+           let workouts = dict["workouts"] as? [[String: Any]] {
+            return workouts
+        }
+        // Compatibility: accept raw list response shape as well.
+        if let workouts = json as? [[String: Any]] {
+            return workouts
+        }
+
+        return []
     }
 
     /// Get workout history as WorkoutRecord array
@@ -528,6 +560,11 @@ class BackendAPIService {
         coachingStyle: CoachingStyle = .medium,
         intervalTemplate: IntervalTemplate = .fourByFour,
         warmupSeconds: Int? = nil,
+        mainSeconds: Int? = nil,
+        cooldownSeconds: Int? = nil,
+        intervalRepeats: Int? = nil,
+        intervalWorkSeconds: Int? = nil,
+        intervalRecoverySeconds: Int? = nil,
         userProfileId: String? = nil,
         heartRate: Int? = nil,
         hrSampleAgeSeconds: Double? = nil,
@@ -630,17 +667,30 @@ class BackendAPIService {
         appendField(name: "breath_analysis_enabled", value: breathAnalysisEnabled ? "true" : "false")
         appendField(name: "mic_permission_granted", value: micPermissionGranted ? "true" : "false")
 
+        let planWarmupSeconds = max(0, warmupSeconds ?? Int(AppConfig.warmupDuration))
+        let planCooldownSeconds = max(0, cooldownSeconds ?? 0)
         var workoutPlan: [String: Any] = [
             "workout_type": workoutMode == .intervals ? "intervals" : "easy_run",
-            "warmup_s": warmupSeconds ?? Int(AppConfig.warmupDuration),
-            "cooldown_s": 0
+            "warmup_s": planWarmupSeconds,
+            "cooldown_s": planCooldownSeconds
         ]
         if workoutMode == .easyRun && easyRunFreeMode {
             workoutPlan["main_s"] = 0
             workoutPlan["free_run"] = true
+        } else if workoutMode == .easyRun, let mainSeconds {
+            workoutPlan["main_s"] = max(0, mainSeconds)
         }
         if workoutMode == .intervals {
-            workoutPlan["intervals"] = intervalPlanFromTemplate(intervalTemplate)
+            if let intervalRepeats, let intervalWorkSeconds, let intervalRecoverySeconds,
+               intervalRepeats > 0, intervalWorkSeconds > 0, intervalRecoverySeconds >= 0 {
+                workoutPlan["intervals"] = [
+                    "repeats": intervalRepeats,
+                    "work_s": intervalWorkSeconds,
+                    "recovery_s": intervalRecoverySeconds,
+                ]
+            } else {
+                workoutPlan["intervals"] = intervalPlanFromTemplate(intervalTemplate)
+            }
         }
         if let workoutPlanJSON = jsonString(workoutPlan) {
             appendField(name: "workout_plan", value: workoutPlanJSON)

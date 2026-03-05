@@ -21,6 +21,10 @@ def test_continuous_request_includes_easy_run_free_mode_fields() -> None:
     assert 'appendField(name: "easy_run_free_mode", value: easyRunFreeMode ? "true" : "false")' in text
     assert 'workoutPlan["main_s"] = 0' in text
     assert 'workoutPlan["free_run"] = true' in text
+    assert "mainSeconds: Int? = nil" in text
+    assert "cooldownSeconds: Int? = nil" in text
+    assert "intervalRepeats: Int? = nil" in text
+    assert 'workoutPlan["intervals"] = [' in text
 
 
 def test_workout_view_model_uses_total_time_in_free_run_main_phase() -> None:
@@ -39,4 +43,3 @@ def test_workout_launch_has_timed_free_run_toggle_and_locks_free_run_pickers() -
     assert "viewModel.selectedEasyRunSessionMode == .freeRun" in text
     assert ".allowsHitTesting(false)" in text
     assert "Duration and warm-up are locked in Free Run." in text
-

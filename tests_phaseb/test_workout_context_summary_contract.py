@@ -83,6 +83,82 @@ def test_easy_run_summary_is_present_without_hr():
     assert summary["reps_remaining_including_current"] is None
 
 
+def test_interval_summary_respects_runtime_plan_overrides():
+    state = {
+        "plan_warmup_s": 120,
+        "plan_interval_repeats": 5,
+        "plan_interval_work_s": 60,
+        "plan_interval_recovery_s": 30,
+        "plan_cooldown_s": 120,
+    }
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=150,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    summary = tick.get("workout_context_summary") or {}
+    assert summary["reps_total"] == 5
+    assert summary["rep_index"] == 1
+    assert summary["rep_remaining_s"] == 30
+    assert summary["reps_remaining_including_current"] == 5
+
+
+def test_easy_run_timed_summary_uses_plan_time_left():
+    state = {
+        "plan_warmup_s": 120,
+        "plan_main_s": 1800,
+        "plan_cooldown_s": 300,
+        "plan_free_run": False,
+    }
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=300,
+            heart_rate=140,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    summary = tick.get("workout_context_summary") or {}
+    assert summary["phase"] == "main"
+    assert summary["rep_remaining_s"] == 1620
+    assert summary["time_left_s"] == 1920
+
+
+def test_easy_run_free_run_summary_omits_fixed_time_left():
+    state = {
+        "plan_warmup_s": 0,
+        "plan_main_s": 0,
+        "plan_cooldown_s": 300,
+        "plan_free_run": True,
+    }
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=600,
+            heart_rate=138,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    summary = tick.get("workout_context_summary") or {}
+    assert summary["phase"] == "main"
+    assert summary["time_left_s"] is None
+
+
 def _mock_breath_analysis(_path: str):
     return {
         "intensity": "moderate",

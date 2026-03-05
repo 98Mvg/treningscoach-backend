@@ -2712,6 +2712,22 @@ def coach_continuous():
             workout_state["workout_mode"] = workout_mode
             workout_state["coaching_style"] = coaching_style
             workout_state["interval_template"] = interval_template
+            workout_state["plan_workout_type"] = str(normalized_plan.workout_type or "").strip().lower()
+            if normalized_plan.warmup_s is not None:
+                workout_state["plan_warmup_s"] = max(0, int(normalized_plan.warmup_s))
+            if normalized_plan.main_s is not None:
+                workout_state["plan_main_s"] = max(0, int(normalized_plan.main_s))
+            if normalized_plan.cooldown_s is not None:
+                workout_state["plan_cooldown_s"] = max(0, int(normalized_plan.cooldown_s))
+            if normalized_plan.free_run is not None:
+                workout_state["plan_free_run"] = bool(normalized_plan.free_run)
+            interval_plan = normalized_plan.intervals if isinstance(normalized_plan.intervals, dict) else {}
+            if interval_plan.get("repeats") is not None:
+                workout_state["plan_interval_repeats"] = max(1, int(interval_plan["repeats"]))
+            if interval_plan.get("work_s") is not None:
+                workout_state["plan_interval_work_s"] = max(1, int(interval_plan["work_s"]))
+            if interval_plan.get("recovery_s") is not None:
+                workout_state["plan_interval_recovery_s"] = max(0, int(interval_plan["recovery_s"]))
             resolved_warmup_seconds = _coerce_int(warmup_seconds_raw)
             if phase == "warmup" and resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
                 # Keep timing config inside shared workout_state to avoid signature drift.
