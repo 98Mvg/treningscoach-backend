@@ -91,6 +91,14 @@ class BrainRouter:
         "hvordan ligger jeg an",
         "hvordan går det",
     )
+    _WORKOUT_FOLLOW_UP_TOKENS = {
+        "and", "og", "how", "long", "lenge", "now", "nå", "pace", "fart", "tempo",
+        "fast", "fort", "slow", "sakte", "hard", "hardt", "easy", "lett",
+        "recovery", "recover", "hvile", "rest", "interval", "intervals", "drag",
+        "set", "sets", "rep", "reps", "tid", "time", "left", "igjen",
+        "zone", "sone", "heart", "rate", "hr", "bpm", "puls", "warmup", "oppvarming",
+        "cooldown", "nedjogg", "main", "work",
+    }
 
     def __init__(self, brain_type: Optional[str] = None, use_hybrid: Optional[bool] = None):
         """
@@ -358,12 +366,14 @@ class BrainRouter:
             parts.append("Workout context: " + ", ".join(hints))
         if lang == "no":
             parts.append(
-                "Instruksjon: Gi et kort, praktisk svar. Bruk reps/tid igjen når tilgjengelig. "
+                "Instruksjon: Gi et kort, praktisk svar. Tolke korte oppfølgingsspørsmål som en fortsettelse av samtalen. "
+                "Bruk reps/tid igjen når tilgjengelig. "
                 "Ikke oppgi puls-tall når heart_rate=unavailable."
             )
         else:
             parts.append(
-                "Instruction: Give a short practical answer. Use sets/time left when available. "
+                "Instruction: Give a short practical answer. Treat short follow-up questions as a continuation of the recent conversation. "
+                "Use sets/time left when available. "
                 "Do not state current HR numbers when heart_rate=unavailable."
             )
         return "\n".join(parts).strip()
@@ -426,6 +436,14 @@ class BrainRouter:
             return True
         return any(lowered.startswith(prefix) for prefix in self._WORKOUT_CONTEXT_PROMPT_PREFIXES)
 
+    def _is_workout_follow_up(self, text: str) -> bool:
+        tokens = self._question_tokens(text)
+        if not tokens:
+            return False
+        if len(tokens) > 8:
+            return False
+        return bool(tokens.intersection(self._WORKOUT_FOLLOW_UP_TOKENS))
+
     def _next_talk_policy_refusal(self, language: str, category: str) -> tuple[str, str]:
         normalized_language = self._normalize_language(language)
         bank = getattr(config, "COACH_TALK_POLICY_REFUSAL_BANK", {}) or {}
@@ -462,7 +480,14 @@ class BrainRouter:
 
         normalized_context = (talk_context or "chat").strip().lower()
         category = self._classify_talk_policy_category(message or "")
-        if category == "off_topic" and normalized_context == "workout" and self._is_workout_context_prompt(message):
+        if (
+            category == "off_topic"
+            and normalized_context == "workout"
+            and (
+                self._is_workout_context_prompt(message)
+                or self._is_workout_follow_up(message)
+            )
+        ):
             category = None
 
         if not category:

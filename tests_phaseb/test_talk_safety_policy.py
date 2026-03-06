@@ -64,6 +64,14 @@ def test_talk_policy_allows_generic_workout_prompt_in_workout_context():
     assert blocked["policy_category"] == "off_topic"
 
 
+def test_talk_policy_allows_short_workout_follow_up_in_workout_context():
+    router = BrainRouter(brain_type="config")
+
+    allowed = router.evaluate_talk_policy("And how long", "en", talk_context="workout")
+
+    assert allowed["policy_blocked"] is False
+
+
 def test_coach_talk_policy_applies_to_all_personas(monkeypatch, tmp_path):
     fake_audio = tmp_path / "talk_policy.wav"
     fake_audio.write_bytes(b"RIFF")

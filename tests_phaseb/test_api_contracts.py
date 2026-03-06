@@ -200,6 +200,46 @@ def test_coach_talk_question_uses_qna_path(monkeypatch, tmp_path):
     assert isinstance(payload.get("personality"), str)
 
 
+def test_workout_talk_uses_qna_path_for_follow_up_even_without_question_mark(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+    called = {"qna": False, "chat": False}
+
+    def _mock_qna(*args, **kwargs):
+        called["qna"] = True
+        _ = (args, kwargs)
+        return "Two intervals left. About three minutes."
+
+    def _mock_chat(*args, **kwargs):
+        called["chat"] = True
+        _ = (args, kwargs)
+        return "Generic coaching response"
+
+    monkeypatch.setattr(main.brain_router, "get_question_response", _mock_qna)
+    monkeypatch.setattr(main.brain_router, "get_coaching_response", _mock_chat)
+
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "And how long",
+            "context": "workout",
+            "trigger_source": "button",
+            "persona": "personal_trainer",
+            "language": "en",
+            "workout_context_summary": {
+                "phase": "work",
+                "time_left_s": 180,
+                "reps_remaining_including_current": 2,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert called["qna"] is True
+    assert called["chat"] is False
+    assert isinstance(payload.get("text"), str)
+
+
 def test_coach_talk_rejects_unknown_trigger_source(monkeypatch, tmp_path):
     client = _build_client(monkeypatch, tmp_path)
     response = client.post(

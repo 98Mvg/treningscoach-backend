@@ -4075,7 +4075,14 @@ def coach_talk():
         )
 
         timeout_budget = talk_timeout_budget(trigger_source)
-        is_question = response_mode in {"qa", "qna", "question"} or is_question_request(user_message)
+        # Product rule: /coach/talk during an active workout is always a Q&A-style
+        # interaction. Keep continuous event selection deterministic in zone_event_motor;
+        # this path only answers the athlete's question.
+        is_question = (
+            context == "workout"
+            or response_mode in {"qa", "qna", "question"}
+            or is_question_request(user_message)
+        )
         fallback_used = False
         prompt_for_router = user_message
         if context == "workout" and bool(getattr(config, "TALK_CONTEXT_SUMMARY_ENABLED", True)):

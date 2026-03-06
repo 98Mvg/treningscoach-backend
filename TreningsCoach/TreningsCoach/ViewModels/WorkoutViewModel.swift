@@ -1972,6 +1972,27 @@ class WorkoutViewModel: ObservableObject {
         }.first
     }
 
+    private func selectEventToSpeak(from response: ContinuousCoachResponse) -> (event: CoachingEvent, selectionSource: String)? {
+        guard let events = response.events, !events.isEmpty else { return nil }
+
+        let normalizedPrimaryEvent = response.zonePrimaryEvent?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        if !normalizedPrimaryEvent.isEmpty,
+           let backendPrimary = events.first(where: { $0.eventType.lowercased() == normalizedPrimaryEvent }) {
+            return (backendPrimary, "backend_primary")
+        }
+
+        if events.contains(where: { $0.priority != nil }), let backendOrdered = events.first {
+            return (backendOrdered, "backend_order")
+        }
+
+        guard let fallback = selectHighestPriorityEvent(from: events) else {
+            return nil
+        }
+        return (fallback, "local_priority_fallback")
+    }
+
     private func shouldSpeakEventFirst(response: ContinuousCoachResponse) -> (speak: Bool, reason: String) {
         guard AppConfig.ContinuousCoaching.iosEventSpeechEnabled else {
             lastResolvedUtteranceID = nil
@@ -2009,11 +2030,13 @@ class WorkoutViewModel: ObservableObject {
             return (response.audioURL != nil, "backend_speak_no_events")
         }
 
-        guard let selected = selectHighestPriorityEvent(from: events) else {
+        guard let selection = selectEventToSpeak(from: response) else {
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
             return (response.audioURL != nil, "event_router_no_event")
         }
+
+        let selected = selection.event
 
         // Resolve utterance ID: prefer backend-provided phrase_id, fall back to local mapping.
         let payloadPhraseID = selected.phraseId?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2055,7 +2078,7 @@ class WorkoutViewModel: ObservableObject {
         }
         lastResolvedUtteranceID = utteranceID
         lastResolvedEventType = selected.eventType
-        print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source)")
+        print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source) selection_source=\(selection.selectionSource)")
         return (true, "event_router")
     }
 
