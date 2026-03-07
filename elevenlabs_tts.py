@@ -70,7 +70,8 @@ class ElevenLabsTTS:
         output_path: str = None,
         language: str = None,
         persona: str = None,
-        voice_pacing: dict = None
+        voice_pacing: dict = None,
+        voice_id_override: str = None,
     ) -> str:
         """
         Generate speech from text using the appropriate voice.
@@ -113,6 +114,9 @@ class ElevenLabsTTS:
             style = persona_config.get("style", style)
             speed = persona_config.get("speed", speed)
             logger.info(f"Persona '{persona}': stability={stability}, similarity={similarity_boost}, style={style}, speed={speed}")
+
+        if voice_id_override:
+            voice_id = voice_id_override
 
         # Manual pacing overrides persona defaults
         if voice_pacing:
@@ -228,7 +232,8 @@ class ElevenLabsTTS:
         text: str,
         language: str = None,
         persona: str = None,
-        voice_pacing: dict = None
+        voice_pacing: dict = None,
+        voice_id_override: str = None,
     ) -> bytes:
         """
         Generate speech and return as bytes (no file save).
@@ -264,6 +269,9 @@ class ElevenLabsTTS:
             similarity_boost = persona_config.get("similarity_boost", similarity_boost)
             style = persona_config.get("style", style)
             speed = persona_config.get("speed", speed)
+
+        if voice_id_override:
+            voice_id = voice_id_override
 
         # Manual pacing overrides
         if voice_pacing:

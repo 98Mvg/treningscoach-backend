@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -46,16 +47,28 @@ CORE_BUNDLE_CATEGORIES = [
     "zone.watch_disconnected",
     "zone.no_sensors",
     "zone.watch_restored",
+    "zone.hr_poor_timing",
     "breath.interrupt.cant_breathe",
     "breath.interrupt.slow_down",
     "breath.interrupt.dizzy",
     "welcome.standard",
     "wake_ack.en",
     "wake_ack.no",
-    "motivation",
     "zone.silence.work",
     "zone.silence.rest",
     "zone.silence.default",
+    "zone.structure.work",
+    "zone.structure.recovery",
+    "zone.structure.steady",
+    "zone.structure.finish",
+    "interval.motivate.s1",
+    "interval.motivate.s2",
+    "interval.motivate.s3",
+    "interval.motivate.s4",
+    "easy_run.motivate.s1",
+    "easy_run.motivate.s2",
+    "easy_run.motivate.s3",
+    "easy_run.motivate.s4",
 ]
 
 
@@ -84,15 +97,51 @@ def _build_core_bundle_ids() -> list[str]:
     return ordered_ids
 
 
+def _manifest_bundle_ids(manifest_path: Path) -> list[str]:
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    ids = []
+    for item in payload.get("phrases", []):
+        phrase_id = str(item.get("id") or "").strip()
+        if phrase_id:
+            ids.append(phrase_id)
+    return ids
+
+
+def _clear_bundled_mp3s(target_root: Path) -> int:
+    removed = 0
+    if not target_root.exists():
+        return 0
+    for file_path in target_root.rglob("*.mp3"):
+        file_path.unlink()
+        removed += 1
+    return removed
+
+
+def _bundle_ids_for_version(version: str, source_root: Path) -> tuple[list[str], str]:
+    if version == "v2":
+        manifest_path = source_root / "manifest.json"
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"Missing manifest for V2 bundle copy: {manifest_path}")
+        return _manifest_bundle_ids(manifest_path), "manifest"
+    return _build_core_bundle_ids(), "curated"
+
+
 def select_bundle(version: str) -> int:
     source_root = PROJECT_ROOT / "output" / "audio_pack" / version
     target_root = PROJECT_ROOT / "TreningsCoach" / "TreningsCoach" / "Resources" / "CoreAudioPack"
-    core_bundle_ids = _build_core_bundle_ids()
 
     if not source_root.exists():
         print(f"ERROR: source folder not found: {source_root}")
         print("Run tools/generate_audio_pack.py first.")
         return 1
+
+    try:
+        core_bundle_ids, selection_mode = _bundle_ids_for_version(version, source_root)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+
+    removed = _clear_bundled_mp3s(target_root)
 
     copied = 0
     missing = 0
@@ -109,19 +158,20 @@ def select_bundle(version: str) -> int:
                 print(f"MISSING: {lang}/{phrase_id}.mp3")
                 missing += 1
                 continue
-            if dst.exists():
-                overwritten += 1
             shutil.copy2(src, dst)
             copied += 1
 
     expected_total = len(core_bundle_ids) * len(LANGUAGES)
     print(f"Core bundle complete")
     print(f"  Version: {version}")
-    print(f"  Categories: {len(CORE_BUNDLE_CATEGORIES)} (max {MAX_VARIANTS_PER_CATEGORY} each)")
+    print(f"  Selection mode: {selection_mode}")
+    if selection_mode == "curated":
+        print(f"  Categories: {len(CORE_BUNDLE_CATEGORIES)} (max {MAX_VARIANTS_PER_CATEGORY} each)")
     print(f"  IDs: {len(core_bundle_ids)}")
     print(f"  Expected files: {expected_total}")
     print(f"  Copied: {copied}")
     print(f"  Overwritten: {overwritten}")
+    print(f"  Removed stale bundle files: {removed}")
     print(f"  Missing: {missing}")
     print(f"  Target: {target_root}")
     return 0 if missing == 0 else 2

@@ -64,8 +64,11 @@ def test_export_xlsx_writes_workbook_with_formulas_and_filters(tmp_path: Path):
         assert "en_words" in sheet1
         assert "review_status" in sheet1
         assert "action_needed" in sheet1
+        assert "workout_catalog" in sheet1
+        assert "motivation_stage" in sheet1
+        assert "instruction_urgency" in sheet1
         assert '<f>LEN(G2)</f>' in sheet1
-        assert 'autoFilter ref="A1:R6"' in sheet1
+        assert 'autoFilter ref="A1:U6"' in sheet1
         assert 'sqref="P2:P6"' in sheet1
 
         sheet2 = workbook.read("xl/worksheets/sheet2.xml").decode("utf-8")
@@ -173,6 +176,29 @@ def test_import_xlsx_detects_text_edit(tmp_path: Path):
     changed = [r for r in imported if r.en == "EDITED TEXT HERE"]
     assert len(changed) == 1
     assert changed[0].phrase_id == target_id
+
+
+def test_read_import_csv_roundtrip(tmp_path: Path):
+    csv_path = tmp_path / "import.csv"
+    csv_path.write_text("id,en,no\nzone.phase.warmup.1,Edited EN,Endret NO\n", encoding="utf-8")
+
+    rows = editor.read_import_csv(csv_path)
+    assert len(rows) == 1
+    assert rows[0].phrase_id == "zone.phase.warmup.1"
+    assert rows[0].en == "Edited EN"
+    assert rows[0].no == "Endret NO"
+
+
+def test_import_csv_detects_text_edit(tmp_path: Path):
+    first_row = editor._rows()[0]
+    csv_path = tmp_path / "import.csv"
+    csv_path.write_text(
+        f"id,en,no\n{first_row.phrase_id},CSV EDITED TEXT,{first_row.no}\n",
+        encoding="utf-8",
+    )
+
+    result = editor.import_csv(csv_path=csv_path, apply_changes=False)
+    assert result == 0
 
 
 def test_welcome_validation_helper_passes_for_current_catalog():

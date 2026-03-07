@@ -1,0 +1,115 @@
+phrase_id	catalog	family	event	mode	english_locked	norwegian_locked	active_status	action	record_now	approved_for_import	approved_for_recording	notes
+zone.above.default.1	instruction	zone.above	above_zone	HR	Ease back slightly.	Ro ned litt.	active	keep	no	yes	yes	primary HR correction
+zone.below.default.1	instruction	zone.below	below_zone	HR	Pick it up.	Øk litt nå.	active	keep	no	yes	yes	primary HR correction
+zone.in_zone.default.1	instruction	zone.in_zone	in_zone	HR	Stay right here.	Bli her.	active	replace_text	yes	yes	yes	primary HR hold cue
+zone.silence.default.1	instruction	zone.silence	max_silence_hold	BOTH	Find your pace.	Finn rytmen.	active	keep	no	yes	yes	low-urgency hold guidance
+zone.silence.rest.1	instruction	zone.silence	max_silence_hold	BOTH	Relax your shoulders.	Senk skuldrene.	active	keep	no	yes	yes	low-urgency hold guidance
+zone.silence.work.1	instruction	zone.silence	max_silence_hold	BOTH	Hold the rhythm.	Hold rytmen.	active	keep	no	yes	yes	low-urgency hold guidance
+zone.structure.finish.1	instruction	zone.structure.finish	final_effort	NO_HR	Final push now!	Trykk til nå!	active	keep	no	yes	yes	primary no-HR finish cue
+zone.structure.recovery.1	instruction	zone.structure.recovery	recovery_start	NO_HR	Ease back and recover.	Ro ned og hent deg inn.	active	keep	no	yes	yes	primary no-HR recovery cue
+zone.structure.steady.1	instruction	zone.structure.steady	steady_run	NO_HR	Settle into the pace.	Finn rytmen.	active	keep	no	yes	yes	primary no-HR steady cue
+zone.structure.steady.2	instruction	zone.structure.steady	steady_run	NO_HR	Stay with the rhythm.	Bli i rytmen.	active	keep	no	yes	yes	no-HR steady cue
+zone.structure.steady.3	instruction	zone.structure.steady	steady_run	NO_HR	Stay smooth and relaxed.	Rolig og avslappet.	active	keep	no	yes	yes	no-HR steady cue
+zone.structure.steady.4	instruction	zone.structure.steady	steady_run	NO_HR	Control the effort here.	Kontroll på innsatsen.	active	keep	no	yes	yes	no-HR steady cue
+zone.structure.steady.5	instruction	zone.structure.steady	steady_run	NO_HR	Keep the pace steady.	Hold tempoet jevnt.	active	keep	no	yes	yes	no-HR steady cue
+zone.structure.steady.6	instruction	zone.structure.steady	steady_run	NO_HR	Hold the phase.	Hold det her.	active	keep	no	yes	yes	no-HR steady cue
+zone.structure.work.1	instruction	zone.structure.work	interval_start	NO_HR	Pick it up now.	Kjør på nå.	active	keep	no	yes	yes	primary no-HR work cue
+zone.hr_poor_enter.1	context	zone.hr_poor_enter	hr_signal_lost	HR	Heart rate signal is weak.	Pulssignalet er svakt.	active	keep	no	yes	yes	HR-dependent context
+zone.hr_poor_exit.1	context	zone.hr_poor_exit	hr_signal_restored	HR	Heart rate is back.	Pulsen er tilbake.	active	keep	no	yes	yes	HR-dependent context
+zone.hr_poor_timing.1	context	zone.hr_poor_timing	no_hr_mode_notice	NO_HR	No heart rate signal. I will continue coaching	Ingen pulssignal. Jeg fortsetter å coache	active	keep	no	yes	yes	primary no-HR mode switch
+zone.main_started.1	context	zone.main_started	main_started	BOTH	Main set now.	Nå er du i hoveddelen.	active	keep	no	yes	yes	shared main-set context
+zone.pause.detected.1	context	zone.pause	pause_detected	BOTH	Paused session	Pauset økten.	active	keep	no	yes	yes	shared pause context
+zone.pause.resumed.1	context	zone.pause	pause_resumed	BOTH	You're moving again.	Du er i gang igjen.	active	keep	no	yes	yes	shared pause context
+zone.phase.cooldown.1	context	zone.phase.cooldown	cooldown	BOTH	Cooldown now.	Nå roer vi ned.	active	keep	no	yes	yes	shared cooldown context
+zone.phase.rest.1	context	zone.phase.rest	phase_change_rest	BOTH	Recovery now.	Pause nå.	active	keep	no	yes	yes	shared recovery context
+zone.phase.warmup.1	context	zone.phase.warmup	warmup	BOTH	Prepare for the session.	Forbered deg på økten.	active	keep	no	yes	yes	shared warmup context
+zone.phase.work.default.1	context	zone.phase.work	phase_change_work	BOTH	Work starts now.	Nå begynner innsatsen.	active	keep	no	yes	yes	shared work transition
+zone.phase.work.motivational.1	context	zone.phase.work	phase_change_work	BOTH	Time to work.	Nå jobber vi.	active	keep	no	yes	yes	shared work transition
+zone.countdown.15	progress	zone.countdown	countdown_15	BOTH	15!	15!	active	keep	no	yes	yes	shared countdown cue
+zone.countdown.30	progress	zone.countdown	countdown_30	BOTH	30 seconds left.	30 sekunder.	active	keep	no	yes	yes	shared countdown cue
+zone.countdown.5	progress	zone.countdown	countdown_5	BOTH	5!	5!	active	keep	no	yes	yes	shared countdown cue
+zone.countdown.start	progress	zone.countdown	countdown_start	BOTH	Go!	Kjør på nå.	active	keep	no	yes	yes	shared countdown start cue
+zone.workout_finished.1	progress	zone.workout_finished	workout_finish	BOTH	Workout finished. Nice work.	Økten er ferdig. Bra jobbet.	active	keep	no	yes	yes	shared workout closure
+easy_run.motivate.s1.1	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Focus on breath and rhythm.	Fokuser på pust og rytme.	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s1.2	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Settle your pace.	Finn ditt tempo.	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s2.1	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Good rhythm.	Bra rytme.	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s2.2	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Keep it steady.	Hold det jevnt.	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s3.1	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Nice work!	Bra jobba!	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s3.2	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Keep it strong.	Hold det sterkt.	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s4.1	motivation	easy_run.motivate.s4	easy_run_sustain_stage_4	HR	Stay smooth.	Hold det rolig.	active	keep	no	yes	yes	active easy-run motivation
+easy_run.motivate.s4.2	motivation	easy_run.motivate.s4	easy_run_sustain_stage_4	HR	Keep it steady.	Hold det jevnt.	active	keep	no	yes	yes	active easy-run motivation
+interval.motivate.s1.1	motivation	interval.motivate.s1	interval_sustain_stage_1	HR	Control your breath.	Kontroller pusten.	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s1.2	motivation	interval.motivate.s1	interval_sustain_stage_1	HR	Good start.	God start.	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s2.1	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Nice work.	Bra jobba.	active	replace_text	yes	yes	yes	active interval motivation
+interval.motivate.s2.2	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Hold the rhythm.	Hold rytmen.	active	replace_text	yes	yes	yes	active interval motivation
+interval.motivate.s3.1	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Perfect!	Herlig!	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s3.2	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Stay with it!	Stå i det!	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s4.1	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	Finish strong!	Kjør på nå!	active	replace_text	yes	yes	yes	active interval motivation
+interval.motivate.s4.2	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	All the way in.	Helt inn!	active	replace_text	yes	yes	yes	active interval motivation
+zone.no_sensors.1	context	zone.no_sensors	no_sensors	DIAGNOSTIC	Coaching by breath.	Coacher med pust.	active_secondary	keep	no	yes	yes	secondary no-sensors diagnostic
+zone.watch_disconnected.1	context	zone.watch	watch_lost	DIAGNOSTIC	Watch disconnected	Pulsklokken ble frakoblet.	active_secondary	keep	no	yes	yes	secondary watch-loss diagnostic
+zone.watch_restored.1	context	zone.watch	watch_restored	DIAGNOSTIC	Watch connected and heart rate is back.	Klokken er tilkoblet, og pulsen er tilbake.	active_secondary	keep	no	yes	yes	secondary watch-restore diagnostic
+zone.above.minimal.1	instruction	zone.above	above_zone	HR	Ease off 10-15 seconds.	Litt ned 10-15 sekunder.	compatibility	compatibility_only	no			legacy HR correction variant
+zone.above_ease.default.1	instruction	zone.above_ease	above_zone_ease	HR	Still high. Ease down 20 seconds.	Fortsatt høy. Ro ned 20 sekunder.	compatibility	compatibility_only	no			legacy sustained HR correction variant
+zone.above_ease.minimal.1	instruction	zone.above_ease	above_zone_ease	HR	HR still climbing. Ease down.	Pulsen stiger. Rolig ned.	compatibility	compatibility_only	no			legacy sustained HR correction variant
+zone.below.minimal.1	instruction	zone.below	below_zone	HR	Build slightly now.	Bygg litt opp nå.	compatibility	compatibility_only	no			legacy HR correction variant
+zone.below_push.default.1	instruction	zone.below_push	below_zone_push	HR	You're moving. Pick it up slightly.	Du er i gang. Øk litt.	compatibility	compatibility_only	no			legacy sustained HR push variant
+zone.below_push.minimal.1	instruction	zone.below_push	below_zone_push	HR	You're moving. Add a little.	Du er i gang. Litt opp.	compatibility	compatibility_only	no			legacy sustained HR push variant
+zone.breath.easy_run.1	instruction	zone.breath.easy_run	max_silence_breath_guide	NO_HR	Match your breathing to your pace.	Tilpass pusten til tempoet.	compatibility	compatibility_only	no			legacy breath guidance
+zone.breath.easy_run.2	instruction	zone.breath.easy_run	max_silence_breath_guide	NO_HR	Smooth breaths. You're doing well.	Jevn pust. Du gjør det bra.	compatibility	compatibility_only	no			legacy breath guidance
+zone.breath.recovery.1	instruction	zone.breath.recovery	max_silence_breath_guide	NO_HR	Slow your breathing down.	Senk pustetakten.	compatibility	compatibility_only	no			legacy breath guidance
+zone.breath.work.1	instruction	zone.breath.work	max_silence_breath_guide	NO_HR	Breathe through the effort.	Herlig	compatibility	compatibility_only	no			legacy breath guidance
+zone.feel.easy_run.1	instruction	zone.feel.easy_run	max_silence_go_by_feel	NO_HR	Steady effort. Stay comfortable.	Jevn innsats. Hold det behagelig.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.easy_run.2	instruction	zone.feel.easy_run	max_silence_go_by_feel	NO_HR	Find your rhythm and hold it.	Finn rytmen din og hold den.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.easy_run.3	instruction	zone.feel.easy_run	max_silence_go_by_feel	NO_HR	Easy and controlled. You set the pace.	Rolig og kontrollert. Du bestemmer tempoet.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.recovery.1	instruction	zone.feel.recovery	max_silence_go_by_feel	NO_HR	Ease off. Let your body recover.	Slipp av. La kroppen hente seg inn.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.recovery.2	instruction	zone.feel.recovery	max_silence_go_by_feel	NO_HR	Relax and breathe. Recovery counts.	Slapp av og pust. Hvile teller.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.work.1	instruction	zone.feel.work	max_silence_go_by_feel	NO_HR	Push hard but controlled.	Hold en jevn rytme	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.feel.work.2	instruction	zone.feel.work	max_silence_go_by_feel	NO_HR	Strong effort now. Stay focused.	Sterk innsats nå. Hold fokus.	compatibility	compatibility_only	no			legacy no-HR feel guidance
+zone.in_zone.minimal.1	instruction	zone.in_zone	in_zone	HR	Good. Stay here.	Bli her.	compatibility	compatibility_only	no			legacy HR hold variant
+motivation.1	motivation	motivation	legacy_fallback	HR	Nice work!	Hold det sterkt.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.10	motivation	motivation	legacy_fallback	HR	Finish what you started.	Fullfør det du begynte på.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.2	motivation	motivation	legacy_fallback	HR	Keep it up.	Bra jobba!	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.3	motivation	motivation	legacy_fallback	HR	That's the effort I want to see.	Det skal kjennes litt. Det er prisen for endring..	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.4	motivation	motivation	legacy_fallback	HR	One step at a time. You got this.	Ett steg om gangen. Du klarer det.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.5	motivation	motivation	legacy_fallback	HR	Discipline beats motivation. Keep going.	Disiplin slår motivasjon. Fortsett.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.6	motivation	motivation	legacy_fallback	HR	This is where it counts.	Det er nå det gjelder.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.7	motivation	motivation	legacy_fallback	HR	You showed up. thats the hard part.	Du møtte opp. Det er det vanskelige.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.8	motivation	motivation	legacy_fallback	HR	Trust the process.	Stol på prosessen.	compatibility	compatibility_only	no			legacy flat motivation pool
+motivation.9	motivation	motivation	legacy_fallback	HR	Every rep matters.	Hvert steg teller.	compatibility	compatibility_only	no			legacy flat motivation pool
+zone.hr_poor_enter.2	context	zone.hr_poor_enter	hr_signal_lost	HR	Heart rate signal dropped.	Pulssignalet falt ut.	future	future_add	yes			future HR-loss variant
+zone.hr_poor_exit.2	context	zone.hr_poor_exit	hr_signal_restored	HR	Heart rate is stable again.	Pulsen er stabil igjen.	future	future_add	yes			future HR-restore variant
+zone.hr_poor_timing.2	context	zone.hr_poor_timing	no_hr_mode_notice	NO_HR	Heart rate unavailable. Coaching, keep moving.	Pulssignal mangler. Jeg fortsetter å coache	future	future_add	yes			future no-HR mode-switch variant
+zone.main_started.2	context	zone.main_started	main_started	BOTH	The workout begins now.	Nå begynner økten.	future	future_add	yes			future shared main-set variant
+zone.main_started.3	context	zone.main_started	main_started	BOTH	Main work starts now.	Hoveddelen starter nå.	future	future_add	yes			future shared main-set variant
+zone.pause.detected.2	context	zone.pause	pause_detected	BOTH	Stopped.	Stoppet.	future	future_add	yes			future pause-detected variant
+zone.pause.resumed.2	context	zone.pause	pause_resumed	BOTH	Workout continues.	Økten fortsetter.	future	future_add	yes			future pause-resumed variant
+zone.phase.cooldown.2	context	zone.phase.cooldown	cooldown	BOTH	Bring it down.	Ro ned.	future	future_add	yes			future shared cooldown variant
+zone.phase.cooldown.3	context	zone.phase.cooldown	cooldown	BOTH	Slow it down.	Vi roer ned nå.	future	future_add	yes			future shared cooldown variant
+zone.phase.rest.2	context	zone.phase.rest	phase_change_rest	BOTH	Calm your breath now.	Ro ned pusten nå.	future	future_add	yes			future shared recovery variant
+zone.phase.rest.3	context	zone.phase.rest	phase_change_rest	BOTH	Catch your breath.	Hent deg inn nå.	future	future_add	yes			future shared recovery variant
+zone.phase.warmup.2	context	zone.phase.warmup	warmup	BOTH	Easy start.	Rolig start.	future	future_add	yes			future shared warmup variant
+zone.phase.warmup.3	context	zone.phase.warmup	warmup	BOTH	Start nice and easy.	Start rolig.	future	future_add	yes			future shared warmup variant
+zone.above.default.2	instruction	zone.above	above_zone	HR	Bring it down.	Senk tempoet litt.	future	future_add	yes			future HR correction variant
+zone.above.default.3	instruction	zone.above	above_zone	HR	Ease the effort.	Ro ned innsatsen.	future	future_add	yes			future HR correction variant
+zone.above.default.4	instruction	zone.above	above_zone	HR	Settle it down.	La det roe seg.	future	future_add	yes			future HR correction variant
+zone.above.default.5	instruction	zone.above	above_zone	HR	Relax the pace.	Slipp litt opp.	future	future_add	yes			future HR correction variant
+zone.below.default.2	instruction	zone.below	below_zone	HR	Bring the effort up.	Litt mer innsats.	future	future_add	yes			future HR correction variant
+zone.below.default.3	instruction	zone.below	below_zone	HR	Lift the pace.	Øk tempoet litt.	future	future_add	yes			future HR correction variant
+zone.below.default.4	instruction	zone.below	below_zone	HR	Drive the pace.	Trykk til litt.	future	future_add	yes			future HR correction variant
+zone.below.default.5	instruction	zone.below	below_zone	HR	Build the effort.	Bygg opp innsatsen.	future	future_add	yes			future HR correction variant
+zone.in_zone.default.2	instruction	zone.in_zone	in_zone	HR	Hold this pace.	Hold dette tempoet.	future	future_add	yes			future HR hold variant
+zone.in_zone.default.3	instruction	zone.in_zone	in_zone	HR	Hold the rhythm.	Hold rytmen.	future	future_add	yes			future HR hold variant
+zone.in_zone.default.4	instruction	zone.in_zone	in_zone	HR	Stay steady.	Hold det jevnt.	future	future_add	yes			future HR hold variant
+zone.in_zone.default.5	instruction	zone.in_zone	in_zone	HR	Right there.	Der ja!	future	future_add	yes			future HR hold variant
+easy_run.motivate.s1.3	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Nice and easy.	Start rolig!	future	future_add	yes			future easy-run motivation variant
+easy_run.motivate.s2.3	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Stay relaxed.	Hold deg avslappet.	future	future_add	yes			future easy-run motivation variant
+easy_run.motivate.s3.3	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Keep your flow.	Hold flyten.	future	future_add	yes			future easy-run motivation variant
+easy_run.motivate.s4.3	motivation	easy_run.motivate.s4	easy_run_sustain_stage_4	HR	Right to the end.	Helt til slutt.	future	future_add	yes			future easy-run motivation variant
+interval.motivate.s1.3	motivation	interval.motivate.s1	interval_sustain_stage_1	HR	Steady pace.	Finn rytmen.	future	future_add	yes			future interval motivation variant
+interval.motivate.s2.3	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Keep it steady.	Hold det jevnt.	future	future_add	yes			future interval motivation variant
+interval.motivate.s3.3	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Stay strong!	Hold deg sterk!	future	future_add	yes			future interval motivation variant
+interval.motivate.s4.3	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	Perfect!	Herlig!	future	future_add	yes			future interval motivation variant
+zone.countdown.start.2	progress	zone.countdown	countdown_start	BOTH	Start!	Start!	future	future_add	yes			future countdown-start variant
+zone.workout_finished.2	progress	zone.workout_finished	workout_finish	BOTH	That’s the workout done.	Der er økta ferdig.	future	future_add	yes			future workout-finish variant
+zone.workout_finished.3	progress	zone.workout_finished	workout_finish	BOTH	Session complete. Nice work.	Økta er fullført. Bra jobbet.	future	future_add	yes			future workout-finish variant

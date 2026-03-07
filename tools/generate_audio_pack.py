@@ -5,6 +5,7 @@ Generate and optionally upload Coachi audio packs.
 Usage examples:
   python3 tools/generate_audio_pack.py --version v1 --dry-run
   python3 tools/generate_audio_pack.py --version v1
+  python3 tools/generate_audio_pack.py --version v2 --changed-only
   python3 tools/generate_audio_pack.py --version v1 --sample-one --sample-language en
   python3 tools/generate_audio_pack.py --version v1 --sample-phrase-id zone.main_started.1 --sample-language en
   python3 tools/generate_audio_pack.py --version v1 --upload
@@ -14,6 +15,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import os
@@ -35,9 +37,25 @@ from tts_phrase_catalog import (  # noqa: E402
     get_all_static_phrases,
     get_core_phrases,
 )
+from workout_cue_catalog import validate_active_workout_cue_phrase  # noqa: E402
 
 
 LANGUAGES = ("en", "no")
+APPROVED_ACTIVE_STATUSES = {"active", "active_secondary"}
+TRUTHY_APPROVALS = {"yes", "true", "1", "y"}
+V2_FORCE_VOICE_IDS = {
+    "en": "9MPvdQh2pLsLhn7SuiIS",
+    "no": "nhvaqgRyAq6BmFs3WcdX",
+}
+V2_BUNDLE_INFRASTRUCTURE_IDS = {
+    "wake_ack.en.default",
+    "wake_ack.no.default",
+    "welcome.standard.1",
+    "welcome.standard.2",
+    "welcome.standard.3",
+    "welcome.standard.4",
+    "welcome.standard.5",
+}
 
 VOICE_SETTINGS = {
     "v1": {
@@ -56,6 +74,7 @@ class PhraseItem:
     text: str
     persona: str
     priority: str
+    voice_id_override: Optional[str] = None
 
 
 def _persona_for_pack(phrase_id: str, source_persona: str) -> str:
@@ -90,6 +109,7 @@ def _content_hash(phrase: "PhraseItem", voice_settings: dict[str, Any]) -> str:
             "language": phrase.language,
             "text": phrase.text,
             "persona": phrase.persona,
+            "voice_id_override": phrase.voice_id_override or "",
             "voice_settings": voice_settings,
         },
         sort_keys=True,
@@ -152,6 +172,9 @@ def _validate_phrase(phrase: PhraseItem) -> tuple[bool, str]:
         word_count = len(phrase.text.split())
         limit = "1-15" if mode == "realtime" else "2-30"
         return False, f"words={word_count} limit={limit} mode={mode}"
+    active_ok, active_reason = validate_active_workout_cue_phrase(phrase.phrase_id, phrase.text)
+    if not active_ok:
+        return False, active_reason
     return True, ""
 
 
@@ -168,6 +191,7 @@ def _build_phrase_list(core_only: bool) -> list[PhraseItem]:
                 text=item["text"],
                 persona=persona,
                 priority=item.get("priority", "core"),
+                voice_id_override=None,
             )
         )
 
@@ -182,10 +206,68 @@ def _build_phrase_list(core_only: bool) -> list[PhraseItem]:
                     text=item[lang],
                     persona=persona,
                     priority="core",
+                    voice_id_override=None,
                 )
             )
 
     return phrases
+
+
+def _is_truthy(value: str) -> bool:
+    return (value or "").strip().lower() in TRUTHY_APPROVALS
+
+
+def _load_review_rows_csv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _approved_v2_phrase_ids(review_path: Path) -> set[str]:
+    rows = _load_review_rows_csv(review_path)
+    approved_ids = {
+        str(row.get("phrase_id") or "").strip()
+        for row in rows
+        if str(row.get("active_status") or "").strip() in APPROVED_ACTIVE_STATUSES
+        and _is_truthy(str(row.get("approved_for_import") or ""))
+        and _is_truthy(str(row.get("approved_for_recording") or ""))
+    }
+    if not approved_ids:
+        raise RuntimeError(
+            f"No approved active rows found in review artifact: {review_path}. "
+            "Mark approved_for_import=yes and approved_for_recording=yes first."
+        )
+    return approved_ids | V2_BUNDLE_INFRASTRUCTURE_IDS
+
+
+def _filter_phrases_for_version(
+    *,
+    phrases: list[PhraseItem],
+    version: str,
+    review_path: Optional[Path],
+) -> list[PhraseItem]:
+    filtered = phrases
+    if version == "v2":
+        if review_path is None or not review_path.exists():
+            raise RuntimeError(
+                "V2 generation requires a review artifact. "
+                "Expected phrase_catalog_sorted.csv to exist."
+            )
+        approved_ids = _approved_v2_phrase_ids(review_path)
+        filtered = [phrase for phrase in phrases if phrase.phrase_id in approved_ids]
+
+    if version == "v2":
+        return [
+            PhraseItem(
+                phrase_id=phrase.phrase_id,
+                language=phrase.language,
+                text=phrase.text,
+                persona=phrase.persona,
+                priority=phrase.priority,
+                voice_id_override=V2_FORCE_VOICE_IDS.get(phrase.language),
+            )
+            for phrase in filtered
+        ]
+    return filtered
 
 
 def _select_phrases_for_run(
@@ -255,6 +337,21 @@ def _manifest_for_output(version: str, output_dir: Path, generated_phrases: list
     return manifest
 
 
+def _prune_stale_output_files(output_dir: Path, phrases: list[PhraseItem]) -> int:
+    allowed = {f"{phrase.language}/{phrase.phrase_id}.mp3" for phrase in phrases}
+    removed = 0
+    for lang in LANGUAGES:
+        lang_dir = output_dir / lang
+        if not lang_dir.exists():
+            continue
+        for file_path in lang_dir.glob("*.mp3"):
+            rel = f"{lang}/{file_path.name}"
+            if rel not in allowed:
+                file_path.unlink()
+                removed += 1
+    return removed
+
+
 def _build_latest_payload(*, version: str, manifest_key: str) -> dict[str, Any]:
     payload = {
         "latest_version": version,
@@ -275,9 +372,14 @@ def _generate_audio(
     sample_one: bool,
     sample_phrase_id: Optional[str],
     sample_language: str,
+    review_path: Optional[Path],
     skip_validation: bool = False,
 ) -> tuple[list[PhraseItem], Path]:
-    all_phrases = _build_phrase_list(core_only=core_only)
+    all_phrases = _filter_phrases_for_version(
+        phrases=_build_phrase_list(core_only=core_only),
+        version=version,
+        review_path=review_path,
+    )
     phrases = _select_phrases_for_run(
         phrases=all_phrases,
         sample_one=sample_one,
@@ -351,6 +453,7 @@ def _generate_audio(
             language=phrase.language,
             persona=phrase.persona,
             voice_pacing=voice_pacing,
+            voice_id_override=phrase.voice_id_override,
         )
         build_cache[file_key] = new_hash
         generated += 1
@@ -362,6 +465,7 @@ def _generate_audio(
         del build_cache[k]
 
     _save_build_cache(cache_path, build_cache)
+    pruned = _prune_stale_output_files(output_dir, phrases)
 
     print(f"  Generated: {generated} ({changed} changed, {generated - changed} new)")
     print(f"  Skipped unchanged: {skipped}")
@@ -373,6 +477,8 @@ def _generate_audio(
             print(f"             \"{preview}\"")
     if stale_keys:
         print(f"  Stale cache entries removed: {len(stale_keys)}")
+    if pruned:
+        print(f"  Pruned stale MP3s: {pruned}")
     return phrases, output_dir
 
 
@@ -399,13 +505,20 @@ def _upload_to_r2(version: str, output_dir: Path, manifest_path: Path, latest_pa
         region_name="auto",
     )
 
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     uploads = 0
-    for lang in LANGUAGES:
-        lang_dir = output_dir / lang
-        if not lang_dir.exists():
-            continue
-        for file_path in sorted(lang_dir.glob("*.mp3")):
-            key = f"{version}/{lang}/{file_path.name}"
+    for phrase in manifest.get("phrases", []):
+        for lang in LANGUAGES:
+            lang_payload = phrase.get(lang)
+            if not isinstance(lang_payload, dict):
+                continue
+            rel_path = str(lang_payload.get("file") or "").strip()
+            if not rel_path:
+                continue
+            file_path = output_dir / rel_path
+            if not file_path.exists():
+                raise RuntimeError(f"Manifest references missing audio file: {file_path}")
+            key = f"{version}/{rel_path}"
             s3.upload_file(str(file_path), bucket, key, ExtraArgs={"ContentType": "audio/mpeg"})
             uploads += 1
 
@@ -428,17 +541,32 @@ def _upload_to_r2(version: str, output_dir: Path, manifest_path: Path, latest_pa
         print(f"Uploaded {uploads} MP3 files + {manifest_key} to R2 bucket '{bucket}'")
 
 
-def main() -> int:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate and upload Coachi audio packs")
     parser.add_argument("--version", default=getattr(config, "AUDIO_PACK_VERSION", "v1"))
     parser.add_argument("--core-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--changed-only",
+        action="store_true",
+        help="Alias for the existing build-cache incremental generation behavior.",
+    )
     parser.add_argument("--sample-one", action="store_true", help="Generate only one sample MP3 (deterministic pick)")
     parser.add_argument("--sample-phrase-id", default="", help="Generate only this phrase id (requires --sample-language)")
     parser.add_argument("--sample-language", choices=list(LANGUAGES), default="en", help="Language for sample generation")
     parser.add_argument("--skip-validation", action="store_true", help="Skip coaching_engine text validation")
+    parser.add_argument(
+        "--review-input",
+        default=str(PROJECT_ROOT / "output" / "spreadsheet" / "phrase_catalog_sorted.csv"),
+        help="V2 review CSV used to gate approved active rows.",
+    )
     parser.add_argument("--upload", action="store_true", help="Generate then upload")
     parser.add_argument("--upload-only", action="store_true", help="Upload existing output folder only")
+    return parser
+
+
+def main() -> int:
+    parser = _build_parser()
     args = parser.parse_args()
 
     version = (args.version or "v1").strip()
@@ -446,6 +574,9 @@ def main() -> int:
     manifest_path = output_dir / "manifest.json"
     latest_path = output_dir.parent / "latest.json"
     sample_phrase_id = (args.sample_phrase_id or "").strip()
+    review_path = Path(args.review_input)
+    if not review_path.is_absolute():
+        review_path = PROJECT_ROOT / review_path
 
     if args.upload_only:
         if not output_dir.exists():
@@ -467,8 +598,12 @@ def main() -> int:
         sample_one=args.sample_one,
         sample_phrase_id=sample_phrase_id if sample_phrase_id else None,
         sample_language=args.sample_language,
+        review_path=review_path,
         skip_validation=args.skip_validation,
     )
+
+    if args.changed_only and not args.dry_run:
+        print("Changed-only mode requested: build cache will skip unchanged MP3s.")
 
     if not args.dry_run:
         manifest = _manifest_for_output(version=version, output_dir=output_dir, generated_phrases=phrases)

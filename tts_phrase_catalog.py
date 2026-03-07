@@ -257,55 +257,67 @@ PHRASE_CATALOG = [
     # ZONE EVENTS — zone_event_motor.py (fixed text, no variables)
     # -----------------------------------------------------------------
 
-    {"id": "zone.watch_disconnected.1", "en": "Watch disconnected. I'll coach using breathing and timing.", "no": "Klokken er frakoblet. Jeg coacher videre med pust og timing.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.no_sensors.1", "en": "No sensors now. Run by feel.", "no": "Ingen sensorer nå. Løp på følelse.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.watch_restored.1", "en": "Watch restored. Zone coaching is back.", "no": "Klokken er tilbake. Sonecoaching er aktiv igjen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.watch_disconnected.1", "en": "Watch disconnected", "no": "Pulsklokken ble frakoblet.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.no_sensors.1", "en": "Coaching by breath.", "no": "Coacher med pust.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.watch_restored.1", "en": "Watch connected and heart rate is back.", "no": "Klokken er tilkoblet, og pulsen er tilbake.", "persona": "personal_trainer", "priority": "core"},
 
     # interval countdowns
-    {"id": "zone.countdown.30", "en": "30 seconds left.", "no": "30 sekunder igjen.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.15", "en": "15 seconds left.", "no": "15", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.5", "en": "5 seconds left.", "no": "5", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.start", "en": "Next interval now.", "no": "Kjør på nå", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.30", "en": "30 seconds left.", "no": "30 sekunder.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.15", "en": "15!", "no": "15!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.5", "en": "5!", "no": "5!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.start", "en": "Go!", "no": "Kjør på nå.", "persona": "personal_trainer", "priority": "core"},
 
     # phase changes
-    {"id": "zone.main_started.1", "en": "Main set now. Stay controlled.", "no": "Bra jobba", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.main_started.1", "en": "Main set now.", "no": "Nå er du i hoveddelen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.workout_finished.1", "en": "Workout finished. Nice work.", "no": "Økten er ferdig. Bra jobbet.", "persona": "personal_trainer", "priority": "core"},
 
     # HR signal
-    {"id": "zone.hr_poor_enter.1", "en": "Heart-rate signal is weak right now. I'll coach using timing and breathing until it stabilizes. Tighten your watch strap.", "no": "Puls-signalet er svakt akkurat nå. Jeg coacher med timing og pust til det stabiliserer seg. Stram klokka litt.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.hr_poor_exit.1", "en": "Heart-rate signal is stable again. Returning to zone coaching.", "no": "Pulsen er stabil igjen. Vi går tilbake til sonecoaching.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.hr_poor_enter.1", "en": "Heart rate signal is weak.", "no": "Pulssignalet er svakt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.hr_poor_exit.1", "en": "Heart rate is back.", "no": "Pulsen er tilbake.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.hr_poor_timing.1", "en": "No heart rate signal. I will continue coaching", "no": "Ingen pulssignal. Jeg fortsetter å coache", "persona": "personal_trainer", "priority": "core"},
 
     # above zone
     {"id": "zone.above.minimal.1", "en": "Ease off 10-15 seconds.", "no": "Litt ned 10-15 sekunder.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.above.default.1", "en": "Ease off and regain control.", "no": "Litt ned. Finn kontroll.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.above.default.1", "en": "Ease back slightly.", "no": "Ro ned litt.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.above_ease.minimal.1", "en": "HR still climbing. Ease down.", "no": "Pulsen stiger. Rolig ned.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.above_ease.default.1", "en": "Your heart rate is still climbing. Ease down for 20 seconds.", "no": "Pulsen stiger fortsatt. Ro ned 20 sekunder.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.above_ease.default.1", "en": "Still high. Ease down 20 seconds.", "no": "Fortsatt høy. Ro ned 20 sekunder.", "persona": "personal_trainer", "priority": "core"},
 
     # below zone
     {"id": "zone.below.minimal.1", "en": "Build slightly now.", "no": "Bygg litt opp nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.below.default.1", "en": "Build effort slightly now.", "no": "Litt opp i innsats nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.below.default.1", "en": "Pick it up.", "no": "Øk litt nå.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.below_push.minimal.1", "en": "You're moving. Add a little.", "no": "Du er i gang. Litt opp.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.below_push.default.1", "en": "You're moving well. Add a little effort and keep the flow.", "no": "Du er i gang. Øk litt nå og hold flyten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.below_push.default.1", "en": "You're moving. Pick it up slightly.", "no": "Du er i gang. Øk litt.", "persona": "personal_trainer", "priority": "core"},
 
     # in zone
-    {"id": "zone.in_zone.minimal.1", "en": "Good. Stay here.", "no": "Bra. Hold deg her.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.in_zone.default.1", "en": "Nice. Hold this zone.", "no": "Der ja. Hold deg i denne sonen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.in_zone.minimal.1", "en": "Good. Stay here.", "no": "Bli her.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.in_zone.default.1", "en": "Stay right here.", "no": "Bli her.", "persona": "personal_trainer", "priority": "core"},
 
     # phase transitions
-    {"id": "zone.phase.work.default.1", "en": "Work block. Controlled hard.", "no": "Dragstart. Kontroller hardt.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.work.motivational.1", "en": "New work block. Controlled hard now.", "no": "Nytt drag. Sterk kontroll nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.rest.1", "en": "Recovery block. Easy jog.", "no": "Pauseblokk. Rolig jogg.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.warmup.1", "en": "Warm-up now. Keep it easy.", "no": "Nå er vi i oppvarmingsdelen.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.cooldown.1", "en": "Cooldown now. Bring heart rate down.", "no": "Nedjogg nå. Senk pulsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.work.default.1", "en": "Work starts now.", "no": "Nå begynner innsatsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.work.motivational.1", "en": "Time to work.", "no": "Nå jobber vi.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.rest.1", "en": "Recovery now.", "no": "Pause nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.warmup.1", "en": "Prepare for the session.", "no": "Forbered deg på økten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.cooldown.1", "en": "Cooldown now.", "no": "Nå roer vi ned.", "persona": "personal_trainer", "priority": "core"},
 
     # pause detection
-    {"id": "zone.pause.detected.1", "en": "Looks like you paused. Start easy again when ready.", "no": "Du ser ut til å ha stoppet. Start rolig igjen når du er klar.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.pause.resumed.1", "en": "Good, you're moving again. Keep it controlled.", "no": "Bra, du er i gang igjen. Hold rolig kontroll.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.detected.1", "en": "Paused session", "no": "Pauset økten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.resumed.1", "en": "You're moving again.", "no": "Du er i gang igjen.", "persona": "personal_trainer", "priority": "core"},
+
+    # structure-driven instruction (no live HR)
+    {"id": "zone.structure.work.1", "en": "Pick it up now.", "no": "Kjør på nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.recovery.1", "en": "Ease back and recover.", "no": "Ro ned og hent deg inn.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.1", "en": "Settle into the pace.", "no": "Finn rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.2", "en": "Stay with the rhythm.", "no": "Bli i rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.3", "en": "Stay smooth and relaxed.", "no": "Rolig og avslappet.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.4", "en": "Control the effort here.", "no": "Kontroll på innsatsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.5", "en": "Keep the pace steady.", "no": "Hold tempoet jevnt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.6", "en": "Hold the phase.", "no": "Hold det her.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.finish.1", "en": "Final push now!", "no": "Trykk til nå!", "persona": "personal_trainer", "priority": "core"},
 
     # max silence overrides
-    {"id": "zone.silence.work.1", "en": "Stay controlled. One rep at a time.", "no": "Hold kontroll. Ett drag av gangen.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.silence.rest.1", "en": "Stay easy between reps.", "no": "Rolig mellom dragene.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.silence.default.1", "en": "Hold steady rhythm.", "no": "Hold jevn rytme.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.silence.work.1", "en": "Hold the rhythm.", "no": "Hold rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.silence.rest.1", "en": "Relax your shoulders.", "no": "Senk skuldrene.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.silence.default.1", "en": "Find your pace.", "no": "Finn rytmen.", "persona": "personal_trainer", "priority": "core"},
 
     # Go-by-feel fallback (no HR, no reliable breath) — phase-aware
     {"id": "zone.feel.easy_run.1", "en": "Steady effort. Stay comfortable.", "no": "Jevn innsats. Hold det behagelig.", "persona": "personal_trainer", "priority": "core"},
@@ -326,8 +338,8 @@ PHRASE_CATALOG = [
     # MOTIVATION — general encouragement cues
     # -----------------------------------------------------------------
 
-    {"id": "motivation.1", "en": "Perfect.", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "motivation.2", "en": "Keep it up.", "no": "Perfekt!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.1", "en": "Nice work!", "no": "Hold det sterkt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "motivation.2", "en": "Keep it up.", "no": "Bra jobba!", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.3", "en": "That's the effort I want to see.", "no": "Det skal kjennes litt. Det er prisen for endring..", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.4", "en": "One step at a time. You got this.", "no": "Ett steg om gangen. Du klarer det.", "persona": "personal_trainer", "priority": "core"},
     {"id": "motivation.5", "en": "Discipline beats motivation. Keep going.", "no": "Disiplin slår motivasjon. Fortsett.", "persona": "personal_trainer", "priority": "core"},
@@ -345,17 +357,17 @@ PHRASE_CATALOG = [
 
     # supportive (steady, grounded)
     {"id": "coach.no.supportive.1", "en": "Beautiful. Smooth and steady.", "no": "Nydelig. Jevnt og rolig.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.supportive.2", "en": "Go for it!", "no": "Kjør på!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.2", "en": "Focus on breath and rhythm.", "no": "Fokuser på pust og rytme.", "persona": "personal_trainer", "priority": "core"},
     {"id": "coach.no.supportive.3", "en": "Come on now.", "no": "Kom igjen nå.", "persona": "personal_trainer", "priority": "core"},
     {"id": "coach.no.supportive.4", "en": "Good. Breathe easy.", "no": "Bra. Pust rolig.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.supportive.5", "en": "Ease the pace. Good.", "no": "Senk tempoet. Godt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.supportive.5", "en": "Settle your pace.", "no": "Finn ditt tempo.", "persona": "personal_trainer", "priority": "core"},
     {"id": "coach.no.supportive.6", "en": "Relax. You earned it.", "no": "Slapp av. Du fortjener det.", "persona": "personal_trainer", "priority": "core"},
 
     # pressing (challenge, direct)
-    {"id": "coach.no.pressing.1", "en": "Come on!", "no": "Kom igjen!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.pressing.2", "en": "YES!", "no": "JA!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.pressing.3", "en": "Lovely!", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.pressing.4", "en": "Steady pressure. Stay in control.", "no": "Hold trykket jevnt. Hold kontrollen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.1", "en": "Nice work.", "no": "Bra jobba.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.2", "en": "Keep it steady.", "no": "Hold det jevnt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.3", "en": "Hold the rhythm.", "no": "Hold rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.pressing.4", "en": "Good rhythm.", "no": "Bra rytme.", "persona": "personal_trainer", "priority": "core"},
 
     # intense (demanding, short commands)
     {"id": "coach.no.intense.1", "en": "All the way! Drive your legs!", "no": "Helt inn nå! Trøkk i beina!", "persona": "personal_trainer", "priority": "core"},
@@ -365,8 +377,8 @@ PHRASE_CATALOG = [
     {"id": "coach.no.intense.5", "en": "Discipline. Execute.", "no": "Disiplin. Gjennomfør.", "persona": "personal_trainer", "priority": "core"},
 
     # peak (maximum urgency, ultra-short)
-    {"id": "coach.no.peak.1", "en": "EVERYTHING. NOW.", "no": "ALT. NÅ.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "coach.no.peak.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.peak.1", "en": "Finish strong!", "no": "Kjør på nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "coach.no.peak.2", "en": "All the way in.", "no": "Helt inn!", "persona": "personal_trainer", "priority": "core"},
 
     # -----------------------------------------------------------------
     # INTERVAL MOTIVATION — stage-based (rep_index determines stage)
@@ -374,20 +386,20 @@ PHRASE_CATALOG = [
     # -----------------------------------------------------------------
 
     # stage 1: supportive (rep 1)
-    {"id": "interval.motivate.s1.1", "en": "Smooth and steady.", "no": "Nydelig. Bra tempo.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s1.2", "en": "Good. Focus on breathing.", "no": "Bra. fokuser på å puste.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s1.1", "en": "Control your breath.", "no": "Kontroller pusten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s1.2", "en": "Good start.", "no": "God start.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 2: pressing (rep 2)
-    {"id": "interval.motivate.s2.1", "en": "Come on!", "no": "Kom igjen!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s2.2", "en": "Lovely!", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s2.1", "en": "Nice work.", "no": "Bra jobba.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s2.2", "en": "Hold the rhythm.", "no": "Hold det sterkt.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 3: intense (rep 3)
-    {"id": "interval.motivate.s3.1", "en": "You are doing the work!", "no": "Bra. Nå gjør du jobben!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s3.2", "en": "Keep it Smooth and strong.", "no": "Fokuser på jevnt tempo.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s3.1", "en": "Perfect!", "no": "Hold rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s3.2", "en": "Stay with it!", "no": "Stå i det!", "persona": "personal_trainer", "priority": "core"},
 
     # stage 4: peak (rep >= 4)
-    {"id": "interval.motivate.s4.1", "en": "EVERYTHING. NOW.", "no": "ALT. NÅ.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "interval.motivate.s4.2", "en": "COME ON! All the way!", "no": "KOM IGJEN! Helt inn nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s4.1", "en": "Finish strong!", "no": "Kjør på nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "interval.motivate.s4.2", "en": "All the way in.", "no": "Helt inn!", "persona": "personal_trainer", "priority": "core"},
 
     # -----------------------------------------------------------------
     # EASY-RUN MOTIVATION — stage-based (elapsed minutes determines stage)
@@ -395,20 +407,20 @@ PHRASE_CATALOG = [
     # -----------------------------------------------------------------
 
     # stage 1: supportive (0–20 min)
-    {"id": "easy_run.motivate.s1.1", "en": "Go for it!", "no": "Kjør på!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s1.2", "en": "Ease the pace. Good.", "no": "Senk tempoet. Godt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s1.1", "en": "Focus on breath and rhythm.", "no": "Fokuser på pust og rytme.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s1.2", "en": "Settle your pace.", "no": "Finn ditt tempo.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 2: pressing (20–40 min)
-    {"id": "easy_run.motivate.s2.1", "en": "Steady pressure. Stay in control.", "no": "Hold trykket jevnt. Hold kontrollen.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s2.2", "en": "YES!", "no": "JA!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s2.1", "en": "Good rhythm.", "no": "Bra rytme.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s2.2", "en": "Keep it steady.", "no": "Hold det jevnt.", "persona": "personal_trainer", "priority": "core"},
 
     # stage 3: intense (40–60 min)
-    {"id": "easy_run.motivate.s3.1", "en": "Perfect!.", "no": "Perfekt!", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s3.2", "en": "Good work!", "no": "Herlig!.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s3.1", "en": "Nice work!", "no": "Bra jobba!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s3.2", "en": "Keep it strong.", "no": "Herlig!", "persona": "personal_trainer", "priority": "core"},
 
     # stage 4: peak (60+ min)
-    {"id": "easy_run.motivate.s4.1", "en": "Keep focusing on your breath Now.", "no": "Hold fokuset på pusten.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "easy_run.motivate.s4.2", "en": "Nice work", "no": "Herlig jobba!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s4.1", "en": "Stay smooth.", "no": "Hold det rolig.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "easy_run.motivate.s4.2", "en": "Keep it steady.", "no": "Hold det jevnt.", "persona": "personal_trainer", "priority": "core"},
 ]
 
 

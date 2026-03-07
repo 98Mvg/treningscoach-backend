@@ -1,4 +1,5 @@
 import importlib.util
+import csv
 import json
 import sys
 from pathlib import Path
@@ -76,6 +77,19 @@ def test_latest_payload_points_to_versioned_manifest(monkeypatch):
     json.dumps(payload)
 
 
+def test_parser_accepts_changed_only_flag():
+    parser = mod._build_parser()
+    args = parser.parse_args(["--version", "v2", "--changed-only"])
+    assert args.version == "v2"
+    assert args.changed_only is True
+
+
+def test_parser_accepts_review_input_flag():
+    parser = mod._build_parser()
+    args = parser.parse_args(["--version", "v2", "--review-input", "output/spreadsheet/phrase_catalog_sorted.csv"])
+    assert args.review_input.endswith("phrase_catalog_sorted.csv")
+
+
 def test_pack_persona_policy_non_toxic_ids_are_personal_trainer():
     phrases = mod._build_phrase_list(core_only=False)
     offenders = [
@@ -84,6 +98,90 @@ def test_pack_persona_policy_non_toxic_ids_are_personal_trainer():
         if not item.phrase_id.startswith("toxic.") and item.persona != "personal_trainer"
     ]
     assert offenders == []
+
+
+def test_approved_v2_phrase_ids_include_active_secondary_and_infrastructure(tmp_path: Path):
+    review_path = tmp_path / "phrase_catalog_sorted.csv"
+    with review_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "phrase_id",
+                "active_status",
+                "approved_for_import",
+                "approved_for_recording",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "phrase_id": "zone.above.default.1",
+                "active_status": "active",
+                "approved_for_import": "yes",
+                "approved_for_recording": "yes",
+            }
+        )
+        writer.writerow(
+            {
+                "phrase_id": "zone.watch_restored.1",
+                "active_status": "active_secondary",
+                "approved_for_import": "yes",
+                "approved_for_recording": "yes",
+            }
+        )
+        writer.writerow(
+            {
+                "phrase_id": "zone.above.default.2",
+                "active_status": "future",
+                "approved_for_import": "yes",
+                "approved_for_recording": "yes",
+            }
+        )
+    approved_ids = mod._approved_v2_phrase_ids(review_path)
+    assert "zone.above.default.1" in approved_ids
+    assert "zone.watch_restored.1" in approved_ids
+    assert "zone.above.default.2" not in approved_ids
+    assert "wake_ack.en.default" in approved_ids
+    assert "welcome.standard.1" in approved_ids
+
+
+def test_filter_phrases_for_v2_forces_language_voice_ids(tmp_path: Path):
+    review_path = tmp_path / "phrase_catalog_sorted.csv"
+    with review_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "phrase_id",
+                "active_status",
+                "approved_for_import",
+                "approved_for_recording",
+            ],
+        )
+        writer.writeheader()
+        for phrase_id in ("zone.above.default.1", "zone.watch_restored.1"):
+            writer.writerow(
+                {
+                    "phrase_id": phrase_id,
+                    "active_status": "active" if phrase_id == "zone.above.default.1" else "active_secondary",
+                    "approved_for_import": "yes",
+                    "approved_for_recording": "yes",
+                }
+            )
+
+    phrases = [
+        mod.PhraseItem("zone.above.default.1", "en", "Ease back slightly.", "personal_trainer", "core"),
+        mod.PhraseItem("zone.watch_restored.1", "no", "Klokken er tilbake.", "personal_trainer", "core"),
+        mod.PhraseItem("zone.above.default.2", "en", "future", "personal_trainer", "core"),
+        mod.PhraseItem("welcome.standard.1", "en", "Welcome back.", "personal_trainer", "core"),
+    ]
+    filtered = mod._filter_phrases_for_version(phrases=phrases, version="v2", review_path=review_path)
+    ids = {(phrase.phrase_id, phrase.language) for phrase in filtered}
+    assert ("zone.above.default.1", "en") in ids
+    assert ("zone.watch_restored.1", "no") in ids
+    assert ("zone.above.default.2", "en") not in ids
+    assert ("welcome.standard.1", "en") in ids
+    for phrase in filtered:
+        assert phrase.voice_id_override == mod.V2_FORCE_VOICE_IDS[phrase.language]
 
 
 # ── Build cache (changed-only regeneration) ───────────────────────────
@@ -184,6 +282,17 @@ def test_validate_phrase_blocks_forbidden_phrase():
     )
     ok, reason = mod._validate_phrase(p)
     assert not ok
+
+
+def test_validate_phrase_blocks_active_workout_cue_over_catalog_limit():
+    p = mod.PhraseItem(
+        phrase_id="zone.silence.work.1", language="en",
+        text="Stay controlled and keep a perfectly steady rhythm today.",
+        persona="personal_trainer", priority="core",
+    )
+    ok, reason = mod._validate_phrase(p)
+    assert not ok
+    assert "catalog=instruction" in reason
 
 
 def test_validate_phrase_passes_strategic_long_text():

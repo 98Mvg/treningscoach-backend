@@ -22,7 +22,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
@@ -32,10 +32,26 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from tts_phrase_catalog import PHRASE_CATALOG, validate_welcome_catalog  # noqa: E402
+from phrase_review_v2 import (  # noqa: E402
+    REVIEW_COLUMNS as V2_REVIEW_COLUMNS,
+    ReviewRow as V2ReviewRow,
+    build_review_rows,
+    filter_approved_import_rows,
+    rows_from_dicts as v2_rows_from_dicts,
+    summarize_review_rows,
+    validate_review_rows,
+)
+from workout_cue_catalog import (  # noqa: E402
+    get_instruction_urgency,
+    get_motivation_stage_label,
+    get_workout_cue_catalog,
+    workout_catalog_sort_key,
+)
 
 
 SOURCE_FILE = PROJECT_ROOT / "tts_phrase_catalog.py"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "output" / "phrase_review"
+DEFAULT_V2_OUTPUT_DIR = PROJECT_ROOT / "output" / "spreadsheet"
 
 XLSX_COLUMNS = [
     "index",
@@ -56,6 +72,9 @@ XLSX_COLUMNS = [
     "review_status",
     "notes",
     "action_needed",
+    "workout_catalog",
+    "motivation_stage",
+    "instruction_urgency",
 ]
 
 XLSX_COLUMN_WIDTHS = [
@@ -77,6 +96,25 @@ XLSX_COLUMN_WIDTHS = [
     16.0,
     30.0,
     14.0,
+    16.0,
+    16.0,
+    18.0,
+]
+
+V2_XLSX_COLUMN_WIDTHS = [
+    34.0,
+    16.0,
+    24.0,
+    24.0,
+    14.0,
+    48.0,
+    48.0,
+    16.0,
+    18.0,
+    12.0,
+    18.0,
+    20.0,
+    42.0,
 ]
 
 
@@ -90,6 +128,9 @@ class PhraseRow:
     priority: str
     en: str
     no: str
+    workout_catalog: str
+    motivation_stage: str
+    instruction_urgency: str
 
 
 def _rows() -> list[PhraseRow]:
@@ -99,6 +140,9 @@ def _rows() -> list[PhraseRow]:
         parts = phrase_id.split(".")
         section = ".".join(parts[:2]) if len(parts) >= 2 else phrase_id
         bucket = ".".join(parts[:3]) if len(parts) >= 3 else section
+        workout_catalog = get_workout_cue_catalog(phrase_id) or ""
+        motivation_stage = get_motivation_stage_label(phrase_id) or ""
+        instruction_urgency = get_instruction_urgency(phrase_id) or ""
         rows.append(
             PhraseRow(
                 index=idx,
@@ -109,9 +153,33 @@ def _rows() -> list[PhraseRow]:
                 priority=str(phrase.get("priority", "")),
                 en=str(phrase.get("en", "")),
                 no=str(phrase.get("no", "")),
+                workout_catalog=workout_catalog,
+                motivation_stage=motivation_stage,
+                instruction_urgency=instruction_urgency,
             )
         )
     return rows
+
+
+def _write_delimited_rows(
+    path: Path,
+    fieldnames: list[str],
+    rows: Iterable[dict[str, Any]],
+    *,
+    delimiter: str,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter=delimiter)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key, "") for key in fieldnames})
+
+
+def _read_delimited_rows(path: Path, *, delimiter: str) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        return [{key: (value or "") for key, value in row.items()} for row in reader]
 
 
 def _escape_md_cell(value: str) -> str:
@@ -123,7 +191,10 @@ def export_csv(path: Path, rows: list[PhraseRow]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["index", "id", "section", "bucket", "persona", "priority", "en", "no"],
+            fieldnames=[
+                "index", "id", "section", "bucket", "persona", "priority", "en", "no",
+                "workout_catalog", "motivation_stage", "instruction_urgency",
+            ],
         )
         writer.writeheader()
         for row in rows:
@@ -137,6 +208,9 @@ def export_csv(path: Path, rows: list[PhraseRow]) -> None:
                     "priority": row.priority,
                     "en": row.en,
                     "no": row.no,
+                    "workout_catalog": row.workout_catalog,
+                    "motivation_stage": row.motivation_stage,
+                    "instruction_urgency": row.instruction_urgency,
                 }
             )
 
@@ -160,10 +234,11 @@ def export_markdown(path: Path, rows: list[PhraseRow]) -> None:
             current_section = row.section
             lines.append(f"## {current_section}")
             lines.append("")
-            lines.append("| # | id | persona | priority | English | Norwegian |")
-            lines.append("|---:|---|---|---|---|---|")
+            lines.append("| # | id | catalog | stage | persona | priority | English | Norwegian |")
+            lines.append("|---:|---|---|---|---|---|---|---|")
         lines.append(
-            f"| {row.index} | `{_escape_md_cell(row.phrase_id)}` | {_escape_md_cell(row.persona)} | "
+            f"| {row.index} | `{_escape_md_cell(row.phrase_id)}` | {_escape_md_cell(row.workout_catalog)} | "
+            f"{_escape_md_cell(row.motivation_stage)} | {_escape_md_cell(row.persona)} | "
             f"{_escape_md_cell(row.priority)} | {_escape_md_cell(row.en)} | {_escape_md_cell(row.no)} |"
         )
     lines.append("")
@@ -207,7 +282,16 @@ def _cell_formula(col_idx: int, row_idx: int, formula: str, style: int) -> str:
 
 
 def _build_catalog_sheet(rows: list[PhraseRow]) -> str:
-    ordered_rows = sorted(rows, key=lambda item: (item.section, item.bucket, item.phrase_id, item.index))
+    ordered_rows = sorted(
+        rows,
+        key=lambda item: (
+            workout_catalog_sort_key(item.phrase_id),
+            item.section,
+            item.bucket,
+            item.phrase_id,
+            item.index,
+        ),
+    )
     sheet_rows: list[str] = []
 
     header_cells = "".join(_cell_inline(i, 1, title, 1) for i, title in enumerate(XLSX_COLUMNS, start=1))
@@ -255,6 +339,9 @@ def _build_catalog_sheet(rows: list[PhraseRow]) -> str:
                 5,
             )
         )
+        cells.append(_cell_inline(19, excel_row, row.workout_catalog, 2))
+        cells.append(_cell_inline(20, excel_row, row.motivation_stage, 2))
+        cells.append(_cell_inline(21, excel_row, row.instruction_urgency, 2))
 
         sheet_rows.append(f'<row r="{excel_row}">{"".join(cells)}</row>')
 
@@ -474,6 +561,273 @@ def export_xlsx(path: Path, rows: list[PhraseRow]) -> None:
         handle.writestr("xl/worksheets/sheet2.xml", _build_summary_sheet())
 
 
+def export_v2_review_csv(path: Path, rows: list[V2ReviewRow]) -> None:
+    _write_delimited_rows(path, V2_REVIEW_COLUMNS, [row.as_dict() for row in rows], delimiter=",")
+
+
+def export_v2_review_tsv(path: Path, rows: list[V2ReviewRow]) -> None:
+    _write_delimited_rows(path, V2_REVIEW_COLUMNS, [row.as_dict() for row in rows], delimiter="\t")
+
+
+def export_v2_review_json(path: Path, rows: list[V2ReviewRow]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "summary": summarize_review_rows(rows),
+        "rows": [row.as_dict() for row in rows],
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _build_v2_review_sheet(rows: list[V2ReviewRow]) -> str:
+    sheet_rows: list[str] = []
+    header_cells = "".join(_cell_inline(i, 1, title, 1) for i, title in enumerate(V2_REVIEW_COLUMNS, start=1))
+    sheet_rows.append(f'<row r="1" ht="24" customHeight="1">{header_cells}</row>')
+
+    for excel_row, row in enumerate(rows, start=2):
+        values = row.as_dict()
+        cells: list[str] = []
+        for col_idx, column in enumerate(V2_REVIEW_COLUMNS, start=1):
+            style = 4 if column in {"approved_for_import", "approved_for_recording"} else 2
+            cells.append(_cell_inline(col_idx, excel_row, str(values[column]), style))
+        sheet_rows.append(f'<row r="{excel_row}">{"".join(cells)}</row>')
+
+    last_row = max(2, len(rows) + 1)
+    cols_xml = "".join(
+        f'<col min="{idx}" max="{idx}" width="{width}" customWidth="1"/>'
+        for idx, width in enumerate(V2_XLSX_COLUMN_WIDTHS, start=1)
+    )
+    max_ref = _cell_ref(len(V2_REVIEW_COLUMNS), last_row)
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<dimension ref="A1:{max_ref}"/>'
+        '<sheetViews><sheetView workbookViewId="0">'
+        '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
+        "</sheetView></sheetViews>"
+        '<sheetFormatPr defaultRowHeight="20"/>'
+        f"<cols>{cols_xml}</cols>"
+        f"<sheetData>{''.join(sheet_rows)}</sheetData>"
+        f'<autoFilter ref="A1:{max_ref}"/>'
+        "</worksheet>"
+    )
+
+
+def _build_v2_summary_sheet(summary: dict[str, int]) -> str:
+    row_cells: list[str] = []
+    rows = [
+        (1, "V2 Phrase Review Summary", ""),
+        (3, "Total rows", str(summary["total_rows"])),
+        (4, "Active rows", str(summary["active_rows"])),
+        (5, "Record-now rows", str(summary["record_now_rows"])),
+        (6, "Compatibility rows", str(summary["compatibility_rows"])),
+        (7, "Future rows", str(summary["future_rows"])),
+        (9, "Tip", "Set approved_for_import / approved_for_recording to yes after review."),
+    ]
+    for row_number, label, value in rows:
+        row_cells.append(
+            f'<row r="{row_number}">'
+            f"{_cell_inline(1, row_number, label, 2)}"
+            f"{_cell_inline(2, row_number, value, 2)}"
+            "</row>"
+        )
+
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<dimension ref="A1:B9"/>'
+        '<sheetViews><sheetView workbookViewId="0">'
+        '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
+        "</sheetView></sheetViews>"
+        '<sheetFormatPr defaultRowHeight="20"/>'
+        '<cols>'
+        '<col min="1" max="1" width="34" customWidth="1"/>'
+        '<col min="2" max="2" width="40" customWidth="1"/>'
+        "</cols>"
+        f"<sheetData>{''.join(row_cells)}</sheetData>"
+        "</worksheet>"
+    )
+
+
+def export_v2_review_xlsx(path: Path, rows: list[V2ReviewRow]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    summary = summarize_review_rows(rows)
+
+    styles_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="4">
+    <font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+    <font><sz val="11"/><color rgb="FF1E7145"/><name val="Calibri"/><family val="2"/></font>
+    <font><sz val="11"/><color rgb="FF1F4E78"/><name val="Calibri"/><family val="2"/></font>
+  </fonts>
+  <fills count="6">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFD9D9D9"/></left>
+      <right style="thin"><color rgb="FFD9D9D9"/></right>
+      <top style="thin"><color rgb="FFD9D9D9"/></top>
+      <bottom style="thin"><color rgb="FFD9D9D9"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="5">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment vertical="top" wrapText="1"/>
+    </xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <dxfs count="0"/>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>
+"""
+
+    workbook_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <bookViews><workbookView xWindow="0" yWindow="0" windowWidth="24000" windowHeight="12000"/></bookViews>
+  <sheets>
+    <sheet name="V2 Review" sheetId="1" r:id="rId1"/>
+    <sheet name="Summary" sheetId="2" r:id="rId2"/>
+  </sheets>
+  <calcPr calcId="191029" fullCalcOnLoad="1"/>
+</workbook>
+"""
+
+    workbook_rels_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>
+"""
+
+    package_rels_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>
+"""
+
+    content_types_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>
+"""
+
+    created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    core_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+        'xmlns:dcterms="http://purl.org/dc/terms/" '
+        'xmlns:dcmitype="http://purl.org/dc/dcmitype/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        "<dc:creator>phrase_catalog_editor</dc:creator>"
+        "<cp:lastModifiedBy>phrase_catalog_editor</cp:lastModifiedBy>"
+        f'<dcterms:created xsi:type="dcterms:W3CDTF">{created}</dcterms:created>'
+        f'<dcterms:modified xsi:type="dcterms:W3CDTF">{created}</dcterms:modified>'
+        "</cp:coreProperties>"
+    )
+    app_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" '
+        'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+        "<Application>phrase_catalog_editor</Application>"
+        "</Properties>"
+    )
+
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as handle:
+        handle.writestr("[Content_Types].xml", content_types_xml)
+        handle.writestr("_rels/.rels", package_rels_xml)
+        handle.writestr("docProps/core.xml", core_xml)
+        handle.writestr("docProps/app.xml", app_xml)
+        handle.writestr("xl/workbook.xml", workbook_xml)
+        handle.writestr("xl/_rels/workbook.xml.rels", workbook_rels_xml)
+        handle.writestr("xl/styles.xml", styles_xml)
+        handle.writestr("xl/worksheets/sheet1.xml", _build_v2_review_sheet(rows))
+        handle.writestr("xl/worksheets/sheet2.xml", _build_v2_summary_sheet(summary))
+
+
+def read_v2_review_xlsx(path: Path) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    with zipfile.ZipFile(path, "r") as zf:
+        sheet_xml = zf.read("xl/worksheets/sheet1.xml")
+
+    root = ET.fromstring(sheet_xml)
+    header_map: dict[int, str] = {}
+    for row_el in root.iter(f"{{{_XLSX_NS}}}row"):
+        row_num = row_el.get("r", "")
+        cells: dict[int, str] = {}
+        for cell_el in row_el.iter(f"{{{_XLSX_NS}}}c"):
+            ref = cell_el.get("r", "")
+            col = _col_index(ref)
+            cells[col] = _cell_text(cell_el)
+
+        if row_num == "1":
+            header_map = {col: value for col, value in cells.items() if value}
+            continue
+
+        if not header_map:
+            continue
+        row = {header_map[col]: value for col, value in cells.items() if col in header_map}
+        if row.get("phrase_id", "").strip():
+            rows.append({column: row.get(column, "") for column in V2_REVIEW_COLUMNS})
+
+    return rows
+
+
+def load_v2_review_rows(path: Path) -> list[V2ReviewRow]:
+    suffix = path.suffix.lower()
+    if suffix == ".csv":
+        return v2_rows_from_dicts(_read_delimited_rows(path, delimiter=","))
+    if suffix == ".tsv":
+        return v2_rows_from_dicts(_read_delimited_rows(path, delimiter="\t"))
+    if suffix == ".json":
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        raw_rows = payload.get("rows", payload) if isinstance(payload, dict) else payload
+        if not isinstance(raw_rows, list):
+            raise ValueError("JSON review payload must contain a list of rows")
+        return v2_rows_from_dicts(raw_rows)
+    if suffix == ".xlsx":
+        return v2_rows_from_dicts(read_v2_review_xlsx(path))
+    raise ValueError(f"Unsupported review file type: {path.suffix}")
+
+
+def export_v2_promoted_import_csv(path: Path, rows: list[V2ReviewRow]) -> int:
+    approved_rows = filter_approved_import_rows(rows)
+    _write_delimited_rows(path, ["id", "en", "no"], approved_rows, delimiter=",")
+    return len(approved_rows)
+
+
 def _collect_words(words_csv: str | None, words_file: str | None) -> list[str]:
     out: list[str] = []
     if words_csv:
@@ -606,6 +960,13 @@ class _XlsxRow:
     en: str
     no: str
     review_status: str
+
+
+@dataclass(frozen=True)
+class _CsvImportRow:
+    phrase_id: str
+    en: str
+    no: str
 
 
 def _col_index(ref: str) -> int:
@@ -759,6 +1120,94 @@ def import_xlsx(
     return 0
 
 
+def read_import_csv(path: Path) -> list[_CsvImportRow]:
+    rows: list[_CsvImportRow] = []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            phrase_id = str(row.get("id") or "").strip()
+            if not phrase_id:
+                continue
+            rows.append(
+                _CsvImportRow(
+                    phrase_id=phrase_id,
+                    en=str(row.get("en") or "").strip(),
+                    no=str(row.get("no") or "").strip(),
+                )
+            )
+    return rows
+
+
+def import_csv(
+    *,
+    csv_path: Path,
+    apply_changes: bool,
+) -> int:
+    if not csv_path.exists():
+        print(f"File not found: {csv_path}")
+        return 2
+
+    csv_rows = read_import_csv(csv_path)
+    if not csv_rows:
+        print("No data rows found in CSV.")
+        return 2
+
+    catalog_by_id = {str(phrase["id"]): phrase for phrase in PHRASE_CATALOG}
+    text_changes: list[tuple[str, str, str, str]] = []
+    unknown_ids: list[str] = []
+
+    for csv_row in csv_rows:
+        catalog_entry = catalog_by_id.get(csv_row.phrase_id)
+        if not catalog_entry:
+            unknown_ids.append(csv_row.phrase_id)
+            continue
+        old_en = str(catalog_entry.get("en", ""))
+        old_no = str(catalog_entry.get("no", ""))
+        if csv_row.en and csv_row.en != old_en:
+            text_changes.append((csv_row.phrase_id, "en", old_en, csv_row.en))
+        if csv_row.no and csv_row.no != old_no:
+            text_changes.append((csv_row.phrase_id, "no", old_no, csv_row.no))
+
+    print(f"CSV import: {csv_path.name}")
+    print(f"  Rows read: {len(csv_rows)}")
+    print(f"  Text changes: {len(text_changes)}")
+    if unknown_ids:
+        print(f"  Unknown IDs: {len(unknown_ids)}")
+        for phrase_id in unknown_ids[:10]:
+            print(f"    - {phrase_id}")
+
+    if not text_changes:
+        print("\nNo text changes detected.")
+        return 0
+
+    print("\nChanges:")
+    for phrase_id, lang, old_text, new_text in text_changes[:30]:
+        print(f"  {phrase_id} [{lang}]")
+        print(f"    old: {old_text}")
+        print(f"    new: {new_text}")
+    if len(text_changes) > 30:
+        print(f"  ... and {len(text_changes) - 30} more")
+
+    if not apply_changes:
+        print("\nDry run only. Re-run with --apply to write changes.")
+        return 0
+
+    source = SOURCE_FILE.read_text(encoding="utf-8")
+    applied = 0
+    for phrase_id, lang, old_text, new_text in text_changes:
+        old_token = f"\"{lang}\": {json.dumps(old_text, ensure_ascii=False)}"
+        new_token = f"\"{lang}\": {json.dumps(new_text, ensure_ascii=False)}"
+        if old_token in source:
+            source = source.replace(old_token, new_token, 1)
+            applied += 1
+        else:
+            print(f"  ⚠️  Could not locate source token for {phrase_id} [{lang}]")
+
+    SOURCE_FILE.write_text(source, encoding="utf-8")
+    print(f"\nApplied {applied}/{len(text_changes)} changes to {SOURCE_FILE}")
+    return 0
+
+
 def _validate_welcome_or_fail() -> int:
     errors = validate_welcome_catalog()
     if not errors:
@@ -787,6 +1236,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory to write exports.",
     )
 
+    export_v2_cmd = sub.add_parser("export-v2-review", help="Export the V2 phrase review artifact.")
+    export_v2_cmd.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_V2_OUTPUT_DIR),
+        help="Directory to write phrase_catalog_sorted review artifacts.",
+    )
+
+    validate_v2_cmd = sub.add_parser("validate-v2-review", help="Validate a V2 review artifact.")
+    validate_v2_cmd.add_argument(
+        "--input",
+        default=str(DEFAULT_V2_OUTPUT_DIR / "phrase_catalog_sorted.csv"),
+        help="Path to phrase_catalog_sorted.csv/tsv/json/xlsx.",
+    )
+
+    promote_v2_cmd = sub.add_parser("promote-v2-review", help="Export approved rows as id,en,no import CSV.")
+    promote_v2_cmd.add_argument(
+        "--input",
+        default=str(DEFAULT_V2_OUTPUT_DIR / "phrase_catalog_sorted.csv"),
+        help="Path to phrase_catalog_sorted.csv/tsv/json/xlsx.",
+    )
+    promote_v2_cmd.add_argument(
+        "--output",
+        default=str(DEFAULT_V2_OUTPUT_DIR / "phrase_catalog_promoted.csv"),
+        help="Output CSV path for approved import rows.",
+    )
+
     import_cmd = sub.add_parser("import", help="Import edited XLSX back into phrase catalog.")
     import_cmd.add_argument(
         "--xlsx",
@@ -794,6 +1269,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to edited XLSX file.",
     )
     import_cmd.add_argument(
+        "--apply",
+        action="store_true",
+        help="Write changes to tts_phrase_catalog.py (default is dry run).",
+    )
+
+    import_csv_cmd = sub.add_parser("import-csv", help="Import id,en,no CSV back into phrase catalog.")
+    import_csv_cmd.add_argument(
+        "--csv",
+        required=True,
+        help="Path to CSV file with id,en,no columns.",
+    )
+    import_csv_cmd.add_argument(
         "--apply",
         action="store_true",
         help="Write changes to tts_phrase_catalog.py (default is dry run).",
@@ -858,6 +1345,77 @@ def main() -> int:
             print(f"Created {words_file}")
         return 0
 
+    if args.command == "export-v2-review":
+        output_dir = Path(args.output_dir)
+        if not output_dir.is_absolute():
+            output_dir = PROJECT_ROOT / output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = build_review_rows()
+        errors = validate_review_rows(rows)
+        if errors:
+            print("V2 review validation failed:")
+            for error in errors:
+                print(f"  - {error}")
+            return 2
+
+        export_v2_review_csv(output_dir / "phrase_catalog_sorted.csv", rows)
+        export_v2_review_tsv(output_dir / "phrase_catalog_sorted.tsv", rows)
+        export_v2_review_json(output_dir / "phrase_catalog_sorted.json", rows)
+        export_v2_review_xlsx(output_dir / "phrase_catalog_sorted.xlsx", rows)
+
+        summary = summarize_review_rows(rows)
+        print(f"Wrote {output_dir / 'phrase_catalog_sorted.csv'}")
+        print(f"Wrote {output_dir / 'phrase_catalog_sorted.tsv'}")
+        print(f"Wrote {output_dir / 'phrase_catalog_sorted.json'}")
+        print(f"Wrote {output_dir / 'phrase_catalog_sorted.xlsx'}")
+        print(
+            f"Summary: total={summary['total_rows']} active={summary['active_rows']} "
+            f"record_now={summary['record_now_rows']} compatibility={summary['compatibility_rows']} future={summary['future_rows']}"
+        )
+        return 0
+
+    if args.command == "validate-v2-review":
+        input_path = Path(args.input)
+        if not input_path.is_absolute():
+            input_path = PROJECT_ROOT / input_path
+        rows = load_v2_review_rows(input_path)
+        errors = validate_review_rows(rows)
+        if errors:
+            print("V2 review validation failed:")
+            for error in errors:
+                print(f"  - {error}")
+            return 2
+        summary = summarize_review_rows(rows)
+        print(
+            f"V2 review valid: total={summary['total_rows']} active={summary['active_rows']} "
+            f"record_now={summary['record_now_rows']} compatibility={summary['compatibility_rows']} future={summary['future_rows']}"
+        )
+        return 0
+
+    if args.command == "promote-v2-review":
+        input_path = Path(args.input)
+        if not input_path.is_absolute():
+            input_path = PROJECT_ROOT / input_path
+        output_path = Path(args.output)
+        if not output_path.is_absolute():
+            output_path = PROJECT_ROOT / output_path
+        rows = load_v2_review_rows(input_path)
+        errors = validate_review_rows(rows)
+        if errors:
+            print("V2 review validation failed:")
+            for error in errors:
+                print(f"  - {error}")
+            return 2
+        try:
+            promoted_count = export_v2_promoted_import_csv(output_path, rows)
+        except ValueError as exc:
+            print(f"Promotion failed: {exc}")
+            return 2
+        print(f"Wrote {output_path}")
+        print(f"Approved import rows: {promoted_count}")
+        return 0
+
     if args.command == "import":
         validation_status = _validate_welcome_or_fail()
         if validation_status != 0:
@@ -867,6 +1425,16 @@ def main() -> int:
         if not xlsx_path.is_absolute():
             xlsx_path = PROJECT_ROOT / xlsx_path
         return import_xlsx(xlsx_path=xlsx_path, apply_changes=args.apply)
+
+    if args.command == "import-csv":
+        validation_status = _validate_welcome_or_fail()
+        if validation_status != 0:
+            return validation_status
+
+        csv_path = Path(args.csv)
+        if not csv_path.is_absolute():
+            csv_path = PROJECT_ROOT / csv_path
+        return import_csv(csv_path=csv_path, apply_changes=args.apply)
 
     if args.command == "remove-words":
         words = _collect_words(args.words, args.words_file)
