@@ -165,11 +165,11 @@ def test_max_silence_override_work_phrase():
         assert forced["phrase_id"] == "zone.silence.work.1"
 
 
-def test_max_silence_go_by_feel_has_phrase_id():
-    """go_by_feel event resolves to zone.feel.* phrase."""
+def test_structure_instruction_has_phrase_id_when_hr_missing():
+    """No-HR structure coaching resolves to a structure phrase."""
     state = {}
     evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=145))
-    # Simulate no HR — triggers go_by_feel path.
+    # Simulate no HR — triggers structure coaching path.
     result = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
@@ -181,20 +181,31 @@ def test_max_silence_go_by_feel_has_phrase_id():
             breath_signal_quality=None,
         )
     )
-    if result["event_type"] == "max_silence_go_by_feel":
+    if result["event_type"] == "structure_instruction_steady":
         assert result["phrase_id"] is not None
-        assert result["phrase_id"].startswith("zone.feel.")
-        assert result["priority"] == 66
+        assert result["phrase_id"].startswith("zone.structure.steady.")
+        assert result["priority"] == 68
 
 
 # ── (c) No-sensors fallback phrase_id ─────────────────────────────────
 
-def test_no_sensors_notice_has_phrase_id():
+def test_hr_structure_notice_has_phrase_id():
     state = {}
+    evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=145))
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+        )
+    )
     result = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
-            elapsed_seconds=0,
+            elapsed_seconds=13,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -203,15 +214,15 @@ def test_no_sensors_notice_has_phrase_id():
     )
     events = result.get("events", [])
     for ev in events:
-        if ev["event_type"] == "no_sensors_notice":
-            assert ev["phrase_id"] == "zone.no_sensors.1"
-            assert ev["priority"] == 88
+        if ev["event_type"] == "hr_structure_mode_notice":
+            assert ev["phrase_id"] == "zone.hr_poor_timing.1"
+            assert ev["priority"] == 84
 
 
 # ── (d) Motivation phrase_id ──────────────────────────────────────────
 
 def test_motivation_phrase_id():
-    assert _resolve_phrase_id("max_silence_motivation", "main") == "motivation.1"
+    assert _resolve_phrase_id("max_silence_motivation", "main") == "easy_run.motivate.s2.1"
 
 
 # ── Events payload carries priority + phrase_id ───────────────────────
@@ -265,6 +276,7 @@ def test_resolve_zone_events():
 def test_resolve_signal_events():
     assert _resolve_phrase_id("hr_signal_lost", "main") == "zone.hr_poor_enter.1"
     assert _resolve_phrase_id("hr_signal_restored", "main") == "zone.hr_poor_exit.1"
+    assert _resolve_phrase_id("hr_structure_mode_notice", "main") == "zone.hr_poor_timing.1"
     assert _resolve_phrase_id("watch_disconnected_notice", "main") == "zone.watch_disconnected.1"
     assert _resolve_phrase_id("no_sensors_notice", "main") == "zone.no_sensors.1"
     assert _resolve_phrase_id("watch_restored_notice", "main") == "zone.watch_restored.1"
@@ -284,20 +296,27 @@ def test_resolve_max_silence_override_by_phase():
 
 
 def test_resolve_go_by_feel_by_phase():
-    assert _resolve_phrase_id("max_silence_go_by_feel", "work") == "zone.feel.work.1"
-    assert _resolve_phrase_id("max_silence_go_by_feel", "recovery") == "zone.feel.recovery.1"
-    assert _resolve_phrase_id("max_silence_go_by_feel", "main") == "zone.feel.easy_run.1"
+    assert _resolve_phrase_id("max_silence_go_by_feel", "work") == "zone.silence.work.1"
+    assert _resolve_phrase_id("max_silence_go_by_feel", "recovery") == "zone.silence.rest.1"
+    assert _resolve_phrase_id("max_silence_go_by_feel", "main") == "zone.silence.default.1"
 
 
 def test_resolve_breath_guide_by_phase():
-    assert _resolve_phrase_id("max_silence_breath_guide", "work") == "zone.breath.work.1"
-    assert _resolve_phrase_id("max_silence_breath_guide", "recovery") == "zone.breath.recovery.1"
-    assert _resolve_phrase_id("max_silence_breath_guide", "main") == "zone.breath.easy_run.1"
+    assert _resolve_phrase_id("max_silence_breath_guide", "work") == "zone.silence.work.1"
+    assert _resolve_phrase_id("max_silence_breath_guide", "recovery") == "zone.silence.rest.1"
+    assert _resolve_phrase_id("max_silence_breath_guide", "main") == "zone.silence.default.1"
 
 
 def test_resolve_motivation():
-    assert _resolve_phrase_id("max_silence_motivation", "main") == "motivation.1"
-    assert _resolve_phrase_id("max_silence_motivation", "work") == "motivation.1"
+    assert _resolve_phrase_id("max_silence_motivation", "main") == "easy_run.motivate.s2.1"
+    assert _resolve_phrase_id("max_silence_motivation", "work") == "interval.motivate.s2.1"
+
+
+def test_resolve_structure_instruction_events():
+    assert _resolve_phrase_id("structure_instruction_work", "work") == "zone.structure.work.1"
+    assert _resolve_phrase_id("structure_instruction_recovery", "recovery") == "zone.structure.recovery.1"
+    assert _resolve_phrase_id("structure_instruction_steady", "main") == "zone.structure.steady.1"
+    assert _resolve_phrase_id("structure_instruction_finish", "work") == "zone.structure.finish.1"
 
 
 def test_resolve_unknown_returns_none():
@@ -307,23 +326,32 @@ def test_resolve_unknown_returns_none():
 
 def test_requested_norwegian_phrase_catalog_copy():
     assert get_phrase_text("welcome.standard.1", "no") == "Varm opp kroppen"
-    assert get_phrase_text("zone.phase.warmup.1", "no") == "Nå er vi i oppvarmingsdelen."
-    assert get_phrase_text("zone.countdown.15", "no") == "15"
-    assert get_phrase_text("zone.countdown.5", "no") == "5"
-    assert get_phrase_text("zone.countdown.start", "no") == "Kjør på nå"
-    assert get_phrase_text("zone.main_started.1", "no") == "Bra jobba"
-    assert get_phrase_text("zone.breath.work.1", "no") == "Herlig"
-    assert get_phrase_text("zone.feel.work.1", "no") == "Hold en jevn rytme"
+    assert get_phrase_text("zone.phase.warmup.1", "no") == "Forbered deg på økten."
+    assert get_phrase_text("zone.countdown.15", "no") == "15!"
+    assert get_phrase_text("zone.countdown.5", "no") == "fem"
+    assert get_phrase_text("zone.countdown.start", "no") == "Kjør på nå."
+    assert get_phrase_text("zone.main_started.1", "no") == "Nå er du i hoveddelen."
+    assert get_phrase_text("zone.silence.work.1", "no") == "Hold rytmen."
+    assert get_phrase_text("zone.hr_poor_enter.1", "no") == "Pulssignalet er svakt."
+    assert get_phrase_text("zone.hr_poor_exit.1", "no") == "Pulsen er tilbake."
+    assert get_phrase_text("zone.hr_poor_timing.1", "no") == "Ingen pulssignal. Jeg fortsetter å coache"
+    assert get_phrase_text("zone.phase.cooldown.1", "no") == "Nå roer vi ned."
+    assert get_phrase_text("zone.structure.work.1", "no") == "Kjør på nå."
 
 
 def test_requested_norwegian_zone_fallback_copy():
-    assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15"
-    assert _event_text(event_type="interval_countdown_5", language="no", style="normal", target_low=None, target_high=None, segment="work") == "5"
-    assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Kjør på nå"
-    assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Bra jobba"
-    assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Nå er vi i oppvarmingsdelen."
-    assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Herlig"
-    assert _event_text(event_type="max_silence_go_by_feel", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold en jevn rytme"
+    assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15!"
+    assert _event_text(event_type="interval_countdown_5", language="no", style="normal", target_low=None, target_high=None, segment="work") == "fem"
+    assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Kjør på nå."
+    assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Nå er du i hoveddelen."
+    assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Forbered deg på økten."
+    assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."
+    assert _event_text(event_type="max_silence_go_by_feel", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."
+    assert _event_text(event_type="hr_signal_lost", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Pulssignalet er svakt."
+    assert _event_text(event_type="hr_signal_restored", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Pulsen er tilbake."
+    assert _event_text(event_type="hr_structure_mode_notice", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Ingen pulssignal. Jeg fortsetter å coache"
+    assert _event_text(event_type="phase_change_cooldown", language="no", style="normal", target_low=None, target_high=None, segment="cooldown") == "Nå roer vi ned."
+    assert _event_text(event_type="structure_instruction_recovery", language="no", style="normal", target_low=None, target_high=None, segment="recovery") == "Ro ned og hent deg inn."
 
 
 # ── (Step 7) Structured logging ───────────────────────────────────────

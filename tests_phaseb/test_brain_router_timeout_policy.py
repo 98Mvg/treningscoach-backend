@@ -233,6 +233,34 @@ def test_question_response_falls_back_when_provider_returns_error_text(monkeypat
     assert meta["status"] == "all_question_brains_failed_or_skipped"
 
 
+def test_question_response_can_restrict_to_grok_only(monkeypatch):
+    router = BrainRouter(brain_type="config")
+    router.use_priority_routing = True
+    router.priority_brains = ["grok", "openai", "gemini", "config"]
+
+    attempted = []
+
+    monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
+    monkeypatch.setattr(
+        router,
+        "_get_brain_instance",
+        lambda brain_name: attempted.append(brain_name) or _QuestionBrain(),
+    )
+    monkeypatch.setattr(config, "COACH_QA_TIMEOUT_SECONDS", 2.0, raising=False)
+
+    text = router.get_question_response(
+        "Why should I train?",
+        language="en",
+        context="workout",
+        restrict_brains=["grok"],
+    )
+    meta = router.get_last_route_meta()
+
+    assert "Training builds endurance" in text
+    assert attempted == ["grok"]
+    assert meta["provider"] == "grok"
+
+
 def test_question_response_refuses_off_topic_questions_without_calling_ai(monkeypatch):
     router = BrainRouter(brain_type="config")
     router.use_priority_routing = True

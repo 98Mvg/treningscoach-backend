@@ -17,7 +17,9 @@ import logging
 import time
 import inspect
 import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
+from threading import Lock
 from urllib.parse import quote
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
@@ -96,6 +98,9 @@ breath_analyzer = BreathAnalyzer(
     sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100),
     enable_mfcc=bool(getattr(config, "BREATH_ANALYSIS_ENABLE_MFCC", False)),
 )  # Advanced breath analysis with DSP + spectral features
+_breath_analysis_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="breath-analysis")
+_breath_analysis_lock = Lock()
+_breath_analysis_skip_until = 0.0
 running_personalization = RunningPersonalizationStore(
     storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json"),
     max_recovery_samples=getattr(config, "ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24),
@@ -610,6 +615,150 @@ def workout_talk_fallback(language: str, workout_context: dict | None = None) ->
     return base
 
 
+def _record_talk_session_message(session_id: str, role: str, content: str) -> None:
+    normalized_session = str(session_id or "").strip()
+    message = str(content or "").strip()
+    if not normalized_session or not message or not session_manager.session_exists(normalized_session):
+        return
+    try:
+        session_manager.add_message(normalized_session, role, message)
+    except Exception as exc:
+        logger.warning("Talk session message append failed (session=%s role=%s): %s", normalized_session, role, exc)
+
+
+def _recent_talk_messages(session_id: str, limit: int = 6) -> list[dict]:
+    normalized_session = str(session_id or "").strip()
+    if not normalized_session or not session_manager.session_exists(normalized_session):
+        return []
+    try:
+        return session_manager.get_messages(normalized_session, limit=max(1, int(limit)))
+    except Exception as exc:
+        logger.warning("Talk session history lookup failed (session=%s): %s", normalized_session, exc)
+        return []
+
+
+def _append_recent_zone_event(session_id: str, zone_tick: dict | None, coach_text: str) -> None:
+    normalized_session = str(session_id or "").strip()
+    text = str(coach_text or "").strip()
+    if not normalized_session or not text or not session_manager.session_exists(normalized_session):
+        return
+    if not isinstance(zone_tick, dict):
+        return
+
+    metadata = session_manager.sessions.setdefault(normalized_session, {}).setdefault("metadata", {})
+    history = metadata.setdefault("recent_zone_events", [])
+    if not isinstance(history, list):
+        history = []
+        metadata["recent_zone_events"] = history
+
+    history.append(
+        {
+            "event_type": str(zone_tick.get("primary_event_type") or zone_tick.get("event_type") or "").strip(),
+            "text": text,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    )
+    max_items = max(1, int(getattr(config, "TALK_RECENT_ZONE_EVENT_LIMIT", 3)))
+    metadata["recent_zone_events"] = history[-max_items:]
+
+
+def _recent_zone_event_context(session_id: str, limit: int = 3) -> list[dict]:
+    normalized_session = str(session_id or "").strip()
+    if not normalized_session or not session_manager.session_exists(normalized_session):
+        return []
+    metadata = session_manager.sessions.get(normalized_session, {}).get("metadata", {})
+    raw_items = metadata.get("recent_zone_events", [])
+    if not isinstance(raw_items, list):
+        return []
+
+    now = datetime.utcnow()
+    result = []
+    for item in raw_items[-max(1, int(limit)):]:
+        if not isinstance(item, dict):
+            continue
+        enriched = dict(item)
+        raw_timestamp = str(item.get("timestamp") or "").strip()
+        if raw_timestamp:
+            normalized_timestamp = raw_timestamp[:-1] + "+00:00" if raw_timestamp.endswith("Z") else raw_timestamp
+            try:
+                parsed = datetime.fromisoformat(normalized_timestamp)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                age_s = max(0, int((now.replace(tzinfo=timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds()))
+                enriched["seconds_since_last_event"] = age_s
+            except ValueError:
+                pass
+        result.append(enriched)
+    return result
+
+
+_ZONE_REWRITE_ACTION_GROUPS = {
+    "ease": {"ease", "easier", "slow", "slower", "back", "down", "settle", "rolig", "ro", "senk", "lette"},
+    "push": {"push", "harder", "build", "increase", "øk", "trykk", "press", "drive"},
+    "hold": {"hold", "keep", "steady", "maintain", "stabil", "jevn", "rytme", "kontroll", "control"},
+    "recover": {"recover", "recovery", "rest", "cooldown", "walk", "jog", "pause", "hvile"},
+    "breath": {"breathe", "breath", "exhale", "inhale", "pust", "utpust", "innpust"},
+    "zone": {"zone", "zones", "målsonen", "målsone", "target", "z1", "z2", "z3", "z4", "z5"},
+    "hr": {"hr", "heart", "rate", "bpm", "puls", "pulse"},
+}
+
+
+def _rewrite_number_tokens(text: str) -> list[str]:
+    return re.findall(r"\d+(?:[.,]\d+)?", str(text or "").lower())
+
+
+def _rewrite_semantic_groups(text: str) -> set[str]:
+    tokens = set(re.findall(r"[a-z0-9æøå]+", str(text or "").lower()))
+    groups = set()
+    for canonical, members in _ZONE_REWRITE_ACTION_GROUPS.items():
+        if tokens.intersection(members):
+            groups.add(canonical)
+    return groups
+
+
+def verify_zone_event_rewrite(original_event: str, rewritten_phrase: str, event_type: str, language: str) -> tuple[bool, str]:
+    original = str(original_event or "").strip()
+    rewritten = str(rewritten_phrase or "").strip()
+    if not rewritten:
+        return False, "empty_rewrite"
+
+    max_words = max(6, int(getattr(config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16)))
+    if len(rewritten.split()) > max_words:
+        return False, "word_limit_exceeded"
+
+    original_numbers = _rewrite_number_tokens(original)
+    rewritten_numbers = _rewrite_number_tokens(rewritten)
+    if original_numbers != rewritten_numbers:
+        return False, "numeric_tokens_changed"
+
+    original_groups = _rewrite_semantic_groups(original)
+    rewritten_groups = _rewrite_semantic_groups(rewritten)
+    if original_groups != rewritten_groups:
+        return False, "instruction_tokens_changed"
+
+    normalized_language = normalize_language_code(language)
+    if normalized_language == "en" and _looks_norwegian(rewritten):
+        return False, "language_drift"
+    if normalized_language == "no" and _looks_english(rewritten):
+        return False, "language_drift"
+
+    consistent = enforce_language_consistency(rewritten, normalized_language)
+    if consistent.strip() != rewritten.strip():
+        return False, "language_drift"
+
+    if not validate_coaching_text(
+        text=rewritten,
+        phase="intense",
+        intensity="moderate",
+        persona="personal_trainer",
+        language=normalized_language,
+        mode="realtime",
+    ):
+        return False, "validation_failed"
+
+    return True, "accepted"
+
+
 def fallback_talk_prompt(language: str, workout_context: dict | None = None) -> str:
     """Prompt used when no user message can be extracted."""
     lang = normalize_language_code(language)
@@ -653,7 +802,7 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
     client_timeout = max(1.0, float(timeout_seconds))
 
     try:
-        client = OpenAI(api_key=api_key, timeout=client_timeout)
+        client = OpenAI(api_key=api_key, timeout=client_timeout, max_retries=0)
         with open(filepath, "rb") as audio_handle:
             transcript = client.audio.transcriptions.create(
                 model=model,
@@ -665,8 +814,77 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
             return None, "stt_empty"
         return text, "stt_openai"
     except Exception as exc:
+        normalized_error = f"{type(exc).__name__}: {exc}".lower()
+        if any(marker in normalized_error for marker in ("insufficient_quota", "rate limit", "too many requests", "429", "quota")):
+            logger.warning("Coach talk STT fast-fail quota/rate-limit: %s", exc)
+            return None, "stt_quota_limited"
+        if "timeout" in normalized_error or "timed out" in normalized_error:
+            logger.warning("Coach talk STT timeout: %s", exc)
+            return None, "stt_timeout"
         logger.warning("Coach talk STT failed: %s", exc)
         return None, "stt_error"
+
+
+def _default_breath_analysis_with_error(error_code: str, **extra_fields) -> dict:
+    result = breath_analyzer._default_analysis()
+    result["analysis_error"] = error_code
+    for key, value in extra_fields.items():
+        if value is not None:
+            result[key] = value
+    return result
+
+
+def _analyze_breath_with_timeout(filepath: str, *, request_context: str, trace_id: str | None = None) -> dict:
+    global _breath_analysis_skip_until
+
+    timeout_seconds = max(0.5, float(getattr(config, "BREATH_ANALYSIS_TIMEOUT_SECONDS", 2.5)))
+    cooldown_seconds = max(1.0, float(getattr(config, "BREATH_ANALYSIS_TIMEOUT_COOLDOWN_SECONDS", 20.0)))
+    now = time.time()
+
+    with _breath_analysis_lock:
+        skip_until = _breath_analysis_skip_until
+
+    if now < skip_until:
+        remaining = max(0.0, skip_until - now)
+        logger.warning(
+            "Breath analysis skipped due to active timeout cooldown context=%s trace=%s remaining_s=%.1f",
+            request_context,
+            trace_id or "none",
+            remaining,
+        )
+        return _default_breath_analysis_with_error(
+            "analysis_timeout_cooldown",
+            timeout_seconds=timeout_seconds,
+            cooldown_remaining_seconds=round(remaining, 2),
+        )
+
+    future = _breath_analysis_executor.submit(breath_analyzer.analyze, filepath)
+    try:
+        return future.result(timeout=timeout_seconds)
+    except FuturesTimeoutError:
+        future.cancel()
+        with _breath_analysis_lock:
+            _breath_analysis_skip_until = time.time() + cooldown_seconds
+        logger.error(
+            "Breath analysis timed out context=%s trace=%s timeout_s=%.1f file=%s",
+            request_context,
+            trace_id or "none",
+            timeout_seconds,
+            os.path.basename(filepath),
+        )
+        return _default_breath_analysis_with_error(
+            "analysis_timeout",
+            timeout_seconds=timeout_seconds,
+            cooldown_seconds=cooldown_seconds,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Breath analysis failed context=%s trace=%s error=%s",
+            request_context,
+            trace_id or "none",
+            exc,
+        )
+        return _default_breath_analysis_with_error("analysis_error")
 
 
 def _coach_score_from_intensity(intensity: str) -> int:
@@ -1383,10 +1601,38 @@ def _maybe_rephrase_zone_event_text(
             }
         max_words = max(6, int(getattr(config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16)))
         if len(cleaned.split()) > max_words:
+            logger.info(
+                "ZONE_REWRITE_AUDIT event=%s decision=rejected reason=word_limit_exceeded original=%r rewritten=%r",
+                event_type or "zone_event",
+                seed,
+                cleaned,
+            )
             return seed, {
                 "provider": "system",
                 "source": "zone_event_motor",
                 "status": "rewrite_word_limit_fallback",
+                "mode": "deterministic_zone",
+            }
+
+        verified, verify_reason = verify_zone_event_rewrite(
+            original_event=seed,
+            rewritten_phrase=cleaned,
+            event_type=event_type or "zone_event",
+            language=language,
+        )
+        logger.info(
+            "ZONE_REWRITE_AUDIT event=%s decision=%s reason=%s original=%r rewritten=%r",
+            event_type or "zone_event",
+            "accepted" if verified else "rejected",
+            verify_reason,
+            seed,
+            cleaned,
+        )
+        if not verified:
+            return seed, {
+                "provider": "system",
+                "source": "zone_event_motor",
+                "status": "rewrite_verification_fallback",
                 "mode": "deterministic_zone",
             }
 
@@ -2379,8 +2625,12 @@ def analyze():
 
         logger.info(f"Analyzing audio file: {filename} ({file_size} bytes)")
 
-        # Analyze breathing
-        breath_data = breath_analyzer.analyze(filepath)
+        # Analyze breathing with a hard timeout so uploads cannot stall a worker.
+        breath_data = _analyze_breath_with_timeout(
+            filepath,
+            request_context="analyze",
+            trace_id="analyze_endpoint",
+        )
 
         # Delete temporary file
         try:
@@ -2393,102 +2643,6 @@ def analyze():
 
     except Exception as e:
         logger.error(f"Error in analyze endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
-
-@app.route('/coach', methods=['POST'])
-@rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="api.coach",
-)
-@require_mobile_auth
-def coach():
-    """
-    Main endpoint: Receives audio, analyzes, returns coach voice
-
-    App sends:
-    - audio: Audio file
-    - phase: "warmup", "intense", or "cooldown"
-    - mode: "chat" or "realtime_coach" (optional, default: "chat")
-
-    Backend returns:
-    - Coach voice as MP3
-
-    STEP 3: Supports switching between chat brain and realtime_coach brain
-    """
-    try:
-        if 'audio' not in request.files:
-            logger.warning("Coach request missing audio file")
-            return jsonify({"error": "No audio file received"}), 400
-
-        audio_file = request.files['audio']
-        phase = request.form.get('phase', 'intense')
-        mode = request.form.get('mode', 'chat')  # STEP 3: Default to chat for legacy endpoint
-        persona = request.form.get('persona', 'personal_trainer')
-        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
-        language = normalize_language_code(request.form.get('language', default_language))
-
-        if audio_file.filename == '':
-            return jsonify({"error": "Empty filename"}), 400
-
-        if not _validate_audio_upload_signature(audio_file):
-            return jsonify({"error": "Unsupported audio format signature"}), 400
-
-        # Validate phase
-        valid_phases = ['warmup', 'intense', 'cooldown', 'work', 'recovery', 'main']
-        if phase not in valid_phases:
-            return jsonify({"error": f"Invalid phase. Must be one of: {', '.join(valid_phases)}"}), 400
-
-        # Validate file size
-        audio_file.seek(0, os.SEEK_END)
-        file_size = audio_file.tell()
-        audio_file.seek(0)
-
-        if file_size > MAX_FILE_SIZE:
-            return jsonify({"error": f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"}), 400
-
-        # Save file temporarily
-        filename = f"breath_{datetime.now().timestamp()}.wav"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        audio_file.save(filepath)
-
-        logger.info(f"Coach request: {filename} ({file_size} bytes), phase={phase}, mode={mode}")
-
-        # Analyze breathing
-        breath_data = breath_analyzer.analyze(filepath)
-
-        # Get coach response (text) - STEP 3: Pass mode to brain router
-        coach_text = get_coach_response(breath_data, phase, mode=mode)
-
-        # Generate voice with persona-specific settings
-        voice_file = generate_voice(
-            coach_text,
-            language=language,
-            persona=persona,
-            emotional_mode=_infer_emotional_mode(breath_data.get("intensity", "moderate")),
-        )
-
-        # Delete temporary input file
-        try:
-            os.remove(filepath)
-        except Exception as e:
-            logger.warning(f"Could not remove temp file {filepath}: {e}")
-
-        # Send back voice file + metadata
-        # Convert absolute path to relative path from OUTPUT_FOLDER
-        relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
-        response_data = {
-            "text": coach_text,
-            "breath_analysis": breath_data,
-            "audio_url": f"/download/{relative_path}",
-            "phase": phase
-        }
-
-        logger.info(f"Coach response: '{coach_text}' (intensity: {breath_data['intensity']})")
-        return jsonify(response_data)
-
-    except Exception as e:
-        logger.error(f"Error in coach endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/coach/continuous', methods=['POST'])
@@ -2793,9 +2947,13 @@ def coach_continuous():
                 "workout_context_summary": None,
             })
 
-        # Analyze breath
+        # Analyze breath with a hard timeout so a bad chunk cannot stall the worker.
         analyze_started = time.perf_counter()
-        breath_data = breath_analyzer.analyze(filepath)
+        breath_data = _analyze_breath_with_timeout(
+            filepath,
+            request_context="continuous",
+            trace_id=trace_id,
+        )
         analyze_ms = (time.perf_counter() - analyze_started) * 1000.0
 
         # Get coaching context and workout state
@@ -3269,6 +3427,8 @@ def coach_continuous():
             phase=phase,
             elapsed_seconds=elapsed_seconds
         )
+        if zone_mode_active and speak_decision and zone_tick is not None and coach_text:
+            _append_recent_zone_event(session_id, zone_tick, coach_text)
 
         # Calculate next interval
         recent_coaching_count = len([c for c in coaching_context["coaching_history"] if c]) if coaching_context else 0
@@ -4012,6 +4172,13 @@ def coach_talk():
         if not user_message:
             user_message = fallback_talk_prompt(language, workout_context)
 
+        conversation_history = []
+        recent_zone_events = []
+        if talk_session_id and session_manager.session_exists(talk_session_id):
+            _record_talk_session_message(talk_session_id, "user", user_message)
+            conversation_history = _recent_talk_messages(talk_session_id, limit=6)
+            recent_zone_events = _recent_zone_event_context(talk_session_id, limit=3)
+
         talk_policy = brain_router.evaluate_talk_policy(
             user_message,
             language,
@@ -4046,6 +4213,7 @@ def coach_talk():
                 user_name or "anon",
                 latency_ms,
             )
+            _record_talk_session_message(talk_session_id, "assistant", coach_text)
             return jsonify({
                 "contract_version": contract_version,
                 "text": coach_text,
@@ -4090,7 +4258,19 @@ def coach_talk():
                 question=user_message,
                 language=language,
                 workout_context=workout_context,
+                conversation_history=conversation_history,
+                recent_zone_events=recent_zone_events,
             )
+
+        restrict_question_brains = None
+        allowed_trigger_sources = {
+            str(item).strip().lower()
+            for item in getattr(config, "COACH_TALK_ALLOWED_TRIGGER_SOURCES", ())
+        }
+        if trigger_source in allowed_trigger_sources:
+            # Product rule: wake-word/button talk should always try Grok first
+            # and only fall back to config if Grok fails or times out.
+            restrict_question_brains = ["grok"]
 
         if is_question:
             coach_text = brain_router.get_question_response(
@@ -4100,6 +4280,7 @@ def coach_talk():
                 context=context,
                 user_name=user_name or None,
                 timeout_cap_seconds=timeout_budget,
+                restrict_brains=restrict_question_brains,
             )
         else:
             # Backward-compatible non-QA route (rare for workout talk).
@@ -4157,6 +4338,7 @@ def coach_talk():
             mode,
             fallback_used,
         )
+        _record_talk_session_message(talk_session_id, "assistant", coach_text)
 
         return jsonify({
             "contract_version": contract_version,

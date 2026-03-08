@@ -318,6 +318,8 @@ class BrainRouter:
         question: str,
         language: str,
         workout_context: Optional[dict],
+        conversation_history: Optional[list[dict]] = None,
+        recent_zone_events: Optional[list[dict]] = None,
     ) -> str:
         """
         Build deterministic workout context hints for Q&A prompts.
@@ -364,6 +366,41 @@ class BrainRouter:
 
         if hints:
             parts.append("Workout context: " + ", ".join(hints))
+
+        history = conversation_history if isinstance(conversation_history, list) else []
+        rendered_history = []
+        for item in history[-6:]:
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role") or "").strip().lower()
+            content = str(item.get("content") or "").strip()
+            if role not in {"user", "assistant"} or not content:
+                continue
+            label = "user" if role == "user" else "coach"
+            rendered_history.append(f"{label}: {content}")
+        if rendered_history:
+            parts.append("Recent conversation:\n" + "\n".join(rendered_history))
+
+        events = recent_zone_events if isinstance(recent_zone_events, list) else []
+        rendered_events = []
+        for item in events[-3:]:
+            if not isinstance(item, dict):
+                continue
+            event_type = str(item.get("event_type") or "").strip()
+            text = str(item.get("text") or "").strip()
+            seconds_since = item.get("seconds_since_last_event")
+            if not text:
+                continue
+            suffix = ""
+            if isinstance(seconds_since, (int, float)):
+                suffix = f" ({max(0, int(seconds_since))}s ago)"
+            if event_type:
+                rendered_events.append(f"{event_type}: {text}{suffix}")
+            else:
+                rendered_events.append(f"{text}{suffix}")
+        if rendered_events:
+            parts.append("Recent deterministic workout events:\n" + "\n".join(rendered_events))
+
         if lang == "no":
             parts.append(
                 "Instruksjon: Gi et kort, praktisk svar. Tolke korte oppfølgingsspørsmål som en fortsettelse av samtalen. "
@@ -588,6 +625,7 @@ class BrainRouter:
         context: str = "chat",
         user_name: Optional[str] = None,
         timeout_cap_seconds: Optional[float] = None,
+        restrict_brains: Optional[list[str]] = None,
     ) -> str:
         """
         Answer a direct user question with fast, concise output.
@@ -617,16 +655,28 @@ class BrainRouter:
             return policy_reply.strip()
 
         attempted = []
-        candidate_brains = ["grok"]
-
-        if self.use_priority_routing and self.priority_brains:
-            for brain_name in self.priority_brains:
-                if brain_name in {"grok", "config"}:
+        if restrict_brains:
+            candidate_brains = []
+            seen = set()
+            for brain_name in restrict_brains:
+                normalized_brain = str(brain_name or "").strip().lower()
+                if not normalized_brain or normalized_brain == "config" or normalized_brain in seen:
                     continue
-                if brain_name not in candidate_brains:
-                    candidate_brains.append(brain_name)
-        elif self.brain_type not in {"priority", "config", "grok"}:
-            candidate_brains.append(self.brain_type)
+                seen.add(normalized_brain)
+                candidate_brains.append(normalized_brain)
+            if not candidate_brains:
+                candidate_brains = ["grok"]
+        else:
+            candidate_brains = ["grok"]
+
+            if self.use_priority_routing and self.priority_brains:
+                for brain_name in self.priority_brains:
+                    if brain_name in {"grok", "config"}:
+                        continue
+                    if brain_name not in candidate_brains:
+                        candidate_brains.append(brain_name)
+            elif self.brain_type not in {"priority", "config", "grok"}:
+                candidate_brains.append(self.brain_type)
 
         for brain_name in candidate_brains:
             if not self._is_brain_available(brain_name):

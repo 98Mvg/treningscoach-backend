@@ -15,6 +15,12 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from breath_reliability import summarize_breath_quality, is_breath_quality_reliable
+from tts_phrase_catalog import get_phrase_text
+from workout_cue_catalog import (
+    event_cooldown_key,
+    get_event_catalog,
+    get_event_instruction_urgency,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +32,26 @@ _MOTIVATION_EVENT_TYPES = (
     "max_silence_motivation",
 )
 
-_GLOBAL_MOTIVATION_IDS = tuple(f"motivation.{index}" for index in range(1, 11))
+_STRUCTURE_INSTRUCTION_EVENT_TYPES = (
+    "structure_instruction_work",
+    "structure_instruction_recovery",
+    "structure_instruction_steady",
+    "structure_instruction_finish",
+)
+
+_STRUCTURE_INSTRUCTION_PHRASE_IDS = {
+    "structure_instruction_work": ("zone.structure.work.1",),
+    "structure_instruction_recovery": ("zone.structure.recovery.1",),
+    "structure_instruction_steady": (
+        "zone.structure.steady.1",
+        "zone.structure.steady.2",
+        "zone.structure.steady.3",
+        "zone.structure.steady.4",
+        "zone.structure.steady.5",
+        "zone.structure.steady.6",
+    ),
+    "structure_instruction_finish": ("zone.structure.finish.1",),
+}
 
 _STYLE_ALIASES = {
     "easy": "minimal",
@@ -173,7 +198,14 @@ def _delta_to_band(
 
 
 def _event_priority(event_type: str) -> int:
-    """4-tier event priority: A (countdown/signal) > B (phase/notices) > C (coaching) > D (motivation)."""
+    """
+    Deterministic event priority owned by the event motor.
+
+    Catalogs describe wording intent only; they never decide timing or
+    selection. Phase transitions and finish cues intentionally outrank the
+    simpler catalog ordering because they are structurally important runtime
+    events.
+    """
     order = {
         # Tier A — countdowns + signal
         "interval_countdown_start": 100,
@@ -190,6 +222,7 @@ def _event_priority(event_type: str) -> int:
         "workout_finished": 90,
         "pause_detected": 86,
         "pause_resumed": 85,
+        "hr_structure_mode_notice": 84,
 
         # Signal notices (between B and C)
         "watch_disconnected_notice": 88,
@@ -199,10 +232,14 @@ def _event_priority(event_type: str) -> int:
         # Tier C — actionable coaching
         "exited_target_above": 70,
         "exited_target_below": 70,
+        "structure_instruction_work": 68,
+        "structure_instruction_recovery": 68,
+        "structure_instruction_steady": 68,
+        "structure_instruction_finish": 68,
         "max_silence_override": 68,
         "max_silence_breath_guide": 68,
-        "max_silence_go_by_feel": 66,
-        "max_silence_motivation": 69,
+        "max_silence_go_by_feel": 68,
+        "max_silence_motivation": 54,
         "recovery_hr_above_relax_ceiling": 65,
         "recovery_hr_ok_relax": 64,
         "entered_target": 60,
@@ -239,6 +276,34 @@ def _compute_max_silence_seconds(
     return max(1, threshold)
 
 
+def _should_emit_main_started(
+    *,
+    state: Dict[str, Any],
+    previous_phase: Optional[str],
+    canonical_phase: str,
+    elapsed_seconds: int,
+    config_module,
+) -> bool:
+    if canonical_phase not in {"main", "work", "recovery"}:
+        return False
+    if bool(state.get("main_started_emitted")):
+        return False
+    if previous_phase == "warmup":
+        return True
+
+    grace_seconds = max(
+        45,
+        int(getattr(config_module, "EARLY_WORKOUT_GRACE_SECONDS", 30)),
+    )
+    if int(max(0, elapsed_seconds or 0)) <= grace_seconds:
+        return True
+
+    # Defensive guard: if backend state is recreated late in the workout,
+    # do not surface a stale "main started" cue.
+    state["main_started_emitted"] = True
+    return False
+
+
 def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
     """Map a canonical event type to its phrase catalog ID (mirrors iOS utteranceID mapping)."""
     if not event_type:
@@ -262,6 +327,11 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
         "interval_countdown_start": "zone.countdown.start",
         "pause_detected": "zone.pause.detected.1",
         "pause_resumed": "zone.pause.resumed.1",
+        "hr_structure_mode_notice": "zone.hr_poor_timing.1",
+        "structure_instruction_work": "zone.structure.work.1",
+        "structure_instruction_recovery": "zone.structure.recovery.1",
+        "structure_instruction_steady": "zone.structure.steady.1",
+        "structure_instruction_finish": "zone.structure.finish.1",
     }
     direct = _map.get(event_type)
     if direct:
@@ -275,22 +345,22 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
         return "zone.silence.default.1"
     if event_type == "max_silence_go_by_feel":
         if p == "work":
-            return "zone.feel.work.1"
+            return "zone.silence.work.1"
         if p == "recovery":
-            return "zone.feel.recovery.1"
-        return "zone.feel.easy_run.1"
+            return "zone.silence.rest.1"
+        return "zone.silence.default.1"
     if event_type == "max_silence_breath_guide":
         if p == "work":
-            return "zone.breath.work.1"
+            return "zone.silence.work.1"
         if p == "recovery":
-            return "zone.breath.recovery.1"
-        return "zone.breath.easy_run.1"
+            return "zone.silence.rest.1"
+        return "zone.silence.default.1"
     if event_type == "max_silence_motivation":
-        return "motivation.1"
+        return "interval.motivate.s2.1" if p in {"work", "recovery"} else "easy_run.motivate.s2.1"
     if event_type in ("interval_in_target_sustained", "easy_run_in_target_sustained"):
         # Dynamic phrase_id is computed at emission time and stored in state.
         # This is a static fallback for the mapping path.
-        return "interval.motivate.s2.1"
+        return "interval.motivate.s2.1" if event_type == "interval_in_target_sustained" else "easy_run.motivate.s2.1"
     return None
 
 
@@ -307,6 +377,104 @@ def _canonical_to_legacy_event(event_type: Optional[str]) -> Optional[str]:
     if not event_type:
         return None
     return mapping.get(event_type, event_type)
+
+
+def _resolve_instruction_mode(
+    *,
+    target_enforced: bool,
+    hr_signal_state: str,
+    sensor_mode: str,
+) -> str:
+    # Instruction mode tracks live-HR availability, not whether zone targets are
+    # currently enforced. If HR is usable, the runtime can stay in the normal
+    # path; if HR is missing/stale, switch to structure-driven coaching.
+    if hr_signal_state == "ok" and sensor_mode == "FULL_HR":
+        return "hr_driven"
+    return "structure_driven"
+
+
+def _timed_easy_run_is_final_effort(
+    *,
+    canonical_workout_type: str,
+    canonical_phase: str,
+    target: Dict[str, Any],
+    workout_state: Optional[Dict[str, Any]],
+    config_module,
+) -> bool:
+    if canonical_workout_type != "easy_run" or canonical_phase not in {"main", "work", "intense"}:
+        return False
+    if isinstance(workout_state, dict) and bool(workout_state.get("plan_free_run")):
+        return False
+    remaining_seconds = _safe_int(target.get("segment_remaining_seconds"))
+    if remaining_seconds is None:
+        return False
+    threshold = int(getattr(config_module, "NO_HR_STRUCTURE_FINAL_EFFORT_SECONDS", 60))
+    return remaining_seconds <= max(1, threshold)
+
+
+def _select_structure_instruction_event(
+    *,
+    canonical_workout_type: str,
+    canonical_phase: str,
+    target: Dict[str, Any],
+    workout_state: Optional[Dict[str, Any]],
+    config_module,
+) -> str:
+    reps_total = _safe_int(target.get("reps")) or 0
+    rep_index = _safe_int(target.get("rep_index")) or 0
+
+    interval_final_effort = (
+        canonical_workout_type == "intervals"
+        and canonical_phase == "work"
+        and reps_total > 0
+        and rep_index > 0
+        and rep_index >= reps_total
+    )
+    timed_easy_run_final_effort = _timed_easy_run_is_final_effort(
+        canonical_workout_type=canonical_workout_type,
+        canonical_phase=canonical_phase,
+        target=target,
+        workout_state=workout_state,
+        config_module=config_module,
+    )
+    if interval_final_effort or timed_easy_run_final_effort:
+        return "structure_instruction_finish"
+
+    if canonical_phase in {"recovery", "rest"}:
+        return "structure_instruction_recovery"
+    if canonical_workout_type == "intervals" and canonical_phase == "work":
+        return "structure_instruction_work"
+    return "structure_instruction_steady"
+
+
+def _pick_structure_phrase_id(
+    *,
+    state: Dict[str, Any],
+    event_type: str,
+) -> Optional[str]:
+    phrase_ids = _STRUCTURE_INSTRUCTION_PHRASE_IDS.get(event_type) or ()
+    if not phrase_ids:
+        return _resolve_phrase_id(event_type, "main")
+    if len(phrase_ids) == 1:
+        return phrase_ids[0]
+
+    indices = state.setdefault("structure_phrase_rotation_index", {})
+    last_phrase = state.setdefault("structure_last_phrase_id", {})
+    rotation_key = str(event_type)
+    next_index = int(indices.get(rotation_key, 0))
+
+    for offset in range(len(phrase_ids)):
+        candidate_index = (next_index + offset) % len(phrase_ids)
+        candidate_phrase = phrase_ids[candidate_index]
+        if candidate_phrase != last_phrase.get(rotation_key):
+            indices[rotation_key] = (candidate_index + 1) % len(phrase_ids)
+            last_phrase[rotation_key] = candidate_phrase
+            return candidate_phrase
+
+    indices[rotation_key] = (next_index + 1) % len(phrase_ids)
+    candidate_phrase = phrase_ids[next_index % len(phrase_ids)]
+    last_phrase[rotation_key] = candidate_phrase
+    return candidate_phrase
 
 
 def is_zone_mode(workout_mode: str, config_module) -> bool:
@@ -1381,15 +1549,7 @@ def _sustained_zone_event(
 
 
 def _event_group(event_type: str) -> str:
-    if event_type in {"max_silence_motivation"}:
-        return "motivation"
-    if event_type in {"above_zone", "below_zone", "above_zone_ease", "below_zone_push"}:
-        return "corrective"
-    if event_type in {"max_silence_go_by_feel", "max_silence_breath_guide", "max_silence_override"}:
-        return "info"
-    if event_type in {"in_zone_recovered"}:
-        return "positive"
-    return "info"
+    return get_event_catalog(event_type) or "context"
 
 
 def _allow_style_event(
@@ -1410,9 +1570,10 @@ def _allow_style_event(
     praise_min = int(policy.get("praise_min_seconds", 240))
 
     cue_group = _event_group(event_type)
+    cooldown_key = event_cooldown_key(event_type)
     is_phase_change = event_type.startswith("phase_change_")
 
-    if cue_group == "corrective" and hr_quality_state == "poor":
+    if cue_group == "instruction" and hr_quality_state == "poor":
         min_any += 15
 
     history = state.setdefault("style_history", [])
@@ -1431,19 +1592,25 @@ def _allow_style_event(
         return False, "style_cooldown_any"
 
     last_by_type = state.setdefault("style_last_by_type", {})
-    last_same = _safe_float(last_by_type.get(cue_group))
+    last_same = _safe_float(last_by_type.get(cooldown_key))
     if last_same is not None and (float(elapsed_seconds) - last_same) < min_same and not is_phase_change:
         return False, "style_cooldown_same_type"
 
-    if cue_group == "positive":
-        last_positive = _safe_float(last_by_type.get("positive"))
+    if cue_group == "motivation":
+        last_positive = _safe_float(last_by_type.get("motivation"))
         if last_positive is not None and (float(elapsed_seconds) - last_positive) < praise_min:
             return False, "style_praise_cooldown"
 
     state["style_last_any_elapsed"] = float(elapsed_seconds)
-    last_by_type[cue_group] = float(elapsed_seconds)
+    last_by_type[cooldown_key] = float(elapsed_seconds)
     state["style_history"].append(
-        {"elapsed": float(elapsed_seconds), "event": event_type, "group": cue_group}
+        {
+            "elapsed": float(elapsed_seconds),
+            "event": event_type,
+            "group": cue_group,
+            "instruction_urgency": get_event_instruction_urgency(event_type),
+            "cooldown_key": cooldown_key,
+        }
     )
     return True, "allowed"
 
@@ -1535,6 +1702,22 @@ def _motivation_stage_phrase_ids(workout_type: str, stage: int) -> List[str]:
     ]
 
 
+def _motivation_stage_phrase_ids_for_context(
+    *,
+    workout_type: str,
+    target: Dict[str, Any],
+    elapsed_seconds: int,
+    config_module,
+) -> List[str]:
+    if workout_type == "intervals":
+        stage = _motivation_stage_from_rep(int(target.get("rep_index") or 1))
+        return _motivation_stage_phrase_ids("intervals", stage)
+
+    elapsed_minutes = max(0, int(elapsed_seconds) // 60)
+    stage = _motivation_stage_from_elapsed(elapsed_minutes, config_module)
+    return _motivation_stage_phrase_ids("easy_run", stage)
+
+
 def _pick_motivation_phrase_id(
     *,
     state: Dict[str, Any],
@@ -1542,16 +1725,16 @@ def _pick_motivation_phrase_id(
     config_module,
 ) -> str:
     """
-    Select a motivation phrase from a global pool + optional stage pool with anti-repeat.
+    Select a stage-based motivation phrase with anti-repeat.
 
-    - Global pool is always available to interval/easy/max-silence motivation paths.
-    - Stage IDs are preferred first to preserve workout-context flavor.
-    - Avoids repeating the last K IDs when alternatives exist (default K=2).
+    The flat `motivation.1..10` pool is kept in the catalog for compatibility
+    and editing workflow continuity, but deterministic workout events no longer
+    consume it once staged catalog/audio parity is in place.
     """
     stage_ids = [phrase_id for phrase_id in (stage_phrase_ids or []) if phrase_id]
-    candidates = list(dict.fromkeys(stage_ids + list(_GLOBAL_MOTIVATION_IDS)))
+    candidates = list(dict.fromkeys(stage_ids))
     if not candidates:
-        return "motivation.1"
+        return "interval.motivate.s2.1"
 
     recent_k = int(getattr(config_module, "MOTIVATION_RECENT_HISTORY_SIZE", 2))
     recent_k = max(0, min(8, recent_k))
@@ -2000,35 +2183,40 @@ def _event_text(
 
     if event_type == "watch_disconnected_notice":
         if lang == "no":
-            return "Klokken er frakoblet. Jeg coacher videre med pust og timing."
-        return "Watch disconnected. I'll coach using breathing and timing."
+            return "Pulsklokken ble frakoblet."
+        return "Watch disconnected"
+
+    if event_type == "hr_structure_mode_notice":
+        if lang == "no":
+            return "Ingen pulssignal. Jeg fortsetter å coache"
+        return "No heart rate signal. I will continue coaching"
 
     if event_type == "no_sensors_notice":
         if lang == "no":
-            return "Ingen sensorer nå. Løp på følelse."
-        return "No sensors now. Run by feel."
+            return "Coacher med pust."
+        return "Coaching by breath."
 
     if event_type == "watch_restored_notice":
         if lang == "no":
-            return "Klokken er tilbake. Sonecoaching er aktiv igjen."
-        return "Watch restored. Zone coaching is back."
+            return "Klokken er tilkoblet, og pulsen er tilbake."
+        return "Watch connected and heart rate is back."
 
     if event_type == "interval_countdown_30":
-        return "30 sekunder igjen." if lang == "no" else "30 seconds left."
+        return "30 sekunder." if lang == "no" else "30 seconds left."
 
     if event_type == "interval_countdown_15":
-        return "15" if lang == "no" else "15 seconds left."
+        return "15!" if lang == "no" else "15!"
 
     if event_type == "interval_countdown_5":
-        return "5" if lang == "no" else "5 seconds left."
+        return "fem" if lang == "no" else "5!"
 
     if event_type == "interval_countdown_start":
-        return "Kjør på nå" if lang == "no" else "Next interval now."
+        return "Kjør på nå." if lang == "no" else "Go!"
 
     if event_type == "main_started":
         if lang == "no":
-            return "Bra jobba"
-        return "Main set now. Stay controlled."
+            return "Nå er du i hoveddelen."
+        return "Main set now."
 
     if event_type == "workout_finished":
         if lang == "no":
@@ -2037,11 +2225,11 @@ def _event_text(
 
     if event_type == "hr_poor_enter":
         if lang == "no":
-            return "Puls-signalet er svakt akkurat nå. Jeg coacher med timing og pust til det stabiliserer seg. Stram klokka litt."
-        return "Heart-rate signal is weak right now. I'll coach using timing and breathing until it stabilizes. Tighten your watch strap."
+            return "Pulssignalet er svakt."
+        return "Heart rate signal is weak."
 
     if event_type == "hr_poor_exit":
-        return "Pulsen er stabil igjen. Vi går tilbake til sonecoaching." if lang == "no" else "Heart-rate signal is stable again. Returning to zone coaching."
+        return "Pulsen er tilbake." if lang == "no" else "Heart rate is back."
 
     if event_type == "above_zone":
         if lang == "no":
@@ -2049,21 +2237,21 @@ def _event_text(
                 return "Litt ned 10-15 sekunder."
             if target_low is not None and target_high is not None:
                 return f"Rolig ned mot {target_low}-{target_high} bpm."
-            return "Litt ned. Finn kontroll."
+            return "Ro ned litt."
         if tone == "minimal":
             return "Ease off 10-15 seconds."
         if target_low is not None and target_high is not None:
             return f"Back off to {target_low}-{target_high} bpm."
-        return "Ease off and regain control."
+        return "Ease back slightly."
 
     if event_type == "above_zone_ease":
         if lang == "no":
             if tone == "minimal":
                 return "Pulsen stiger. Rolig ned."
-            return "Pulsen stiger fortsatt. Ro ned 20 sekunder."
+            return "Fortsatt høy. Ro ned 20 sekunder."
         if tone == "minimal":
             return "HR still climbing. Ease down."
-        return "Your heart rate is still climbing. Ease down for 20 seconds."
+        return "Still high. Ease down 20 seconds."
 
     if event_type == "below_zone":
         if lang == "no":
@@ -2071,77 +2259,89 @@ def _event_text(
                 return "Bygg litt opp nå."
             if target_low is not None and target_high is not None:
                 return f"Løft rolig mot {target_low}-{target_high} bpm."
-            return "Litt opp i innsats nå."
+            return "Øk litt nå."
         if tone == "minimal":
             return "Build slightly now."
         if target_low is not None and target_high is not None:
             return f"Build toward {target_low}-{target_high} bpm."
-        return "Build effort slightly now."
+        return "Pick it up."
 
     if event_type == "below_zone_push":
         if lang == "no":
             if tone == "minimal":
                 return "Du er i gang. Litt opp."
-            return "Du er i gang. Øk litt nå og hold flyten."
+            return "Du er i gang. Øk litt."
         if tone == "minimal":
             return "You're moving. Add a little."
-        return "You're moving well. Add a little effort and keep the flow."
+        return "You're moving. Pick it up slightly."
 
     if event_type == "in_zone_recovered":
         if lang == "no":
-            return "Bra. Hold deg her." if tone == "minimal" else "Der ja. Hold deg i denne sonen."
-        return "Good. Stay here." if tone == "minimal" else "Nice. Hold this zone."
+            return "Bli her."
+        return "Stay right here."
 
     if event_type == "phase_change_work":
         if lang == "no":
-            return "Dragstart. Kontroller hardt." if tone != "motivational" else "Nytt drag. Sterk kontroll nå."
-        return "Work block. Controlled hard." if tone != "motivational" else "New work block. Controlled hard now."
+            return "Nå begynner innsatsen." if tone != "motivational" else "Nå jobber vi."
+        return "Work starts now." if tone != "motivational" else "Time to work."
 
     if event_type == "phase_change_rest":
         if lang == "no":
-            return "Pauseblokk. Rolig jogg."
-        return "Recovery block. Easy jog."
+            return "Pause nå."
+        return "Recovery now."
 
     if event_type == "phase_change_warmup":
         if lang == "no":
-            return "Nå er vi i oppvarmingsdelen."
-        return "Warm-up now. Keep it easy."
+            return "Forbered deg på økten."
+        return "Prepare for the session."
 
     if event_type == "phase_change_cooldown":
         if lang == "no":
-            return "Nedjogg nå. Senk pulsen."
-        return "Cooldown now. Bring heart rate down."
+            return "Nå roer vi ned."
+        return "Cooldown now."
 
     if event_type == "pause_detected":
         if lang == "no":
-            return "Du ser ut til å ha stoppet. Start rolig igjen når du er klar."
-        return "Looks like you paused. Start easy again when ready."
+            return "Pauset økten."
+        return "Paused session"
 
     if event_type == "pause_resumed":
         if lang == "no":
-            return "Bra, du er i gang igjen. Hold rolig kontroll."
-        return "Good, you're moving again. Keep it controlled."
+            return "Du er i gang igjen."
+        return "You're moving again."
+
+    if event_type == "structure_instruction_work":
+        return "Kjør på nå." if lang == "no" else "Pick it up now."
+
+    if event_type == "structure_instruction_recovery":
+        return "Ro ned og hent deg inn." if lang == "no" else "Ease back and recover."
+
+    if event_type == "structure_instruction_steady":
+        return "Finn rytmen." if lang == "no" else "Settle into the pace."
+
+    if event_type == "structure_instruction_finish":
+        return "Trykk til nå!" if lang == "no" else "Final push now!"
 
     if event_type == "max_silence_override":
         if segment == "work":
-            return "Hold kontroll. Ett drag av gangen." if lang == "no" else "Stay controlled. One rep at a time."
+            return "Hold rytmen." if lang == "no" else "Hold the rhythm."
         if segment in {"rest", "recovery"}:
-            return "Rolig mellom dragene." if lang == "no" else "Stay easy between reps."
-        return "Hold jevn rytme." if lang == "no" else "Hold steady rhythm."
+            return "Senk skuldrene." if lang == "no" else "Relax your shoulders."
+        return "Finn rytmen." if lang == "no" else "Find your pace."
 
     if event_type == "max_silence_breath_guide":
         if segment == "work":
-            return "Herlig" if lang == "no" else "Breathe through the effort."
+            return "Hold rytmen." if lang == "no" else "Hold the rhythm."
         if segment in {"rest", "recovery"}:
-            return "Senk pustetakten." if lang == "no" else "Slow your breathing down."
-        return "Tilpass pusten til tempoet." if lang == "no" else "Match your breathing to your pace."
+            return "Senk skuldrene." if lang == "no" else "Relax your shoulders."
+        return "Finn rytmen." if lang == "no" else "Find your pace."
 
     if event_type == "max_silence_go_by_feel":
         if segment == "work":
-            return "Hold en jevn rytme" if lang == "no" else "Push hard but controlled."
+            return "Hold rytmen." if lang == "no" else "Hold the rhythm."
         if segment in {"rest", "recovery"}:
-            return "Slipp av. La kroppen hente seg inn." if lang == "no" else "Ease off. Let your body recover."
-        return "Jevn innsats. Hold det behagelig." if lang == "no" else "Steady effort. Stay comfortable."
+            return "Senk skuldrene." if lang == "no" else "Relax your shoulders."
+        return "Finn rytmen." if lang == "no" else "Find your pace."
 
     if event_type == "max_silence_motivation":
         if lang == "no":
@@ -2304,7 +2504,13 @@ def evaluate_zone_tick(
         if previous_phase == "warmup" and canonical_phase in {"main", "work", "recovery"}:
             phase_events.append("interval_countdown_start")
 
-    if canonical_phase in {"main", "work", "recovery"} and not bool(state.get("main_started_emitted")):
+    if _should_emit_main_started(
+        state=state,
+        previous_phase=previous_phase,
+        canonical_phase=canonical_phase,
+        elapsed_seconds=int(elapsed_seconds),
+        config_module=config_module,
+    ):
         phase_events.append("main_started")
         state["main_started_emitted"] = True
 
@@ -2333,6 +2539,20 @@ def evaluate_zone_tick(
         breath_reliable=breath_reliable,
         movement_available=movement_available,
     )
+    instruction_mode = _resolve_instruction_mode(
+        target_enforced=target_enforced,
+        hr_signal_state=hr_signal_state,
+        sensor_mode=sensor_mode,
+    )
+    previous_instruction_mode = state.get("instruction_mode")
+    state["instruction_mode"] = instruction_mode
+
+    if instruction_mode != "structure_driven":
+        state["structure_mode_notice_pending"] = False
+        state["structure_mode_notice_sent"] = False
+    elif previous_instruction_mode != "structure_driven":
+        state["structure_mode_notice_pending"] = True
+        state["structure_mode_notice_sent"] = False
 
     zone_status = "hr_unstable" if not hr_available else "timing_control"
     transition_event = None
@@ -2384,10 +2604,29 @@ def evaluate_zone_tick(
     metrics_snapshot = state.get("metrics", {})
     score_payload = _score_from_metrics(metrics_snapshot, lang)
 
+    suppressed_notice_events: set[str] = set()
+    if instruction_mode == "structure_driven":
+        suppressed_notice_events.update({
+            "hr_signal_lost",
+            "watch_disconnected_notice",
+            "no_sensors_notice",
+        })
+    if target_enforced and "hr_signal_restored" in hr_signal_events:
+        suppressed_notice_events.add("watch_restored_notice")
+
     event_types: List[str] = []
     for candidate_event in phase_events + hr_signal_events + sensor_notice_events:
+        if candidate_event in suppressed_notice_events:
+            continue
         if candidate_event and candidate_event not in event_types:
             event_types.append(candidate_event)
+
+    if (
+        instruction_mode == "structure_driven"
+        and bool(state.get("structure_mode_notice_pending"))
+        and "hr_structure_mode_notice" not in event_types
+    ):
+        event_types.append("hr_structure_mode_notice")
 
     if canonical_phase == "warmup" and not pause_flag and target.get("segment_remaining_seconds") is not None:
         remaining = int(max(0, target.get("segment_remaining_seconds") or 0))
@@ -2468,6 +2707,7 @@ def evaluate_zone_tick(
         "entered_target",
         "exited_target_above",
         "exited_target_below",
+        "hr_structure_mode_notice",
     }
     primary_event: Optional[str] = None
     event_type: Optional[str] = None
@@ -2575,7 +2815,16 @@ def evaluate_zone_tick(
                         max_silence_allowed = False
 
                 if max_silence_allowed:
-                    if sensor_fusion_mode == "HR_ZONE":
+                    if instruction_mode == "structure_driven":
+                        if not bool(state.get("structure_mode_notice_pending")):
+                            max_silence_candidate = _select_structure_instruction_event(
+                                canonical_workout_type=canonical_workout_type,
+                                canonical_phase=canonical_phase,
+                                target=target,
+                                workout_state=workout_state if isinstance(workout_state, dict) else None,
+                                config_module=config_module,
+                            )
+                    elif sensor_fusion_mode == "HR_ZONE":
                         max_silence_candidate = "max_silence_override"
                     elif sensor_fusion_mode in {"BREATH_MOVEMENT", "BREATH_ONLY"}:
                         max_silence_candidate = "max_silence_breath_guide"
@@ -2583,12 +2832,7 @@ def evaluate_zone_tick(
                         # No HR + no reliable breath: keep deterministic go-by-feel fallback.
                         max_silence_candidate = "max_silence_go_by_feel"
                     elif sensor_fusion_mode in {"MOVEMENT_ONLY", "TIMING_ONLY"}:
-                        # When HR exists but we are not running strict HR-zone enforcement
-                        # (e.g. targets unenforced), prioritize motivation over go-by-feel.
-                        if _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel"):
-                            max_silence_candidate = "max_silence_motivation"
-                        else:
-                            max_silence_candidate = "max_silence_go_by_feel"
+                        max_silence_candidate = "max_silence_motivation"
                     else:
                         max_silence_candidate = "max_silence_motivation"
 
@@ -2610,11 +2854,22 @@ def evaluate_zone_tick(
                         max_silence_candidate = None
                         reason = "motivation_cooldown"
                     else:
-                        state["_pending_motivation_phrase_id"] = _pick_motivation_phrase_id(
-                            state=state,
-                            stage_phrase_ids=[],
+                        stage_phrase_ids = _motivation_stage_phrase_ids_for_context(
+                            workout_type=canonical_workout_type,
+                            target=target,
+                            elapsed_seconds=int(elapsed_seconds),
                             config_module=config_module,
                         )
+                        state["_pending_motivation_phrase_id"] = _pick_motivation_phrase_id(
+                            state=state,
+                            stage_phrase_ids=stage_phrase_ids,
+                            config_module=config_module,
+                        )
+                elif max_silence_candidate in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+                    state["_pending_structure_phrase_id"] = _pick_structure_phrase_id(
+                        state=state,
+                        event_type=max_silence_candidate,
+                    )
 
                 if max_silence_candidate:
                     primary_event = max_silence_candidate
@@ -2639,6 +2894,9 @@ def evaluate_zone_tick(
             # Tier A/B/C events reset the motivation barrier window.
             if _event_priority(primary_event) >= 60:
                 state["last_high_priority_spoken_elapsed"] = float(elapsed_seconds)
+        if primary_event == "hr_structure_mode_notice":
+            state["structure_mode_notice_pending"] = False
+            state["structure_mode_notice_sent"] = True
 
         coach_text = _event_text(
             event_type=primary_event,
@@ -2648,6 +2906,11 @@ def evaluate_zone_tick(
             target_high=target.get("target_high"),
             segment=str(target.get("segment", "")),
         )
+        if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+            pending_structure_phrase_id = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(primary_event, canonical_phase)
+            structure_phrase_text = get_phrase_text(str(pending_structure_phrase_id or ""), lang)
+            if structure_phrase_text:
+                coach_text = structure_phrase_text
         if not coach_text and event_type:
             coach_text = _event_text(
                 event_type=event_type,
@@ -2735,6 +2998,8 @@ def evaluate_zone_tick(
     for event_name in event_types:
         if event_name in _MOTIVATION_EVENT_TYPES:
             _phrase = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
+        elif event_name in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+            _phrase = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
         else:
             _phrase = _resolve_phrase_id(event_name, canonical_phase)
         events_payload.append({
@@ -2749,6 +3014,8 @@ def evaluate_zone_tick(
     resolved_phrase_id = (
         state.get("_pending_motivation_phrase_id")
         if primary_event in _MOTIVATION_EVENT_TYPES
+        else state.get("_pending_structure_phrase_id")
+        if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES
         else _resolve_phrase_id(primary_event, canonical_phase)
     ) if primary_event else None
 
@@ -2762,6 +3029,8 @@ def evaluate_zone_tick(
         if not item.get("phrase_id"):
             if event_name in _MOTIVATION_EVENT_TYPES:
                 item["phrase_id"] = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
+            elif event_name in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+                item["phrase_id"] = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
             else:
                 item["phrase_id"] = _resolve_phrase_id(event_name, canonical_phase)
 
@@ -2832,6 +3101,7 @@ def evaluate_zone_tick(
     # Clean up pending motivation state
     state.pop("_pending_motivation_phrase_id", None)
     state.pop("_pending_motivation_stage", None)
+    state.pop("_pending_structure_phrase_id", None)
 
     # Structured observability log — one JSON line per evaluate_zone_tick() call.
     _last_spoken = _safe_float(state.get("last_spoken_elapsed"))

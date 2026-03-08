@@ -195,6 +195,10 @@ BREATH_ANALYSIS_SAMPLE_RATE = 16000
 BREATH_ANALYSIS_ENABLE_MFCC = _env_bool("BREATH_ANALYSIS_ENABLE_MFCC", False)
 # Minimum upload size (bytes) to treat as valid audio
 BREATH_MIN_AUDIO_BYTES = 8000
+# Hard timeout for runtime breath analysis so a bad chunk cannot stall a worker.
+BREATH_ANALYSIS_TIMEOUT_SECONDS = _env_float("BREATH_ANALYSIS_TIMEOUT_SECONDS", 2.5)
+# Cooldown after a timeout to avoid piling work onto a still-running analyzer task.
+BREATH_ANALYSIS_TIMEOUT_COOLDOWN_SECONDS = _env_float("BREATH_ANALYSIS_TIMEOUT_COOLDOWN_SECONDS", 20.0)
 # Smoothing for breath metrics (EMA over recent history)
 BREATH_SMOOTHING_ALPHA = 0.5
 BREATH_SMOOTHING_WINDOW = 4
@@ -217,6 +221,7 @@ AUDIO_PREFETCH_ENABLED = _env_bool("AUDIO_PREFETCH_ENABLED", True)
 MAX_SILENCE_EASY_RUN_BASE = _env_int("MAX_SILENCE_EASY_RUN_BASE", 60)
 MAX_SILENCE_INTERVALS_WORK = _env_int("MAX_SILENCE_INTERVALS_WORK", 30)
 MAX_SILENCE_INTERVALS_RECOVERY = _env_int("MAX_SILENCE_INTERVALS_RECOVERY", 45)
+NO_HR_STRUCTURE_FINAL_EFFORT_SECONDS = _env_int("NO_HR_STRUCTURE_FINAL_EFFORT_SECONDS", 60)
 MAX_SILENCE_RAMP_PER_10MIN = _env_int("MAX_SILENCE_RAMP_PER_10MIN", 15)
 MAX_SILENCE_HR_MISSING_MULTIPLIER = _env_float("MAX_SILENCE_HR_MISSING_MULTIPLIER", 1.5)
 MAX_SILENCE_BUDGET_EASY_RUN_SECONDS = _env_int("MAX_SILENCE_BUDGET_EASY_RUN_SECONDS", 90)
@@ -676,13 +681,13 @@ DEFAULT_COACHING_STYLE = (
 ).strip().lower()
 COACHING_STYLE_COOLDOWNS = {
     "minimal": {
-        "min_seconds_between_any_speech": 45,
+        "min_seconds_between_any_speech": 30,
         "min_seconds_between_same_cue_type": 90,
         "max_cues_per_10min": 10,
         "praise_min_seconds": 360,
     },
     "normal": {
-        "min_seconds_between_any_speech": 30,
+        "min_seconds_between_any_speech": 25,
         "min_seconds_between_same_cue_type": 60,
         "max_cues_per_10min": 16,
         "praise_min_seconds": 240,

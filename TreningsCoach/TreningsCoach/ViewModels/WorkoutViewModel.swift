@@ -169,8 +169,6 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - UI Properties (for new dashboard/profile screens)
 
     @Published var elapsedTime: TimeInterval = 0
-    @Published var workoutHistory: [WorkoutRecord] = []
-    @Published var userStats: UserStats = UserStats()
 
     // MARK: - Coachi UI State
 
@@ -542,7 +540,7 @@ class WorkoutViewModel: ObservableObject {
 
     var canInitiateWorkoutStart: Bool {
         guard AppConfig.Auth.requireSignInForWorkoutStart else { return true }
-        return hasValidAuthToken()
+        return authManager.hasUsableSession()
     }
 
     var launchAuthRequirementText: String? {
@@ -693,6 +691,7 @@ class WorkoutViewModel: ObservableObject {
 
     func startWorkout() {
         activeSessionPlan = buildSessionPlanFromSelections()
+        resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         watchStartStatusLine = nil
@@ -769,6 +768,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     func resetWorkout() {
+        resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         watchStartStatusLine = nil
@@ -776,6 +776,10 @@ class WorkoutViewModel: ObservableObject {
         workoutState = .idle
         showComplete = false
         elapsedTime = 0
+        workoutDuration = 0
+        sessionStartTime = nil
+        coachingTickCount = 0
+        continuousSessionGeneration = nil
         coachMessage = nil
         breathAnalysis = nil
         coachScore = 0
@@ -809,6 +813,7 @@ class WorkoutViewModel: ObservableObject {
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
         activeSessionPlan = nil
+        currentPhase = configuredWarmupDuration > 0 ? .warmup : .intense
 
         // Cleanup stale audio pack files now that workout is idle
         AudioPackSyncManager.shared.purgeStaleFiles()
@@ -1114,13 +1119,15 @@ class WorkoutViewModel: ObservableObject {
 
     // MARK: - Private Properties
 
-    private let audioManager = AudioRecordingManager()
     private let continuousRecordingManager = ContinuousRecordingManager()
     private let apiService = BackendAPIService.shared
+    private let authManager = AuthManager.shared
     private var audioPlayer: AVAudioPlayer?
     private var sessionStartTime: Date?
     private var workoutDuration: TimeInterval = 0
     private var hasSkippedWarmup = false
+    private var coachingTickCount: Int = 0
+    private var continuousSessionGeneration: UUID?
     private var coachingTimer: Timer?
     private var sessionId: String?
     private var autoTimeoutTimer: Timer?
@@ -1141,6 +1148,7 @@ class WorkoutViewModel: ObservableObject {
     private var pendingWatchRequestTimestamp: TimeInterval?
     private var pendingWatchRequestId: String?
     private var activeWatchRequestId: String?
+    private var guestBackendSuppressed = false
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
     private let watchStartAckTimeoutSeconds: TimeInterval = 15.0
@@ -1222,88 +1230,9 @@ class WorkoutViewModel: ObservableObject {
         print("✅ Audio session will be configured on workout start")
     }
 
-    // MARK: - Recording
-
-    func startRecording() {
-        guard !isRecording && !isProcessing else { return }
-
-        // Auto-detect phase based on workout duration
-        autoDetectPhase()
-
-        do {
-            try audioManager.startRecording()
-            isRecording = true
-            voiceState = .listening
-            breathAnalysis = nil
-            coachMessage = nil
-
-            // Start session timer if first recording
-            if sessionStartTime == nil {
-                sessionStartTime = Date()
-            }
-        } catch {
-            showErrorAlert("Failed to start recording: \(error.localizedDescription)")
-        }
-    }
-
-    func stopRecording() {
-        guard isRecording else { return }
-
-        guard let audioURL = audioManager.stopRecording() else {
-            showErrorAlert("Failed to stop recording")
-            voiceState = .idle
-            return
-        }
-
-        isRecording = false
-        voiceState = .idle
-
-        // Update workout duration
-        if let startTime = sessionStartTime {
-            workoutDuration = Date().timeIntervalSince(startTime)
-        }
-
-        // Send to backend
-        Task {
-            await sendToBackend(audioURL: audioURL, phase: currentPhase)
-        }
-    }
-
     // MARK: - Talk to Coach (Conversational)
 
     @Published var isTalkingToCoach = false
-    @Published var coachConversation: [(role: String, text: String)] = []
-
-    func talkToCoach(message: String) {
-        guard !isTalkingToCoach else { return }
-
-        isTalkingToCoach = true
-        coachConversation.append((role: "user", text: message))
-
-        Task {
-            do {
-                print("💬 Talking to coach: '\(message)'")
-                let response = try await apiService.talkToCoach(
-                    message: message,
-                    language: currentLanguage,
-                    persona: activePersonality.rawValue,
-                    userName: currentUserName,
-                    responseMode: "qa",
-                    context: isContinuousMode ? "workout" : "chat"
-                )
-                coachConversation.append((role: "coach", text: response.text))
-                coachMessage = response.text
-                print("🗣️ Coach replied: '\(response.text)'")
-
-                // Play the response audio
-                await playCoachAudio(response.audioURL)
-            } catch {
-                print("❌ Talk to coach failed: \(error.localizedDescription)")
-                showErrorAlert("Could not reach coach: \(error.localizedDescription)")
-            }
-            isTalkingToCoach = false
-        }
-    }
 
     // MARK: - Skip Warmup
 
@@ -1409,6 +1338,14 @@ class WorkoutViewModel: ObservableObject {
         let fallbackPrompt = defaultWorkoutTalkPrompt()
         let requestStartedAt = Date()
 
+        if shouldSuppressProtectedBackendRequests() {
+            coachMessage = localGuestModeTalkFallback()
+            let captureMs = Int(Date().timeIntervalSince(captureStartedAt) * 1000)
+            print("⚠️ TALK_BACKEND_SUPPRESSED source=\(triggerSource.rawValue) total_capture_window_ms=\(captureMs)")
+            finalizeWorkoutTalkSession()
+            return
+        }
+
         do {
             guard let sid = sessionId, !sid.isEmpty else {
                 print("⚠️ session_id missing for workout talk; using generic talk endpoint fallback")
@@ -1453,6 +1390,10 @@ class WorkoutViewModel: ObservableObject {
             _ = await playCoachAudio(response.audioURL, transcriptText: response.text)
         } catch {
             print("❌ Coach talk failed: \(error.localizedDescription)")
+            if handleAuthFailureIfNeeded(error) {
+                finalizeWorkoutTalkSession()
+                return
+            }
             coachMessage = currentLanguage == "no"
                 ? "Fikk ikke kontakt med coach akkurat nå. Prøv igjen."
                 : "Could not reach coach right now. Try again."
@@ -1526,64 +1467,6 @@ class WorkoutViewModel: ObservableObject {
             allowRemotePackFetch: false,
             allowBackendTTSFallback: false
         )
-    }
-
-    /// Legacy text path retained for non-workout chat interactions.
-    private func sendUserMessageToCoach(_ message: String) {
-        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedMessage.isEmpty else {
-            isWakeWordActive = false
-            coachInteractionState = .passiveListening
-            return
-        }
-
-        coachInteractionState = .responding
-        isTalkingToCoach = true
-
-        Task {
-            do {
-                let response: CoachTalkResponse
-                if let sid = sessionId, !sid.isEmpty {
-                    response = try await apiService.talkToCoachDuringWorkout(
-                        message: trimmedMessage,
-                        sessionId: sid,
-                        phase: currentPhase.rawValue,
-                        intensity: breathAnalysis?.intensity ?? "moderate",
-                        persona: activePersonality.rawValue,
-                        language: currentLanguage,
-                        userName: currentUserName
-                    )
-                } else {
-                    print("⚠️ session_id missing for workout talk; using generic talk endpoint fallback")
-                    response = try await apiService.talkToCoach(
-                        message: trimmedMessage,
-                        language: currentLanguage,
-                        persona: activePersonality.rawValue,
-                        userName: currentUserName,
-                        responseMode: "qa",
-                        context: "workout"
-                    )
-                }
-
-                coachMessage = response.text
-                print("🗣️ Coach replied to user: '\(response.text)'")
-
-                // Play the response audio
-                voiceState = .speaking
-                await playCoachAudio(response.audioURL)
-            } catch {
-                print("❌ Coach talk failed: \(error.localizedDescription)")
-                coachMessage = currentLanguage == "no"
-                    ? "Fikk ikke kontakt med coach akkurat nå. Prøv igjen."
-                    : "Could not reach coach right now. Try again."
-            }
-
-            // Return to passive listening
-            isTalkingToCoach = false
-            isWakeWordActive = false
-            coachInteractionState = .passiveListening
-            voiceState = isContinuousMode && !isPaused ? .listening : .idle
-        }
     }
 
     // MARK: - Phase Auto-Detection
@@ -1863,12 +1746,14 @@ class WorkoutViewModel: ObservableObject {
             return 86
         case "pause_resumed":
             return 85
+        case "hr_structure_mode_notice":
+            return 84
         case "watch_disconnected_notice", "no_sensors_notice", "watch_restored_notice":
             return 88
-        case "max_silence_override", "max_silence_breath_guide":
+        case "structure_instruction_work", "structure_instruction_recovery", "structure_instruction_steady", "structure_instruction_finish":
             return 68
-        case "max_silence_go_by_feel":
-            return 66
+        case "max_silence_override", "max_silence_breath_guide", "max_silence_go_by_feel":
+            return 68
         case "exited_target_above", "exited_target_below":
             return 70
         case "entered_target":
@@ -1876,7 +1761,7 @@ class WorkoutViewModel: ObservableObject {
         case "interval_in_target_sustained", "easy_run_in_target_sustained":
             return 55
         case "max_silence_motivation":
-            return 69
+            return 54
         default:
             return 0
         }
@@ -1905,12 +1790,22 @@ class WorkoutViewModel: ObservableObject {
             return "zone.hr_poor_enter.1"
         case "hr_signal_restored":
             return "zone.hr_poor_exit.1"
+        case "hr_structure_mode_notice":
+            return "zone.hr_poor_timing.1"
         case "watch_disconnected_notice":
             return "zone.watch_disconnected.1"
         case "no_sensors_notice":
             return "zone.no_sensors.1"
         case "watch_restored_notice":
             return "zone.watch_restored.1"
+        case "structure_instruction_work":
+            return "zone.structure.work.1"
+        case "structure_instruction_recovery":
+            return "zone.structure.recovery.1"
+        case "structure_instruction_steady":
+            return "zone.structure.steady.1"
+        case "structure_instruction_finish":
+            return "zone.structure.finish.1"
         case "interval_countdown_30":
             return "zone.countdown.30"
         case "interval_countdown_15":
@@ -1929,25 +1824,25 @@ class WorkoutViewModel: ObservableObject {
             return "zone.silence.default.1"
         case "max_silence_go_by_feel":
             if phase == "work" {
-                return "zone.feel.work.1"
+                return "zone.silence.work.1"
             }
             if phase == "recovery" {
-                return "zone.feel.recovery.1"
+                return "zone.silence.rest.1"
             }
-            return "zone.feel.easy_run.1"
+            return "zone.silence.default.1"
         case "max_silence_breath_guide":
             if phase == "work" {
-                return "zone.breath.work.1"
+                return "zone.silence.work.1"
             }
             if phase == "recovery" {
-                return "zone.breath.recovery.1"
+                return "zone.silence.rest.1"
             }
-            return "zone.breath.easy_run.1"
+            return "zone.silence.default.1"
         case "max_silence_motivation":
-            return "motivation.1"
+            return event.payload.workoutType.lowercased() == "intervals" ? "interval.motivate.s2.1" : "easy_run.motivate.s2.1"
         case "interval_in_target_sustained", "easy_run_in_target_sustained":
             // Backend sends dynamic phrase_id via event payload; this is fallback only
-            return "interval.motivate.s2.1"
+            return event.payload.workoutType.lowercased() == "intervals" ? "interval.motivate.s2.1" : "easy_run.motivate.s2.1"
         default:
             return nil
         }
@@ -2035,7 +1930,6 @@ class WorkoutViewModel: ObservableObject {
             lastResolvedEventType = nil
             return (response.audioURL != nil, "event_router_no_event")
         }
-
         let selected = selection.event
 
         // Resolve utterance ID: prefer backend-provided phrase_id, fall back to local mapping.
@@ -2061,6 +1955,10 @@ class WorkoutViewModel: ObservableObject {
         let selectedPriorityInfo = resolvedEventPriority(for: selected)
         let selectedPriority = selectedPriorityInfo.value
         let now = Date()
+        if audioPlayer?.isPlaying == true {
+            print("🔇 EVENT_SUPPRESSED reason=audio_playing event=\(selected.eventType) priority=\(selectedPriority)")
+            return (false, "event_router_audio_playing")
+        }
         if let lastAt = lastEventSpeechAt,
            now.timeIntervalSince(lastAt) < eventSpeechCollisionWindowSeconds,
            selectedPriority <= lastEventSpeechPriority {
@@ -2080,66 +1978,6 @@ class WorkoutViewModel: ObservableObject {
         lastResolvedEventType = selected.eventType
         print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source) selection_source=\(selection.selectionSource)")
         return (true, "event_router")
-    }
-
-    // MARK: - API Communication
-
-    func sendToBackend(audioURL: URL, phase: WorkoutPhase) async {
-        isProcessing = true
-        voiceState = .idle // Show processing state
-
-        let tickStart = Date()
-        do {
-            // Send to coach endpoint
-            let response = try await apiService.getCoachFeedback(audioURL, phase: phase)
-            let responseTime = Date().timeIntervalSince(tickStart)
-
-            // Update UI with response
-            breathAnalysis = response.breathAnalysis
-            coachMessage = response.text
-
-            // Feed breath analysis to diagnostics
-            AudioPipelineDiagnostics.shared.updateBreathAnalysis(
-                response.breathAnalysis,
-                responseTime: responseTime,
-                chunkBytes: nil,
-                chunkDur: nil,
-                reason: nil
-            )
-
-            // Play voice and show speaking state
-            voiceState = .speaking
-            await downloadAndPlayVoice(audioURL: response.audioURL)
-
-            // Return to idle after speaking
-            voiceState = .idle
-
-        } catch {
-            showErrorAlert("Failed to analyze: \(error.localizedDescription)")
-            AudioPipelineDiagnostics.shared.recordBreathAnalysisError(error.localizedDescription)
-            voiceState = .idle
-        }
-
-        isProcessing = false
-    }
-
-    private func downloadAndPlayVoice(audioURL: String) async {
-        do {
-            let audioData = try await apiService.downloadVoiceAudio(from: audioURL)
-
-            // Detect file extension from URL (backend returns .mp3 from ElevenLabs)
-            let ext = URL(string: audioURL)?.pathExtension ?? "mp3"
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("coach_voice.\(ext.isEmpty ? "mp3" : ext)")
-            try audioData.write(to: tempURL)
-
-            // Play audio and wait for completion
-            await playAudio(from: tempURL)
-
-        } catch {
-            print("Failed to download/play voice: \(error.localizedDescription)")
-            // Don't show error to user - just log it
-        }
     }
 
     private func playAudio(from url: URL) async {
@@ -2274,9 +2112,6 @@ class WorkoutViewModel: ObservableObject {
                 paired: self.phoneWCManager.isPaired,
                 installed: self.phoneWCManager.isWatchAppInstalled
             )
-            print(
-                "WATCH_CAPABILITY state=\(capabilityState.rawValue) paired=\(self.phoneWCManager.isPaired) installed=\(self.phoneWCManager.isWatchAppInstalled) reachable=\(self.phoneWCManager.isReachable)"
-            )
         }
         phoneWCManager.onHeartRate = { [weak self] bpm, ts in
             self?.handleWCHRUpdate(bpm: bpm, timestamp: ts)
@@ -2290,6 +2125,7 @@ class WorkoutViewModel: ObservableObject {
         phoneWCManager.onWorkoutStopped = { [weak self] ts, requestID in
             self?.handleWatchWorkoutStopped(timestamp: ts, requestID: requestID)
         }
+        phoneWCManager.activate()
     }
 
     private var requestedWatchWorkoutType: String {
@@ -2554,6 +2390,7 @@ class WorkoutViewModel: ObservableObject {
 
     private func startContinuousWorkoutInternal() {
         guard !isContinuousMode else { return }
+        resetGuestBackendSuppression()
         clearWatchStartPendingState()
         watchStartStatusLine = nil
         workoutState = .active
@@ -2585,8 +2422,10 @@ class WorkoutViewModel: ObservableObject {
             lastWCHRSampleAt = nil
             lastBLEHRSampleAt = nil
             lastHKSampleAt = nil
+            coachingTickCount = 0
             sessionStartTime = Date()
             workoutDuration = 0
+            continuousSessionGeneration = UUID()
 
             // Generate unique session ID
             sessionId = "session_\(UUID().uuidString)"
@@ -2660,7 +2499,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func syncProfileSnapshotToBackend(reason: String) async {
-        guard hasValidAuthToken() else { return }
+        guard authManager.hasUsableSession() else { return }
 
         let defaults = UserDefaults.standard
         let payload = BackendUserProfilePayload(
@@ -2679,6 +2518,51 @@ class WorkoutViewModel: ObservableObject {
             print("📤 Profile upsert reason=\(reason)")
         } catch {
             print("⚠️ Profile upsert failed reason=\(reason) error=\(error.localizedDescription)")
+        }
+    }
+
+    private func shouldSuppressProtectedBackendRequests() -> Bool {
+        if authManager.hasUsableSession() {
+            guestBackendSuppressed = false
+            return false
+        }
+        return guestBackendSuppressed
+    }
+
+    private func suppressProtectedBackendRequestsForGuest() {
+        guard !AppConfig.Auth.requireSignInForWorkoutStart else { return }
+        guestBackendSuppressed = true
+        coachingStatusLine = currentLanguage == "no"
+            ? "Backend krever innlogging nå. Fortsetter lokalt."
+            : "Backend currently requires sign-in. Continuing locally."
+        print("⚠️ GUEST_BACKEND_SUPPRESSED active=true")
+    }
+
+    private func resetGuestBackendSuppression() {
+        guestBackendSuppressed = false
+    }
+
+    private func localGuestModeTalkFallback() -> String {
+        currentLanguage == "no"
+            ? "Coach kjører lokalt uten backend akkurat nå. Fortsett kontrollert."
+            : "Coach is running locally without backend right now. Keep it controlled."
+    }
+
+    private func persistCompletedWorkoutIfNeeded(durationSeconds: Int, intensity: String) {
+        guard authManager.hasUsableSession() else { return }
+        Task {
+            do {
+                try await apiService.saveWorkout(
+                    durationSeconds: durationSeconds,
+                    phase: currentPhase.rawValue,
+                    intensity: intensity,
+                    persona: activePersonality.rawValue,
+                    language: currentLanguage
+                )
+                print("📤 WORKOUT_SAVED duration=\(durationSeconds)s phase=\(currentPhase.rawValue)")
+            } catch {
+                print("⚠️ WORKOUT_SAVE_FAILED error=\(error.localizedDescription)")
+            }
         }
     }
 
@@ -2825,29 +2709,21 @@ class WorkoutViewModel: ObservableObject {
         lastWCHRSampleAt = nil
         lastBLEHRSampleAt = nil
         lastHKSampleAt = nil
+        coachingTickCount = 0
+        continuousSessionGeneration = nil
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
+        resetGuestBackendSuppression()
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
+        let finalIntensity = breathAnalysis?.intensity ?? "moderate"
         if let startTime = sessionStartTime {
             workoutDuration = Date().timeIntervalSince(startTime)
             print("📊 Workout completed: \(Int(workoutDuration)) seconds")
             finalDurationSeconds = Int(workoutDuration)
 
-            // Save workout record for dashboard history
-            let record = WorkoutRecord(
-                durationSeconds: Int(workoutDuration),
-                phase: currentPhase,
-                intensity: breathAnalysis?.intensity ?? "moderate"
-            )
-            workoutHistory.insert(record, at: 0)
-
-            // Update user stats
-            userStats.totalWorkouts += 1
-            userStats.totalMinutes += Int(workoutDuration / 60)
-            userStats.workoutsThisWeek += 1
         }
 
         if coachScoreLine.isEmpty {
@@ -2855,6 +2731,7 @@ class WorkoutViewModel: ObservableObject {
         }
 
         if let duration = finalDurationSeconds {
+            persistCompletedWorkoutIfNeeded(durationSeconds: duration, intensity: finalIntensity)
             applyExperienceProgression(durationSeconds: duration, finalCoachScore: coachScore)
         }
         if hasAuthoritativeCoachScore {
@@ -2864,11 +2741,32 @@ class WorkoutViewModel: ObservableObject {
         }
 
         elapsedTime = 0
+        workoutDuration = 0
+        sessionStartTime = nil
+        currentPhase = configuredWarmupDuration > 0 ? .warmup : .intense
         print("✅ Continuous workout stopped")
+    }
+
+    private func isCurrentCoachingSession(sessionID: String, generation: UUID?) -> Bool {
+        guard let generation else { return false }
+        return isContinuousMode && continuousSessionGeneration == generation && sessionId == sessionID
+    }
+
+    private func isStaleCoachingResponse(
+        requestElapsedSeconds: Int,
+        responseTimeSeconds: TimeInterval,
+        serverWaitSeconds: Double
+    ) -> Bool {
+        let currentElapsedSeconds = Int(workoutDuration)
+        let elapsedDrift = max(0, currentElapsedSeconds - requestElapsedSeconds)
+        let allowedDrift = max(8, Int(ceil(serverWaitSeconds)) + 4)
+        return elapsedDrift > allowedDrift || responseTimeSeconds > Double(allowedDrift)
     }
 
     private func coachingLoopTick() {
         guard isContinuousMode else { return }
+        guard let tickSessionID = sessionId else { return }
+        let tickSessionGeneration = continuousSessionGeneration
 
         // Update workout duration
         if let startTime = sessionStartTime {
@@ -2878,7 +2776,10 @@ class WorkoutViewModel: ObservableObject {
         // Auto-detect phase based on elapsed time
         autoDetectPhase()
 
-        print("🔄 Coaching tick #\(AudioPipelineDiagnostics.shared.breathAnalysisCount + 1) at \(Int(workoutDuration))s | phase: \(currentPhase.rawValue) | interval: \(Int(coachingInterval))s")
+        coachingTickCount += 1
+        let tickNumber = coachingTickCount
+        let tickElapsedSeconds = Int(workoutDuration)
+        print("🔄 Coaching tick #\(tickNumber) at \(tickElapsedSeconds)s | phase: \(currentPhase.rawValue) | interval: \(Int(coachingInterval))s")
 
         // 1. Get latest chunk WITHOUT stopping recording
         guard let audioChunk = continuousRecordingManager.getLatestChunk(
@@ -2911,6 +2812,18 @@ class WorkoutViewModel: ObservableObject {
         // Chunk extraction recovered.
         consecutiveChunkFailures = 0
 
+        // Architecture boundary: the backend's zone_event_motor remains the
+        // deterministic owner of workout event timing and selection. The iOS
+        // client only transports state and renders the chosen output.
+        if shouldSuppressProtectedBackendRequests() {
+            coachingStatusLine = currentLanguage == "no"
+                ? "Backend krever innlogging nå. Fortsetter lokalt."
+                : "Backend currently requires sign-in. Continuing locally."
+            print("⚠️ COACHING_BACKEND_SUPPRESSED session=\(sessionId ?? "unknown")")
+            scheduleNextTick()
+            return
+        }
+
         // 2. Send to backend (background task)
         Task {
             let tickStart = Date()
@@ -2932,10 +2845,10 @@ class WorkoutViewModel: ObservableObject {
                 let sessionPlan = effectiveSessionPlan
                 let response = try await apiService.getContinuousCoachFeedback(
                     audioChunk,
-                    sessionId: sessionId ?? "",
+                    sessionId: tickSessionID,
                     phase: currentPhase,
                     lastCoaching: coachMessage ?? "",
-                    elapsedSeconds: Int(workoutDuration),
+                    elapsedSeconds: tickElapsedSeconds,
                     language: currentLanguage,
                     trainingLevel: currentTrainingLevel,
                     persona: activePersonality.rawValue,
@@ -2967,7 +2880,21 @@ class WorkoutViewModel: ObservableObject {
                     micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted
                 )
 
+                guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
+                    print("⚠️ STALE_COACHING_RESPONSE_DROPPED session=\(tickSessionID)")
+                    return
+                }
+
                 let responseTime = Date().timeIntervalSince(tickStart)
+                if self.isStaleCoachingResponse(
+                    requestElapsedSeconds: tickElapsedSeconds,
+                    responseTimeSeconds: responseTime,
+                    serverWaitSeconds: response.waitSeconds
+                ) {
+                    print("⚠️ STALE_COACHING_RESPONSE_IGNORED session=\(tickSessionID) request_elapsed=\(tickElapsedSeconds)s current_elapsed=\(Int(self.workoutDuration))s response_s=\(String(format: "%.1f", responseTime))")
+                    scheduleNextTick()
+                    return
+                }
                 consecutiveBackendFailures = 0
                 coachingStatusLine = nil
 
@@ -3076,6 +3003,9 @@ class WorkoutViewModel: ObservableObject {
                 print("⏱️ Next tick in: \(Int(coachingInterval))s")
 
             } catch {
+                if !self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) {
+                    return
+                }
                 // Network/decode error: skip this cycle, continue next
                 print("❌ Coaching cycle failed: \(error)")
                 if handleAuthFailureIfNeeded(error) {
@@ -3108,22 +3038,11 @@ class WorkoutViewModel: ObservableObject {
             }
 
             // Always schedule next tick (loop continues)
+            guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
+                return
+            }
             scheduleNextTick()
         }
-    }
-
-    private func hasValidAuthToken() -> Bool {
-        if let accessToken = KeychainHelper.readString(key: KeychainHelper.accessTokenKey)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !accessToken.isEmpty {
-            return true
-        }
-        guard let token = KeychainHelper.readString(key: KeychainHelper.tokenKey)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !token.isEmpty else {
-            return false
-        }
-        return true
     }
 
     private func isAuthFailure(_ error: Error) -> Bool {
@@ -3174,10 +3093,8 @@ class WorkoutViewModel: ObservableObject {
         guard isAuthFailure(error) else { return false }
 
         // Pre-launch guest mode: keep workout running locally even if backend currently enforces auth.
-        if !AppConfig.Auth.requireSignInForWorkoutStart, !hasValidAuthToken() {
-            coachingStatusLine = currentLanguage == "no"
-                ? "Backend krever innlogging nå. Fortsetter lokalt."
-                : "Backend currently requires sign-in. Continuing locally."
+        if !AppConfig.Auth.requireSignInForWorkoutStart, !authManager.hasUsableSession() {
+            suppressProtectedBackendRequestsForGuest()
             print("⚠️ Ignoring auth failure in guest mode; continuing local workout")
             return false
         }
@@ -3388,14 +3305,28 @@ class WorkoutViewModel: ObservableObject {
             "zone.in_zone.default.1",
             "zone.above.default.1",
             "zone.below.default.1",
-            "zone.feel.easy_run.1",
-            "zone.breath.easy_run.1",
+            "zone.silence.default.1",
+            "zone.silence.work.1",
+            "zone.silence.rest.1",
             "zone.hr_poor_enter.1",
             "zone.hr_poor_exit.1",
+            "zone.hr_poor_timing.1",
             "zone.watch_disconnected.1",
             "zone.watch_restored.1",
             "zone.no_sensors.1",
+            "zone.structure.work.1",
+            "zone.structure.recovery.1",
+            "zone.structure.finish.1",
         ]
+        for idx in 1 ... 6 {
+            ids.append("zone.structure.steady.\(idx)")
+        }
+        for workoutPrefix in ["interval", "easy_run"] {
+            for stage in 1 ... 4 {
+                ids.append("\(workoutPrefix).motivate.s\(stage).1")
+                ids.append("\(workoutPrefix).motivate.s\(stage).2")
+            }
+        }
         for idx in 1 ... 5 {
             ids.append("welcome.standard.\(idx)")
         }
@@ -3493,18 +3424,6 @@ class WorkoutViewModel: ObservableObject {
                     return true
                 }
 
-                if let bundledURL = bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
-                    print("🔊 Resolving audio source: bundled_core utterance=\(utteranceID) event=\(resolvedEventType)")
-                    await playAudio(from: bundledURL)
-                    logSpeechTranscript(
-                        utteranceID: utteranceID,
-                        eventType: resolvedEventType,
-                        source: "bundled_core",
-                        text: transcriptText
-                    )
-                    return true
-                }
-
                 if allowRemotePackFetch {
                     if let downloadedURL = await downloadAudioPackFileIfNeeded(
                         for: utteranceID,
@@ -3521,6 +3440,18 @@ class WorkoutViewModel: ObservableObject {
                         )
                         return true
                     }
+                }
+
+                if let bundledURL = bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
+                    print("🔊 Resolving audio source: bundled_core utterance=\(utteranceID) event=\(resolvedEventType)")
+                    await playAudio(from: bundledURL)
+                    logSpeechTranscript(
+                        utteranceID: utteranceID,
+                        eventType: resolvedEventType,
+                        source: "bundled_core",
+                        text: transcriptText
+                    )
+                    return true
                 }
             } else {
                 print("🔇 PACK_SUPPRESSED persona=personal_trainer utterance=\(utteranceID)")
