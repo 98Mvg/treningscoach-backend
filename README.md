@@ -29,9 +29,6 @@ python3 scripts/generate_codebase_guide.py
 pytest -q tests_phaseb/test_codebase_guide_sync.py
 ```
 
-- CI also enforces guide drift on GitHub Actions via:
-  [.github/workflows/codebase-guide-sync.yml](/Users/mariusgaarder/Documents/treningscoach/.github/workflows/codebase-guide-sync.yml)
-
 ## 📁 Project Structure
 
 ```
