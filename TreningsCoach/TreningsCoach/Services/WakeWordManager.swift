@@ -38,7 +38,8 @@ class WakeWordManager: ObservableObject {
     ]
 
     /// Retrigger cooldown to avoid duplicate wake detections.
-    private let wakeCooldownSeconds: TimeInterval = 10.0
+    /// Keep this short so the user can retry quickly if talk fails.
+    private let wakeCooldownSeconds: TimeInterval = 2.0
 
     // MARK: - Private Properties
 
@@ -321,6 +322,7 @@ class WakeWordManager: ObservableObject {
         isButtonCaptureSession = false
         wakeWordDetected = false
         isDegradedMode = false
+        lastWakeDetectionAt = nil
         restartAttemptCount = 0
         restartWindowStart = .distantPast
         pendingRestartTask?.cancel()
@@ -331,6 +333,12 @@ class WakeWordManager: ObservableObject {
         AudioPipelineDiagnostics.shared.isWakeWordListening = false
         AudioPipelineDiagnostics.shared.wakeWordDetected = false
         print("🔇 Wake word listening stopped")
+    }
+
+    /// Clear wake retrigger cooldown after talk ends so the user can retry
+    /// immediately instead of waiting for the previous wake window to expire.
+    func resetWakeCooldown() {
+        lastWakeDetectionAt = nil
     }
 
     // MARK: - Private Methods

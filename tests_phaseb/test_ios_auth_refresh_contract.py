@@ -31,12 +31,16 @@ def test_auth_response_supports_refresh_token_bundle_fields() -> None:
 
 def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     text = AUTH_MANAGER.read_text(encoding="utf-8")
+    assert "static let shared = AuthManager()" in text
+    assert "func hasUsableSession() -> Bool {" in text
+    assert "func currentRefreshToken() -> String? {" in text
     assert "private func saveTokenBundle(_ response: AuthResponse)" in text
     assert "private func clearStoredTokens()" in text
     assert "KeychainHelper.save(key: KeychainHelper.accessTokenKey" in text
     assert "KeychainHelper.save(key: KeychainHelper.refreshTokenKey" in text
     assert "KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)" in text
     assert "let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()" in text
+    assert "await BackendAPIService.shared.logout(refreshToken: refreshToken)" in text
 
 
 def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
@@ -52,9 +56,17 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     view_text = AUTH_VIEW.read_text(encoding="utf-8")
     assert "static var googleSignInEnabled: Bool" in config_text
-    assert "if AppConfig.Auth.googleSignInEnabled {" in view_text
-    assert '"\\(L10n.registerWithGoogle) (\\(L10n.comingSoon))"' in view_text
-    assert ".disabled(!isEnabled)" in view_text
+    assert "false" in config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
+    assert "if AppConfig.Auth.googleSignInEnabled {" not in view_text
+    assert "Text(L10n.continueWithoutAccount)" in view_text
+    assert "Text(L10n.signInLaterHint)" in view_text
+    assert "authBenefitRow(icon: \"chart.line.uptrend.xyaxis\", text: L10n.authBenefitSaveHistory)" in view_text
+    assert "authBenefitRow(icon: \"person.crop.circle.badge.checkmark\", text: L10n.authBenefitSyncProfile)" in view_text
+    assert "authBenefitRow(icon: \"figure.run\", text: L10n.authBenefitStartWithoutAccount)" in view_text
+    assert "emailAddress" not in view_text
+    assert "passwordLabel" not in view_text
+    assert "repeatPasswordLabel" not in view_text
+    assert ".disabled(!isEnabled)" not in view_text
 
 
 def test_workout_view_model_surfaces_backend_backoff_status_line() -> None:
@@ -63,5 +75,5 @@ def test_workout_view_model_surfaces_backend_backoff_status_line() -> None:
     assert "@Published var coachingStatusLine: String?" in view_model_text
     assert "private func applyCoachingFailureBackoff()" in view_model_text
     assert "private func isRetriableCoachingError(_ error: Error) -> Bool" in view_model_text
-    assert "KeychainHelper.accessTokenKey" in view_model_text
+    assert "authManager.hasUsableSession()" in view_model_text
     assert "if let statusLine = viewModel.coachingStatusLine {" in active_view_text

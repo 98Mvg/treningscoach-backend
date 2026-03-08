@@ -4179,6 +4179,44 @@ def coach_talk():
             conversation_history = _recent_talk_messages(talk_session_id, limit=6)
             recent_zone_events = _recent_zone_event_context(talk_session_id, limit=3)
 
+        if context == "workout" and stt_source == "stt_error":
+            coach_text = enforce_language_consistency(
+                workout_talk_fallback(language, workout_context),
+                language,
+                phase=phase,
+            )
+            voice_file = generate_voice(
+                coach_text,
+                language=language,
+                persona=persona,
+                emotional_mode=_infer_emotional_mode(intensity),
+            )
+            relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
+            audio_url = f"/download/{relative_path}"
+            latency_ms = int(round((time.perf_counter() - started_at) * 1000))
+            logger.info(
+                "Coach talk fast fallback trigger=%s context=%s persona=%s user=%s provider=config reason=stt_error latency_ms=%s",
+                trigger_source,
+                context,
+                persona,
+                user_name or "anon",
+                latency_ms,
+            )
+            _record_talk_session_message(talk_session_id, "assistant", coach_text)
+            return jsonify({
+                "contract_version": contract_version,
+                "text": coach_text,
+                "audio_url": audio_url,
+                "personality": persona,
+                "trigger_source": trigger_source,
+                "provider": "config",
+                "mode": "workout_talk",
+                "latency_ms": latency_ms,
+                "fallback_used": True,
+                "stt_source": stt_source,
+                "policy_blocked": False,
+            })
+
         talk_policy = brain_router.evaluate_talk_policy(
             user_message,
             language,
@@ -4293,8 +4331,21 @@ def coach_talk():
             )
 
         route_meta = brain_router.get_last_route_meta()
+        route_provider = str(route_meta.get("provider") or "config").strip().lower()
         route_status = str(route_meta.get("status") or "").strip().lower()
         if route_status and route_status != "success":
+            fallback_used = True
+
+        workout_fallback_statuses = {
+            "all_question_brains_failed_or_skipped",
+            "empty_question_fallback",
+        }
+        if context == "workout" and (
+            route_status in workout_fallback_statuses
+            or route_provider not in {"grok", "policy"}
+            or (route_provider == "config" and route_status and not route_status.startswith("policy_"))
+        ):
+            coach_text = workout_talk_fallback(language, workout_context)
             fallback_used = True
 
         if not coach_text or not str(coach_text).strip():
@@ -4327,7 +4378,7 @@ def coach_talk():
         relative_path = os.path.relpath(voice_file, OUTPUT_FOLDER)
         audio_url = f"/download/{relative_path}"
         latency_ms = int(round((time.perf_counter() - started_at) * 1000))
-        provider = str(route_meta.get("provider") or "config")
+        provider = route_provider or "config"
         mode = "workout_talk" if context == "workout" else "chat_talk"
 
         logger.info(

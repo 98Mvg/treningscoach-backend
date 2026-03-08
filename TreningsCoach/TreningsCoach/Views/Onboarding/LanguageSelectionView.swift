@@ -46,6 +46,13 @@ struct LanguageSelectionView: View {
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 20)
 
+                    Text(L10n.current == .no ? "Du kan endre dette senere i profilen." : "You can change this later in Profile.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 18)
+                        .opacity(appeared ? 1 : 0)
+
                     Spacer(minLength: max(20, geo.size.height * 0.12))
                 }
                 .frame(minHeight: geo.size.height)

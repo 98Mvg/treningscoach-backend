@@ -12,7 +12,6 @@
 		AA0003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002 /* ContentView.swift */; };
 		AA0005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0004 /* Assets.xcassets */; };
 		AA0010 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0009 /* Models.swift */; };
-		AA0012 /* AudioRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011 /* AudioRecordingManager.swift */; };
 		AA0014 /* BackendAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0013 /* BackendAPIService.swift */; };
 		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
 		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
@@ -43,7 +42,6 @@
 		AA2013 /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2012 /* OnboardingContainerView.swift */; };
 		AA2015 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2014 /* AuthView.swift */; };
 		AA2017 /* LanguageSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2016 /* LanguageSelectionView.swift */; };
-		AA2019 /* TrainingLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2018 /* TrainingLevelView.swift */; };
 		AA2021 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2020 /* L10n.swift */; };
 		AA3001 /* AudioPipelineDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3000 /* AudioPipelineDiagnostics.swift */; };
 		AA3003 /* AudioDiagnosticOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3002 /* AudioDiagnosticOverlayView.swift */; };
@@ -51,7 +49,6 @@
 		AA5001 /* CoreAudioPack in Resources */ = {isa = PBXBuildFile; fileRef = AA5000 /* CoreAudioPack */; };
 		BB0001 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000 /* AppViewModel.swift */; };
 		BB0003 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0002 /* HomeViewModel.swift */; };
-		BB0005 /* ProfileViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0004 /* ProfileViewModel.swift */; };
 		BB0011 /* CoachOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0010 /* CoachOrbView.swift */; };
 		BB0013 /* CoachiLogoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0012 /* CoachiLogoView.swift */; };
 		BB0015 /* CustomTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0014 /* CustomTabBar.swift */; };
@@ -63,8 +60,6 @@
 		BB0027 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0026 /* WaveformView.swift */; };
 		BB0029 /* WeeklyProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0028 /* WeeklyProgressRing.swift */; };
 		BB0031 /* FeaturesPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0030 /* FeaturesPageView.swift */; };
-		BB0033 /* SetupPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0032 /* SetupPageView.swift */; };
-		BB0035 /* WelcomePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0034 /* WelcomePageView.swift */; };
 		BB0037 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0036 /* RootView.swift */; };
 		BB0039 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0038 /* SettingsView.swift */; };
 		BB0041 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0040 /* ActiveWorkoutView.swift */; };
@@ -79,7 +74,6 @@
 		AA0002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		AA0011 /* AudioRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingManager.swift; sourceTree = "<group>"; };
 		AA0013 /* BackendAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIService.swift; sourceTree = "<group>"; };
 		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
 		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
@@ -113,7 +107,6 @@
 		AA2012 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
 		AA2014 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		AA2016 /* LanguageSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageSelectionView.swift; sourceTree = "<group>"; };
-		AA2018 /* TrainingLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingLevelView.swift; sourceTree = "<group>"; };
 		AA2020 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		AA3000 /* AudioPipelineDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPipelineDiagnostics.swift; sourceTree = "<group>"; };
 		AA3002 /* AudioDiagnosticOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDiagnosticOverlayView.swift; sourceTree = "<group>"; };
@@ -123,7 +116,6 @@
 		AAINFO /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BB0000 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
 		BB0002 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
-		BB0004 /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		BB0010 /* CoachOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachOrbView.swift; sourceTree = "<group>"; };
 		BB0012 /* CoachiLogoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachiLogoView.swift; sourceTree = "<group>"; };
 		BB0014 /* CustomTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomTabBar.swift; sourceTree = "<group>"; };
@@ -135,8 +127,6 @@
 		BB0026 /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		BB0028 /* WeeklyProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressRing.swift; sourceTree = "<group>"; };
 		BB0030 /* FeaturesPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturesPageView.swift; sourceTree = "<group>"; };
-		BB0032 /* SetupPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupPageView.swift; sourceTree = "<group>"; };
-		BB0034 /* WelcomePageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomePageView.swift; sourceTree = "<group>"; };
 		BB0036 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BB0038 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		BB0040 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutView.swift; sourceTree = "<group>"; };
@@ -206,10 +196,7 @@
 				AA2012 /* OnboardingContainerView.swift */,
 				AA2014 /* AuthView.swift */,
 				AA2016 /* LanguageSelectionView.swift */,
-				AA2018 /* TrainingLevelView.swift */,
 				BB0030 /* FeaturesPageView.swift */,
-				BB0032 /* SetupPageView.swift */,
-				BB0034 /* WelcomePageView.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -244,7 +231,6 @@
 		AASERVICES /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				AA0011 /* AudioRecordingManager.swift */,
 				AA0013 /* BackendAPIService.swift */,
 				CC1000 /* PhoneWCManager.swift */,
 				AA0021 /* ContinuousRecordingManager.swift */,
@@ -331,7 +317,6 @@
 				AA0015 /* WorkoutViewModel.swift */,
 				BB0000 /* AppViewModel.swift */,
 				BB0002 /* HomeViewModel.swift */,
-				BB0004 /* ProfileViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -466,7 +451,6 @@
 				AA0003 /* ContentView.swift in Sources */,
 				AA0001 /* TreningsCoachApp.swift in Sources */,
 				AA0010 /* Models.swift in Sources */,
-				AA0012 /* AudioRecordingManager.swift in Sources */,
 				AA0014 /* BackendAPIService.swift in Sources */,
 				CC1001 /* PhoneWCManager.swift in Sources */,
 				CC1003 /* WCKeys.swift in Sources */,
@@ -491,14 +475,12 @@
 				AA2013 /* OnboardingContainerView.swift in Sources */,
 				AA2015 /* AuthView.swift in Sources */,
 				AA2017 /* LanguageSelectionView.swift in Sources */,
-				AA2019 /* TrainingLevelView.swift in Sources */,
 				AA2021 /* L10n.swift in Sources */,
 				AA3001 /* AudioPipelineDiagnostics.swift in Sources */,
 				AA3003 /* AudioDiagnosticOverlayView.swift in Sources */,
 				AA4001 /* LanguageSettingsView.swift in Sources */,
 				BB0001 /* AppViewModel.swift in Sources */,
 				BB0003 /* HomeViewModel.swift in Sources */,
-				BB0005 /* ProfileViewModel.swift in Sources */,
 				BB0011 /* CoachOrbView.swift in Sources */,
 				955D713B2F544FE0001A88FA /* AudioPackSyncManager.swift in Sources */,
 				BB0013 /* CoachiLogoView.swift in Sources */,
@@ -511,8 +493,6 @@
 				BB0027 /* WaveformView.swift in Sources */,
 				BB0029 /* WeeklyProgressRing.swift in Sources */,
 				BB0031 /* FeaturesPageView.swift in Sources */,
-				BB0033 /* SetupPageView.swift in Sources */,
-				BB0035 /* WelcomePageView.swift in Sources */,
 				BB0037 /* RootView.swift in Sources */,
 				BB0039 /* SettingsView.swift in Sources */,
 				BB0041 /* ActiveWorkoutView.swift in Sources */,
@@ -675,7 +655,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TreningsCoach/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Treningscoach;
+				INFOPLIST_KEY_CFBundleDisplayName = Coachi;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth access is used to connect to live heart-rate sensors during workouts.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Health access is used to read heart rate and resting heart rate so coaching can keep you in the right training zone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record your breathing during workouts and provide real-time coaching feedback.";
@@ -715,7 +695,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TreningsCoach/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Treningscoach;
+				INFOPLIST_KEY_CFBundleDisplayName = Coachi;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth access is used to connect to live heart-rate sensors during workouts.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Health access is used to read heart rate and resting heart rate so coaching can keep you in the right training zone.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone to record your breathing during workouts and provide real-time coaching feedback.";

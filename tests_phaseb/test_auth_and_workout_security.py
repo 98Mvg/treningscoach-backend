@@ -7,6 +7,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import auth
+import auth_routes
 import main
 from auth_routes import find_or_create_user
 from database import WorkoutHistory, User, UserSettings, db
@@ -74,6 +75,51 @@ def test_find_or_create_user_creates_settings_for_real_user_id():
         assert settings.user_id == user.id
 
         db.session.delete(settings)
+        db.session.delete(user)
+        db.session.commit()
+
+
+def test_find_or_create_user_sends_welcome_email_only_for_new_user(monkeypatch):
+    calls = []
+    provider_id = f"provider-{uuid.uuid4().hex[:12]}"
+    provider_info = {
+        "provider_id": provider_id,
+        "email": f"new-user-{uuid.uuid4().hex[:10]}@example.com",
+        "display_name": "Test User",
+        "avatar_url": "https://example.com/avatar.png",
+    }
+
+    def _fake_send_account_welcome_email(email, *, display_name="", language="en", provider="apple", logger=None):
+        calls.append(
+            {
+                "email": email,
+                "display_name": display_name,
+                "language": language,
+                "provider": provider,
+            }
+        )
+        return True
+
+    monkeypatch.setattr(auth_routes, "send_account_welcome_email", _fake_send_account_welcome_email)
+
+    with main.app.app_context():
+        user = find_or_create_user("google", provider_info)
+        assert calls == [
+            {
+                "email": user.email,
+                "display_name": "Test User",
+                "language": "en",
+                "provider": "google",
+            }
+        ]
+
+        same_user = find_or_create_user("google", provider_info)
+        assert same_user.id == user.id
+        assert len(calls) == 1
+
+        settings = UserSettings.query.filter_by(user_id=user.id).first()
+        if settings is not None:
+            db.session.delete(settings)
         db.session.delete(user)
         db.session.commit()
 

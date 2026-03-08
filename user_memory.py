@@ -177,29 +177,6 @@ class UserMemory:
 
         return " ".join(parts)
 
-    def detect_coaching_preference(
-        self,
-        session_id: str,
-        coaching_history: list
-    ) -> Optional[str]:
-        """
-        STEP 5: Detect user's preferred coaching style from their responses.
-
-        Looks for patterns like:
-        - User responds better to calm coaching (fewer kritisk events)
-        - User needs assertive coaching (rolig during intense phase)
-
-        Args:
-            session_id: Session identifier
-            coaching_history: Recent coaching messages
-
-        Returns:
-            "calm" | "assertive" | "balanced" | None (if unclear)
-        """
-        # This is a placeholder for future ML/pattern detection
-        # For now, return None (use balanced)
-        return None
-
     def mark_safety_event(self, user_id: str):
         """
         STEP 5: Mark that a critical breathing event occurred.

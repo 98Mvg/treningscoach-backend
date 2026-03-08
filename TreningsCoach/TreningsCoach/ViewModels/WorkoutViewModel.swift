@@ -556,8 +556,8 @@ class WorkoutViewModel: ObservableObject {
             return nil
         }
         return currentLanguage == "no"
-            ? "Åpne TreningsCoach på Apple Watch for live puls."
-            : "Open TreningsCoach on Apple Watch for live HR."
+            ? "Åpne Coachi på Apple Watch for live puls."
+            : "Open Coachi on Apple Watch for live HR."
     }
 
     var isCoachTalkActive: Bool {
@@ -1161,7 +1161,7 @@ class WorkoutViewModel: ObservableObject {
     private var lastResolvedEventType: String?
     private let maxSpeechTranscriptEntries = 120
     private var talkCaptureTask: Task<Void, Never>?
-    private let workoutTalkCaptureSeconds: TimeInterval = 6.0
+    private let workoutTalkCaptureSeconds: TimeInterval = 4.0
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -1287,6 +1287,7 @@ class WorkoutViewModel: ObservableObject {
         guard !isTalkingToCoach else { return }
 
         talkCaptureTask?.cancel()
+        wakeWordManager.stopListening()
         isTalkingToCoach = true
         isWakeWordActive = true
         coachInteractionState = .commandMode
@@ -1411,6 +1412,8 @@ class WorkoutViewModel: ObservableObject {
         isWakeWordActive = false
         coachInteractionState = .passiveListening
         voiceState = isContinuousMode && !isPaused ? .listening : .idle
+        wakeWordManager.resetWakeCooldown()
+        startWakeWordListeningIfNeeded()
         // Drop stale event scheduler state once talk flow ends.
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
@@ -1467,6 +1470,16 @@ class WorkoutViewModel: ObservableObject {
             allowRemotePackFetch: false,
             allowBackendTTSFallback: false
         )
+    }
+
+    private func startWakeWordListeningIfNeeded() {
+        guard isContinuousMode, !isPaused, !isTalkingToCoach else { return }
+        wakeWordManager.updateLanguage()
+        wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
+            Task { @MainActor in
+                self?.handleWakeWordUtterance(utterance)
+            }
+        }
     }
 
     // MARK: - Phase Auto-Detection
@@ -2459,12 +2472,7 @@ class WorkoutViewModel: ObservableObject {
             }
 
             // Start wake word listening
-            wakeWordManager.updateLanguage()
-            wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
-                Task { @MainActor in
-                    self?.handleWakeWordUtterance(utterance)
-                }
-            }
+            startWakeWordListeningIfNeeded()
 
             // Force manifest sync on every workout start so welcome/event playback
             // resolves against the latest cached local pack when available.
@@ -2621,11 +2629,7 @@ class WorkoutViewModel: ObservableObject {
         talkCaptureTask = nil
 
         // Resume wake word listening
-        wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
-            Task { @MainActor in
-                self?.handleWakeWordUtterance(utterance)
-            }
-        }
+        startWakeWordListeningIfNeeded()
 
         // Restart elapsed time timer
         elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -3149,12 +3153,7 @@ class WorkoutViewModel: ObservableObject {
                 self?.wakeWordManager.feedAudioBuffer(buffer)
             }
 
-            wakeWordManager.updateLanguage()
-            wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
-                Task { @MainActor in
-                    self?.handleWakeWordUtterance(utterance)
-                }
-            }
+            startWakeWordListeningIfNeeded()
 
             consecutiveChunkFailures = 0
             print("✅ Audio pipeline recovered")

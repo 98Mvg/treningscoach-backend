@@ -119,7 +119,7 @@ ACTIVE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("context", "zone.hr_poor_timing.1", "context", "zone.hr_poor_timing", "no_hr_mode_notice", "NO_HR", "No heart rate signal. I will continue coaching", "Ingen pulssignal. Jeg fortsetter å coache", "active", "primary no-HR mode switch"),
     ReviewSeed("progress", "zone.countdown.30", "progress", "zone.countdown", "countdown_30", "BOTH", "30 seconds left.", "30 sekunder.", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.15", "progress", "zone.countdown", "countdown_15", "BOTH", "15!", "15!", "active", "shared countdown cue"),
-    ReviewSeed("progress", "zone.countdown.5", "progress", "zone.countdown", "countdown_5", "BOTH", "5!", "5!", "active", "shared countdown cue"),
+    ReviewSeed("progress", "zone.countdown.5", "progress", "zone.countdown", "countdown_5", "BOTH", "5!", "fem", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.start", "progress", "zone.countdown", "countdown_start", "BOTH", "Go!", "Kjør på nå.", "active", "shared countdown start cue"),
     ReviewSeed("progress", "zone.workout_finished.1", "progress", "zone.workout_finished", "workout_finish", "BOTH", "Workout finished. Nice work.", "Økten er ferdig. Bra jobbet.", "active", "shared workout closure"),
     ReviewSeed("motivation", "interval.motivate.s1.1", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Control your breath.", "Kontroller pusten.", "active", "active interval motivation"),

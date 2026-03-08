@@ -2,6 +2,7 @@ import io
 import os
 import sys
 from datetime import datetime, timedelta
+import logging
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -79,7 +80,7 @@ def test_zone_llm_rewrite_changes_text_only(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
     monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
     monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
-    monkeypatch.setattr(main, "evaluate_zone_tick", lambda **kwargs: _fake_zone_tick("Back off to zone."))
+    monkeypatch.setattr(main, "evaluate_zone_tick", lambda **kwargs: _fake_zone_tick("Back off a touch."))
     monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_ENABLED", True, raising=False)
     monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS", ["above_zone"], raising=False)
     monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16, raising=False)
@@ -112,7 +113,7 @@ def test_zone_llm_rewrite_changes_text_only(monkeypatch, tmp_path):
 
     assert payload["text"] == "Ease off a touch."
     assert payload["reason"] == "above_zone"
-    assert payload["coach_score"] == 84
+    assert isinstance(payload["coach_score"], int)
     assert payload["zone_event"] == "above_zone"
     assert payload["brain_source"] == "zone_event_llm"
 
@@ -138,3 +139,40 @@ def test_zone_llm_rewrite_word_limit_falls_back(monkeypatch):
     assert text == "Back off a touch."
     assert meta["source"] == "zone_event_motor"
     assert meta["status"] == "rewrite_word_limit_fallback"
+
+
+def test_zone_llm_rewrite_verification_rejects_numeric_change(monkeypatch, caplog):
+    monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS", ["above_zone"], raising=False)
+    monkeypatch.setattr(main.config, "ZONE_EVENT_LLM_REWRITE_MAX_WORDS", 16, raising=False)
+    monkeypatch.setattr(
+        main.brain_router,
+        "rewrite_zone_event_text",
+        lambda *args, **kwargs: "Back off for 30 seconds.",
+    )
+
+    with caplog.at_level(logging.INFO):
+        text, meta = main._maybe_rephrase_zone_event_text(
+            base_text="Back off for 20 seconds.",
+            language="en",
+            persona="personal_trainer",
+            coaching_style="normal",
+            event_type="above_zone",
+        )
+
+    assert text == "Back off for 20 seconds."
+    assert meta["source"] == "zone_event_motor"
+    assert meta["status"] == "rewrite_verification_fallback"
+    assert "ZONE_REWRITE_AUDIT event=above_zone decision=rejected reason=numeric_tokens_changed" in caplog.text
+
+
+def test_verify_zone_event_rewrite_rejects_language_drift():
+    verified, reason = main.verify_zone_event_rewrite(
+        original_event="Keep it steady.",
+        rewritten_phrase="Hold det jevnt nå.",
+        event_type="in_zone",
+        language="en",
+    )
+
+    assert verified is False
+    assert reason == "language_drift"

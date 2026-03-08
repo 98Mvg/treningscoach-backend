@@ -22,6 +22,7 @@ def test_backend_start_backend_uses_root_runtime():
 def test_release_check_runs_source_of_truth_guard():
     content = _read_text("scripts/release_check.sh")
     assert "./scripts/check_root_runtime.sh" in content
+    assert "generate_codebase_guide.py --check" in content
 
 
 def test_backend_runtime_modules_are_wrappers():

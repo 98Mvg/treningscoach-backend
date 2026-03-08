@@ -49,9 +49,9 @@ private enum OnboardingGender: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .male:
-            return "mars"
+            return "figure.stand"
         case .female:
-            return "venus"
+            return "figure.stand.dress"
         }
     }
 }
@@ -230,7 +230,7 @@ struct OnboardingContainerView: View {
 
                 case .auth:
                     AuthView {
-                        move(to: .dataPurpose)
+                        move(to: .identity)
                     }
                     .transition(stepTransition)
 
@@ -238,7 +238,7 @@ struct OnboardingContainerView: View {
                     IdentityStepView(
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
-                        onBack: { move(to: .dataPurpose) },
+                        onBack: { move(to: .auth) },
                         onContinue: { move(to: .birthAndGender) }
                     )
                     .transition(stepTransition)
@@ -254,7 +254,7 @@ struct OnboardingContainerView: View {
                     BirthGenderStepView(
                         birthDate: $formState.birthDate,
                         gender: $formState.gender,
-                        onBack: { move(to: .dataPurpose) },
+                        onBack: { move(to: .identity) },
                         onContinue: {
                             if formState.hrMax == 192 {
                                 formState.hrMax = formState.calculatedHRMaxFromAge
@@ -315,7 +315,7 @@ struct OnboardingContainerView: View {
                     SummaryStepView(
                         state: formState,
                         onBack: { move(to: .frequencyAndDuration) },
-                        onContinue: { move(to: .result) }
+                        onContinue: { move(to: .sensorConnect) }
                     )
                     .transition(stepTransition)
 
@@ -331,7 +331,7 @@ struct OnboardingContainerView: View {
 
                 case .sensorConnect:
                     SensorConnectOnboardingView(
-                        onBack: { move(to: .result) },
+                        onBack: { move(to: .summary) },
                         onConnectNow: {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 UIApplication.shared.open(url)
@@ -340,7 +340,8 @@ struct OnboardingContainerView: View {
                             move(to: .notificationPermission)
                         },
                         onContinueWithoutSensor: {
-                            move(to: .noSensorFallback)
+                            notificationBackStep = .sensorConnect
+                            move(to: .notificationPermission)
                         }
                     )
                     .transition(stepTransition)
@@ -420,26 +421,36 @@ struct OnboardingContainerView: View {
         return max(45, min(95, score))
     }
 
+    private var guidedOnboardingSteps: [OnboardingStep] {
+        [
+            .identity,
+            .birthAndGender,
+            .bodyMetrics,
+            .maxHeartRate,
+            .restingHeartRate,
+            .enduranceHabits,
+            .frequencyAndDuration,
+            .summary,
+            .sensorConnect,
+            .notificationPermission,
+        ]
+    }
+
     private var showsGuidedProgress: Bool {
-        currentStep.rawValue >= OnboardingStep.dataPurpose.rawValue
-            && currentStep.rawValue <= OnboardingStep.notificationPermission.rawValue
+        guidedOnboardingSteps.contains(currentStep)
     }
 
     private var onboardingProgress: CGFloat {
-        let minStep = OnboardingStep.dataPurpose.rawValue
-        let maxStep = OnboardingStep.notificationPermission.rawValue
-        let bounded = max(minStep, min(maxStep, currentStep.rawValue))
-        let numerator = Double(bounded - minStep + 1)
-        let denominator = Double(maxStep - minStep + 1)
-        guard denominator > 0 else { return 0 }
+        guard let index = guidedOnboardingSteps.firstIndex(of: currentStep) else { return 0 }
+        let numerator = Double(index + 1)
+        let denominator = Double(guidedOnboardingSteps.count)
         return CGFloat(max(0.0, min(1.0, numerator / denominator)))
     }
 
     private var onboardingProgressLabel: String {
-        let minStep = OnboardingStep.dataPurpose.rawValue
-        let bounded = max(minStep, currentStep.rawValue)
-        let current = bounded - minStep + 1
-        let total = OnboardingStep.notificationPermission.rawValue - minStep + 1
+        guard let index = guidedOnboardingSteps.firstIndex(of: currentStep) else { return "" }
+        let current = index + 1
+        let total = guidedOnboardingSteps.count
         if L10n.current == .no {
             return "Steg \(current) av \(total)"
         }
@@ -581,8 +592,8 @@ private struct IdentityStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "La oss bli litt bedre kjent med deg for å finne hvordan coachen skal guide deg."
-                : "Let us get to know you so the coach can guide you better.",
+                ? "Dette bruker vi for å tilpasse coachingen, og du kan endre alt senere."
+                : "We use this to tailor the coaching, and you can change everything later.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: canContinue,
@@ -615,10 +626,10 @@ private struct DataPurposeStepView: View {
 
     var body: some View {
         OnboardingScaffold(
-            title: L10n.current == .no ? "Hvorfor vi spør om data" : "Why we ask for data",
+            title: L10n.current == .no ? "Slik bruker vi profilen din" : "How we use your profile",
             subtitle: L10n.current == .no
-                ? "For presis coach-guiding i riktig sone og bedre økter for deg."
-                : "For accurate coach guidance in the right zone and better workouts for you.",
+                ? "Vi bruker dette for å gi deg roligere start, riktigere intensitet og tydeligere coaching."
+                : "We use this to give you a calmer start, better intensity targets, and clearer coaching.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: true,
@@ -627,8 +638,8 @@ private struct DataPurposeStepView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Text(
                     L10n.current == .no
-                        ? "Vi bruker opplysningene dine for å beregne riktige pulsrammer fra første økt."
-                        : "We use your profile to set the right HR ranges from your first workout."
+                        ? "Du kan endre alt senere i profilen. Dette er bare startpunktet ditt."
+                        : "You can change everything later in Profile. This is just your starting point."
                 )
                 .font(.body.weight(.semibold))
                 .foregroundColor(CoachiTheme.textPrimary)
@@ -638,13 +649,18 @@ private struct DataPurposeStepView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     bullet(
                         text: L10n.current == .no
-                            ? "For nøyaktig coach-guiding underveis."
-                            : "For accurate coach guidance during your workout."
+                            ? "Riktigere pulsrammer fra første økt."
+                            : "Better heart-rate ranges from your first workout."
                     )
                     bullet(
                         text: L10n.current == .no
-                            ? "For å gi deg best mulig økter og tydelig fremgang."
-                            : "To give you the best possible workouts and clear progress."
+                            ? "Tydeligere coaching underveis."
+                            : "Clearer guidance during the workout."
+                    )
+                    bullet(
+                        text: L10n.current == .no
+                            ? "Bedre oppsummering og framgang over tid."
+                            : "Better summaries and progress over time."
                     )
                 }
             }
@@ -1143,26 +1159,26 @@ private struct SummaryStepView: View {
 
     var body: some View {
         OnboardingScaffold(
-            title: L10n.current == .no ? "Oppsummering" : "Summary",
+            title: L10n.current == .no ? "Klar til å starte?" : "Ready to start?",
             subtitle: L10n.current == .no
-                ? "Se over opplysningene dine før vi starter coachingen."
-                : "Review your profile before we start coaching.",
+                ? "Se over profilen før vi lager startoppsettet ditt."
+                : "Review your profile before we build your starting setup.",
             onBack: onBack,
-            primaryTitle: L10n.current == .no ? "Se resultat" : "See result",
+            primaryTitle: L10n.continueButton,
             canContinue: true,
             onPrimary: onContinue
         ) {
             VStack(alignment: .leading, spacing: 14) {
-                Text(L10n.current == .no ? "Se over opplysningene dine!" : "Review your details carefully.")
-                    .font(.largeTitle.weight(.bold))
+                Text(L10n.current == .no ? "Dette bruker vi for å starte riktig." : "This is what we use to start in the right place.")
+                    .font(.title2.weight(.bold))
                     .foregroundColor(CoachiTheme.textPrimary)
 
                 Text(
                     L10n.current == .no
-                        ? "Kontroller at informasjonen stemmer før vi beregner første Coach score."
-                        : "Confirm your data before we calculate your first Coach score."
+                        ? "Du kan endre alt senere. Nå sjekker vi bare at grunnlaget stemmer."
+                        : "You can change everything later. This is just a quick final check."
                 )
-                .font(.headline.weight(.semibold))
+                .font(.body.weight(.semibold))
                 .foregroundColor(CoachiTheme.textSecondary)
 
                 Divider()
@@ -1212,10 +1228,10 @@ private struct OnboardingResultStepView: View {
 
     var body: some View {
         OnboardingScaffold(
-            title: L10n.current == .no ? "Din løpeprofil" : "Your running profile",
+            title: L10n.current == .no ? "Dette er startpunktet ditt" : "This is your starting point",
             subtitle: L10n.current == .no
-                ? "Bra, \(name). Dette er startnivået ditt nå."
-                : "Great, \(name). This is your current starting level.",
+                ? "Bra, \(name). Vi starter kontrollert og justerer etter øktene dine."
+                : "Good, \(name). We will start controlled and adjust as you train.",
             onBack: onBack,
             primaryTitle: L10n.current == .no ? "Fortsett" : "Continue",
             canContinue: true,
@@ -1232,14 +1248,14 @@ private struct OnboardingResultStepView: View {
 
                 VStack(spacing: 8) {
                     Text(L10n.current == .no
-                        ? "Coach score: 82 - Solid økt."
-                        : "Coach score: 82 - Solid work.")
+                        ? "Du er klar for første økt."
+                        : "You are ready for your first workout.")
                         .font(.body.weight(.bold))
                         .foregroundColor(CoachiTheme.textPrimary)
 
                     Text(L10n.current == .no
-                        ? "Effort Score 86 (Strong)"
-                        : "Effort Score 86 (Strong)")
+                        ? "Coachi bygger seg smartere etter hvert som du trener."
+                        : "Coachi gets smarter as you keep training.")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(CoachiTheme.textSecondary)
 
@@ -1286,8 +1302,8 @@ struct SensorConnectOnboardingView: View {
 
                 Text(
                     L10n.current == .no
-                        ? "Pulsklokke gir mest presis coaching i riktig sone."
-                        : "A watch gives the most precise zone coaching."
+                        ? "Klokke er best for live puls. Uten klokke får du fortsatt tydelig coaching."
+                        : "A watch is best for live heart rate. Without one, you still get clear coaching."
                 )
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(CoachiTheme.textSecondary)
@@ -1313,8 +1329,8 @@ private struct NoSensorFallbackStepView: View {
         OnboardingScaffold(
             title: L10n.current == .no ? "Ingen pulsklokke?" : "No watch?",
             subtitle: L10n.current == .no
-                ? "Ingen fare. Du kan starte nå, og vi coacher med tid, pust og opplevd innsats."
-                : "No problem. You can start now and we coach with timing, breathing, and effort cues.",
+                ? "Ingen fare. Du kan starte i dag, og vi coacher fortsatt tydelig på struktur og tid."
+                : "No problem. You can start today, and Coachi will still guide clearly by structure and timing.",
             onBack: onBack,
             primaryTitle: L10n.current == .no ? "Fortsett til appen" : "Continue to app",
             canContinue: true,
@@ -1328,13 +1344,13 @@ private struct NoSensorFallbackStepView: View {
                 )
                 bullet(
                     text: L10n.current == .no
-                        ? "Vi viser ikke sonestatus når HR mangler."
-                        : "We will not show zone status when HR is unavailable."
+                        ? "Med klokke blir pulscoaching mer presis."
+                        : "With a watch, heart-rate coaching becomes more precise."
                 )
                 bullet(
                     text: L10n.current == .no
-                        ? "Coachen holder språket kort og tydelig under økt."
-                        : "Coach guidance stays short and clear during workouts."
+                        ? "Uten klokke holder coachen språket kort og tydelig."
+                        : "Without a watch, the coach still stays short and clear."
                 )
             }
             .padding(18)
@@ -1372,8 +1388,8 @@ private struct NotificationPermissionStepView: View {
         OnboardingScaffold(
             title: L10n.current == .no ? "Varsler" : "Notifications",
             subtitle: L10n.current == .no
-                ? "Vil du ha varsler om fremgang og øktresultater?"
-                : "Do you want notifications about progress and workout results?",
+                ? "Vil du ha varsler om framgang, resultater og viktige oppdateringer?"
+                : "Do you want notifications about progress, results, and important updates?",
             onBack: onBack,
             primaryTitle: isLoading
                 ? (L10n.current == .no ? "Laster..." : "Loading...")

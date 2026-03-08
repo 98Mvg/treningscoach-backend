@@ -44,10 +44,10 @@ final class PhoneWCManager: NSObject, ObservableObject {
     var onWorkoutStopped: ((TimeInterval, String) -> Void)?
     var onHeartRate: ((Double, TimeInterval) -> Void)?
     private var lastCapabilitySnapshot: String?
+    private var hasActivatedSession = false
 
     override init() {
         super.init()
-        activate()
     }
 
     func activate() {
@@ -58,6 +58,8 @@ final class PhoneWCManager: NSObject, ObservableObject {
             emitCapabilityState(from: .noWatchSupport)
             return
         }
+        guard !hasActivatedSession else { return }
+        hasActivatedSession = true
         let session = WCSession.default
         session.delegate = self
         session.activate()

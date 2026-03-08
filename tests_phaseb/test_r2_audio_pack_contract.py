@@ -66,9 +66,49 @@ def test_workout_event_mapping_uses_phrase_catalog_ids():
         "zone.countdown.15",
         "zone.countdown.5",
         "zone.countdown.start",
+        "zone.hr_poor_timing.1",
+        "zone.structure.work.1",
+        "zone.structure.recovery.1",
+        "zone.structure.steady.1",
+        "zone.structure.finish.1",
     ]
     for phrase_id in expected_ids:
         assert phrase_id in content
+
+
+def test_workout_event_mapping_uses_zone_silence_for_low_urgency_instruction():
+    content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
+    assert 'case "max_silence_go_by_feel":' in content
+    assert 'case "max_silence_breath_guide":' in content
+    assert '"zone.silence.work.1"' in content
+    assert '"zone.silence.rest.1"' in content
+    assert '"zone.silence.default.1"' in content
+
+
+def test_workout_event_mapping_covers_no_hr_structure_instruction():
+    content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
+    assert 'case "hr_structure_mode_notice":' in content
+    assert 'case "structure_instruction_work":' in content
+    assert 'case "structure_instruction_recovery":' in content
+    assert 'case "structure_instruction_steady":' in content
+    assert 'case "structure_instruction_finish":' in content
+    assert '"zone.hr_poor_timing.1"' in content
+    assert '"zone.structure.work.1"' in content
+    assert '"zone.structure.recovery.1"' in content
+    assert '"zone.structure.steady.1"' in content
+    assert '"zone.structure.finish.1"' in content
+
+
+def test_workout_event_mapping_uses_staged_motivation_fallbacks():
+    content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
+    assert '"interval.motivate.s2.1"' in content
+    assert '"easy_run.motivate.s2.1"' in content
+
+
+def test_workout_event_router_suppresses_new_cues_while_audio_is_playing():
+    content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
+    assert "audioPlayer?.isPlaying == true" in content
+    assert 'return (false, "event_router_audio_playing")' in content
 
 
 def test_audio_pipeline_has_speech_transcript_stage():

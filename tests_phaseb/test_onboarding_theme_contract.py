@@ -137,7 +137,7 @@ def test_intro_value_carousel_contract() -> None:
     assert 'imageName: "IntroStory2"' in text
     assert 'imageName: "IntroStory3"' in text
     assert 'imageName: "IntroStory4"' in text
-    assert 'Text(L10n.current == .no ? "Registrer deg" : "Register")' in text
+    assert 'Text(L10n.current == .no ? "Start gratis" : "Start free")' in text
     assert 'Text(L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account")' in text
     assert "Circle()" in text
     assert ".scaledToFill()" in text
@@ -149,8 +149,22 @@ def test_intro_value_carousel_contract() -> None:
     assert "currentPage -= 1" in text
     assert "@State private var autoAdvanceTask: Task<Void, Never>?" in text
     assert "Task.sleep(nanoseconds: 7_000_000_000)" in text
-    assert "La coachen hjelpe deg holde riktig puls" in text
+    assert "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls." in text
+    assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." in text
+    assert "Apple Watch gir mer presis pulscoaching. Uten klokke coacher vi på struktur og tid." in text
+    assert "Konto er valgfritt. Du kan starte i dag." in text
+    assert "introTrustBadge(L10n.startFreeBadge)" in text
+    assert "introTrustBadge(L10n.accountOptionalBadge)" in text
+    assert "introTrustBadge(L10n.watchOptionalBadge)" in text
     assert "score: 100" in text
+
+
+def test_onboarding_uses_valid_sf_symbols_for_gender_choices() -> None:
+    text = ONBOARDING_VIEW.read_text(encoding="utf-8")
+    assert 'return "figure.stand"' in text
+    assert 'return "figure.stand.dress"' in text
+    assert '"mars"' not in text
+    assert '"venus"' not in text
 
 
 def test_intro_layout_reserves_width_for_card_padding() -> None:

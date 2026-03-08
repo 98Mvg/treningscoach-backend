@@ -1,7 +1,7 @@
 phrase_id	catalog	family	event	mode	english_locked	norwegian_locked	active_status	action	record_now	approved_for_import	approved_for_recording	notes
 zone.above.default.1	instruction	zone.above	above_zone	HR	Ease back slightly.	Ro ned litt.	active	keep	no	yes	yes	primary HR correction
 zone.below.default.1	instruction	zone.below	below_zone	HR	Pick it up.	Øk litt nå.	active	keep	no	yes	yes	primary HR correction
-zone.in_zone.default.1	instruction	zone.in_zone	in_zone	HR	Stay right here.	Bli her.	active	replace_text	yes	yes	yes	primary HR hold cue
+zone.in_zone.default.1	instruction	zone.in_zone	in_zone	HR	Stay right here.	Bli her.	active	keep	no	yes	yes	primary HR hold cue
 zone.silence.default.1	instruction	zone.silence	max_silence_hold	BOTH	Find your pace.	Finn rytmen.	active	keep	no	yes	yes	low-urgency hold guidance
 zone.silence.rest.1	instruction	zone.silence	max_silence_hold	BOTH	Relax your shoulders.	Senk skuldrene.	active	keep	no	yes	yes	low-urgency hold guidance
 zone.silence.work.1	instruction	zone.silence	max_silence_hold	BOTH	Hold the rhythm.	Hold rytmen.	active	keep	no	yes	yes	low-urgency hold guidance
@@ -27,25 +27,25 @@ zone.phase.work.default.1	context	zone.phase.work	phase_change_work	BOTH	Work st
 zone.phase.work.motivational.1	context	zone.phase.work	phase_change_work	BOTH	Time to work.	Nå jobber vi.	active	keep	no	yes	yes	shared work transition
 zone.countdown.15	progress	zone.countdown	countdown_15	BOTH	15!	15!	active	keep	no	yes	yes	shared countdown cue
 zone.countdown.30	progress	zone.countdown	countdown_30	BOTH	30 seconds left.	30 sekunder.	active	keep	no	yes	yes	shared countdown cue
-zone.countdown.5	progress	zone.countdown	countdown_5	BOTH	5!	5!	active	keep	no	yes	yes	shared countdown cue
+zone.countdown.5	progress	zone.countdown	countdown_5	BOTH	5!	fem	active	keep	no	yes	yes	shared countdown cue
 zone.countdown.start	progress	zone.countdown	countdown_start	BOTH	Go!	Kjør på nå.	active	keep	no	yes	yes	shared countdown start cue
 zone.workout_finished.1	progress	zone.workout_finished	workout_finish	BOTH	Workout finished. Nice work.	Økten er ferdig. Bra jobbet.	active	keep	no	yes	yes	shared workout closure
-easy_run.motivate.s1.1	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Focus on breath and rhythm.	Fokuser på pust og rytme.	active	replace_text	yes	yes	yes	active easy-run motivation
-easy_run.motivate.s1.2	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Settle your pace.	Finn ditt tempo.	active	replace_text	yes	yes	yes	active easy-run motivation
-easy_run.motivate.s2.1	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Good rhythm.	Bra rytme.	active	replace_text	yes	yes	yes	active easy-run motivation
-easy_run.motivate.s2.2	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Keep it steady.	Hold det jevnt.	active	replace_text	yes	yes	yes	active easy-run motivation
-easy_run.motivate.s3.1	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Nice work!	Bra jobba!	active	replace_text	yes	yes	yes	active easy-run motivation
+easy_run.motivate.s1.1	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Focus on breath and rhythm.	Fokuser på pust og rytme.	active	keep	no	yes	yes	active easy-run motivation
+easy_run.motivate.s1.2	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Settle your pace.	Finn ditt tempo.	active	keep	no	yes	yes	active easy-run motivation
+easy_run.motivate.s2.1	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Good rhythm.	Bra rytme.	active	keep	no	yes	yes	active easy-run motivation
+easy_run.motivate.s2.2	motivation	easy_run.motivate.s2	easy_run_sustain_stage_2	HR	Keep it steady.	Hold det jevnt.	active	keep	no	yes	yes	active easy-run motivation
+easy_run.motivate.s3.1	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Nice work!	Bra jobba!	active	keep	no	yes	yes	active easy-run motivation
 easy_run.motivate.s3.2	motivation	easy_run.motivate.s3	easy_run_sustain_stage_3	HR	Keep it strong.	Hold det sterkt.	active	replace_text	yes	yes	yes	active easy-run motivation
 easy_run.motivate.s4.1	motivation	easy_run.motivate.s4	easy_run_sustain_stage_4	HR	Stay smooth.	Hold det rolig.	active	keep	no	yes	yes	active easy-run motivation
 easy_run.motivate.s4.2	motivation	easy_run.motivate.s4	easy_run_sustain_stage_4	HR	Keep it steady.	Hold det jevnt.	active	keep	no	yes	yes	active easy-run motivation
 interval.motivate.s1.1	motivation	interval.motivate.s1	interval_sustain_stage_1	HR	Control your breath.	Kontroller pusten.	active	keep	no	yes	yes	active interval motivation
 interval.motivate.s1.2	motivation	interval.motivate.s1	interval_sustain_stage_1	HR	Good start.	God start.	active	keep	no	yes	yes	active interval motivation
-interval.motivate.s2.1	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Nice work.	Bra jobba.	active	replace_text	yes	yes	yes	active interval motivation
+interval.motivate.s2.1	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Nice work.	Bra jobba.	active	keep	no	yes	yes	active interval motivation
 interval.motivate.s2.2	motivation	interval.motivate.s2	interval_sustain_stage_2	HR	Hold the rhythm.	Hold rytmen.	active	replace_text	yes	yes	yes	active interval motivation
-interval.motivate.s3.1	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Perfect!	Herlig!	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s3.1	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Perfect!	Herlig!	active	replace_text	yes	yes	yes	active interval motivation
 interval.motivate.s3.2	motivation	interval.motivate.s3	interval_sustain_stage_3	HR	Stay with it!	Stå i det!	active	keep	no	yes	yes	active interval motivation
-interval.motivate.s4.1	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	Finish strong!	Kjør på nå!	active	replace_text	yes	yes	yes	active interval motivation
-interval.motivate.s4.2	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	All the way in.	Helt inn!	active	replace_text	yes	yes	yes	active interval motivation
+interval.motivate.s4.1	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	Finish strong!	Kjør på nå!	active	keep	no	yes	yes	active interval motivation
+interval.motivate.s4.2	motivation	interval.motivate.s4	interval_sustain_stage_4	HR	All the way in.	Helt inn!	active	keep	no	yes	yes	active interval motivation
 zone.no_sensors.1	context	zone.no_sensors	no_sensors	DIAGNOSTIC	Coaching by breath.	Coacher med pust.	active_secondary	keep	no	yes	yes	secondary no-sensors diagnostic
 zone.watch_disconnected.1	context	zone.watch	watch_lost	DIAGNOSTIC	Watch disconnected	Pulsklokken ble frakoblet.	active_secondary	keep	no	yes	yes	secondary watch-loss diagnostic
 zone.watch_restored.1	context	zone.watch	watch_restored	DIAGNOSTIC	Watch connected and heart rate is back.	Klokken er tilkoblet, og pulsen er tilbake.	active_secondary	keep	no	yes	yes	secondary watch-restore diagnostic

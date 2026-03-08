@@ -92,15 +92,17 @@ struct AppConfig {
         }
 
         static var googleSignInEnabled: Bool {
-            googleSignInFeatureEnabled
+            // Phase 1 launch scope keeps Apple as the only exposed provider.
+            // Google returns in Phase 2 when the real flow is complete.
+            false
         }
 
         static var facebookSignInEnabled: Bool {
-            facebookSignInFeatureEnabled
+            false
         }
 
         static var vippsSignInEnabled: Bool {
-            vippsSignInFeatureEnabled
+            false
         }
     }
 

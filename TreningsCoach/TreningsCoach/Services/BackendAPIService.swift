@@ -68,6 +68,7 @@ class BackendAPIService {
     static let shared = BackendAPIService()
 
     private let baseURL = AppConfig.backendURL
+    private let talkRequestTimeout: TimeInterval = 12
     private let session: URLSession
     private let jsonDecoder = JSONDecoder()
     private let jsonEncoder = JSONEncoder()
@@ -133,7 +134,7 @@ class BackendAPIService {
 
     /// Creates an authenticated GET request
     private func authenticatedRequest(url: URL) -> URLRequest {
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: talkRequestTimeout)
         addAuthHeader(to: &request)
         return request
     }
@@ -221,6 +222,30 @@ class BackendAPIService {
         }
     }
 
+    @discardableResult
+    func logout(refreshToken: String) async -> Bool {
+        let normalizedToken = refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedToken.isEmpty,
+              let url = URL(string: "\(baseURL)/auth/logout") else {
+            return false
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try jsonEncoder.encode(["refresh_token": normalizedToken])
+            let (_, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return false
+            }
+            return httpResponse.statusCode == 200
+        } catch {
+            print("AUTH_LOGOUT success=false reason=\(error.localizedDescription)")
+            return false
+        }
+    }
+
     private func dataWithAuthRetry(for request: URLRequest) async throws -> (Data, URLResponse) {
         let (data, response) = try await session.data(for: request)
 
@@ -271,26 +296,6 @@ class BackendAPIService {
         }
 
         return try JSONDecoder().decode(BreathAnalysis.self, from: data)
-    }
-
-    /// Send audio to coach endpoint and get feedback
-    func getCoachFeedback(_ audioURL: URL, phase: WorkoutPhase) async throws -> CoachResponse {
-        let url = URL(string: "\(baseURL)/coach")!
-        var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: phase)
-        addAuthHeader(to: &request)
-
-        let (data, response) = try await dataWithAuthRetry(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let errorMessage = try? JSONDecoder().decode(ErrorResponse.self, from: data)
-            throw APIError.serverError(message: errorMessage?.error ?? "Unknown error")
-        }
-
-        return try JSONDecoder().decode(CoachResponse.self, from: data)
     }
 
     /// Get welcome message for workout start
@@ -429,7 +434,7 @@ class BackendAPIService {
         triggerSource: String = "button"
     ) async throws -> CoachTalkResponse {
         let url = URL(string: "\(baseURL)/coach/talk")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: talkRequestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
@@ -508,49 +513,6 @@ class BackendAPIService {
         )
     }
 
-    /// Talk to coach during active workout (wake word triggered)
-    /// Includes workout context so coach can give relevant answers
-    func talkToCoachDuringWorkout(
-        message: String,
-        sessionId: String,
-        phase: String,
-        intensity: String,
-        persona: String,
-        language: String,
-        userName: String = ""
-    ) async throws -> CoachTalkResponse {
-        let url = URL(string: "\(baseURL)/coach/talk")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addAuthHeader(to: &request)
-
-        var body: [String: String] = [
-            "message": message,
-            "session_id": sessionId,
-            "phase": phase,
-            "intensity": intensity,
-            "persona": persona,
-            "language": language,
-            "context": "workout",  // Tells backend this is mid-workout, not casual chat
-            "response_mode": "qa",
-            "trigger_source": "button"
-        ]
-        if !userName.isEmpty {
-            body["user_name"] = userName
-        }
-        request.httpBody = try JSONEncoder().encode(body)
-
-        let (data, response) = try await dataWithAuthRetry(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw APIError.invalidResponse
-        }
-
-        return try JSONDecoder().decode(CoachTalkResponse.self, from: data)
-    }
-
     /// Switch persona mid-session
     func switchPersona(sessionId: String, persona: String) async throws {
         let url = URL(string: "\(baseURL)/coach/persona")!
@@ -570,7 +532,7 @@ class BackendAPIService {
     }
 
     /// Save workout record to backend
-    func saveWorkout(durationSeconds: Int, phase: String, intensity: String, persona: String? = nil) async throws {
+    func saveWorkout(durationSeconds: Int, phase: String, intensity: String, persona: String? = nil, language: String? = nil) async throws {
         let url = URL(string: "\(baseURL)/workouts")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -583,6 +545,7 @@ class BackendAPIService {
             "intensity": intensity
         ]
         if let persona = persona { body["persona"] = persona }
+        if let language = language, !language.isEmpty { body["language"] = language }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

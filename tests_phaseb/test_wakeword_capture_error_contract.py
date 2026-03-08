@@ -23,11 +23,12 @@ def test_wake_word_manager_only_uses_coach_or_coachi() -> None:
     assert '"snakk"' not in text
 
 
-def test_wake_word_manager_enforces_10_second_cooldown() -> None:
+def test_wake_word_manager_enforces_short_retry_cooldown() -> None:
     text = _wakeword_text()
-    assert "private let wakeCooldownSeconds: TimeInterval = 10.0" in text
+    assert "private let wakeCooldownSeconds: TimeInterval = 2.0" in text
     assert "self.lastWakeDetectionAt = now" in text
     assert "Suppressed by cooldown" in text
+    assert "func resetWakeCooldown()" in text
 
 
 def test_wake_word_manager_uses_phrase_spotting_and_no_command_transcription() -> None:
@@ -35,4 +36,3 @@ def test_wake_word_manager_uses_phrase_spotting_and_no_command_transcription() -
     assert "request.contextualStrings = currentWakeWords" in text
     assert "matchesWakePhrase" in text
     assert "Phase 2: Capturing utterance after wake word" not in text
-

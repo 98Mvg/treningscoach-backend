@@ -28,7 +28,6 @@ struct SettingsView: View {
                     .padding(.top, 32).padding(.bottom, 24)
 
                     settingsRow(icon: "globe", title: L10n.language, subtitle: (AppLanguage(rawValue: appViewModel.languageCode) ?? .en).displayName)
-                    settingsRow(icon: "chart.bar.fill", title: L10n.experienceLevel, subtitle: appViewModel.trainingLevelRaw.capitalized)
                     darkModeRow
 
                     // Voice Pack
@@ -38,7 +37,7 @@ struct SettingsView: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationTitle(L10n.settings)
+        .navigationTitle(L10n.advancedSettings)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -125,7 +124,7 @@ struct SettingsView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.clockwise")
-                    Text(L10n.resetVoicePack)
+                    Text(L10n.current == .no ? "Oppdater lydinnhold" : "Refresh audio content")
                 }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.red)
@@ -141,7 +140,7 @@ struct SettingsView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
-                    Text(L10n.purgeStaleFiles)
+                    Text(L10n.current == .no ? "Rydd lokale lydfiler" : "Clean local audio files")
                 }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(CoachiTheme.textSecondary)

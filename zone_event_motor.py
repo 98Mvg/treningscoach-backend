@@ -2547,12 +2547,17 @@ def evaluate_zone_tick(
     previous_instruction_mode = state.get("instruction_mode")
     state["instruction_mode"] = instruction_mode
 
-    if instruction_mode != "structure_driven":
+    if instruction_mode == "hr_driven":
         state["structure_mode_notice_pending"] = False
-        state["structure_mode_notice_sent"] = False
-    elif previous_instruction_mode != "structure_driven":
+        # Only re-arm the no-HR mode notice after real live-HR restoration, not
+        # on transient state churn. The next loss episode can then announce once.
+        if hr_ok_for_zone_events:
+            state["structure_mode_notice_sent"] = False
+    elif (
+        previous_instruction_mode != "structure_driven"
+        and not bool(state.get("structure_mode_notice_sent"))
+    ):
         state["structure_mode_notice_pending"] = True
-        state["structure_mode_notice_sent"] = False
 
     zone_status = "hr_unstable" if not hr_available else "timing_control"
     transition_event = None
@@ -2624,6 +2629,7 @@ def evaluate_zone_tick(
     if (
         instruction_mode == "structure_driven"
         and bool(state.get("structure_mode_notice_pending"))
+        and not bool(state.get("structure_mode_notice_sent"))
         and "hr_structure_mode_notice" not in event_types
     ):
         event_types.append("hr_structure_mode_notice")

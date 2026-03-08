@@ -7,7 +7,7 @@ struct WatchRootView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                Text("TreningsCoach")
+                Text("Coachi")
                     .font(.headline)
 
                 NavigationLink(

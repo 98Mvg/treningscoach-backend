@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flask-dev",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["main.py"],
+      "port": 5050,
+      "env": {
+        "PORT": "5050"
+      }
+    }
+  ]
+}

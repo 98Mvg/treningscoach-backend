@@ -45,6 +45,16 @@ def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     assert "guard canUseWatchTransport else {" in text
     assert "guard canUseWatchTransport else {" in text
     assert "WATCH_NOTIFY_SKIPPED reason=watch_unavailable" in text
+    assert "private var hasActivatedSession = false" in text
+
+
+def test_phone_wc_manager_activates_once_after_callbacks_are_wired() -> None:
+    wc_text = PHONE_WC.read_text(encoding="utf-8")
+    vm_text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "override init() {\n        super.init()\n    }" in wc_text
+    assert "guard !hasActivatedSession else { return }" in wc_text
+    assert "phoneWCManager.activate()" in vm_text
+    assert "WATCH_CAPABILITY state=" not in vm_text
 
 
 def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:

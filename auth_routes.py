@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from database import db, User, UserSettings
+from email_sender import send_account_welcome_email
 from auth import (
     create_jwt,
     require_auth,
@@ -119,6 +120,13 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
 
     db.session.commit()
     logger.info(f"New user created: {user.email} ({provider})")
+    send_account_welcome_email(
+        user.email,
+        display_name=user.display_name,
+        language=user.language,
+        provider=provider,
+        logger=logger,
+    )
     return user
 
 

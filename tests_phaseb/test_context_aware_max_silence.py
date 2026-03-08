@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
 from tts_phrase_catalog import PHRASE_CATALOG
+from workout_cue_catalog import is_active_deterministic_workout_phrase_id
 from zone_event_motor import (
     _allow_motivation_event,
     _compute_max_silence_seconds,
@@ -110,26 +111,26 @@ def test_legacy_max_silence_seconds_still_exists():
     assert config.MAX_SILENCE_SECONDS == 30
 
 
-def test_phrase_catalog_has_go_by_feel_easy_run():
+def test_legacy_go_by_feel_family_still_exists_in_catalog():
     ids = {p["id"] for p in PHRASE_CATALOG}
     assert "zone.feel.easy_run.1" in ids
     assert "zone.feel.easy_run.2" in ids
     assert "zone.feel.easy_run.3" in ids
 
 
-def test_phrase_catalog_has_go_by_feel_work():
+def test_legacy_go_by_feel_work_family_still_exists_in_catalog():
     ids = {p["id"] for p in PHRASE_CATALOG}
     assert "zone.feel.work.1" in ids
     assert "zone.feel.work.2" in ids
 
 
-def test_phrase_catalog_has_go_by_feel_recovery():
+def test_legacy_go_by_feel_recovery_family_still_exists_in_catalog():
     ids = {p["id"] for p in PHRASE_CATALOG}
     assert "zone.feel.recovery.1" in ids
     assert "zone.feel.recovery.2" in ids
 
 
-def test_phrase_catalog_has_breath_guide_phrases():
+def test_legacy_breath_family_still_exists_in_catalog():
     ids = {p["id"] for p in PHRASE_CATALOG}
     assert "zone.breath.easy_run.1" in ids
     assert "zone.breath.easy_run.2" in ids
@@ -137,20 +138,11 @@ def test_phrase_catalog_has_breath_guide_phrases():
     assert "zone.breath.recovery.1" in ids
 
 
-def test_go_by_feel_phrases_are_bilingual():
+def test_legacy_go_by_feel_and_breath_are_not_active_runtime_ids():
     for phrase in PHRASE_CATALOG:
-        if phrase["id"].startswith("zone.feel."):
-            assert phrase.get("en"), f"{phrase['id']} missing English"
-            assert phrase.get("no"), f"{phrase['id']} missing Norwegian"
-            assert phrase.get("persona") == "personal_trainer"
-            assert phrase.get("priority") == "core"
-
-
-def test_breath_guide_phrases_are_bilingual():
-    for phrase in PHRASE_CATALOG:
-        if phrase["id"].startswith("zone.breath."):
-            assert phrase.get("en"), f"{phrase['id']} missing English"
-            assert phrase.get("no"), f"{phrase['id']} missing Norwegian"
+        phrase_id = phrase["id"]
+        if phrase_id.startswith(("zone.feel.", "zone.breath.")):
+            assert is_active_deterministic_workout_phrase_id(phrase_id) is False
 
 
 def test_max_silence_intervals_work():
@@ -221,9 +213,9 @@ def test_tier_b_above_tier_c():
     assert _event_priority("cooldown_started") > _event_priority("entered_target")
 
 
-def test_max_silence_motivation_above_go_by_feel():
-    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel")
-    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_breath_guide")
+def test_max_silence_motivation_below_instruction_cues():
+    assert _event_priority("max_silence_motivation") < _event_priority("max_silence_go_by_feel")
+    assert _event_priority("max_silence_motivation") < _event_priority("max_silence_breath_guide")
 
 
 def test_event_group_motivation():
@@ -231,14 +223,14 @@ def test_event_group_motivation():
 
 
 def test_event_group_go_by_feel():
-    assert _event_group("max_silence_go_by_feel") == "info"
+    assert _event_group("max_silence_go_by_feel") == "instruction"
 
 
 def test_event_group_breath_guide():
-    assert _event_group("max_silence_breath_guide") == "info"
+    assert _event_group("max_silence_breath_guide") == "instruction"
 
 
-def test_max_silence_uses_go_by_feel_when_no_hr_and_no_breath():
+def test_max_silence_uses_structure_instruction_when_no_hr_and_no_breath():
     state = {}
 
     evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=145))
@@ -276,11 +268,11 @@ def test_max_silence_uses_go_by_feel_when_no_hr_and_no_breath():
             breath_signal_quality=None,
         )
     )
-    assert forced["event_type"] == "max_silence_go_by_feel"
+    assert forced["event_type"] == "structure_instruction_steady"
     assert forced["should_speak"] is True
 
 
-def test_max_silence_uses_breath_guide_when_hr_missing_breath_reliable():
+def test_max_silence_uses_structure_instruction_when_hr_missing_breath_reliable():
     state = {}
 
     # Build stable, reliable breath signal first.
@@ -319,7 +311,7 @@ def test_max_silence_uses_breath_guide_when_hr_missing_breath_reliable():
             breath_signal_quality=0.8,
         )
     )
-    assert forced["event_type"] == "max_silence_breath_guide"
+    assert forced["event_type"] == "structure_instruction_steady"
     assert forced["should_speak"] is True
 
 
@@ -349,6 +341,53 @@ def test_max_silence_uses_motivation_when_targets_not_enforced():
         )
     )
     assert forced["event_type"] == "max_silence_motivation"
+    assert forced["should_speak"] is True
+
+
+def test_max_silence_uses_structure_instruction_when_hr_missing_without_targets():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_max=None,
+            resting_hr=None,
+            age=None,
+            breath_signal_quality=None,
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            hr_max=None,
+            resting_hr=None,
+            age=None,
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+
+    forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            hr_max=None,
+            resting_hr=None,
+            age=None,
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert forced["event_type"] == "structure_instruction_steady"
     assert forced["should_speak"] is True
 
 
@@ -448,4 +487,4 @@ def test_timeline_summary_caps_max_silence_when_hr_missing():
         )
     )
     assert forced["should_speak"] is True
-    assert forced["event_type"] == "max_silence_breath_guide"
+    assert forced["event_type"] == "structure_instruction_steady"

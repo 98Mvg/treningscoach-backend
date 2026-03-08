@@ -106,6 +106,107 @@ def test_workout_talk_can_reference_hr_when_hr_is_valid(monkeypatch, tmp_path):
     assert payload["fallback_used"] is False
 
 
+def test_workout_talk_replaces_generic_qa_fallback_with_short_workout_fallback(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_question_response",
+        lambda *args, **kwargs: (
+            "Training improves endurance, heart health, and day-to-day energy. "
+            "Start easy and stay consistent."
+        ),
+    )
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_last_route_meta",
+        lambda: {
+            "provider": "config",
+            "source": "config_fallback",
+            "status": "all_question_brains_failed_or_skipped",
+        },
+    )
+    monkeypatch.setattr(main.config, "TALK_CONTEXT_SUMMARY_ENABLED", True, raising=False)
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "How am I doing?",
+            "context": "workout",
+            "trigger_source": "wake_word",
+            "language": "en",
+            "workout_context_summary": {
+                "phase": "work",
+                "time_left_s": 180,
+                "reps_remaining_including_current": 2,
+            },
+            "workout_context": {
+                "phase": "work",
+                "heart_rate": 0,
+                "zone_state": "hr_missing",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["fallback_used"] is True
+    assert "Training improves endurance" not in payload["text"]
+    assert "2 intervals left" in payload["text"]
+
+
+def test_workout_talk_replaces_non_grok_provider_with_short_workout_fallback(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_question_response",
+        lambda *args, **kwargs: "Here is a long generic answer that should not survive.",
+    )
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_last_route_meta",
+        lambda: {
+            "provider": "config",
+            "source": "config_fallback",
+            "status": "success",
+        },
+    )
+    monkeypatch.setattr(main.config, "TALK_CONTEXT_SUMMARY_ENABLED", True, raising=False)
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "How many intervals are left?",
+            "context": "workout",
+            "trigger_source": "button",
+            "language": "en",
+            "workout_context_summary": {
+                "phase": "work",
+                "time_left_s": 180,
+                "reps_remaining_including_current": 2,
+            },
+            "workout_context": {
+                "phase": "work",
+                "heart_rate": 0,
+                "zone_state": "hr_missing",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["fallback_used"] is True
+    assert "generic answer" not in payload["text"].lower()
+    assert "2 intervals left" in payload["text"]
+
+
 def test_workout_talk_uses_session_history_and_recent_zone_events(monkeypatch, tmp_path):
     fake_audio = tmp_path / "talk.wav"
     fake_audio.write_bytes(b"RIFF")
@@ -169,6 +270,49 @@ def test_workout_talk_uses_session_history_and_recent_zone_events(monkeypatch, t
     assert "coach: two intervals left." in prompt
     assert "recent deterministic workout events:" in prompt
     assert "above_zone: ease off a touch." in prompt
+
+
+def test_workout_talk_fast_falls_back_when_stt_errors(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    called = {"router": False}
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main,
+        "transcribe_talk_audio",
+        lambda filepath, language, timeout_seconds: (None, "stt_error"),
+    )
+
+    def _unexpected_router(*args, **kwargs):
+        called["router"] = True
+        return "Should not be used."
+
+    monkeypatch.setattr(main.brain_router, "get_question_response", _unexpected_router)
+    monkeypatch.setattr(main.config, "TALK_CONTEXT_SUMMARY_ENABLED", True, raising=False)
+
+    client = main.app.test_client()
+    with open(fake_audio, "rb") as audio_handle:
+        response = client.post(
+            "/coach/talk",
+            data={
+                "context": "workout",
+                "trigger_source": "wake_word",
+                "language": "en",
+                "persona": "personal_trainer",
+                "audio": (audio_handle, "talk.wav"),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["fallback_used"] is True
+    assert payload["provider"] == "config"
+    assert payload["stt_source"] == "stt_error"
+    assert called["router"] is False
+    assert "Stay smooth and controlled" in payload["text"]
 
 
 def test_workout_talk_forces_grok_only_for_button_and_wake_word(monkeypatch, tmp_path):

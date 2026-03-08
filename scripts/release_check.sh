@@ -20,6 +20,10 @@ echo "Base URL: ${BASE_URL}"
 ./scripts/check_root_runtime.sh
 print_ok "Root runtime source-of-truth guard passed"
 
+# 0b) CODEBASE_GUIDE sync guard (local repo check)
+python3 ./scripts/generate_codebase_guide.py --check
+print_ok "CODEBASE_GUIDE sync guard passed"
+
 # 1) Health endpoint
 health_json="$(curl -sf "${BASE_URL}/health")"
 python3 - <<'PY' "$health_json"

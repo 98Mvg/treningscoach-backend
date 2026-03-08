@@ -66,7 +66,7 @@ class AppViewModel: ObservableObject {
         )
     }
 
-    let authManager = AuthManager()
+    let authManager = AuthManager.shared
     private let backendAPI = BackendAPIService.shared
 
     var trainingLevelDisplayName: String {
@@ -130,16 +130,6 @@ class AppViewModel: ObservableObject {
             return AppConfig.Progression.advancedAtGoodWorkouts
         default:
             return AppConfig.Progression.intermediateAtGoodWorkouts
-        }
-    }
-
-    func completeOnboarding(name: String, level _: String) {
-        userName = name
-        trainingLevelRaw = "beginner"
-        goodCoachWorkoutCount = 0
-        hasCompletedOnboarding = true
-        if !spotifyPromptSeen {
-            spotifyPromptPending = true
         }
     }
 
@@ -209,7 +199,7 @@ class AppViewModel: ObservableObject {
     }
 
     func syncProfileToBackend(reason: String) async {
-        guard authManager.isAuthenticated else { return }
+        guard authManager.hasUsableSession() else { return }
         let defaults = UserDefaults.standard
         let payload = BackendUserProfilePayload(
             name: defaults.string(forKey: "user_display_name"),

@@ -8,8 +8,11 @@ API = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "BackendAPISe
 
 def test_continuous_start_is_not_blocked_without_auth_token() -> None:
     text = WORKOUT_VM.read_text(encoding="utf-8")
-    assert "func startWorkout() {\n        activeSessionPlan = buildSessionPlanFromSelections()" in text
-    assert "private func startContinuousWorkoutInternal() {\n        guard !isContinuousMode else { return }\n        clearWatchStartPendingState()" in text
+    assert "func startWorkout() {" in text
+    assert "activeSessionPlan = buildSessionPlanFromSelections()" in text
+    assert "private func startContinuousWorkoutInternal() {" in text
+    assert "guard !isContinuousMode else { return }" in text
+    assert "clearWatchStartPendingState()" in text
     assert "Continuous workout blocked: missing auth token" not in text
     assert "You must sign in to start coaching." not in text
 
@@ -20,6 +23,17 @@ def test_continuous_loop_stops_on_auth_failure() -> None:
     assert "private func handleAuthFailureIfNeeded(_ error: Error) -> Bool {" in text
     assert "stopContinuousWorkout()" in text
     assert "workoutState = .idle" in text
+
+
+def test_guest_mode_suppresses_further_backend_calls_after_auth_failure() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private var guestBackendSuppressed = false" in text
+    assert "private func shouldSuppressProtectedBackendRequests() -> Bool {" in text
+    assert "private func suppressProtectedBackendRequestsForGuest() {" in text
+    assert "suppressProtectedBackendRequestsForGuest()" in text
+    assert "print(\"⚠️ TALK_BACKEND_SUPPRESSED" in text
+    assert "print(\"⚠️ COACHING_BACKEND_SUPPRESSED" in text
+    assert "if !AppConfig.Auth.requireSignInForWorkoutStart, !authManager.hasUsableSession() {" in text
 
 
 def test_backend_continuous_request_allows_missing_auth_header() -> None:

@@ -7,19 +7,19 @@
 
 import SwiftUI
 
+private let coachiSupportEmail = "AI.Coachi@hotmail.com"
+
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
     @Binding var selectedTab: TabItem
+    @State private var showingSignOutConfirmation = false
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     profileSection
-                    accountSection
-                    helpSection
-                    legalSection
                     signOutSection
                 }
                 .padding(.top, 12)
@@ -33,6 +33,22 @@ struct ProfileView: View {
             .navigationBarHidden(true)
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
+        .confirmationDialog(
+            L10n.signOut,
+            isPresented: $showingSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.signOut, role: .destructive) {
+                authManager.signOut()
+            }
+            Button(L10n.current == .no ? "Avbryt" : "Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                L10n.current == .no
+                    ? "Du kan logge inn igjen senere."
+                    : "You can sign in again later."
+            )
+        }
     }
 
     private var topBar: some View {
@@ -65,6 +81,8 @@ struct ProfileView: View {
 
     private var profileSection: some View {
         VStack(spacing: 0) {
+            sectionHeader(L10n.account)
+
             NavigationLink {
                 PersonalProfileSettingsView()
                     .environmentObject(appViewModel)
@@ -102,6 +120,8 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
+            sectionHeader(L10n.coaching)
+
             settingsDivider
 
             NavigationLink {
@@ -111,7 +131,8 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "heart",
-                    title: L10n.healthProfile
+                    title: L10n.healthProfile,
+                    subtitle: L10n.current == .no ? "Fødselsdato og treningsnivå" : "Birth date and training level"
                 )
             }
             .buttonStyle(.plain)
@@ -123,25 +144,8 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "applewatch",
-                    title: L10n.manageHeartRateMonitors
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(L10n.accountSettings)
-
-            settingsDivider
-
-            NavigationLink {
-                PlaceholderSettingsView(title: L10n.notifications)
-            } label: {
-                SettingsListRow(
-                    icon: "bell.badge",
-                    title: L10n.notifications
+                    title: L10n.manageHeartRateMonitors,
+                    subtitle: L10n.current == .no ? "Apple Watch, Bluetooth og status" : "Apple Watch, Bluetooth, and status"
                 )
             }
             .buttonStyle(.plain)
@@ -149,11 +153,12 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
-                PlaceholderSettingsView(title: L10n.privacySettings)
+                CoachingSettingsView()
             } label: {
                 SettingsListRow(
-                    icon: "shield",
-                    title: L10n.privacySettings
+                    icon: "figure.run",
+                    title: L10n.howCoachiWorks,
+                    subtitle: L10n.current == .no ? "Slik guider appen deg gjennom økten" : "How the app guides your workout"
                 )
             }
             .buttonStyle(.plain)
@@ -161,11 +166,13 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
-                PlaceholderSettingsView(title: L10n.sharingSettings)
+                AudioAndVoicesView()
+                    .environmentObject(authManager)
             } label: {
                 SettingsListRow(
-                    icon: "square.and.arrow.up",
-                    title: L10n.sharingSettings
+                    icon: "speaker.wave.3",
+                    title: L10n.audioAndVoices,
+                    subtitle: L10n.current == .no ? "Språk, lydpakke og stemme" : "Language, voice pack, and voice"
                 )
             }
             .buttonStyle(.plain)
@@ -173,74 +180,27 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
-                PlaceholderSettingsView(title: L10n.manageSubscription)
+                HistoryAndDataView()
             } label: {
                 SettingsListRow(
-                    icon: "bookmark",
-                    title: L10n.manageSubscription
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var helpSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(L10n.helpAndSupport)
-
-            settingsDivider
-
-            NavigationLink {
-                PlaceholderSettingsView(title: L10n.faqTitle)
-            } label: {
-                SettingsListRow(
-                    icon: "questionmark.bubble",
-                    title: L10n.faqTitle,
-                    trailingIcon: "arrow.up.right.square"
+                    icon: "clock.arrow.circlepath",
+                    title: L10n.historyAndData,
+                    subtitle: L10n.current == .no ? "Historikk, lagring og personvern" : "History, storage, and privacy"
                 )
             }
             .buttonStyle(.plain)
 
-            settingsDivider
-
-            NavigationLink {
-                PlaceholderSettingsView(title: L10n.contactSupport)
-            } label: {
-                SettingsListRow(
-                    icon: "headphones",
-                    title: L10n.contactSupport
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var legalSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(L10n.legal)
+            sectionHeader(L10n.helpAndLegal)
 
             settingsDivider
 
             NavigationLink {
-                PlaceholderSettingsView(title: L10n.termsOfUse)
+                SupportCenterView()
             } label: {
                 SettingsListRow(
-                    icon: "doc.text",
-                    title: L10n.termsOfUse,
-                    trailingIcon: "arrow.up.right.square"
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            NavigationLink {
-                PlaceholderSettingsView(title: L10n.privacyPolicy)
-            } label: {
-                SettingsListRow(
-                    icon: "lock",
-                    title: L10n.privacyPolicy,
-                    trailingIcon: "arrow.up.right.square"
+                    icon: "questionmark.circle",
+                    title: L10n.helpAndSupport,
+                    subtitle: L10n.current == .no ? "FAQ, support og juridisk" : "FAQ, support, and legal"
                 )
             }
             .buttonStyle(.plain)
@@ -249,27 +209,29 @@ struct ProfileView: View {
 
     private var signOutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button {
-                authManager.signOut()
-            } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "arrow.right.circle")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(hex: "5B4FD1"))
-                        .frame(width: 30)
+            if authManager.isAuthenticated {
+                Button {
+                    showingSignOutConfirmation = true
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "arrow.right.circle")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Color(hex: "5B4FD1"))
+                            .frame(width: 30)
 
-                    Text(L10n.signOut)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Color(hex: "5B4FD1"))
+                        Text(L10n.signOut)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(Color(hex: "5B4FD1"))
 
-                    Spacer()
+                        Spacer()
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 18)
+                    .padding(.bottom, 8)
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
-                .padding(.bottom, 8)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             Text("\(L10n.appVersionLabel) \(AppConfig.version)")
                 .font(.system(size: 14, weight: .medium))
@@ -300,7 +262,8 @@ struct ProfileView: View {
 private struct SettingsListRow: View {
     let icon: String
     let title: String
-    var trailingIcon: String = "chevron.right"
+    var subtitle: String? = nil
+    var trailingIcon: String? = "chevron.right"
 
     var body: some View {
         HStack(spacing: 14) {
@@ -309,20 +272,31 @@ private struct SettingsListRow: View {
                 .foregroundColor(CoachiTheme.textTertiary)
                 .frame(width: 30)
 
-            Text(title)
-                .font(.system(size: 17, weight: .regular))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .lineLimit(2)
+            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 3) {
+                Text(title)
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .lineLimit(2)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .lineLimit(2)
+                }
+            }
 
             Spacer(minLength: 8)
 
-            Image(systemName: trailingIcon)
-                .font(
-                    trailingIcon == "arrow.up.right.square"
-                        ? .system(size: 18, weight: .regular)
-                        : .system(size: 14, weight: .semibold)
-                )
-                .foregroundColor(CoachiTheme.textTertiary)
+            if let trailingIcon {
+                Image(systemName: trailingIcon)
+                    .font(
+                        trailingIcon == "arrow.up.right.square"
+                            ? .system(size: 18, weight: .regular)
+                            : .system(size: 14, weight: .semibold)
+                    )
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 15)
@@ -343,30 +317,6 @@ private struct HealthProfileView: View {
     }
 }
 
-private struct PlaceholderSettingsView: View {
-    let title: String
-
-    var body: some View {
-        ZStack {
-            CoachiTheme.bg.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "clock")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                Text(title)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .multilineTextAlignment(.center)
-                Text(L10n.comingSoon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-            }
-            .padding(.horizontal, 24)
-        }
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
@@ -375,11 +325,27 @@ private struct PersonalProfileSettingsView: View {
     @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
     @State private var showingBirthDateEditor = false
     @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
+    @State private var showingSignOutConfirmation = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                SettingsListRow(icon: "person.text.rectangle", title: L10n.current == .no ? "Navn: \(appViewModel.userProfile.name)" : "Name: \(appViewModel.userProfile.name)", trailingIcon: "chevron.right")
+                sectionHeader(L10n.personalProfile)
+
+                SettingsListRow(
+                    icon: "person.crop.circle.badge.checkmark",
+                    title: L10n.accountStatus,
+                    subtitle: accountStatusSubtitle,
+                    trailingIcon: nil
+                )
+
+                settingsDivider
+
+                SettingsListRow(
+                    icon: "person.text.rectangle",
+                    title: L10n.current == .no ? "Navn: \(appViewModel.userProfile.name)" : "Name: \(appViewModel.userProfile.name)",
+                    trailingIcon: nil
+                )
 
                 settingsDivider
 
@@ -431,13 +397,15 @@ private struct PersonalProfileSettingsView: View {
 
                 SettingsListRow(
                     icon: "chart.bar.fill",
-                    title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)"
+                    title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
+                    trailingIcon: nil
                 )
 
                 settingsDivider
 
                 NavigationLink {
-                    SettingsView().environmentObject(appViewModel)
+                    AboutCoachiView()
+                        .environmentObject(appViewModel)
                 } label: {
                     SettingsListRow(
                         icon: "info.circle",
@@ -446,28 +414,59 @@ private struct PersonalProfileSettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                settingsDivider
+                if authManager.isAuthenticated {
+                    sectionHeader(L10n.account)
 
-                Button {
-                    authManager.signOut()
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 16))
-                            .foregroundColor(CoachiTheme.danger)
-                            .frame(width: 30)
+                    settingsDivider
 
-                        Text(L10n.signOut)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(CoachiTheme.danger)
+                    NavigationLink {
+                        DeleteAccountInfoView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                                .foregroundColor(CoachiTheme.danger)
+                                .frame(width: 30)
 
-                        Spacer()
+                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.danger)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+
+                    settingsDivider
+
+                    Button {
+                        showingSignOutConfirmation = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16))
+                                .foregroundColor(CoachiTheme.danger)
+                                .frame(width: 30)
+
+                            Text(L10n.signOut)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.danger)
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.top, 8)
             .padding(.bottom, 80)
@@ -485,12 +484,37 @@ private struct PersonalProfileSettingsView: View {
                 }
             )
         }
+        .confirmationDialog(
+            L10n.signOut,
+            isPresented: $showingSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.signOut, role: .destructive) {
+                authManager.signOut()
+            }
+            Button(L10n.current == .no ? "Avbryt" : "Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                L10n.current == .no
+                    ? "Du kan logge inn igjen senere."
+                    : "You can sign in again later."
+            )
+        }
     }
 
     private var settingsDivider: some View {
         Rectangle()
             .fill(CoachiTheme.borderSubtle.opacity(0.8))
             .frame(height: 1)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 15, weight: .bold))
+            .foregroundColor(CoachiTheme.textSecondary)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 10)
     }
 
     private var minimumBirthDate: Date {
@@ -513,12 +537,850 @@ private struct PersonalProfileSettingsView: View {
         return formatter.string(from: storedBirthDate)
     }
 
+    private var accountStatusSubtitle: String {
+        if authManager.isAuthenticated {
+            if let email = authManager.currentUser?.email, !email.isEmpty {
+                return "\(L10n.signedInAs) \(email)"
+            }
+            return L10n.current == .no ? "Konto tilkoblet." : "Account connected."
+        }
+        return "\(L10n.usingWithoutAccount). \(L10n.connectAccountLaterHint)"
+    }
+
     private func persistBirthDate(_ value: Date) {
         let bounded = min(max(value, minimumBirthDate), Date())
         birthdateTimestamp = bounded.timeIntervalSince1970
         let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
         let age = max(14, min(95, years))
         UserDefaults.standard.set(age, forKey: "user_age")
+    }
+}
+
+private struct SupportCenterView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        List {
+            Section {
+                Text(
+                    isNorwegian
+                        ? "Finn svar på vanlige spørsmål, kontakt support og les juridisk informasjon for Coachi."
+                        : "Find answers to common questions, contact support, and read Coachi's legal information."
+                )
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .padding(.vertical, 4)
+                .listRowBackground(CoachiTheme.bg)
+            }
+
+            Section {
+                NavigationLink {
+                    FAQView()
+                } label: {
+                    Label(L10n.faqTitle, systemImage: "questionmark.circle")
+                }
+
+                NavigationLink {
+                    ContactSupportView()
+                } label: {
+                    Label(L10n.contactSupport, systemImage: "envelope")
+                }
+            } header: {
+                Text(L10n.helpAndSupport)
+            }
+
+            Section {
+                NavigationLink {
+                    PrivacyPolicyView()
+                } label: {
+                    Label(L10n.privacyPolicy, systemImage: "hand.raised")
+                }
+
+                NavigationLink {
+                    TermsOfUseView()
+                } label: {
+                    Label(L10n.termsOfUse, systemImage: "doc.text")
+                }
+            } header: {
+                Text(L10n.legal)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.helpAndSupport)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct AboutCoachiView: View {
+    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(\.openURL) private var openURL
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: isNorwegian ? "Om Coachi" : "About Coachi",
+                    copyText: isNorwegian
+                        ? "Coachi er en løpecoach-app som guider deg gjennom økter med korte lydsignaler, tydelige overganger og en rolig coachingstil."
+                        : "Coachi is a running coach app that guides you through workouts with short audio cues, clear transitions, and a calm coaching style."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Versjon" : "Version",
+                    copyText: "Coachi v\(AppConfig.version)"
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Kontakt" : "Contact",
+                    copyText: coachiSupportEmail
+                )
+
+                Button {
+                    openSupportEmail()
+                } label: {
+                    SettingsActionRow(
+                        icon: "envelope",
+                        title: isNorwegian ? "Kontakt support" : "Contact support",
+                        tint: CoachiTheme.primary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    SettingsView().environmentObject(appViewModel)
+                } label: {
+                    SettingsCardRow(
+                        icon: "slider.horizontal.3",
+                        title: L10n.advancedSettings,
+                        subtitle: L10n.audioMaintenance
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.aboutCoachi)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func openSupportEmail() {
+        guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
+        openURL(url)
+    }
+}
+
+private struct CoachingSettingsView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: L10n.howCoachiWorks,
+                    copyText: isNorwegian
+                        ? "Coachi guider deg gjennom økten med korte lydsignaler, tydelige overganger og rolige påminnelser når det trengs."
+                        : "Coachi guides your workout with short audio cues, clear transitions, and calm reminders when they matter."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Når puls er tilgjengelig" : "When heart rate is available",
+                    copyText: isNorwegian
+                        ? "Når Coachi får live puls fra Apple Watch eller Bluetooth-sensor, kan coachingen bli mer presis og hjelpe deg å holde riktig intensitet."
+                        : "When Coachi receives live heart rate from Apple Watch or a Bluetooth sensor, coaching becomes more precise and can help you stay in the right intensity."
+                )
+
+                SupportCard(
+                    title: L10n.ifHeartRateMissing,
+                    copyText: isNorwegian
+                        ? "Hvis puls mangler, fortsetter Coachi med struktur og timing. Du får fortsatt tydelig veiledning gjennom økten."
+                        : "If heart rate is missing, Coachi continues with structure and timing cues. You still get clear guidance through the workout."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Talk to Coach" : "Talk to Coach",
+                    copyText: isNorwegian
+                        ? "Du kan stille korte spørsmål under økten når funksjonen er tilgjengelig. Opplevelsen kan være begrenset av nettverk eller produktnivå."
+                        : "You can ask short questions during a workout when the feature is available. The experience may be limited by network conditions or product tier."
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.coaching)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct AudioAndVoicesView: View {
+    @EnvironmentObject var authManager: AuthManager
+    @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
+    @ObservedObject private var syncManager = AudioPackSyncManager.shared
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+                NavigationLink {
+                    LanguageSettingsView().environmentObject(authManager)
+                } label: {
+                    SettingsCardRow(
+                        icon: "globe",
+                        title: L10n.language,
+                        subtitle: (AppLanguage(rawValue: UserDefaults.standard.string(forKey: "app_language") ?? "en") ?? .en).displayName
+                    )
+                }
+                .buttonStyle(.plain)
+
+                SettingsCardRow(
+                    icon: "person.wave.2",
+                    title: L10n.activeVoice,
+                    subtitle: L10n.current == .no ? "Standard coach-stemme" : "Standard coach voice",
+                    showsChevron: false
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.advancedSettings)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+
+                    Text(L10n.audioMaintenance)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+
+                VStack(spacing: 8) {
+                    SettingsCardRow(
+                        icon: "speaker.wave.3.fill",
+                        title: L10n.voicePackStatus,
+                        subtitle: voicePackSubtitle,
+                        showsChevron: false
+                    )
+
+                    Button {
+                        Task { await syncManager.resetAndResync() }
+                    } label: {
+                        SettingsActionRow(
+                            icon: "arrow.clockwise",
+                            title: L10n.current == .no ? "Oppdater lydinnhold" : "Refresh audio content",
+                            tint: .red
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(syncManager.syncState == .downloading)
+
+                    Button {
+                        syncManager.purgeStaleFiles()
+                    } label: {
+                        SettingsActionRow(
+                            icon: "trash",
+                            title: L10n.current == .no ? "Rydd lokale lydfiler" : "Clean local audio files",
+                            tint: CoachiTheme.textSecondary
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                HStack(spacing: 12) {
+                    Image(systemName: darkModeEnabled ? "moon.fill" : "sun.max.fill")
+                        .font(.body)
+                        .foregroundColor(CoachiTheme.primary)
+                        .frame(width: 36, height: 36)
+                        .background(CoachiTheme.primary.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.darkMode)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(L10n.darkModeSubtitle)
+                            .font(.system(size: 12))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $darkModeEnabled)
+                        .labelsHidden()
+                        .tint(CoachiTheme.primary)
+                }
+                .padding(12)
+                .cardStyle()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.audioAndVoices)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var voicePackSubtitle: String {
+        let version = syncManager.currentPackVersion ?? "none"
+
+        switch syncManager.syncState {
+        case .idle:
+            return packInfoLine(version: version)
+        case .checking:
+            return L10n.current == .no ? "Sjekker oppdateringer..." : "Checking for updates..."
+        case .downloading:
+            let (done, total) = syncManager.downloadProgress
+            return L10n.current == .no ? "Laster ned \(done)/\(total)..." : "Downloading \(done)/\(total)..."
+        case .cleaning:
+            return L10n.current == .no ? "Rydder opp..." : "Cleaning up..."
+        case .complete:
+            return packInfoLine(version: version)
+        case .failed:
+            return syncManager.lastError ?? "Sync failed"
+        }
+    }
+
+    private func packInfoLine(version: String) -> String {
+        let files = syncManager.localFileCount()
+        let sizeMB = String(format: "%.1f", Double(syncManager.localPackSizeBytes()) / 1_048_576.0)
+        var line = "\(version) | \(files) files | \(sizeMB) MB"
+        if let lastSync = syncManager.lastSyncAt {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .short
+            let ago = formatter.localizedString(for: lastSync, relativeTo: Date())
+            line += " | \(ago)"
+        }
+        return line
+    }
+}
+
+private struct HistoryAndDataView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: L10n.trainingHistory,
+                    copyText: isNorwegian
+                        ? "Coachi lagrer økter og oppsummeringer slik at du kan vise fremgang over tid. Hvor mye historikk du ser, kan avhenge av kontostatus og produktnivå."
+                        : "Coachi stores workouts and summaries so you can review progress over time. How much history you see may depend on account status and product tier."
+                )
+
+                SupportCard(
+                    title: L10n.dataAndPrivacy,
+                    copyText: isNorwegian
+                        ? "Coachi bruker data for å levere coaching, lagre økter, holde tjenesten stabil og gi deg innsikt i treningen. Selskapsdetaljer fylles inn senere."
+                        : "Coachi uses data to deliver coaching, store workouts, keep the service stable, and give you insight into your training. Company details will be filled in later."
+                )
+
+                NavigationLink {
+                    PrivacyPolicyView()
+                } label: {
+                    SettingsCardRow(
+                        icon: "hand.raised",
+                        title: L10n.privacyPolicy,
+                        subtitle: isNorwegian ? "Les hvordan data behandles i Coachi" : "Read how data is handled in Coachi"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    TermsOfUseView()
+                } label: {
+                    SettingsCardRow(
+                        icon: "doc.text",
+                        title: L10n.termsOfUse,
+                        subtitle: isNorwegian ? "Les vilkårene som gjelder for bruk av appen" : "Read the terms that apply when you use the app"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.historyAndData)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct FAQView: View {
+    private struct FAQItem: Identifiable {
+        let id: String
+        let question: String
+        let answer: String
+    }
+
+    private var items: [FAQItem] {
+        if L10n.current == .no {
+            return [
+                FAQItem(
+                    id: "how",
+                    question: "Hvordan fungerer Coachi?",
+                    answer: "Coachi guider deg gjennom økter med korte lydsignaler, overganger og tydelige beskjeder underveis."
+                ),
+                FAQItem(
+                    id: "watch",
+                    question: "Trenger jeg Apple Watch eller pulsklokke?",
+                    answer: "Nei. Du kan bruke Coachi uten puls. Hvis puls er tilgjengelig, kan coachingen bli mer presis."
+                ),
+                FAQItem(
+                    id: "no_hr",
+                    question: "Hva skjer hvis puls mangler?",
+                    answer: "Coachi fortsetter med struktur og timing. Du kan fortsatt fullføre økten uten live puls."
+                ),
+                FAQItem(
+                    id: "free",
+                    question: "Hva er inkludert i gratisversjonen?",
+                    answer: "Kjernecoaching, lydsignaler, nedtellinger, enkel oppsummering, coach score og nylige økter er en del av gratisopplevelsen."
+                ),
+                FAQItem(
+                    id: "premium",
+                    question: "Hva er inkludert i Premium?",
+                    answer: "Premium kan gi mer innsikt, mer historikk og mer personlig coaching. Endelige abonnementdetaljer kommer senere."
+                ),
+                FAQItem(
+                    id: "subscription",
+                    question: "Hvordan avslutter jeg abonnementet?",
+                    answer: "Når abonnement er aktivt, administrerer du det i App Store eller via abonnementssiden i appen."
+                ),
+                FAQItem(
+                    id: "delete",
+                    question: "Hvordan sletter jeg kontoen min?",
+                    answer: "Du kan bruke Slett konto i innstillinger når funksjonen er tilgjengelig, eller kontakte support på \(coachiSupportEmail)."
+                ),
+                FAQItem(
+                    id: "support",
+                    question: "Hvordan kontakter jeg support?",
+                    answer: "Kontakt oss på \(coachiSupportEmail) og beskriv hva som skjedde, hvilken enhet du bruker og gjerne legg ved skjermbilder."
+                ),
+            ]
+        }
+
+        return [
+            FAQItem(
+                id: "how",
+                question: "How does Coachi work?",
+                answer: "Coachi guides your workouts with short audio cues, transitions, and clear instructions during the session."
+            ),
+            FAQItem(
+                id: "watch",
+                question: "Do I need Apple Watch or a heart-rate sensor?",
+                answer: "No. You can use Coachi without heart rate. If heart rate is available, coaching can become more precise."
+            ),
+            FAQItem(
+                id: "no_hr",
+                question: "What happens if heart rate is missing?",
+                answer: "Coachi continues with structure and timing cues. You can still complete the workout without live heart rate."
+            ),
+            FAQItem(
+                id: "free",
+                question: "What is included in the free version?",
+                answer: "Core coaching, audio cues, countdowns, a simple summary, coach score, and recent workouts are part of the free experience."
+            ),
+            FAQItem(
+                id: "premium",
+                question: "What is included in Premium?",
+                answer: "Premium may include deeper insights, longer history, and more personal coaching. Final subscription details come later."
+            ),
+            FAQItem(
+                id: "subscription",
+                question: "How do I cancel my subscription?",
+                answer: "When subscriptions are active, you manage them in the App Store or from the subscription page inside the app."
+            ),
+            FAQItem(
+                id: "delete",
+                question: "How do I delete my account?",
+                answer: "Use Delete account in settings when available, or contact support at \(coachiSupportEmail)."
+            ),
+            FAQItem(
+                id: "support",
+                question: "How do I contact support?",
+                answer: "Contact us at \(coachiSupportEmail) and include what happened, which device you use, and screenshots if helpful."
+            ),
+        ]
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(item.question)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+
+                        Text(item.answer)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(CoachiTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
+                    )
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.faqTitle)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ContactSupportView: View {
+    @Environment(\.openURL) private var openURL
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: isNorwegian ? "Kontakt support" : "Contact support",
+                    copyText: isNorwegian
+                        ? "Hvis noe ikke fungerer som det skal, eller du trenger hjelp, kan du kontakte oss direkte. Vi prioriterer klare beskrivelser og praktiske detaljer."
+                        : "If something is not working as expected, or you need help, you can contact us directly. Clear descriptions and practical details help us resolve issues faster."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Support" : "Support",
+                    copyText: coachiSupportEmail
+                )
+
+                Button {
+                    openSupportEmail()
+                } label: {
+                    SettingsActionRow(
+                        icon: "paperplane",
+                        title: isNorwegian ? "Send e-post til support" : "Email support",
+                        tint: CoachiTheme.primary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                SupportCard(
+                    title: isNorwegian ? "Ta gjerne med dette" : "Include this if possible",
+                    copyText: isNorwegian
+                        ? "Appversjon, enhetsmodell og om problemet skjedde under en økt, ved innlogging eller under synk av lydpakke. Skjermbilder er nyttige hvis du har dem."
+                        : "App version, device model, and whether the issue happened during a workout, during sign-in, or during audio-pack sync. Screenshots are useful if you have them."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Hva support kan hjelpe med" : "What support can help with",
+                    copyText: isNorwegian
+                        ? "Feil under økter, problemer med konto, spørsmål om historikk, lydpakke, abonnement og andre tekniske problemer i Coachi."
+                        : "Workout issues, account problems, questions about history, audio packs, subscriptions, and other technical issues in Coachi."
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.contactSupport)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func openSupportEmail() {
+        guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
+        openURL(url)
+    }
+}
+
+private struct PrivacyPolicyView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: isNorwegian ? "Behandlingsansvarlig" : "Controller",
+                    copyText: isNorwegian
+                        ? "[COMPANY_NAME]\n[ORG_NUMBER]\n[COMPANY_ADDRESS]\n[PRIVACY_EMAIL]\n[WEBSITE_URL]"
+                        : "[COMPANY_NAME]\n[ORG_NUMBER]\n[COMPANY_ADDRESS]\n[PRIVACY_EMAIL]\n[WEBSITE_URL]"
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Hva Coachi samler inn" : "What Coachi collects",
+                    copyText: isNorwegian
+                        ? "Coachi kan behandle kontoopplysninger, profil- og treningsdata, lyd- og interaksjonsdata, abonnementsopplysninger, tekniske logger og supporthenvendelser."
+                        : "Coachi may process account details, profile and workout data, audio and interaction data, subscription information, technical logs, and support requests."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Hvorfor opplysningene brukes" : "Why data is used",
+                    copyText: isNorwegian
+                        ? "Opplysningene brukes for å levere coaching, lagre historikk, gi oppsummeringer, håndtere konto og abonnement, synkronisere lydpakker, yte support og forbedre kvalitet og sikkerhet."
+                        : "Data is used to deliver coaching, store history, provide summaries, manage account and subscription, sync audio packs, provide support, and improve quality and security."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Behandlingsgrunnlag" : "Legal basis",
+                    copyText: isNorwegian
+                        ? "Vi behandler opplysninger på grunnlag av avtale, samtykke, berettiget interesse eller rettslig forpliktelse, avhengig av hva slags data og funksjon det gjelder."
+                        : "We process data based on contract, consent, legitimate interests, or legal obligation, depending on the type of data and feature involved."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Lagringstid" : "Retention",
+                    copyText: isNorwegian
+                        ? "Opplysninger lagres så lenge det er nødvendig for å levere tjenesten, følge opp support, oppfylle lovkrav eller så lenge kontoen din er aktiv."
+                        : "Data is kept as long as needed to provide the service, handle support, comply with legal requirements, or while your account remains active."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Databehandlere" : "Processors",
+                    copyText: isNorwegian
+                        ? "Hosting og drift: [VERIFY PROCESSOR]\nLydlagring og synk: [VERIFY PROCESSOR]\nTale/AI-funksjoner: [VERIFY PROCESSOR]\nAbonnement og distribusjon: Apple"
+                        : "Hosting and operations: [VERIFY PROCESSOR]\nAudio storage and sync: [VERIFY PROCESSOR]\nSpeech/AI features: [VERIFY PROCESSOR]\nSubscription and distribution: Apple"
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Dine rettigheter" : "Your rights",
+                    copyText: isNorwegian
+                        ? "Du kan be om innsyn, retting, sletting, begrensning, dataportabilitet og protestere der loven gir grunnlag. Kontakt oss på [PRIVACY_EMAIL]."
+                        : "You can request access, correction, deletion, restriction, data portability, and object where the law allows it. Contact us at [PRIVACY_EMAIL]."
+                )
+
+                Text(
+                    isNorwegian
+                        ? "Sist oppdatert: [LAST_UPDATED_DATE]"
+                        : "Last updated: [LAST_UPDATED_DATE]"
+                )
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .padding(.horizontal, 4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.privacyPolicy)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct TermsOfUseView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: isNorwegian ? "Om tjenesten" : "About the service",
+                    copyText: isNorwegian
+                        ? "Coachi er en treningsapp med lydcoaching, treningshistorikk, kontofunksjoner, eventuelle Premium-funksjoner og stemmebaserte funksjoner når de er tilgjengelige."
+                        : "Coachi is a training app with audio coaching, workout history, account features, possible Premium features, and voice-based features when available."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Abonnement og betaling" : "Subscriptions and payment",
+                    copyText: isNorwegian
+                        ? "Coachi kan tilby gratisversjon, prøveperiode og betalte abonnementer. Detaljer: [SUBSCRIPTION_DETAILS]"
+                        : "Coachi may offer a free tier, trial period, and paid subscriptions. Details: [SUBSCRIPTION_DETAILS]"
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Helseforbehold" : "Health disclaimer",
+                    copyText: isNorwegian
+                        ? "Coachi er ikke medisinsk rådgivning. Du er selv ansvarlig for å vurdere om trening passer for deg og for å avbryte eller tilpasse aktiviteten ved smerte, svimmelhet eller ubehag."
+                        : "Coachi is not medical advice. You remain responsible for deciding whether training is suitable for you and for stopping or adjusting activity if you experience pain, dizziness, or discomfort."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Brukeransvar" : "User responsibilities",
+                    copyText: isNorwegian
+                        ? "Du skal ikke misbruke tjenesten, omgå sikkerhetsmekanismer eller bruke Coachi på en måte som skader oss, andre brukere eller tredjepartsleverandører."
+                        : "You must not misuse the service, bypass security mechanisms, or use Coachi in a way that harms us, other users, or third-party providers."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Tilgjengelighet og endringer" : "Availability and changes",
+                    copyText: isNorwegian
+                        ? "Vi forsøker å holde Coachi tilgjengelig og oppdatert, men vi kan ikke garantere feilfri drift. Vi kan oppdatere, endre eller fjerne funksjoner når det er nødvendig."
+                        : "We try to keep Coachi available and up to date, but we cannot guarantee uninterrupted or error-free service. We may update, change, or remove features when needed."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Ansvarsbegrensning" : "Limitation of liability",
+                    copyText: isNorwegian
+                        ? "Så langt loven tillater det, er vi ikke ansvarlige for indirekte tap, avbrudd, sensorfeil eller tap som oppstår ved feil bruk av tjenesten."
+                        : "To the extent permitted by law, we are not responsible for indirect loss, interruptions, sensor failures, or loss arising from misuse of the service."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Kontakt" : "Contact",
+                    copyText: isNorwegian
+                        ? "[COMPANY_NAME]\n\(coachiSupportEmail)\n[COMPANY_ADDRESS]\n[WEBSITE_URL]"
+                        : "[COMPANY_NAME]\n\(coachiSupportEmail)\n[COMPANY_ADDRESS]\n[WEBSITE_URL]"
+                )
+
+                Text(
+                    isNorwegian
+                        ? "Sist oppdatert: [LAST_UPDATED_DATE]"
+                        : "Last updated: [LAST_UPDATED_DATE]"
+                )
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .padding(.horizontal, 4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.termsOfUse)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct DeleteAccountInfoView: View {
+    @Environment(\.openURL) private var openURL
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: isNorwegian ? "Slett konto" : "Delete account",
+                    copyText: isNorwegian
+                        ? "Hvis du vil slette Coachi-kontoen din, kan du bruke denne handlingen når selvbetjent sletting er aktiv i appen. Inntil da kan du kontakte support."
+                        : "If you want to delete your Coachi account, use this action when self-service deletion is active in the app. Until then, contact support."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Support" : "Support",
+                    copyText: coachiSupportEmail
+                )
+
+                Button {
+                    openSupportEmail()
+                } label: {
+                    SettingsActionRow(
+                        icon: "envelope.badge",
+                        title: isNorwegian ? "Kontakt support om sletting" : "Contact support about deletion",
+                        tint: CoachiTheme.primary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                SupportCard(
+                    title: isNorwegian ? "Viktig å vite" : "Important to know",
+                    copyText: isNorwegian
+                        ? "Sletting av konto kan påvirke treningshistorikk, abonnement, lydinnstillinger og andre data som er knyttet til profilen din."
+                        : "Deleting your account can affect workout history, subscription access, audio settings, and other data connected to your profile."
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(isNorwegian ? "Slett konto" : "Delete account")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func openSupportEmail() {
+        guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
+        openURL(url)
+    }
+}
+
+private struct SupportCard: View {
+    let title: String
+    let copyText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(copyText)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
+        )
+    }
+}
+
+private struct SettingsCardRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    var showsChevron: Bool = true
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundColor(CoachiTheme.primary)
+                .frame(width: 36, height: 36)
+                .background(CoachiTheme.primary.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
+        }
+        .padding(12)
+        .cardStyle()
+    }
+}
+
+private struct SettingsActionRow: View {
+    let icon: String
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+            Text(title)
+        }
+        .font(.system(size: 14, weight: .medium))
+        .foregroundColor(tint)
+        .frame(maxWidth: .infinity)
+        .padding(10)
+        .cardStyle()
     }
 }
 

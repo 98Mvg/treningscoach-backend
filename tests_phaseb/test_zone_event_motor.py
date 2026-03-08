@@ -796,6 +796,37 @@ def test_hr_structure_notice_resets_after_hr_restores():
     assert "hr_structure_mode_notice" in second_loss_events
 
 
+def test_hr_structure_notice_does_not_rearm_without_real_hr_restore():
+    state = {
+        "zone_engine": {
+            "instruction_mode": "structure_driven",
+            "structure_mode_notice_pending": False,
+            "structure_mode_notice_sent": True,
+            "hr_signal_state": "lost",
+            "hr_valid_streak_seconds": 0.0,
+            "hr_invalid_streak_seconds": 10.0,
+            "main_started_emitted": True,
+            "canonical_phase": "main",
+            "phase_id": 1,
+        }
+    }
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=42,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "hr_structure_mode_notice" not in events
+
+
 def test_phase1_no_sensors_mode_persists_when_movement_signal_later_disappears():
     state = {}
 

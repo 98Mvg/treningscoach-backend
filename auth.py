@@ -101,6 +101,26 @@ def _persist_runtime_jwt_secret(secret_path: Path) -> str:
     return secret
 
 
+def _is_production_like_environment() -> bool:
+    env_name = (
+        os.getenv("ENVIRONMENT")
+        or os.getenv("APP_ENV")
+        or os.getenv("FLASK_ENV")
+        or ""
+    ).strip().lower()
+    if env_name in {"prod", "production"}:
+        return True
+
+    if (os.getenv("RENDER_SERVICE_ID") or "").strip():
+        return True
+
+    render_flag = (os.getenv("RENDER") or "").strip().lower()
+    if render_flag in {"1", "true", "yes", "on"}:
+        return True
+
+    return False
+
+
 def _resolve_jwt_secret() -> str:
     configured = (os.getenv("JWT_SECRET") or "").strip()
     if configured and configured != DEFAULT_INSECURE_JWT_SECRET:
@@ -108,6 +128,11 @@ def _resolve_jwt_secret() -> str:
 
     if configured == DEFAULT_INSECURE_JWT_SECRET:
         logger.warning("Ignoring insecure default JWT secret from JWT_SECRET env var")
+
+    if _is_production_like_environment():
+        raise RuntimeError(
+            "JWT_SECRET must be explicitly configured in production-like environments"
+        )
 
     secret_file = Path((os.getenv("JWT_SECRET_FILE") or "/tmp/treningscoach_jwt_secret").strip())
     resolved = _persist_runtime_jwt_secret(secret_file)

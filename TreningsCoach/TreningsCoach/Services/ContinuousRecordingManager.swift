@@ -10,6 +10,11 @@ import Foundation
 import AVFoundation
 import AVFAudio
 
+private enum RecordingError: Error {
+    case noPermission
+    case recordingFailed
+}
+
 class ContinuousRecordingManager: NSObject {
 
     // MARK: - Properties

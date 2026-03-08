@@ -1,13 +1,13 @@
 {
   "version": "v2",
-  "generated_at": "2026-03-07T15:17:34.493524+00:00",
+  "generated_at": "2026-03-07T18:36:46.806858+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
   "total_files": 114,
-  "total_size_bytes": 2379815,
+  "total_size_bytes": 2378143,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -369,8 +369,8 @@
       },
       "no": {
         "file": "no/zone.countdown.5.mp3",
-        "size": 10075,
-        "sha256": "ed9b374dad8433e8b97dc7802317253a30f8c5c82f0c8e4ed478c5e482d1beb5"
+        "size": 8403,
+        "sha256": "fcec5af1c48e9742913d8217d96a6f8ea66866fc2caa8a40fa4d5268c1a984ee"
       }
     },
     {

@@ -74,10 +74,6 @@ def _zone_event_phrase_ids() -> set[str]:
             for variant in (1, 2):
                 phrase_ids.add(_motivation_phrase_id(workout_type, stage, variant))
 
-    # Global motivation pool can now be emitted by all motivation event families.
-    for index in range(1, 11):
-        phrase_ids.add(f"motivation.{index}")
-
     return phrase_ids
 
 

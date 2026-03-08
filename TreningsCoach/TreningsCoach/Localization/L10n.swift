@@ -19,7 +19,7 @@ struct L10n {
     }
 
     // MARK: - General
-    static var appName: String { "Treningscoach" }
+    static var appName: String { "Coachi" }
 
     // MARK: - Greetings
     static var goodMorning: String { current == .no ? "God morgen" : "Good morning" }
@@ -80,8 +80,27 @@ struct L10n {
     static var myStatistics: String { current == .no ? "Min statistikk" : "My Statistics" }
     static var personalProfile: String { current == .no ? "Personlig profil" : "Personal profile" }
     static var healthProfile: String { current == .no ? "Helseprofil" : "Health profile" }
-    static var manageHeartRateMonitors: String { current == .no ? "Administrer pulsmålere" : "Manage heart rate monitors" }
+    static var manageHeartRateMonitors: String { current == .no ? "Puls og sensorer" : "Heart rate & sensors" }
     static var settings: String { current == .no ? "Innstillinger" : "Settings" }
+    static var account: String { current == .no ? "Konto" : "Account" }
+    static var accountStatus: String { current == .no ? "Kontostatus" : "Account status" }
+    static var signedInAs: String { current == .no ? "Logget inn som" : "Signed in as" }
+    static var usingWithoutAccount: String { current == .no ? "Bruker Coachi uten konto" : "Using Coachi without account" }
+    static var connectAccountLaterHint: String {
+        current == .no
+            ? "Du kan koble til konto senere for historikk og synk."
+            : "You can connect an account later for history and sync."
+    }
+    static var coaching: String { current == .no ? "Coaching" : "Coaching" }
+    static var helpAndLegal: String { current == .no ? "Hjelp og juridisk" : "Help & legal" }
+    static var audioAndVoices: String { current == .no ? "Lyd og stemmer" : "Audio & voices" }
+    static var historyAndData: String { current == .no ? "Historikk og data" : "History & data" }
+    static var howCoachiWorks: String { current == .no ? "Hvordan Coachi fungerer" : "How Coachi works" }
+    static var ifHeartRateMissing: String { current == .no ? "Hvis puls mangler" : "If heart rate is missing" }
+    static var trainingHistory: String { current == .no ? "Treningshistorikk" : "Training history" }
+    static var dataAndPrivacy: String { current == .no ? "Data og personvern" : "Data & privacy" }
+    static var voicePackStatus: String { current == .no ? "Status for lydpakke" : "Voice pack status" }
+    static var activeVoice: String { current == .no ? "Aktiv stemme" : "Active voice" }
     static var accountSettings: String { current == .no ? "Brukerkontoinnstillinger" : "Account settings" }
     static var notifications: String { current == .no ? "Varsler" : "Notifications" }
     static var privacySettings: String { current == .no ? "Personverninnstillinger" : "Privacy settings" }
@@ -101,15 +120,23 @@ struct L10n {
     static var experienceLevel: String { current == .no ? "Treningsnivaa" : "Experience Level" }
     static var dateOfBirth: String { current == .no ? "Fødselsdato" : "Date of birth" }
     static var coachVoice: String { current == .no ? "Coach-stemme" : "Coach Voice" }
-    static var language: String { current == .no ? "Spraak" : "Language" }
+    static var language: String { current == .no ? "Språk" : "Language" }
     static var signOut: String { current == .no ? "Logg ut" : "Sign Out" }
     static var athlete: String { current == .no ? "Utover" : "Athlete" }
 
     // MARK: - Onboarding
-    static var chooseLanguage: String { current == .no ? "Velg spraak" : "Choose Language" }
-    static var languageSubtitle: String { current == .no ? "Dette styrer bade appen og coachen" : "This controls both the app and the coach" }
-    static var signIn: String { current == .no ? "Logg inn" : "Sign In" }
-    static var signInSubtitle: String { current == .no ? "Opprett kontoen din for aa komme i gang" : "Create your account to get started" }
+    static var chooseLanguage: String { current == .no ? "Velg språk" : "Choose language" }
+    static var languageSubtitle: String {
+        current == .no
+            ? "Dette styrer appen og coachen. Du kan endre det senere."
+            : "This controls the app and the coach. You can change it later."
+    }
+    static var signIn: String { current == .no ? "Vil du lagre framgangen din?" : "Want to save your progress?" }
+    static var signInSubtitle: String {
+        current == .no
+            ? "Konto er valgfritt. Start nå, og koble til konto senere for synk og historikk."
+            : "An account is optional. Start now, then connect an account later for sync and history."
+    }
     static var registerWithApple: String { current == .no ? "Registrer deg med Apple" : "Register with Apple" }
     static var registerWithGoogle: String { current == .no ? "Registrer deg med Google" : "Register with Google" }
     static var or: String { current == .no ? "Eller" : "Or" }
@@ -141,6 +168,23 @@ struct L10n {
     static var getStarted: String { current == .no ? "Kom i gang" : "Get Started" }
     static var skip: String { current == .no ? "Hopp over" : "Skip" }
     static var continueWithoutAccount: String { current == .no ? "Fortsett uten konto" : "Continue without account" }
+    static var signInLaterHint: String {
+        current == .no
+            ? "Du kan starte gratis nå og koble til konto senere."
+            : "You can start free now and connect an account later."
+    }
+    static var startFreeBadge: String { current == .no ? "Start gratis" : "Start free" }
+    static var accountOptionalBadge: String { current == .no ? "Konto er valgfritt" : "Account optional" }
+    static var watchOptionalBadge: String { current == .no ? "Klokke er valgfritt" : "Watch optional" }
+    static var authBenefitSaveHistory: String {
+        current == .no ? "Lagre økter og CoachScore" : "Save workouts and CoachScore"
+    }
+    static var authBenefitSyncProfile: String {
+        current == .no ? "Synk profil og språk" : "Sync profile and language"
+    }
+    static var authBenefitStartWithoutAccount: String {
+        current == .no ? "Du kan fortsatt starte uten konto" : "You can still start without an account"
+    }
 
     // MARK: - Intensity
     static var calm: String { current == .no ? "Rolig" : "Calm" }
@@ -196,14 +240,14 @@ struct L10n {
     }
     static var sensorConnectBody: String {
         current == .no
-            ? "Med klokke blir sonecoaching mer presis. Du kan fortsatt bruke appen uten klokke."
-            : "With a watch, zone coaching becomes more precise. You can still use the app without one."
+            ? "Med klokke blir pulscoaching mer presis. Uten klokke coacher vi fortsatt på struktur og tid."
+            : "With a watch, heart-rate coaching becomes more precise. Without one, Coachi still guides by structure and timing."
     }
     static var sensorConnectPrimary: String {
         current == .no ? "Koble til na" : "Connect now"
     }
     static var sensorConnectSecondary: String {
-        current == .no ? "Jeg har ingen pulsklokke" : "I do not have a watch"
+        current == .no ? "Fortsett uten klokke" : "Continue without watch"
     }
     static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
     static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }
@@ -250,6 +294,13 @@ struct L10n {
 
     // MARK: - Settings / About
     static var about: String { current == .no ? "Om" : "About" }
+    static var aboutCoachi: String { current == .no ? "Om Coachi" : "About Coachi" }
+    static var advancedSettings: String { current == .no ? "Avansert" : "Advanced" }
+    static var audioMaintenance: String {
+        current == .no
+            ? "Språk, mørk modus og vedlikehold av lydpakken"
+            : "Language, dark mode, and audio-pack maintenance"
+    }
     static var version: String { current == .no ? "Versjon" : "Version" }
     static var themeColor: String { current == .no ? "Temafarge" : "Theme color" }
     static var chooseThemeColor: String { current == .no ? "Velg temafarge" : "Choose theme color" }

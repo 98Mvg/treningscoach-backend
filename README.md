@@ -19,6 +19,19 @@
 
 ---
 
+## Codebase Guide
+
+- Primary architecture guide: [CODEBASE_GUIDE.md](/Users/mariusgaarder/Documents/treningscoach/CODEBASE_GUIDE.md)
+- Regenerate after architecture/runtime changes:
+
+```bash
+python3 scripts/generate_codebase_guide.py
+pytest -q tests_phaseb/test_codebase_guide_sync.py
+```
+
+- CI also enforces guide drift on GitHub Actions via:
+  [.github/workflows/codebase-guide-sync.yml](/Users/mariusgaarder/Documents/treningscoach/.github/workflows/codebase-guide-sync.yml)
+
 ## 📁 Project Structure
 
 ```
@@ -234,9 +247,9 @@ Cloudflare deploy source of truth is now versioned in git:
 - `/Users/mariusgaarder/Documents/treningscoach/cloudflare/worker.js`
 - guide: [/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md](/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md)
 
-## 📊 API Endpoints (30 non-static routes)
+## 📊 API Endpoints
 
-### Main App Routes (`main.py`) — 24
+### Main App Routes (`main.py`)
 
 | # | Method | Route | Purpose |
 |---|--------|-------|---------|
@@ -247,36 +260,35 @@ Cloudflare deploy source of truth is now versioned in git:
 | 5 | GET | `/tts/cache/stats` | TTS cache observability |
 | 6 | GET | `/welcome` | Welcome message + TTS audio |
 | 7 | POST | `/analyze` | Analyze breath audio |
-| 8 | POST | `/coach` | Single-shot coaching |
-| 9 | POST | `/coach/continuous` | **Main endpoint** — continuous workout coaching |
-| 10 | POST | `/coach/talk` | Talk to coach (wake word/chat) |
-| 11 | POST | `/coach/persona` | Switch persona mid-workout |
-| 12 | GET | `/download/<path:filename>` | Download audio files |
-| 13 | GET | `/brain/health` | Brain status + per-brain stats |
-| 14 | POST | `/brain/switch` | Hot-swap AI brain |
-| 15 | POST | `/chat/start` | Create chat session |
-| 16 | POST | `/chat/stream` | Streaming chat (SSE) |
-| 17 | POST | `/chat/message` | Non-streaming chat |
-| 18 | GET | `/chat/sessions` | List sessions |
-| 19 | DELETE | `/chat/sessions/<session_id>` | Delete session |
-| 20 | GET | `/chat/personas` | List personas |
-| 21 | POST | `/workouts` | Save workout record |
-| 22 | GET | `/workouts` | Get workout history |
-| 23 | POST | `/waitlist` | Capture waitlist email |
-| 24 | POST | `/analytics/event` | Capture lightweight landing analytics |
+| 8 | POST | `/coach/continuous` | **Main endpoint** — deterministic continuous workout coaching |
+| 9 | POST | `/coach/talk` | Talk to coach (wake word/chat) |
+| 10 | POST | `/coach/persona` | Switch persona mid-workout |
+| 11 | GET | `/download/<path:filename>` | Download audio files |
+| 12 | GET | `/brain/health` | Brain status + per-brain stats |
+| 13 | POST | `/brain/switch` | Hot-swap AI brain |
+| 14 | POST | `/chat/start` | Create chat session |
+| 15 | POST | `/chat/stream` | Streaming chat (SSE) |
+| 16 | POST | `/chat/message` | Non-streaming chat |
+| 17 | GET | `/chat/sessions` | List sessions |
+| 18 | DELETE | `/chat/sessions/<session_id>` | Delete session |
+| 19 | GET | `/chat/personas` | List personas |
+| 20 | POST | `/workouts` | Save workout record |
+| 21 | GET | `/workouts` | Get workout history |
+| 22 | POST | `/waitlist` | Capture waitlist email |
+| 23 | POST | `/analytics/event` | Capture lightweight landing analytics |
 
-### Auth Routes (`auth_routes.py`) — 8
+### Auth Routes (`auth_routes.py`)
 
 | # | Method | Route | Purpose |
 |---|--------|-------|---------|
-| 25 | POST | `/auth/google` | Authenticate with Google |
-| 26 | POST | `/auth/facebook` | Authenticate with Facebook |
-| 27 | POST | `/auth/vipps` | Authenticate with Vipps |
-| 28 | POST | `/auth/refresh` | Rotate refresh token + issue new access token |
-| 29 | POST | `/auth/logout` | Revoke refresh-token family |
-| 30 | GET | `/auth/me` | Get current user profile |
-| 31 | PUT | `/auth/me` | Update current user profile |
-| 32 | DELETE | `/auth/me` | Delete current user account |
+| 24 | POST | `/auth/google` | Authenticate with Google |
+| 25 | POST | `/auth/facebook` | Authenticate with Facebook |
+| 26 | POST | `/auth/vipps` | Authenticate with Vipps |
+| 27 | POST | `/auth/refresh` | Rotate refresh token + issue new access token |
+| 28 | POST | `/auth/logout` | Revoke refresh-token family |
+| 29 | GET | `/auth/me` | Get current user profile |
+| 30 | PUT | `/auth/me` | Update current user profile |
+| 31 | DELETE | `/auth/me` | Delete current user account |
 
 ## 🔧 Environment Variables
 

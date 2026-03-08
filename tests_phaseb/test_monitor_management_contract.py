@@ -33,16 +33,75 @@ def test_profile_manage_monitors_row_uses_manage_monitors_view() -> None:
     assert "NavigationLink {\n                HeartRateMonitorsView()" in text
 
 
-def test_profile_settings_continuation_matches_reference_sections() -> None:
+def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
-    assert "sectionHeader(L10n.helpAndSupport)" in text
-    assert "title: L10n.faqTitle" in text
-    assert 'trailingIcon: "arrow.up.right.square"' in text
-    assert "title: L10n.contactSupport" in text
-    assert "sectionHeader(L10n.legal)" in text
-    assert "title: L10n.termsOfUse" in text
-    assert "title: L10n.privacyPolicy" in text
+    assert "accountSection" not in text
+    assert "legalSection" not in text
+    assert "PlaceholderSettingsView" not in text
+    assert "sectionHeader(L10n.account)" in text
+    assert "sectionHeader(L10n.coaching)" in text
+    assert "sectionHeader(L10n.helpAndLegal)" in text
+    assert "title: L10n.helpAndSupport" in text
+    assert "SupportCenterView()" in text
+    assert "title: L10n.howCoachiWorks" in text
+    assert "CoachingSettingsView()" in text
+    assert "title: L10n.audioAndVoices" in text
+    assert "AudioAndVoicesView()" in text
+    assert "title: L10n.historyAndData" in text
+    assert "HistoryAndDataView()" in text
+    assert "title: L10n.accountStatus" in text
+    assert "subtitle: accountStatusSubtitle" in text
+    assert 'icon: "person.crop.circle.badge.checkmark"' in text
+    assert "AboutCoachiView()" in text
+    assert "title: L10n.advancedSettings" in text
+    assert "subtitle: L10n.audioMaintenance" in text
+    assert "confirmationDialog(" in text
     assert 'Text("\\(L10n.appVersionLabel) \\(AppConfig.version)")' in text
+
+
+def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
+    text = PROFILE_VIEW.read_text(encoding="utf-8")
+    assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)",\n                    trailingIcon: nil' in text
+    assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)",\n                    trailingIcon: nil' in text
+
+
+def test_profile_faq_covers_launch_critical_questions() -> None:
+    text = PROFILE_VIEW.read_text(encoding="utf-8")
+    assert 'question: "Hvordan fungerer Coachi?"' in text
+    assert 'question: "Trenger jeg Apple Watch eller pulsklokke?"' in text
+    assert 'question: "Hva skjer hvis puls mangler?"' in text
+    assert 'question: "Hva er inkludert i gratisversjonen?"' in text
+    assert 'question: "Hva er inkludert i Premium?"' in text
+    assert 'question: "Hvordan avslutter jeg abonnementet?"' in text
+    assert 'question: "Hvordan sletter jeg kontoen min?"' in text
+    assert 'question: "Hvordan kontakter jeg support?"' in text
+    assert 'question: "How does Coachi work?"' in text
+    assert 'question: "Do I need Apple Watch or a heart-rate sensor?"' in text
+    assert 'question: "What happens if heart rate is missing?"' in text
+
+
+def test_profile_support_center_exposes_launch_critical_support_and_legal_surfaces() -> None:
+    text = PROFILE_VIEW.read_text(encoding="utf-8")
+    assert "private struct SupportCenterView: View" in text
+    assert "private struct AboutCoachiView: View" in text
+    assert "private struct CoachingSettingsView: View" in text
+    assert "private struct AudioAndVoicesView: View" in text
+    assert "private struct HistoryAndDataView: View" in text
+    assert "ContactSupportView()" in text
+    assert "PrivacyPolicyView()" in text
+    assert "TermsOfUseView()" in text
+    assert "DeleteAccountInfoView()" in text
+    assert "AI.Coachi@hotmail.com" in text
+    assert '@Environment(\\.openURL) private var openURL' in text
+    assert 'URL(string: "mailto:\\(coachiSupportEmail)")' in text
+    assert 'title: isNorwegian ? "Kontakt support" : "Contact support"' in text
+    assert 'title: isNorwegian ? "Send e-post til support" : "Email support"' in text
+    assert 'title: isNorwegian ? "Kontakt support om sletting" : "Contact support about deletion"' in text
+    assert "[SUPPORT_EMAIL]" not in text
+    assert "[COMPANY_NAME]" in text
+    assert "[SUBSCRIPTION_DETAILS]" in text
+    assert "[PRIVACY_EMAIL]" in text
+    assert "[VERIFY PROCESSOR]" in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
@@ -63,6 +122,24 @@ def test_localization_contains_monitor_and_coach_score_strings() -> None:
     assert "static var coachScore: String" in text
     assert "static var connectHeartRateMonitorTitle: String" in text
     assert "static var connectHeartRateMonitorBody: String" in text
+    assert "static var account: String" in text
+    assert "static var accountStatus: String" in text
+    assert "static var signedInAs: String" in text
+    assert "static var usingWithoutAccount: String" in text
+    assert "static var connectAccountLaterHint: String" in text
+    assert "static var coaching: String" in text
+    assert "static var helpAndLegal: String" in text
+    assert "static var audioAndVoices: String" in text
+    assert "static var historyAndData: String" in text
+    assert "static var howCoachiWorks: String" in text
+    assert "static var ifHeartRateMissing: String" in text
+    assert "static var trainingHistory: String" in text
+    assert "static var dataAndPrivacy: String" in text
+    assert "static var voicePackStatus: String" in text
+    assert "static var activeVoice: String" in text
+    assert "static var aboutCoachi: String" in text
+    assert "static var advancedSettings: String" in text
+    assert "static var audioMaintenance: String" in text
     assert "static var liveCapability: String" in text
     assert "static var historyCapability: String" in text
     assert "static var liveCoachingSourceHint: String" in text

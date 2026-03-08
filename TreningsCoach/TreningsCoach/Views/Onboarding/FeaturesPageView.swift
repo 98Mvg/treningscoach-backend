@@ -40,37 +40,37 @@ struct FeaturesPageView: View {
         IntroStoryPage(
             imageName: "IntroStory1",
             icon: "bolt.fill",
-            titleNo: "Løp med coach i riktig pulssone",
-            titleEn: "Run with a coach in the right HR zone",
-            bodyNo: "La coachen hjelpe deg holde riktig puls",
-            bodyEn: "Let the coach help you keep the right heart rate.",
+            titleNo: "Start gratis med rolig coaching",
+            titleEn: "Start free with calm coaching",
+            bodyNo: "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls.",
+            bodyEn: "Coachi guides intervals and easy runs, with or without heart rate.",
             showsCoachScoreCard: false
         ),
         IntroStoryPage(
             imageName: "IntroStory2",
             icon: "chart.line.uptrend.xyaxis",
-            titleNo: "Få Coach score på sonekontroll",
-            titleEn: "Get Coach score from zone control",
-            bodyNo: "Scoren viser hvor godt du holdt riktig pulssone gjennom økten.",
-            bodyEn: "Your score shows how well you held the right HR zone.",
+            titleNo: "Se framgang etter hver økt",
+            titleEn: "See progress after every workout",
+            bodyNo: "CoachScore gir deg et enkelt tall på kontroll, flyt og gjennomføring.",
+            bodyEn: "CoachScore gives you one simple score for control, flow, and execution.",
             showsCoachScoreCard: true
         ),
         IntroStoryPage(
             imageName: "IntroStory3",
             icon: "music.note",
-            titleNo: "Spotify i bakgrunnen mens du trener",
-            titleEn: "Spotify in the background while you train",
-            bodyNo: "Koble Spotify og behold flyten mens coachen guider.",
-            bodyEn: "Connect Spotify and keep the flow while the coach guides you.",
+            titleNo: "Korte cues. Mindre støy.",
+            titleEn: "Short cues. Less noise.",
+            bodyNo: "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe.",
+            bodyEn: "You get clear cues when they matter, and quiet when you should just run.",
             showsCoachScoreCard: false
         ),
         IntroStoryPage(
             imageName: "IntroStory4",
             icon: "applewatch.side.right",
-            titleNo: "Koble Apple Watch på sekunder",
-            titleEn: "Connect Apple Watch in seconds",
-            bodyNo: "Pulsklokke gir mer presis coaching og tryggere styring av intensitet.",
-            bodyEn: "Apple Watch unlocks more precise heart-rate coaching and safer intensity control.",
+            titleNo: "Klokke er valgfritt",
+            titleEn: "A watch is optional",
+            bodyNo: "Apple Watch gir mer presis pulscoaching. Uten klokke coacher vi på struktur og tid.",
+            bodyEn: "Apple Watch gives more precise HR coaching. Without one, Coachi guides by structure and timing.",
             showsCoachScoreCard: false
         ),
     ]
@@ -288,7 +288,7 @@ struct FeaturesPageView: View {
                 )
 
                 Button(action: onRegister) {
-                    Text(L10n.current == .no ? "Registrer deg" : "Register")
+                    Text(L10n.current == .no ? "Start gratis" : "Start free")
                         .font(.headline.weight(.bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -305,10 +305,44 @@ struct FeaturesPageView: View {
                         .frame(minHeight: 48)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Text(
+                    L10n.current == .no
+                        ? "Konto er valgfritt. Du kan starte i dag."
+                        : "An account is optional. You can start today."
+                )
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(.white.opacity(0.88))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        introTrustBadge(L10n.startFreeBadge)
+                        introTrustBadge(L10n.accountOptionalBadge)
+                        introTrustBadge(L10n.watchOptionalBadge)
+                    }
+
+                    VStack(spacing: 8) {
+                        introTrustBadge(L10n.startFreeBadge)
+                        introTrustBadge(L10n.accountOptionalBadge)
+                        introTrustBadge(L10n.watchOptionalBadge)
+                    }
+                }
             }
             .padding(.horizontal, ctaSideInset)
             .padding(.bottom, bottomInset)
         }
+    }
+
+    private func introTrustBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.bold))
+            .foregroundColor(.white.opacity(0.94))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.14))
+            .clipShape(Capsule())
     }
 
     private func startAutoAdvance() {

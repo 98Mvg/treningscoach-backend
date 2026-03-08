@@ -143,9 +143,9 @@ High-level architecture:
 
 ## 6) Endpoint Inventory (Authoritative)
 
-Authoritative route inventory from Flask `url_map` (non-static): **30 routes total**.
+Authoritative route inventory from Flask `url_map` changes over time; the important product/runtime routes below are the source-of-truth paths for mobile coaching.
 
-Main app routes (`main.py`): **24**
+Main app routes (`main.py`):
 - `GET /`
 - `GET /preview`
 - `GET /preview/<variant>`
@@ -153,7 +153,6 @@ Main app routes (`main.py`): **24**
 - `GET /tts/cache/stats`
 - `GET /welcome`
 - `POST /analyze`
-- `POST /coach`
 - `POST /coach/continuous`
 - `GET /download/<path:filename>`
 - `GET /brain/health`

@@ -52,6 +52,9 @@ def test_health_contract(monkeypatch, tmp_path):
     assert isinstance(payload.get("quality_guards"), dict)
     assert isinstance(payload.get("product_flags"), dict)
     assert isinstance(payload.get("endpoints"), dict)
+    assert "coach" not in payload["endpoints"]
+    assert payload["endpoints"]["coach_continuous"] == "/coach/continuous"
+    assert payload["endpoints"]["coach_talk"] == "/coach/talk"
 
 
 def test_welcome_contract(monkeypatch, tmp_path):
@@ -307,6 +310,12 @@ def test_coach_talk_policy_block_returns_safe_refusal_without_ai(monkeypatch, tm
     assert payload.get("policy_blocked") is True
     assert payload.get("policy_category") == "sexual_explicit"
     assert payload.get("text") in (main.config.COACH_TALK_POLICY_REFUSAL_BANK.get("en") or [])
+
+
+def test_legacy_single_shot_coach_route_is_removed(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+    response = client.post("/coach")
+    assert response.status_code == 404
 
 
 def test_coach_continuous_contract(monkeypatch, tmp_path):

@@ -49,6 +49,7 @@ def test_talk_button_uses_unified_capture_request_path() -> None:
     text = _viewmodel_text()
     assert "startWorkoutTalkCapture(triggerSource: .button, playWakeAck: false)" in text
     assert "talkToCoachDuringWorkoutUnified(" in text
+    assert "private let workoutTalkCaptureSeconds: TimeInterval = 4.0" in text
 
 
 def test_wake_word_path_uses_ack_and_unified_capture_request_path() -> None:
@@ -74,6 +75,15 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
     assert "isWakeWordActive = false" in text
     assert "coachInteractionState = .passiveListening" in text
     assert "voiceState = isContinuousMode && !isPaused ? .listening : .idle" in text
+    assert "wakeWordManager.resetWakeCooldown()" in text
+    assert "startWakeWordListeningIfNeeded()" in text
+
+
+def test_talk_path_pauses_wake_word_listening_while_talk_is_active() -> None:
+    text = _viewmodel_text()
+    assert "private func startWorkoutTalkCapture(triggerSource: TalkTriggerSource, playWakeAck: Bool)" in text
+    assert "wakeWordManager.stopListening()" in text
+    assert "private func startWakeWordListeningIfNeeded()" in text
 
 
 def test_talk_path_logs_policy_blocks_when_returned_by_backend() -> None:
@@ -90,6 +100,7 @@ def test_talk_path_suppresses_event_speech_while_active() -> None:
 def test_api_service_workout_talk_multipart_contract_includes_trigger_and_context() -> None:
     text = _api_service_text()
     assert "func talkToCoachDuringWorkoutUnified(" in text
+    assert "func talkToCoachDuringWorkout(" not in text
     assert 'appendField(name: "response_mode", value: "qa")' in text
     assert 'appendField(name: "context", value: "workout")' in text
     assert 'appendField(name: "trigger_source", value: triggerSource)' in text

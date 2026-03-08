@@ -30,10 +30,10 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
     text = RING_VIEW.read_text(encoding="utf-8")
     assert "struct GamifiedCoachScoreRingView: View" in text
     assert "@State private var displayedScore: Int = 0" in text
-    assert "displayedScore = 0" in text
     assert "max(0, min(100, score))" in text
     assert "var animationDuration: Double = 2.1" in text
-    assert "for step in 1...steps" in text
+    assert "let startScore = clampedScore > 0 ? 1 : 0" in text
+    assert "for step in (startScore + 1)...clampedScore" in text
     assert '.task(id: clampedScore)' in text
 
 
@@ -46,12 +46,16 @@ def test_home_uses_gamified_score_ring_for_coach_score() -> None:
 
 def test_workout_complete_uses_gamified_score_ring() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
-    assert "NeonCoachScoreRingView(" in text
-    assert "score: viewModel.coachScore" in text
-    assert 'Text("CS")' in text
-    assert 'return "0 BPM"' in text
-    assert "ShareLink(item: shareSummaryText)" in text
-    assert "Text(L10n.done)" in text
+    assert "@State private var displayedScore: Int = 0" in text
+    assert "@State private var displayedRingProgress: Double = 0" in text
+    assert "Text(\"COACH SCORE\")" in text
+    assert '@State private var finalBPMText = "0 BPM"' in text
+    assert "private var shareSummaryText: String {" in text
+    assert "I finished \\(workoutLabel) with Coachi." in text
+    assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
+    assert "ShareLink(" in text
+    assert "item: shareSummaryText" in text
+    assert "preview: SharePreview(sharePreviewTitle)" in text
 
 
 def test_onboarding_data_and_result_use_gamified_ring() -> None:

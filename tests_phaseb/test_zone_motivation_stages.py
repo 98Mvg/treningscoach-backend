@@ -119,8 +119,8 @@ def test_easy_run_in_target_sustained_priority_is_55():
 def test_motivation_priority_below_entered_target():
     assert _event_priority("interval_in_target_sustained") < _event_priority("entered_target")
 
-def test_max_silence_motivation_priority_above_go_by_feel():
-    assert _event_priority("max_silence_motivation") > _event_priority("max_silence_go_by_feel")
+def test_max_silence_motivation_priority_below_instruction():
+    assert _event_priority("max_silence_motivation") < _event_priority("max_silence_go_by_feel")
 
 
 # --- Phrase ID resolution fallback ---
@@ -129,7 +129,7 @@ def test_resolve_phrase_id_interval_sustained_fallback():
     assert _resolve_phrase_id("interval_in_target_sustained", "work") == "interval.motivate.s2.1"
 
 def test_resolve_phrase_id_easy_run_sustained_fallback():
-    assert _resolve_phrase_id("easy_run_in_target_sustained", "main") == "interval.motivate.s2.1"
+    assert _resolve_phrase_id("easy_run_in_target_sustained", "main") == "easy_run.motivate.s2.1"
 
 
 # --- Phrase ID builder ---
@@ -147,19 +147,20 @@ def test_phrase_id_easy_run_s4_v2():
     assert _motivation_phrase_id("easy_run", stage=4, variant=2) == "easy_run.motivate.s4.2"
 
 
-# --- Global pool + anti-repeat ---
+# --- Stage-only pool + anti-repeat ---
 
-def test_pick_motivation_phrase_id_uses_global_pool_for_max_silence():
+def test_pick_motivation_phrase_id_uses_stage_pool_for_max_silence():
     state = {}
+    stage_ids = _motivation_stage_phrase_ids("easy_run", stage=2)
     picked = [
-        _pick_motivation_phrase_id(state=state, stage_phrase_ids=[], config_module=config)
+        _pick_motivation_phrase_id(state=state, stage_phrase_ids=stage_ids, config_module=config)
         for _ in range(3)
     ]
-    assert all(pid.startswith("motivation.") for pid in picked)
-    assert len(set(picked)) == len(picked), "Expected anti-repeat in first picks"
+    assert all(pid in stage_ids for pid in picked)
+    assert picked[0] != picked[1], "Expected anti-repeat while alternatives exist"
 
 
-def test_pick_motivation_phrase_id_blends_stage_and_global_pool():
+def test_pick_motivation_phrase_id_stays_within_stage_pool():
     state = {}
     stage_ids = _motivation_stage_phrase_ids("intervals", stage=1)
     picked = [
@@ -168,7 +169,7 @@ def test_pick_motivation_phrase_id_blends_stage_and_global_pool():
     ]
     assert picked[0] in stage_ids
     assert any(pid in stage_ids for pid in picked), "Stage pool should stay eligible"
-    assert any(pid.startswith("motivation.") for pid in picked), "Global pool should also be eligible"
+    assert all(pid in stage_ids for pid in picked), "Flat global motivation pool should be inactive"
 
 
 # ---------------------------------------------------------------------------
@@ -321,7 +322,7 @@ def test_easy_run_motivation_respects_cooldown():
 
 
 def test_motivation_phrase_id_contains_stage():
-    """Motivation phrase ID may come from stage pool or global motivation pool."""
+    """Deterministic motivation now resolves to staged phrase IDs only."""
     state = {}
     evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=120, phase="warmup"))
 
@@ -331,10 +332,7 @@ def test_motivation_phrase_id_contains_stage():
         for e in (r.get("events") or []):
             if e.get("event_type") == "interval_in_target_sustained":
                 pid = e.get("phrase_id", "")
-                assert (
-                    pid.startswith("interval.motivate.s")
-                    or pid.startswith("motivation.")
-                ), f"Bad phrase_id: {pid}"
+                assert pid.startswith("interval.motivate.s"), f"Bad phrase_id: {pid}"
 
 
 def test_evaluate_motivation_event_not_crashes_easy_run_mode():

@@ -13,6 +13,8 @@ import UIKit
 
 @MainActor
 class AuthManager: ObservableObject {
+    static let shared = AuthManager()
+
     // MARK: - Published State
 
     @Published var isAuthenticated = false
@@ -23,6 +25,10 @@ class AuthManager: ObservableObject {
     // MARK: - Token
 
     var authToken: String? {
+        currentAccessToken()
+    }
+
+    func currentAccessToken() -> String? {
         if let access = KeychainHelper.readString(key: KeychainHelper.accessTokenKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !access.isEmpty {
@@ -32,11 +38,41 @@ class AuthManager: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    func currentRefreshToken() -> String? {
+        guard let refresh = KeychainHelper.readString(key: KeychainHelper.refreshTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !refresh.isEmpty else {
+            return nil
+        }
+        return refresh
+    }
+
+    func hasUsableSession() -> Bool {
+        if let token = currentAccessToken(), !token.isEmpty {
+            if let expiresAt = expiryTimestamp(for: KeychainHelper.accessTokenExpiresAtKey) {
+                if !isExpired(expiresAt) {
+                    return true
+                }
+            } else {
+                return true
+            }
+        }
+
+        if let refresh = currentRefreshToken(), !refresh.isEmpty {
+            if let expiresAt = expiryTimestamp(for: KeychainHelper.refreshTokenExpiresAtKey) {
+                return !isExpired(expiresAt)
+            }
+            return true
+        }
+
+        return false
+    }
+
     // MARK: - Init
 
     init() {
         // Check if we have a stored token on launch
-        if let token = authToken, !token.isEmpty {
+        if hasUsableSession() {
             isAuthenticated = true
             // Fetch profile in background
             Task {
@@ -48,33 +84,7 @@ class AuthManager: ObservableObject {
     // MARK: - Google Sign-In
 
     func signInWithGoogle() async {
-        guard AppConfig.Auth.googleSignInEnabled else {
-            errorMessage = "\(L10n.registerWithGoogle): \(L10n.comingSoon)"
-            return
-        }
-        isLoading = true
-        errorMessage = nil
-
-        // TODO: Integrate Google Sign-In SDK
-        // 1. GoogleSignIn.sharedInstance.signIn(withPresenting: rootVC)
-        // 2. Get idToken from result.user.idToken?.tokenString
-        // 3. Send to backend
-
-        // Placeholder: simulate getting a Google ID token
-        // Replace with actual Google Sign-In SDK integration
-        let placeholderToken = "google_id_token_placeholder"
-
-        do {
-            let authResponse = try await sendAuthRequest(
-                provider: "google",
-                body: ["id_token": placeholderToken]
-            )
-            handleAuthSuccess(authResponse)
-        } catch {
-            errorMessage = "Google sign-in failed: \(error.localizedDescription)"
-        }
-
-        isLoading = false
+        markUnsupportedProvider(label: L10n.registerWithGoogle)
     }
 
     // MARK: - Apple Sign-In
@@ -123,71 +133,29 @@ class AuthManager: ObservableObject {
     // MARK: - Facebook Sign-In
 
     func signInWithFacebook() async {
-        guard AppConfig.Auth.facebookSignInEnabled else {
-            errorMessage = "\(L10n.signInWithFacebook): \(L10n.comingSoon)"
-            return
-        }
-        isLoading = true
-        errorMessage = nil
-
-        // TODO: Integrate Facebook Login SDK
-        // 1. LoginManager().logIn(permissions: ["email", "public_profile"])
-        // 2. Get AccessToken.current?.tokenString
-        // 3. Send to backend
-
-        let placeholderToken = "facebook_access_token_placeholder"
-
-        do {
-            let authResponse = try await sendAuthRequest(
-                provider: "facebook",
-                body: ["access_token": placeholderToken]
-            )
-            handleAuthSuccess(authResponse)
-        } catch {
-            errorMessage = "Facebook sign-in failed: \(error.localizedDescription)"
-        }
-
-        isLoading = false
+        markUnsupportedProvider(label: L10n.signInWithFacebook)
     }
 
     // MARK: - Vipps Sign-In
 
     func signInWithVipps() async {
-        guard AppConfig.Auth.vippsSignInEnabled else {
-            errorMessage = "\(L10n.signInWithVipps): \(L10n.comingSoon)"
-            return
-        }
-        isLoading = true
-        errorMessage = nil
-
-        // TODO: Integrate Vipps Login SDK
-        // 1. VippsLogin.startLogin()
-        // 2. Get access token from callback
-        // 3. Send to backend
-
-        let placeholderToken = "vipps_access_token_placeholder"
-
-        do {
-            let authResponse = try await sendAuthRequest(
-                provider: "vipps",
-                body: ["access_token": placeholderToken]
-            )
-            handleAuthSuccess(authResponse)
-        } catch {
-            errorMessage = "Vipps sign-in failed: \(error.localizedDescription)"
-        }
-
-        isLoading = false
+        markUnsupportedProvider(label: L10n.signInWithVipps)
     }
 
     // MARK: - Sign Out
 
     func signOut() {
+        let refreshToken = currentRefreshToken()
         clearStoredTokens()
         isAuthenticated = false
         currentUser = nil
         UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
         print("Signed out")
+
+        guard let refreshToken, !refreshToken.isEmpty else { return }
+        Task {
+            await BackendAPIService.shared.logout(refreshToken: refreshToken)
+        }
     }
 
     // MARK: - Profile
@@ -356,6 +324,11 @@ class AuthManager: ObservableObject {
         return fallback.isEmpty ? L10n.appleSignInFailedTryAgain : fallback
     }
 
+    private func markUnsupportedProvider(label: String) {
+        isLoading = false
+        errorMessage = "\(label): \(L10n.comingSoon)"
+    }
+
     private func handleAuthSuccess(_ response: AuthResponse) {
         saveTokenBundle(response)
 
@@ -395,6 +368,7 @@ class AuthManager: ObservableObject {
     private func updateProfileFromResponseData(_ data: Data) throws {
         let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
         currentUser = profileResponse.user
+        isAuthenticated = hasUsableSession()
         L10n.set(profileResponse.user.language)
     }
 
@@ -428,6 +402,19 @@ class AuthManager: ObservableObject {
         KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
         KeychainHelper.delete(key: KeychainHelper.accessTokenExpiresAtKey)
         KeychainHelper.delete(key: KeychainHelper.refreshTokenExpiresAtKey)
+    }
+
+    private func expiryTimestamp(for key: String) -> TimeInterval? {
+        guard let raw = KeychainHelper.readString(key: key)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            let expiresAt = Double(raw) else {
+            return nil
+        }
+        return expiresAt
+    }
+
+    private func isExpired(_ expiresAt: TimeInterval) -> Bool {
+        Date().timeIntervalSince1970 >= expiresAt
     }
 }
 

@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, make_response, render_template, request
 from sqlalchemy.exc import IntegrityError
 from auth import rate_limit
 import config
+from email_sender import send_waitlist_welcome_email
 
 
 def create_web_blueprint(
@@ -76,7 +77,8 @@ def create_web_blueprint(
                 "product_flags": product_flags_snapshot_fn(),
                 "endpoints": {
                     "analyze": "/analyze",
-                    "coach": "/coach",
+                    "coach_continuous": "/coach/continuous",
+                    "coach_talk": "/coach/talk",
                     "download": "/download/<filename>",
                     "welcome": "/welcome",
                     "app_runtime": "/app/runtime",
@@ -152,6 +154,7 @@ def create_web_blueprint(
             return jsonify({"error": "Failed to capture waitlist signup"}), 500
 
         logger.info("Waitlist signup persisted: %s (lang=%s, source=%s)", email, language, source)
+        send_waitlist_welcome_email(email, language=language, source=source, logger=logger)
         return jsonify({"success": True}), 200
 
     @web_bp.route("/analytics/event", methods=["POST"])

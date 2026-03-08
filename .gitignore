@@ -103,3 +103,6 @@ output/candidate_review.xlsx
 
 # Cloudflare Wrangler local state
 .wrangler/
+
+# Local runtime state
+instance/*.db

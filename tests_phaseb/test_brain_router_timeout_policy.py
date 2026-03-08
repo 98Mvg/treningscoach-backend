@@ -191,7 +191,7 @@ def test_fast_fallback_response_sets_route_metadata():
     assert meta["status"] == "fast_fallback"
 
 
-def test_question_response_allows_up_to_five_sentences_when_needed(monkeypatch):
+def test_question_response_caps_to_three_sentences_for_short_form_product_talk(monkeypatch):
     router = BrainRouter(brain_type="config")
     router.use_priority_routing = True
     router.priority_brains = ["grok", "config"]
@@ -199,7 +199,7 @@ def test_question_response_allows_up_to_five_sentences_when_needed(monkeypatch):
     monkeypatch.setattr(router, "_is_brain_available", lambda _: True)
     monkeypatch.setattr(router, "_get_brain_instance", lambda _: _QuestionBrain())
     monkeypatch.setattr(config, "COACH_QA_TIMEOUT_SECONDS", 2.0, raising=False)
-    monkeypatch.setattr(config, "COACH_QA_MAX_SENTENCES", 5, raising=False)
+    monkeypatch.setattr(config, "COACH_QA_MAX_SENTENCES", 3, raising=False)
 
     text = router.get_question_response(
         "Why should I train?",
@@ -209,8 +209,8 @@ def test_question_response_allows_up_to_five_sentences_when_needed(monkeypatch):
     )
     meta = router.get_last_route_meta()
 
-    assert text.count(".") <= 5
-    assert "helps recovery too" in text
+    assert text.count(".") <= 3
+    assert "helps recovery too" not in text
     assert meta["provider"] == "grok"
     assert meta["source"] == "ai_qna"
     assert meta["mode"] == "question_qa"

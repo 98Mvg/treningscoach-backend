@@ -46,9 +46,12 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
 
 def test_onboarding_routes_to_profile_completion_path() -> None:
     text = _onboarding_text()
-    assert "move(to: .dataPurpose)" in text
+    assert "move(to: .identity)" in text
+    assert "onBack: { move(to: .auth) }" in text
     assert "onContinue: { move(to: .identity) }" in text
     assert "onContinue: { move(to: .birthAndGender) }" in text
+    assert "onContinue: { move(to: .sensorConnect) }" in text
+    assert "move(to: .notificationPermission)" in text
     assert "let profileDraft = formState.toDraft(" in text
     assert "appViewModel.completeOnboarding(profile: profileDraft)" in text
 

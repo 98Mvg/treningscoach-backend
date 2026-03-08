@@ -262,22 +262,6 @@ enum IntensityLevel: String, CaseIterable {
     }
 }
 
-// MARK: - Coach Response
-
-struct CoachResponse: Codable {
-    let text: String
-    let breathAnalysis: BreathAnalysis
-    let audioURL: String
-    let phase: String
-
-    enum CodingKeys: String, CodingKey {
-        case text
-        case breathAnalysis = "breath_analysis"
-        case audioURL = "audio_url"
-        case phase
-    }
-}
-
 // MARK: - Continuous Coach Response
 
 struct ContinuousCoachResponse: Codable {
@@ -657,23 +641,5 @@ struct CoachTalkResponse: Codable {
         case policyBlocked = "policy_blocked"
         case policyCategory = "policy_category"
         case policyReason = "policy_reason"
-    }
-}
-
-// MARK: - Workout Session
-
-struct WorkoutSession: Identifiable, Codable {
-    let id: UUID
-    let date: Date
-    let phase: WorkoutPhase
-    let analysis: BreathAnalysis
-    let coachMessage: String
-
-    init(id: UUID = UUID(), date: Date = Date(), phase: WorkoutPhase, analysis: BreathAnalysis, coachMessage: String) {
-        self.id = id
-        self.date = date
-        self.phase = phase
-        self.analysis = analysis
-        self.coachMessage = coachMessage
     }
 }

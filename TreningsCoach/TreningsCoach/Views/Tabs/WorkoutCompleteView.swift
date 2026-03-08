@@ -25,11 +25,38 @@ struct WorkoutCompleteView: View {
         return 0
     }
 
-    private var shareText: String {
-        if L10n.current == .no {
-            return "Coachi score \(targetScore) • \(finalDurationText) • \(finalBPMText)"
+    private var workoutLabel: String {
+        switch viewModel.selectedWorkoutMode {
+        case .easyRun:
+            return L10n.current == .no ? "Rolig tur" : "Easy Run"
+        case .intervals:
+            return L10n.current == .no ? "Intervaller" : "Intervals"
+        case .standard:
+            return L10n.current == .no ? "Økt" : "Workout"
         }
-        return "Coachi score \(targetScore) • \(finalDurationText) • \(finalBPMText)"
+    }
+
+    private var hasFinalHeartRate: Bool {
+        finalBPMText != "0 BPM"
+    }
+
+    private var shareSummaryText: String {
+        let metrics = hasFinalHeartRate
+            ? "\(targetScore) CS • \(finalDurationText) • \(finalBPMText)"
+            : "\(targetScore) CS • \(finalDurationText)"
+
+        if L10n.current == .no {
+            return "Jeg fullførte \(workoutLabel) med Coachi. \(metrics)"
+        }
+
+        return "I finished \(workoutLabel) with Coachi. \(metrics)"
+    }
+
+    private var sharePreviewTitle: String {
+        if L10n.current == .no {
+            return "\(workoutLabel) med Coachi"
+        }
+        return "\(workoutLabel) with Coachi"
     }
 
     private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
@@ -276,7 +303,10 @@ struct WorkoutCompleteView: View {
     }
 
     private var shareButton: some View {
-        ShareLink(item: shareText) {
+        ShareLink(
+            item: shareSummaryText,
+            preview: SharePreview(sharePreviewTitle)
+        ) {
             Text(shareLabel)
                 .font(.system(size: 16, weight: .medium))
                 .tracking(0.8)
