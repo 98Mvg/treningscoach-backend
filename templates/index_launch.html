@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coachi | Din personlige l&oslash;pecoach</title>
     <meta name="description" content="Coachi gir deg korte, tydelige r&aring;d mens du l&oslash;per. Hold riktig puls, bygg bedre vaner, og f&aring; mer ut av hver l&oslash;petur.">
-    <meta name="theme-color" content="#f7f9ff">
+    <meta name="theme-color" content="#0c1020">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Coachi | Din personlige l&oslash;pecoach">
     <meta property="og:description" content="F&aring; tydelig veiledning mens du l&oslash;per ved hjelp av kunstig intelligens.">
@@ -57,13 +57,12 @@
         html { scroll-behavior: smooth; }
         body {
             font-family: "Manrope", "Segoe UI", sans-serif;
-            color: var(--ink); background: var(--bg);
+            color: #edf1ff; background: #0c1020;
             line-height: 1.6; -webkit-font-smoothing: antialiased;
-            transition: background 0.25s ease, color 0.25s ease;
         }
         h1, h2, h3, h4 {
             font-family: "Poppins", sans-serif;
-            letter-spacing: -0.03em; line-height: 1.15; color: var(--ink);
+            letter-spacing: -0.03em; line-height: 1.15; color: #edf1ff;
         }
         img { max-width: 100%; display: block; }
         .container { width: min(var(--max), 100%); margin: 0 auto; padding: 0 24px; }
@@ -71,13 +70,12 @@
         /* ── NAV ── */
         .nav-wrap {
             position: sticky; top: 0; z-index: 80;
-            background: rgba(255, 255, 255, 0.88);
+            background: rgba(12, 16, 32, 0.92);
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--line);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
             transition: box-shadow 0.3s ease;
         }
-        :root[data-theme="dark"] .nav-wrap { background: rgba(20, 27, 53, 0.88); }
-        .nav-wrap.scrolled { box-shadow: 0 2px 20px rgba(35,29,90,0.08); }
+        .nav-wrap.scrolled { box-shadow: 0 2px 20px rgba(3,5,12,0.30); }
         .nav {
             height: 60px; padding: 0 28px;
             display: flex; align-items: center; justify-content: space-between;
@@ -85,22 +83,22 @@
         }
         .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; cursor: pointer; }
         .brand-logo { width: 30px; height: 30px; flex-shrink: 0; }
-        .brand-text { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.04em; color: var(--primary); }
+        .brand-text { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.04em; color: #8f97ff; }
         .nav-right { display: flex; align-items: center; gap: 16px; }
         .nav-links { display: flex; align-items: center; gap: 28px; }
         .nav-links a {
-            color: var(--muted); text-decoration: none; font-size: 0.88rem;
+            color: rgba(182,190,223,0.8); text-decoration: none; font-size: 0.88rem;
             font-weight: 600; transition: color 0.16s; cursor: pointer;
         }
-        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        .nav-links a:hover, .nav-links a.active { color: #8f97ff; }
         .lang-switch { display: inline-flex; align-items: center; gap: 2px; }
         .lang-btn {
             border: 0; border-radius: 6px; min-width: 32px; min-height: 28px;
-            padding: 0 8px; background: transparent; color: var(--muted);
+            padding: 0 8px; background: transparent; color: rgba(182,190,223,0.7);
             font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em;
             cursor: pointer; transition: background 0.15s, color 0.15s;
         }
-        .lang-btn.active { background: var(--primary); color: #fff; }
+        .lang-btn.active { background: #8f97ff; color: #fff; }
         .pill {
             border: 0; border-radius: 999px; min-height: 44px; padding: 0 28px;
             font-size: 0.92rem; font-weight: 700; cursor: pointer;
@@ -118,21 +116,21 @@
             width: 40px; height: 40px; padding: 8px;
             flex-direction: column; justify-content: center; gap: 5px;
         }
-        .hamburger span { display: block; height: 2px; background: var(--ink); border-radius: 1px; transition: transform 0.2s, opacity 0.2s; }
+        .hamburger span { display: block; height: 2px; background: #edf1ff; border-radius: 1px; transition: transform 0.2s, opacity 0.2s; }
         .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
         .hamburger.open span:nth-child(2) { opacity: 0; }
         .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
         .mobile-menu {
             display: none; position: fixed; top: 61px; left: 0; right: 0;
-            background: var(--paper); padding: 20px 28px 28px;
-            box-shadow: 0 12px 32px rgba(35,29,90,0.10);
+            background: rgba(12, 16, 32, 0.97); padding: 20px 28px 28px;
+            box-shadow: 0 12px 32px rgba(3,5,12,0.30);
             z-index: 79; flex-direction: column; gap: 0;
-            border-bottom: 1px solid var(--line);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .mobile-menu.open { display: flex; }
         .mobile-menu a {
-            color: var(--ink); text-decoration: none; font-size: 1rem;
-            font-weight: 600; padding: 14px 0; border-bottom: 1px solid var(--line);
+            color: #edf1ff; text-decoration: none; font-size: 1rem;
+            font-weight: 600; padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
             cursor: pointer;
         }
         .mobile-menu a:last-of-type { border: 0; }
@@ -162,7 +160,7 @@
         .hero::after {
             content: ""; position: absolute; bottom: 0; left: 0; right: 0;
             height: 200px; z-index: 1;
-            background: linear-gradient(180deg, transparent 0%, var(--bg) 100%);
+            background: linear-gradient(180deg, transparent 0%, #0c1020 100%);
             pointer-events: none;
         }
         .hero-inner {
@@ -218,7 +216,7 @@
             box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3), -6px 16px 32px rgba(0,0,0,0.25);
             border: 1.5px solid rgba(255,255,255,0.10);
             position: relative; z-index: 2;
-            transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg);
+            transform: rotateY(-14deg) rotateX(3deg) rotateZ(-4deg);
             animation: phoneBobTilt 4s ease-in-out infinite;
             overflow: hidden;
             transform-style: preserve-3d;
@@ -272,8 +270,8 @@
             100% { opacity: 1; transform: translateX(0) scale(1); }
         }
         @keyframes phoneBobTilt {
-            0%, 100% { transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg) translateY(0); }
-            50% { transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg) translateY(-6px); }
+            0%, 100% { transform: rotateY(-14deg) rotateX(3deg) rotateZ(-4deg) translateY(0); }
+            50% { transform: rotateY(-14deg) rotateX(3deg) rotateZ(-4deg) translateY(-6px); }
         }
         @keyframes heartPulse {
             0%, 100% { transform: scale(1); }
@@ -300,13 +298,13 @@
         }
 
         /* ── WORKS-WITH TRUST STRIP ── */
-        .works-with { padding: 28px 32px; text-align: center; background: var(--bg-accent); }
-        .works-with-label { font-size: 0.72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
+        .works-with { padding: 28px 32px 0; text-align: center; background: #0c1020; }
+        .works-with-label { font-size: 0.72rem; font-weight: 800; color: rgba(182,190,223,0.7); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
         .works-with-logos { display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap; }
         .works-with-logo-item { display: inline-flex; align-items: center; gap: 8px; opacity: 0.50; transition: opacity 0.2s; }
         .works-with-logo-item:hover { opacity: 0.80; }
         .works-with-logo-item svg { width: 24px; height: 24px; flex-shrink: 0; }
-        .works-with-logo-item .ww-name { font-family: "Poppins", sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+        .works-with-logo-item .ww-name { font-family: "Poppins", sans-serif; font-size: 0.85rem; font-weight: 700; color: rgba(182,190,223,0.7); white-space: nowrap; }
 
         /* ── SECTION SPACING ── */
         .section-spacer { padding: 100px 24px; }
@@ -315,20 +313,32 @@
         /* ── EYEBROW ── */
         .eyebrow {
             display: inline-flex; align-items: center; border-radius: 999px;
-            padding: 6px 16px; background: rgba(47, 53, 177, 0.08);
-            color: var(--primary); font-size: 0.72rem; font-weight: 800;
+            padding: 6px 16px; background: rgba(143, 151, 255, 0.12);
+            color: var(--teal); font-size: 0.72rem; font-weight: 800;
             letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 16px;
         }
 
         /* ── TWO NUMBERS SECTION ── */
-        .two-numbers { text-align: center; }
-        .two-numbers h2 { font-size: clamp(1.8rem, 3.5vw, 2.8rem); margin-bottom: 48px; }
+        .two-numbers {
+            text-align: center; position: relative; overflow: hidden;
+            background-size: cover; background-position: center;
+        }
+        .two-numbers::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg,
+                rgba(12, 16, 32, 0.78) 0%,
+                rgba(12, 16, 32, 0.68) 100%);
+            z-index: 1;
+        }
+        .two-numbers .container { position: relative; z-index: 2; }
+        .two-numbers h2 { font-size: clamp(1.8rem, 3.5vw, 2.8rem); margin-bottom: 48px; color: #fff; }
         .feature-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 960px; margin: 0 auto; }
         .f-card {
-            border-radius: var(--radius-lg); background: var(--paper);
-            border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+            border-radius: var(--radius-lg); background: rgba(20, 27, 53, 0.75);
+            border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 10px 32px rgba(3, 5, 12, 0.40);
             padding: 40px 32px; text-align: center;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         }
         .f-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(37, 34, 69, 0.12); }
         .f-card-pill {
@@ -337,8 +347,8 @@
             text-transform: uppercase; margin-bottom: 14px;
             background: rgba(47, 53, 177, 0.08); color: var(--primary);
         }
-        .f-card h3 { font-size: 1.25rem; margin-bottom: 10px; }
-        .f-card p { color: var(--muted); font-size: 0.90rem; line-height: 1.6; max-width: 32ch; margin: 0 auto 28px; }
+        .f-card h3 { font-size: 1.25rem; margin-bottom: 10px; color: #fff; }
+        .f-card p { color: rgba(240,238,255,0.75); font-size: 0.90rem; line-height: 1.6; max-width: 32ch; margin: 0 auto 28px; }
 
         /* CoachScore ring */
         .score-ring { width: 130px; height: 130px; margin: 0 auto; position: relative; }
@@ -346,8 +356,7 @@
         .score-ring .ring-bg { fill: none; stroke: rgba(47, 53, 177, 0.08); stroke-width: 8; }
         .score-ring .ring-fill {
             fill: none; stroke: url(#scoreGrad); stroke-width: 8;
-            stroke-linecap: round; stroke-dasharray: 352; stroke-dashoffset: 352;
-            transition: stroke-dashoffset 1s ease;
+            stroke-linecap: round;
         }
         .score-value { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .score-value .num { font-family: "Poppins", sans-serif; font-size: 2.4rem; font-weight: 800; color: var(--teal); line-height: 1; }
@@ -362,18 +371,67 @@
         .zone-labels { display: flex; justify-content: space-between; font-size: 0.70rem; color: var(--muted); font-weight: 600; }
 
         /* ── TEXT SECTION (real-time guidance) ── */
-        .text-section { text-align: center; background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-        .text-section-inner { max-width: 580px; margin: 0 auto; }
-        .text-section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 18px; }
-        .text-section p { color: var(--muted); font-size: 1.02rem; line-height: 1.75; max-width: 48ch; margin: 0 auto; }
+        .text-section {
+            position: relative; overflow: hidden;
+            background-size: cover; background-position: center;
+            display: flex; align-items: center;
+        }
+        .text-section::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(90deg,
+                rgba(12, 16, 32, 0.82) 0%,
+                rgba(12, 16, 32, 0.65) 45%,
+                rgba(12, 16, 32, 0.15) 75%,
+                rgba(12, 16, 32, 0.05) 100%);
+            z-index: 1;
+        }
+        .text-section-inner {
+            max-width: 460px; position: relative; z-index: 2;
+            text-align: left; padding-left: 64px;
+        }
+        .text-section h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 18px; color: #fff; }
+        .text-section p { color: rgba(240,238,255,0.85); font-size: 1.02rem; line-height: 1.75; max-width: 38ch; }
+        .text-section .eyebrow { color: var(--teal); }
+
+        /* ── COMPACT STEPS inside text-section ── */
+        .ts-steps { display: flex; flex-direction: column; gap: 14px; }
+        .ts-step {
+            display: flex; gap: 14px; align-items: center;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.10);
+        }
+        .ts-step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 32px; height: 32px; border-radius: 50%;
+            background: var(--teal); color: #fff;
+            font-family: "Poppins", sans-serif; font-weight: 800; font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .ts-step span { color: #fff; font-size: 0.92rem; font-weight: 600; }
 
         /* ── BUILT FOR ACTION ── */
-        .action-section { text-align: center; }
-        .action-inner { max-width: 520px; margin: 0 auto; }
-        .action-inner h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 16px; }
+        .action-section {
+            text-align: center; position: relative; overflow: hidden;
+            background-size: cover; background-position: center;
+        }
+        .action-section::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg,
+                rgba(12, 16, 32, 0.75) 0%,
+                rgba(12, 16, 32, 0.65) 100%);
+            z-index: 1;
+        }
+        .action-inner { max-width: 520px; margin: 0 auto; position: relative; z-index: 2; }
+        .action-inner h2 { font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 16px; color: #fff; }
+        .action-section .eyebrow { color: var(--teal); }
+        .action-section .action-lead { color: rgba(240,238,255,0.85); }
+        .action-section .action-close { color: rgba(240,238,255,0.85); }
         .action-lead { color: var(--muted); font-size: 1rem; line-height: 1.7; margin-bottom: 32px; }
         .action-list { list-style: none; display: inline-flex; flex-direction: column; gap: 14px; text-align: left; margin-bottom: 32px; }
-        .action-list li { display: flex; align-items: center; gap: 14px; font-size: 1rem; font-weight: 600; color: var(--ink); }
+        .action-list li { display: flex; align-items: center; gap: 14px; font-size: 1rem; font-weight: 600; color: #fff; }
         .action-check {
             width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
             background: linear-gradient(130deg, var(--teal), var(--mint));
@@ -382,35 +440,59 @@
         }
         .action-list.animated .action-check { transform: scale(1); }
         .action-check svg { width: 11px; height: 11px; }
-        .action-close { font-size: 1.05rem; font-weight: 700; color: var(--primary); }
+        .action-close { font-size: 1.05rem; font-weight: 700; color: var(--teal); }
 
-        /* ── HOW IT WORKS (homepage mini) ── */
-        .how-section { background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
         .section-head { margin-bottom: 40px; text-align: center; }
         .section-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.4rem); margin-bottom: 8px; }
         .section-head p { color: var(--muted); max-width: 40ch; margin: 0 auto; font-size: 0.95rem; }
-        .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 960px; margin: 0 auto; }
-        .step-card {
-            border-radius: var(--radius-md); background: var(--bg);
-            border: 1px solid var(--line); overflow: hidden;
-            text-align: center; display: flex; flex-direction: column;
+
+        /* ── TESTIMONIALS ── */
+        .testimonials-section { text-align: center; background: #0c1020; }
+        .testimonials-section .section-head h2 { color: #fff; }
+        .testimonials-section .eyebrow { color: var(--teal); }
+        .testimonials-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+            max-width: 960px; margin: 40px auto 0;
+        }
+        .testimonial-card {
+            background: rgba(20, 27, 53, 0.75); border-radius: 16px; padding: 28px 24px;
+            text-align: left; border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 4px 20px rgba(3, 5, 12, 0.30);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         }
-        .step-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(37, 34, 69, 0.10); }
-        .step-img { overflow: hidden; background: var(--paper); min-height: 220px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--line); }
-        .step-img img { width: 100%; height: 220px; object-fit: cover; }
-        .step-body { padding: 20px 16px 24px; }
-        .step-number {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 32px; height: 32px; border-radius: 50%;
-            background: var(--primary); color: #fff;
-            font-family: "Poppins", sans-serif; font-weight: 800; font-size: 0.85rem; margin-bottom: 10px;
+        .testimonial-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(3, 5, 12, 0.40); }
+        .testimonial-stars { color: #f5a623; font-size: 1rem; letter-spacing: 2px; margin-bottom: 14px; }
+        .testimonial-text { font-size: 0.9rem; line-height: 1.65; color: rgba(240,238,255,0.75); margin-bottom: 18px; }
+        .testimonial-author { display: flex; align-items: center; gap: 10px; }
+        .testimonial-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--teal));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 0.8rem;
         }
-        .step-card h3 { font-size: 0.95rem; margin-bottom: 4px; }
-        .step-card p { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+        .testimonial-name { font-weight: 700; font-size: 0.85rem; color: #fff; }
+        .testimonial-location { font-size: 0.75rem; color: rgba(182,190,223,0.6); }
+
+        @media (max-width: 900px) {
+            .testimonials-grid { grid-template-columns: 1fr; max-width: 480px; }
+        }
 
         /* ── FAQ ── */
-        .faq-section { text-align: center; }
+        .faq-section {
+            text-align: center; position: relative; overflow: hidden;
+            background-size: cover; background-position: center;
+        }
+        .faq-section::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg,
+                rgba(12, 16, 32, 0.82) 0%,
+                rgba(12, 16, 32, 0.75) 100%);
+            z-index: 1;
+        }
+        .faq-section .container { position: relative; z-index: 2; }
+        .faq-section h2 { color: #fff; }
+        .faq-section .eyebrow { color: var(--teal); }
         .faq-list { max-width: 680px; margin: 0 auto; text-align: left; }
         .faq-item { border-bottom: 1px solid var(--line); padding: 18px 0; }
         .faq-q {
@@ -419,11 +501,13 @@
             width: 100%; text-align: left; font-family: "Poppins", sans-serif;
             font-size: 1rem; font-weight: 700; color: var(--ink); padding: 0;
         }
-        .faq-q::after { content: "+"; font-size: 1.3rem; color: var(--primary); flex-shrink: 0; transition: transform 0.2s; }
+        .faq-q { color: #fff; }
+        .faq-q::after { content: "+"; font-size: 1.3rem; color: var(--teal); flex-shrink: 0; transition: transform 0.2s; }
         .faq-item.open .faq-q::after { transform: rotate(45deg); }
         .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
         .faq-item.open .faq-a { max-height: 200px; }
-        .faq-a p { padding-top: 10px; color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+        .faq-a p { padding-top: 10px; color: rgba(240,238,255,0.80); font-size: 0.9rem; line-height: 1.6; }
+        .faq-item { border-bottom: 1px solid rgba(255,255,255,0.12); }
 
         /* ── CTA BLOCK ── */
         .cta-block {
@@ -510,61 +594,78 @@
         .home-page { display: block; }
         .home-page.hidden { display: none; }
 
-        .hiw-hero {
-            background: linear-gradient(160deg, #1b1452, #2a1d7a 50%, #3d2890);
-            padding: 120px 24px 80px; text-align: center;
+        /* ── HIW: tall scrolling image with scattered steps ── */
+        .hiw-full {
             position: relative; overflow: hidden;
+            min-height: 180vh;
+            background-size: cover; background-position: center top;
         }
-        .hiw-hero::before {
-            content: ""; position: absolute; inset: 0;
-            background: radial-gradient(600px at 50% 40%, rgba(143,151,255,0.12), transparent 70%);
-            pointer-events: none;
+        .hiw-full::before {
+            content: ""; position: absolute; inset: 0; z-index: 1;
+            background:
+                radial-gradient(ellipse at 65% 15%, transparent 20%, rgba(12, 16, 32, 0.20) 60%),
+                linear-gradient(180deg, rgba(12, 16, 32, 0.30) 0%, rgba(12, 16, 32, 0.05) 20%, rgba(12, 16, 32, 0.05) 60%, rgba(12, 16, 32, 0.45) 100%);
         }
-        .hiw-hero h1 {
-            color: #fff; font-size: clamp(2rem, 4vw, 3rem);
-            margin-bottom: 16px; position: relative;
+        .hiw-full-inner {
+            position: relative; z-index: 2;
+            width: 100%; min-height: inherit;
         }
-        .hiw-hero p {
-            color: rgba(240,238,255,0.78); font-size: 1.1rem;
-            max-width: 48ch; margin: 0 auto; position: relative;
+        .hiw-full-header {
+            position: absolute; top: 110px; left: 64px;
         }
-
-        .hiw-steps { padding: 80px 24px; max-width: 1000px; margin: 0 auto; }
-        .hiw-step {
-            display: grid; grid-template-columns: 1fr 1fr;
-            gap: 60px; align-items: center;
-            padding: 60px 0;
-            border-bottom: 1px solid var(--line);
+        .hiw-full-eyebrow { margin-bottom: 12px; }
+        .hiw-full-title {
+            font-size: clamp(1.8rem, 3.5vw, 2.6rem); color: #fff;
+            text-shadow: 0 2px 24px rgba(0,0,0,0.5);
         }
-        .hiw-step:last-child { border-bottom: 0; }
-        .hiw-step.reverse { direction: rtl; }
-        .hiw-step.reverse > * { direction: ltr; }
-        .hiw-step-img {
-            display: flex; justify-content: center;
+        .hiw-full-steps { display: contents; }
+        .hiw-full-step {
+            position: absolute; z-index: 2;
+            display: flex; gap: 18px; align-items: flex-start;
+            max-width: 400px;
+            padding: 24px 28px;
+            background: rgba(12, 16, 32, 0.50);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
         }
-        .hiw-phone {
-            width: 220px; border-radius: 32px;
-            background: #0a0a0f; padding: 8px;
-            box-shadow: 0 24px 56px rgba(0,0,0,0.20), 0 8px 20px rgba(0,0,0,0.12);
-            border: 1.5px solid var(--line); position: relative;
-        }
-        .hiw-phone::before {
-            content: ""; position: absolute;
-            top: 8px; left: 50%; transform: translateX(-50%);
-            width: 60px; height: 18px;
-            background: #0a0a0f; border-radius: 0 0 12px 12px; z-index: 3;
-        }
-        .hiw-phone img { width: 100%; border-radius: 24px; display: block; }
-        .hiw-step-content { }
+        .hiw-full-step:nth-child(1) { top: 30%; left: 6%; }
+        .hiw-full-step:nth-child(2) { top: 53%; right: 8%; left: auto; }
+        .hiw-full-step:nth-child(3) { top: 76%; left: 14%; }
         .hiw-step-num {
             display: inline-flex; align-items: center; justify-content: center;
-            width: 48px; height: 48px; border-radius: 50%;
-            background: linear-gradient(130deg, var(--primary), var(--primary-2));
+            min-width: 44px; height: 44px; border-radius: 50%;
+            background: var(--teal);
             color: #fff; font-family: "Poppins", sans-serif;
-            font-weight: 800; font-size: 1.2rem; margin-bottom: 16px;
+            font-weight: 800; font-size: 1.1rem; flex-shrink: 0;
         }
-        .hiw-step-content h2 { font-size: clamp(1.4rem, 2.5vw, 1.8rem); margin-bottom: 12px; }
-        .hiw-step-content p { color: var(--muted); font-size: 1rem; line-height: 1.75; max-width: 40ch; }
+        .hiw-full-step-text h3 { font-size: 1.15rem; margin-bottom: 4px; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.3); }
+        .hiw-full-step-text p { color: rgba(240,238,255,0.82); font-size: 0.92rem; line-height: 1.6; }
+
+        /* ── HIW MINI: homepage compact left-column variant ── */
+        .hiw-mini {
+            min-height: 100vh; display: flex; align-items: center;
+        }
+        .hiw-mini::before {
+            background: linear-gradient(90deg,
+                rgba(12, 16, 32, 0.92) 0%,
+                rgba(12, 16, 32, 0.80) 35%,
+                rgba(12, 16, 32, 0.25) 60%,
+                rgba(12, 16, 32, 0.05) 100%);
+        }
+        .hiw-mini .hiw-full-inner {
+            padding: 120px 64px 80px; max-width: 520px; min-height: auto;
+        }
+        .hiw-mini .hiw-full-header { position: static; }
+        .hiw-mini .hiw-full-title { margin-bottom: 48px; text-shadow: none; }
+        .hiw-mini .hiw-full-steps { display: flex; flex-direction: column; gap: 36px; }
+        .hiw-mini .hiw-full-step {
+            position: static; max-width: none;
+            padding: 0; background: none;
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+            border-radius: 0; border: none; box-shadow: none;
+        }
 
         /* ── FOOTER ── */
         .footer {
@@ -605,18 +706,18 @@
         .footer-legal-links a:hover { color: rgba(230,225,255,0.7); }
 
         /* ── REVEAL ANIMATIONS ── */
-        .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .reveal { opacity: 0; transform: translateY(36px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
         .reveal.visible { opacity: 1; transform: translateY(0); }
-        .reveal-left { opacity: 0; transform: translateX(-30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .reveal-left { opacity: 0; transform: translateX(-40px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
         .reveal-left.visible { opacity: 1; transform: translateX(0); }
-        .reveal-right { opacity: 0; transform: translateX(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .reveal-right { opacity: 0; transform: translateX(40px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
         .reveal-right.visible { opacity: 1; transform: translateX(0); }
 
         /* Stagger children */
         .stagger > *:nth-child(1) { transition-delay: 0s; }
-        .stagger > *:nth-child(2) { transition-delay: 0.12s; }
-        .stagger > *:nth-child(3) { transition-delay: 0.24s; }
-        .stagger > *:nth-child(4) { transition-delay: 0.36s; }
+        .stagger > *:nth-child(2) { transition-delay: 0.2s; }
+        .stagger > *:nth-child(3) { transition-delay: 0.4s; }
+        .stagger > *:nth-child(4) { transition-delay: 0.6s; }
 
         /* Page transition */
         .page-fade-enter { opacity: 0; transform: translateY(12px); }
@@ -640,7 +741,8 @@
             .hero-watch-body { width: 65px; height: 78px; }
             .hero-watch { bottom: 20px; right: -5px; width: 75px; }
             .feature-cards { grid-template-columns: 1fr; }
-            .steps-grid { grid-template-columns: 1fr; }
+            .step-panel { min-height: 45vh; }
+            .step-panel-inner { padding: 0 24px 36px; }
             .cta-inner { grid-template-columns: 1fr; text-align: center; gap: 28px; }
             .cta-copy { text-align: center; }
             .cta-trust-line { justify-content: center; }
@@ -654,14 +756,53 @@
             .works-with-logos { gap: 16px; }
             .works-with-logo-item svg { width: 20px; height: 20px; }
             .works-with-logo-item .ww-name { font-size: 0.75rem; }
-            .hiw-step { grid-template-columns: 1fr; gap: 32px; }
-            .hiw-step.reverse { direction: ltr; }
-            .hiw-phone { width: 180px; }
+            .hiw-full { min-height: auto; }
+            .hiw-full::before {
+                background: linear-gradient(180deg,
+                    rgba(12, 16, 32, 0.40) 0%,
+                    rgba(12, 16, 32, 0.12) 25%,
+                    rgba(12, 16, 32, 0.12) 55%,
+                    rgba(12, 16, 32, 0.50) 100%);
+            }
+            .hiw-full-inner { padding: 100px 20px 60px; min-height: auto; }
+            .hiw-full-header { position: static; margin-bottom: 36px; text-align: center; }
+            .hiw-full-steps { display: flex; flex-direction: column; gap: 20px; }
+            .hiw-full-step {
+                position: static !important; max-width: 100%;
+                left: auto !important; right: auto !important; top: auto !important;
+            }
+            .hiw-full-step:nth-child(2) { align-self: flex-end; max-width: 88%; }
+            .hiw-full-step:nth-child(3) { margin-left: 5%; }
+            /* hiw-mini homepage: restore left-column on mobile */
+            .hiw-mini { min-height: 100vh; align-items: flex-start; }
+            .hiw-mini::before {
+                background: linear-gradient(180deg,
+                    rgba(12, 16, 32, 0.75) 0%,
+                    rgba(12, 16, 32, 0.60) 40%,
+                    rgba(12, 16, 32, 0.30) 80%,
+                    rgba(12, 16, 32, 0.10) 100%);
+            }
+            .hiw-mini .hiw-full-inner { padding: 100px 24px 60px; }
+            .hiw-mini .hiw-full-header { text-align: left; }
+            .hiw-mini .hiw-full-step { padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; }
+            .hiw-mini .hiw-full-step:nth-child(2) { align-self: auto; max-width: 100%; }
+            .hiw-mini .hiw-full-step:nth-child(3) { margin-left: 0; }
+            .text-section { align-items: flex-end; }
+            .text-section-inner {
+                padding: 0 24px 40px; max-width: 100%; text-align: center;
+            }
+            .text-section::before {
+                background: linear-gradient(180deg,
+                    rgba(12, 16, 32, 0.05) 0%,
+                    rgba(12, 16, 32, 0.25) 40%,
+                    rgba(12, 16, 32, 0.75) 70%,
+                    rgba(12, 16, 32, 0.90) 100%);
+            }
         }
         @media (max-width: 480px) {
             .hero-inner { padding: 60px 18px 40px; }
-            .hero-devices { width: 220px; height: 360px; }
-            .hero-phone { width: 170px; }
+            .hero-devices { width: 180px; height: 280px; }
+            .hero-phone { width: 130px; }
             .section-spacer { padding: 56px 16px; }
             .section-spacer-sm { padding: 48px 16px; }
             .cta-block { padding: 48px 18px 40px; }
@@ -806,7 +947,7 @@
             </div>
 
             <!-- TWO NUMBERS -->
-            <div class="section-spacer two-numbers reveal">
+            <div class="section-spacer two-numbers reveal" style="background-image: url('{{ url_for('static', filename='site/images/mountain-landscape.png') }}');">
                 <div class="container">
                     <h2 data-i18n="two_numbers_title">F&aring; en score basert p&aring; kvaliteten p&aring; treningen</h2>
                     <div class="feature-cards stagger">
@@ -853,80 +994,67 @@
                 </div>
             </div>
 
-            <!-- REAL-TIME GUIDANCE -->
-            <section class="text-section section-spacer-sm reveal">
+            <!-- REAL-TIME GUIDANCE + HOW IT WORKS — combined big photo -->
+            <section class="text-section reveal" id="howMini" style="background-image: url('{{ url_for('static', filename='site/images/smiling-after-workout.png') }}'); background-position: center 25%; min-height: 130vh;">
                 <div class="text-section-inner">
                     <span class="eyebrow" data-i18n="rt_eyebrow">Sanntidsveiledning</span>
-                    <h2 data-i18n="rt_title">Vet hva du skal gj&oslash;re mens du l&oslash;per</h2>
-                    <p data-i18n="rt_body">Coachen sier fra n&aring;r du skal roe ned, presse p&aring;, eller slappe av. Tydelig stemmeveiledning som holder deg i riktig sone.</p>
+                    <p data-i18n="rt_body" style="margin-bottom: 44px; font-size: 1.1rem;">Coachen sier fra n&aring;r du skal roe ned, presse p&aring;, eller slappe av. Tydelig stemmeveiledning som holder deg i riktig sone.</p>
+                    <div class="ts-steps">
+                        <div class="ts-step">
+                            <div class="ts-step-num">1</div>
+                            <span>Velg treningsform</span>
+                        </div>
+                        <div class="ts-step">
+                            <div class="ts-step-num">2</div>
+                            <span>F&aring; konkrete justeringer underveis</span>
+                        </div>
+                        <div class="ts-step">
+                            <div class="ts-step-num">3</div>
+                            <span>F&aring; en bedre Coach Score basert p&aring; tid i riktig sone</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <!-- BUILT FOR ACTION -->
-            <section class="action-section section-spacer reveal">
-                <div class="action-inner">
-                    <span class="eyebrow" data-i18n="action_eyebrow">Bygg fremgang</span>
-                    <h2 data-i18n="action_title">Tren i dag. Bli bedre i morgen.</h2>
-                    <p class="action-lead" data-i18n="action_lead">Hver l&oslash;petur gir deg:</p>
-                    <ul class="action-list" id="actionList">
-                        <li>
-                            <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span data-i18n="action_1">Sanntids stemmeveiledning</span>
-                        </li>
-                        <li>
-                            <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span data-i18n="action_2">En tydelig Coaching Score</span>
-                        </li>
-                        <li>
-                            <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span data-i18n="action_3">En langsiktig Fitness Age-trend</span>
-                        </li>
-                        <li>
-                            <span class="action-check"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span data-i18n="action_4">Enkle tips til neste &oslash;kt</span>
-                        </li>
-                    </ul>
-                    <p class="action-close" data-i18n="action_close">S&aring; du alltid vet hva som er neste steg.</p>
-                </div>
-            </section>
-
-            <!-- HOW IT WORKS (mini) -->
-            <section class="how-section section-spacer-sm" id="howMini">
+            <!-- TESTIMONIALS -->
+            <section class="testimonials-section section-spacer" id="testimonials">
                 <div class="container">
                     <div class="section-head reveal">
-                        <span class="eyebrow" data-i18n="how_eyebrow">Slik fungerer det</span>
-                        <h2 data-i18n="how_title">I gang p&aring; under 2 minutter</h2>
-                        <p data-i18n="how_intro">Tre steg. Ingen oppsett. Bare l&oslash;p.</p>
+                        <span class="eyebrow" data-i18n="testimonials_eyebrow">Brukere</span>
+                        <h2 data-i18n="testimonials_title">Det l&oslash;pere sier</h2>
                     </div>
-                    <div class="steps-grid stagger">
-                        <div class="step-card reveal">
-                            <div class="step-img">
-                                <img src="{{ url_for('static', filename='site/images/app-home-screen.png') }}" alt="Velg treningstype" data-i18n-alt="step_1_img_alt" loading="lazy">
-                            </div>
-                            <div class="step-body">
-                                <div class="step-number">1</div>
-                                <h3 data-i18n="step_1_title">Velg &oslash;kt</h3>
-                                <p data-i18n="step_1_body">Du bestemmer, coachen tilpasser seg.</p>
-                            </div>
-                        </div>
-                        <div class="step-card reveal">
-                            <div class="step-img">
-                                <img src="{{ url_for('static', filename='site/images/app-workout-active.jpg') }}" alt="Coaching underveis" data-i18n-alt="step_2_img_alt" loading="lazy">
-                            </div>
-                            <div class="step-body">
-                                <div class="step-number">2</div>
-                                <h3 data-i18n="step_2_title">F&aring; r&aring;d underveis</h3>
-                                <p data-i18n="step_2_body">&quot;Rolig ned&quot;, &quot;Fint tempo&quot;, &quot;Tr&oslash;kk til!&quot;</p>
+                    <div class="testimonials-grid stagger">
+                        <div class="testimonial-card reveal">
+                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
+                            <p class="testimonial-text" data-i18n="testimonial_1_text">Endelig en app som faktisk hjelper meg holde riktig tempo. Stemmecoachen f&oslash;les som &aring; l&oslash;pe med en personlig trener.</p>
+                            <div class="testimonial-author">
+                                <div class="testimonial-avatar">K</div>
+                                <div>
+                                    <div class="testimonial-name">Kristine M.</div>
+                                    <div class="testimonial-location">Oslo</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="step-card reveal">
-                            <div class="step-img">
-                                <img src="{{ url_for('static', filename='site/images/app-coach-score.jpg') }}" alt="Se din score" data-i18n-alt="step_3_img_alt" loading="lazy">
+                        <div class="testimonial-card reveal">
+                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
+                            <p class="testimonial-text" data-i18n="testimonial_2_text">Bruker den p&aring; alle l&oslash;peturene mine n&aring;. Pulssonene og de korte r&aring;dene gj&oslash;r at jeg ikke overtrer lenger.</p>
+                            <div class="testimonial-author">
+                                <div class="testimonial-avatar">E</div>
+                                <div>
+                                    <div class="testimonial-name">Erik S.</div>
+                                    <div class="testimonial-location">Bergen</div>
+                                </div>
                             </div>
-                            <div class="step-body">
-                                <div class="step-number">3</div>
-                                <h3 data-i18n="step_3_title">Se din score</h3>
-                                <p data-i18n="step_3_body">CoachScore etter hver &oslash;kt.</p>
+                        </div>
+                        <div class="testimonial-card reveal">
+                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
+                            <p class="testimonial-text" data-i18n="testimonial_3_text">Coach Score etter hver &oslash;kt motiverer meg enormt. Elsker at den snakker norsk uten kl&oslash;nete oversettelser.</p>
+                            <div class="testimonial-author">
+                                <div class="testimonial-avatar">M</div>
+                                <div>
+                                    <div class="testimonial-name">Maria L.</div>
+                                    <div class="testimonial-location">Trondheim</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -934,7 +1062,7 @@
             </section>
 
             <!-- FAQ -->
-            <section class="faq-section section-spacer reveal" id="faq">
+            <section class="faq-section section-spacer reveal" id="faq" style="background-image: url('{{ url_for('static', filename='site/images/runner-open-road.png') }}');">
                 <div class="container">
                     <div class="section-head">
                         <span class="eyebrow" data-i18n="faq_eyebrow">Vanlige sp&oslash;rsm&aring;l</span>
@@ -1008,51 +1136,35 @@
         <!-- HOW IT WORKS PAGE -->
         <!-- ═══════════════════════════════════════ -->
         <div class="hiw-page" id="hiwPage">
-            <div class="hiw-hero">
-                <h1 data-i18n="hiw_hero_title">Slik fungerer Coachi</h1>
-                <p data-i18n="hiw_hero_body">Fra nedlasting til din f&oslash;rste coachede l&oslash;petur &mdash; p&aring; under 2 minutter.</p>
-            </div>
-
-            <div class="hiw-steps">
-                <!-- Step 1 -->
-                <div class="hiw-step reveal-left">
-                    <div class="hiw-step-img">
-                        <div class="hiw-phone">
-                            <img src="{{ url_for('static', filename='site/images/app-home-screen.png') }}" alt="Last ned appen" loading="lazy">
+            <!-- Single full-screen image with all steps -->
+            <div class="hiw-full reveal" style="background-image: url('{{ url_for('static', filename='site/images/mountain-trail-runner.png') }}');">
+                <div class="hiw-full-inner">
+                    <div class="hiw-full-header">
+                        <span class="eyebrow hiw-full-eyebrow" data-i18n="how_eyebrow">Slik fungerer det</span>
+                        <h1 class="hiw-full-title" data-i18n="hiw_hero_title">Slik fungerer Coachi</h1>
+                    </div>
+                    <div class="hiw-full-steps">
+                        <div class="hiw-full-step">
+                            <div class="hiw-step-num">1</div>
+                            <div class="hiw-full-step-text">
+                                <h3 data-i18n="hiw_step1_title">Last ned appen</h3>
+                                <p data-i18n="hiw_step1_body">Tilgjengelig p&aring; App Store og Google Play. Ingen konto n&oslash;dvendig &mdash; velg spr&aring;k, velg &oslash;kt-type, og du er klar.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="hiw-step-content">
-                        <div class="hiw-step-num">1</div>
-                        <h2 data-i18n="hiw_step1_title">Last ned appen</h2>
-                        <p data-i18n="hiw_step1_body">Tilgjengelig p&aring; App Store og Google Play. Ingen konto n&oslash;dvendig &mdash; velg spr&aring;k, velg &oslash;kt-type, og du er klar.</p>
-                    </div>
-                </div>
-
-                <!-- Step 2 -->
-                <div class="hiw-step reverse reveal-right">
-                    <div class="hiw-step-img">
-                        <div class="hiw-phone">
-                            <img src="{{ url_for('static', filename='site/images/app-workout-active.jpg') }}" alt="Koble til pulsklokke" loading="lazy">
+                        <div class="hiw-full-step">
+                            <div class="hiw-step-num">2</div>
+                            <div class="hiw-full-step-text">
+                                <h3 data-i18n="hiw_step2_title">Koble til pulsklokke</h3>
+                                <p data-i18n="hiw_step2_body">Coachi kobler seg automatisk til Apple Watch, Garmin, Polar og andre smartklokker. Din puls vises live mens du l&oslash;per.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="hiw-step-content">
-                        <div class="hiw-step-num">2</div>
-                        <h2 data-i18n="hiw_step2_title">Koble til pulsklokke</h2>
-                        <p data-i18n="hiw_step2_body">Coachi kobler seg automatisk til Apple Watch, Garmin, Polar og andre smartklokker. Din puls vises live mens du l&oslash;per.</p>
-                    </div>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="hiw-step reveal-left">
-                    <div class="hiw-step-img">
-                        <div class="hiw-phone">
-                            <img src="{{ url_for('static', filename='site/images/app-coach-score.jpg') }}" alt="F&aring; veiledning" loading="lazy">
+                        <div class="hiw-full-step">
+                            <div class="hiw-step-num">3</div>
+                            <div class="hiw-full-step-text">
+                                <h3 data-i18n="hiw_step3_title">F&aring; veiledning mens du l&oslash;per</h3>
+                                <p data-i18n="hiw_step3_body">AI-coachen analyserer puls og pust i sanntid og gir deg korte, tydelige r&aring;d i &oslash;ret. &laquo;Rolig ned&raquo;, &laquo;Fint tempo&raquo;, &laquo;Tr&oslash;kk til!&raquo;</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="hiw-step-content">
-                        <div class="hiw-step-num">3</div>
-                        <h2 data-i18n="hiw_step3_title">F&aring; veiledning mens du l&oslash;per</h2>
-                        <p data-i18n="hiw_step3_body">AI-coachen analyserer puls og pust i sanntid og gir deg korte, tydelige r&aring;d i &oslash;ret. &quot;Rolig ned&quot;, &quot;Fint tempo&quot;, &quot;Tr&oslash;kk til!&quot;</p>
                     </div>
                 </div>
             </div>
@@ -1178,7 +1290,6 @@
                 action_lead: "Hver l\u00f8petur gir deg:",
                 action_1: "Sanntids stemmeveiledning",
                 action_2: "En tydelig Coaching Score",
-                action_3: "En langsiktig Fitness Age-trend",
                 action_4: "Enkle tips til neste \u00f8kt",
                 action_close: "S\u00e5 du alltid vet hva som er neste steg.",
                 zone_easy: "Rolig",
@@ -1194,8 +1305,8 @@
                 step_2_title: "F\u00e5 r\u00e5d underveis",
                 step_2_body: "\u00abRolig ned\u00bb, \u00abFint tempo\u00bb, \u00abTr\u00f8kk til!\u00bb",
                 step_2_img_alt: "Coaching underveis",
-                step_3_title: "Se din score",
-                step_3_body: "CoachScore etter hver \u00f8kt.",
+                step_3_title: "Se hvor bra du trente",
+                step_3_body: "Coaching Score gir deg fasit etter hver \u00f8kt \u2014 basert p\u00e5 kvaliteten, ikke bare distansen.",
                 step_3_img_alt: "Se din score",
                 faq_eyebrow: "Vanlige sp\u00f8rsm\u00e5l",
                 faq_title: "Lurer du p\u00e5 noe?",
@@ -1207,6 +1318,11 @@
                 faq_3_a: "Last ned, velg \u00f8kt, og l\u00f8p. Under 2 minutter fra installasjon til f\u00f8rste r\u00e5d.",
                 faq_4_q: "Hva koster det?",
                 faq_4_a: "Gratis mens vi forbedrer coachen. Betalte planer kan komme senere.",
+                testimonials_eyebrow: "Brukere",
+                testimonials_title: "Det l\u00f8pere sier",
+                testimonial_1_text: "Endelig en app som faktisk hjelper meg holde riktig tempo. Stemmecoachen f\u00f8les som \u00e5 l\u00f8pe med en personlig trener.",
+                testimonial_2_text: "Bruker den p\u00e5 alle l\u00f8peturene mine n\u00e5. Pulssonene og de korte r\u00e5dene gj\u00f8r at jeg ikke overtrer lenger.",
+                testimonial_3_text: "Coach Score etter hver \u00f8kt motiverer meg enormt. Elsker at den snakker norsk uten kl\u00f8nete oversettelser.",
                 cta_title: "Klar for en smartere l\u00f8petur?",
                 cta_body: "Last ned Coachi og l\u00f8p med en coach som tilpasser seg deg.",
                 cta_trust: "Gratis mens vi er i beta",
@@ -1263,7 +1379,6 @@
                 action_lead: "Every run gives you:",
                 action_1: "Real-time voice coaching",
                 action_2: "A clear Coaching Score",
-                action_3: "A long-term Fitness Age trend",
                 action_4: "Simple tips for your next session",
                 action_close: "So you always know your next step.",
                 zone_easy: "Easy",
@@ -1279,8 +1394,8 @@
                 step_2_title: "Get cues while you run",
                 step_2_body: "'Easy now', 'Nice pace', 'Push it!'",
                 step_2_img_alt: "Coaching in progress",
-                step_3_title: "See your score",
-                step_3_body: "CoachScore after every run.",
+                step_3_title: "See how well you trained",
+                step_3_body: "Coaching Score rates every session \u2014 based on quality, not just distance.",
                 step_3_img_alt: "See your score",
                 faq_eyebrow: "FAQ",
                 faq_title: "Got questions?",
@@ -1292,6 +1407,11 @@
                 faq_3_a: "Download, pick a run, and go. Under 2 minutes from install to your first coach cue.",
                 faq_4_q: "What does it cost?",
                 faq_4_a: "Free while we keep improving the coach. Paid plans may come later.",
+                testimonials_eyebrow: "Users",
+                testimonials_title: "What runners say",
+                testimonial_1_text: "Finally an app that actually helps me keep the right pace. The voice coach feels like running with a personal trainer.",
+                testimonial_2_text: "I use it on every run now. The heart rate zones and short cues keep me from overtraining.",
+                testimonial_3_text: "Coach Score after each session motivates me so much. Love that it speaks Norwegian without clunky translations.",
                 cta_title: "Ready for a smarter run?",
                 cta_body: "Download Coachi and run with a coach that adapts to you.",
                 cta_trust: "Free while in beta",
@@ -1517,11 +1637,11 @@
             navWrap.classList.toggle("scrolled", window.scrollY > 40);
         }, { passive: true });
 
-        /* ── COACHSCORE COUNTER (0 → 100) ── */
+        /* ── COACHSCORE COUNTER (0 → 79) ── */
         const scoreEl = document.getElementById("scoreNum");
         const scoreRingFill = document.querySelector(".score-ring .ring-fill");
         if (scoreEl && scoreRingFill) {
-            const targetScore = 100;
+            const targetScore = 79;
             const circumference = 2 * Math.PI * 56;
             let scored = false;
             scoreRingFill.style.strokeDasharray = circumference;
