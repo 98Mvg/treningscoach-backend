@@ -31,6 +31,8 @@ env/
 # Environment variables (contains API keys!)
 .env
 *.env
+.env.local
+*.env.local
 
 # Temporary files
 *.log
@@ -106,3 +108,6 @@ output/candidate_review.xlsx
 
 # Local runtime state
 instance/*.db
+
+# Generated business-stack migration artifacts
+output/supabase_export/

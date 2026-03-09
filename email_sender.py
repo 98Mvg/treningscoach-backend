@@ -12,6 +12,11 @@ import ssl
 from email.message import EmailMessage
 from typing import Any
 
+try:
+    from resend import Resend
+except Exception:  # pragma: no cover - optional dependency at runtime
+    Resend = None  # type: ignore[assignment]
+
 
 DEFAULT_SUPPORT_EMAIL = "AI.Coachi@hotmail.com"
 
@@ -33,15 +38,27 @@ def _smtp_settings() -> dict[str, Any]:
     }
 
 
+def _email_provider() -> str:
+    return (os.getenv("EMAIL_PROVIDER") or "smtp").strip().lower()
+
+
+def _resend_settings() -> dict[str, Any]:
+    return {
+        "api_key": (os.getenv("RESEND_API_KEY") or "").strip(),
+        "from_email": (os.getenv("EMAIL_FROM") or os.getenv("SUPPORT_EMAIL") or DEFAULT_SUPPORT_EMAIL).strip(),
+        "reply_to": (os.getenv("EMAIL_REPLY_TO") or os.getenv("SUPPORT_EMAIL") or DEFAULT_SUPPORT_EMAIL).strip(),
+        "enabled": _truthy(os.getenv("EMAIL_SENDING_ENABLED")),
+    }
+
+
 def is_email_configured() -> bool:
+    provider = _email_provider()
+    if provider == "resend":
+        settings = _resend_settings()
+        return bool(settings["enabled"] and settings["api_key"] and settings["from_email"])
+
     settings = _smtp_settings()
-    return bool(
-        settings["enabled"]
-        and settings["host"]
-        and settings["username"]
-        and settings["password"]
-        and settings["from_email"]
-    )
+    return bool(settings["enabled"] and settings["host"] and settings["username"] and settings["password"] and settings["from_email"])
 
 
 def _logger(logger: Any):
@@ -61,10 +78,33 @@ class _NoOpLogger:
 
 def _send_email(*, to_email: str, subject: str, body: str, logger: Any = None) -> bool:
     log = _logger(logger)
-    settings = _smtp_settings()
     if not is_email_configured():
-        log.info("EMAIL_SEND_SKIPPED reason=not_configured to=%s", to_email)
+        log.info("EMAIL_SEND_SKIPPED reason=not_configured provider=%s to=%s", _email_provider(), to_email)
         return False
+
+    provider = _email_provider()
+    if provider == "resend":
+        return _send_email_via_resend(to_email=to_email, subject=subject, body=body, logger=logger)
+
+    settings = _smtp_settings()
+    return _send_email_via_smtp(
+        to_email=to_email,
+        subject=subject,
+        body=body,
+        settings=settings,
+        logger=logger,
+    )
+
+
+def _send_email_via_smtp(
+    *,
+    to_email: str,
+    subject: str,
+    body: str,
+    settings: dict[str, Any],
+    logger: Any = None,
+) -> bool:
+    log = _logger(logger)
 
     message = EmailMessage()
     message["Subject"] = subject
@@ -81,10 +121,43 @@ def _send_email(*, to_email: str, subject: str, body: str, logger: Any = None) -
                 server.starttls(context=context)
             server.login(settings["username"], settings["password"])
             server.send_message(message)
-        log.info("EMAIL_SEND_OK to=%s subject=%s", to_email, subject)
+        log.info("EMAIL_SEND_OK provider=smtp to=%s subject=%s", to_email, subject)
         return True
     except Exception as exc:
-        log.warning("EMAIL_SEND_FAILED to=%s subject=%s error=%s", to_email, subject, exc)
+        log.warning("EMAIL_SEND_FAILED provider=smtp to=%s subject=%s error=%s", to_email, subject, exc)
+        return False
+
+
+def _send_email_via_resend(*, to_email: str, subject: str, body: str, logger: Any = None) -> bool:
+    log = _logger(logger)
+    settings = _resend_settings()
+    if Resend is None:
+        log.warning("EMAIL_SEND_FAILED provider=resend to=%s subject=%s error=resend_not_installed", to_email, subject)
+        return False
+
+    try:
+        client = Resend(api_key=settings["api_key"])
+        payload = {
+            "from": settings["from_email"],
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }
+        if settings["reply_to"]:
+            payload["reply_to"] = settings["reply_to"]
+        response = client.emails.send(payload)
+        provider_message_id = None
+        if isinstance(response, dict):
+            provider_message_id = response.get("id")
+        log.info(
+            "EMAIL_SEND_OK provider=resend to=%s subject=%s message_id=%s",
+            to_email,
+            subject,
+            provider_message_id or "unknown",
+        )
+        return True
+    except Exception as exc:
+        log.warning("EMAIL_SEND_FAILED provider=resend to=%s subject=%s error=%s", to_email, subject, exc)
         return False
 
 
