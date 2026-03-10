@@ -169,7 +169,7 @@ struct AppConfig {
             return defaultValue
         }
 
-        static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: false)
+        static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)
         static let defaultMaxDurationSeconds: Int = 300
     }
 

@@ -761,6 +761,8 @@ struct VoiceSessionBootstrap: Codable {
     let model: String?
     let region: String?
     let maxDurationSeconds: Int
+    let voiceAccessTier: String?
+    let dailySessionLimit: Int?
     let sessionUpdateJSON: String
 
     enum CodingKeys: String, CodingKey {
@@ -772,6 +774,8 @@ struct VoiceSessionBootstrap: Codable {
         case model
         case region
         case maxDurationSeconds = "max_duration_seconds"
+        case voiceAccessTier = "voice_access_tier"
+        case dailySessionLimit = "daily_session_limit"
         case sessionUpdateJSON = "session_update_json"
     }
 }

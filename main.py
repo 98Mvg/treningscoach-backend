@@ -265,6 +265,31 @@ def _capture_voice_event(event: str, *, user_id: str, metadata: dict | None = No
         logger=logger,
     )
 
+
+def _live_voice_session_policy(subscription_tier: str) -> dict[str, int | str]:
+    normalized_tier = "premium" if str(subscription_tier or "").strip().lower() == "premium" else "free"
+    if normalized_tier == "premium":
+        return {
+            "access_tier": "premium",
+            "max_duration_seconds": max(60, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 300) or 300)),
+            "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 10) or 10)),
+        }
+    return {
+        "access_tier": "free",
+        "max_duration_seconds": max(60, int(getattr(config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120) or 120)),
+        "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2) or 2)),
+    }
+
+
+def _enforce_live_voice_session_limits(*, user_id: str, access_tier: str, daily_session_limit: int):
+    return enforce_rate_limit(
+        max(1, int(daily_session_limit)),
+        24 * 3600,
+        key_prefix=f"api.voice.session.{access_tier}.day",
+        scope="user",
+        key_func=lambda subject=user_id: subject,
+    )
+
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
@@ -4209,15 +4234,14 @@ def create_voice_session():
         )
 
     subscription_tier = resolve_user_subscription_tier(user_id)
-    premium_gate_active = bool(getattr(config, "PREMIUM_SURFACES_ENABLED", False)) and not bool(
-        getattr(config, "APP_FREE_MODE", True)
+    session_policy = _live_voice_session_policy(subscription_tier)
+    daily_limited = _enforce_live_voice_session_limits(
+        user_id=user_id,
+        access_tier=str(session_policy["access_tier"]),
+        daily_session_limit=int(session_policy["daily_session_limit"]),
     )
-    if premium_gate_active and subscription_tier != "premium":
-        return _voice_error(
-            "Premium subscription required",
-            status=403,
-            error_code="premium_required",
-        )
+    if daily_limited is not None:
+        return daily_limited
 
     user = db.session.get(User, user_id)
     if user is None:
@@ -4248,6 +4272,7 @@ def create_voice_session():
             summary_context=summary_context,
             language=language,
             user_name=user_name or None,
+            max_duration_seconds=int(session_policy["max_duration_seconds"]),
             logger=logger,
         )
     except requests.HTTPError as exc:
@@ -4295,6 +4320,8 @@ def create_voice_session():
         )
 
     bootstrap["subscription_tier"] = subscription_tier
+    bootstrap["voice_access_tier"] = session_policy["access_tier"]
+    bootstrap["daily_session_limit"] = session_policy["daily_session_limit"]
     _capture_voice_event(
         "voice_session_requested",
         user_id=user_id,
@@ -4303,6 +4330,9 @@ def create_voice_session():
             "region": bootstrap.get("region"),
             "voice": bootstrap.get("voice"),
             "language": language,
+            "voice_access_tier": session_policy.get("access_tier"),
+            "daily_session_limit": session_policy.get("daily_session_limit"),
+            "max_duration_seconds": session_policy.get("max_duration_seconds"),
         },
     )
     return jsonify(bootstrap), 200

@@ -6,7 +6,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import auth
 import main
-from database import RefreshToken, User, UserProfile, UserSettings, UserSubscription, WorkoutHistory, db
+from database import RateLimitCounter, RefreshToken, User, UserProfile, UserSettings, UserSubscription, WorkoutHistory, db
+
+
+def _disable_rate_limit_bypass(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_BYPASS_FOR_TESTS", "false")
+    monkeypatch.setattr(auth.config, "RATE_LIMIT_BYPASS_FOR_TESTS", False, raising=False)
+    monkeypatch.setattr(main.config, "RATE_LIMIT_BYPASS_FOR_TESTS", False, raising=False)
+
+
+def _clear_rate_limit_counters():
+    with main.app.app_context():
+        RateLimitCounter.query.delete(synchronize_session=False)
+        db.session.commit()
 
 
 def _create_user(email_prefix: str, *, tier: str = "free") -> User:
@@ -47,10 +59,35 @@ def test_voice_session_requires_auth(monkeypatch):
     assert response.get_json()["error_code"] == "authentication_required"
 
 
-def test_voice_session_rejects_non_premium_users(monkeypatch):
+def test_voice_session_returns_free_tier_bootstrap_for_non_premium_users(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
     monkeypatch.setattr(main.config, "APP_FREE_MODE", False, raising=False)
     monkeypatch.setattr(main.config, "PREMIUM_SURFACES_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
+    captured = {}
+
+    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
+        captured["summary_context"] = dict(summary_context)
+        captured["language"] = language
+        captured["user_name"] = user_name
+        captured["max_duration_seconds"] = max_duration_seconds
+        _ = logger
+        return {
+            "voice_session_id": "voice_free_123",
+            "websocket_url": "wss://api.x.ai/v1/realtime",
+            "client_secret": "ek_free",
+            "client_secret_expires_at": 1_763_000_000,
+            "voice": "Rex",
+            "model": "grok-3-mini",
+            "region": "us-east-1",
+            "max_duration_seconds": max_duration_seconds,
+            "summary_context": dict(summary_context),
+            "session_update": {"type": "session.update"},
+            "session_update_json": "{\"type\":\"session.update\"}",
+        }
+
+    monkeypatch.setattr(main, "bootstrap_post_workout_voice_session", _fake_bootstrap)
     client = main.app.test_client()
 
     with main.app.app_context():
@@ -64,9 +101,13 @@ def test_voice_session_rejects_non_premium_users(monkeypatch):
             json={"summary_context": {"coach_score": 88}},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 200
         payload = response.get_json()
-        assert payload["error_code"] == "premium_required"
+        assert payload["subscription_tier"] == "free"
+        assert payload["voice_access_tier"] == "free"
+        assert payload["max_duration_seconds"] == 120
+        assert payload["daily_session_limit"] == 2
+        assert captured["max_duration_seconds"] == 120
     finally:
         with main.app.app_context():
             _delete_user(user_id)
@@ -76,8 +117,10 @@ def test_voice_session_allows_free_users_while_app_free_mode(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
     monkeypatch.setattr(main.config, "APP_FREE_MODE", True, raising=False)
     monkeypatch.setattr(main.config, "PREMIUM_SURFACES_ENABLED", False, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, logger=None):
+    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
         _ = (summary_context, language, user_name, logger)
         return {
             "voice_session_id": "voice_free_mode_123",
@@ -87,7 +130,7 @@ def test_voice_session_allows_free_users_while_app_free_mode(monkeypatch):
             "voice": "Rex",
             "model": "grok-3-mini",
             "region": "us-east-1",
-            "max_duration_seconds": 300,
+            "max_duration_seconds": max_duration_seconds,
             "summary_context": {"coach_score": 88},
             "session_update": {"type": "session.update"},
             "session_update_json": "{\"type\":\"session.update\"}",
@@ -111,6 +154,8 @@ def test_voice_session_allows_free_users_while_app_free_mode(monkeypatch):
         payload = response.get_json()
         assert payload["voice_session_id"] == "voice_free_mode_123"
         assert payload["subscription_tier"] == "free"
+        assert payload["voice_access_tier"] == "free"
+        assert payload["max_duration_seconds"] == 120
     finally:
         with main.app.app_context():
             _delete_user(user_id)
@@ -120,12 +165,15 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
     monkeypatch.setattr(main.config, "APP_FREE_MODE", False, raising=False)
     monkeypatch.setattr(main.config, "PREMIUM_SURFACES_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 420, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 8, raising=False)
     captured = {}
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, logger=None):
+    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
         captured["summary_context"] = dict(summary_context)
         captured["language"] = language
         captured["user_name"] = user_name
+        captured["max_duration_seconds"] = max_duration_seconds
         _ = logger
         return {
             "voice_session_id": "voice_test_123",
@@ -135,7 +183,7 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
             "voice": "Rex",
             "model": "grok-3-mini",
             "region": "us-east-1",
-            "max_duration_seconds": 300,
+            "max_duration_seconds": max_duration_seconds,
             "summary_context": dict(summary_context),
             "session_update": {"type": "session.update"},
             "session_update_json": "{\"type\":\"session.update\"}",
@@ -168,14 +216,113 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
         assert payload["websocket_url"] == "wss://api.x.ai/v1/realtime"
         assert payload["client_secret"] == "ek_test"
         assert payload["voice"] == "Rex"
-        assert payload["max_duration_seconds"] == 300
+        assert payload["max_duration_seconds"] == 420
         assert payload["subscription_tier"] == "premium"
+        assert payload["voice_access_tier"] == "premium"
+        assert payload["daily_session_limit"] == 8
         assert payload["session_update_json"] == "{\"type\":\"session.update\"}"
         assert captured["language"] == "no"
         assert captured["summary_context"]["coach_score"] == 91
+        assert captured["max_duration_seconds"] == 420
     finally:
         with main.app.app_context():
             _delete_user(user_id)
+
+
+def test_voice_session_free_daily_limit_returns_429(monkeypatch):
+    _disable_rate_limit_bypass(monkeypatch)
+    _clear_rate_limit_counters()
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120, raising=False)
+
+    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
+        _ = (summary_context, language, user_name, max_duration_seconds, logger)
+        return {
+            "voice_session_id": f"voice_free_limit_{uuid.uuid4().hex[:6]}",
+            "websocket_url": "wss://api.x.ai/v1/realtime",
+            "client_secret": "ek_limit",
+            "client_secret_expires_at": 1_763_000_500,
+            "voice": "Rex",
+            "model": "grok-3-mini",
+            "region": "us-east-1",
+            "max_duration_seconds": 120,
+            "summary_context": {"coach_score": 88},
+            "session_update": {"type": "session.update"},
+            "session_update_json": "{\"type\":\"session.update\"}",
+        }
+
+    monkeypatch.setattr(main, "bootstrap_post_workout_voice_session", _fake_bootstrap)
+    client = main.app.test_client()
+
+    with main.app.app_context():
+        user = _create_user("voice-free-limit", tier="free")
+        user_id = user.id
+        token = auth.create_jwt(user.id, user.email)
+
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        for _ in range(2):
+            response = client.post("/voice/session", json={"summary_context": {"coach_score": 88}}, headers=headers)
+            assert response.status_code == 200
+
+        blocked = client.post("/voice/session", json={"summary_context": {"coach_score": 88}}, headers=headers)
+        assert blocked.status_code == 429
+        payload = blocked.get_json()
+        assert payload["error"] == "Rate limit exceeded"
+        assert blocked.headers.get("Retry-After")
+    finally:
+        with main.app.app_context():
+            _delete_user(user_id)
+        _clear_rate_limit_counters()
+
+
+def test_voice_session_premium_daily_limit_is_higher(monkeypatch):
+    _disable_rate_limit_bypass(monkeypatch)
+    _clear_rate_limit_counters()
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 3, raising=False)
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 420, raising=False)
+
+    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
+        _ = (summary_context, language, user_name, max_duration_seconds, logger)
+        return {
+            "voice_session_id": f"voice_premium_limit_{uuid.uuid4().hex[:6]}",
+            "websocket_url": "wss://api.x.ai/v1/realtime",
+            "client_secret": "ek_premium_limit",
+            "client_secret_expires_at": 1_763_000_900,
+            "voice": "Rex",
+            "model": "grok-3-mini",
+            "region": "us-east-1",
+            "max_duration_seconds": 420,
+            "summary_context": {"coach_score": 92},
+            "session_update": {"type": "session.update"},
+            "session_update_json": "{\"type\":\"session.update\"}",
+        }
+
+    monkeypatch.setattr(main, "bootstrap_post_workout_voice_session", _fake_bootstrap)
+    client = main.app.test_client()
+
+    with main.app.app_context():
+        user = _create_user("voice-premium-limit", tier="premium")
+        user_id = user.id
+        token = auth.create_jwt(user.id, user.email)
+
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        for _ in range(3):
+            response = client.post("/voice/session", json={"summary_context": {"coach_score": 92}}, headers=headers)
+            assert response.status_code == 200
+
+        blocked = client.post("/voice/session", json={"summary_context": {"coach_score": 92}}, headers=headers)
+        assert blocked.status_code == 429
+        payload = blocked.get_json()
+        assert payload["error"] == "Rate limit exceeded"
+        assert blocked.headers.get("Retry-After")
+    finally:
+        with main.app.app_context():
+            _delete_user(user_id)
+        _clear_rate_limit_counters()
 
 
 def test_auth_me_includes_subscription_tier(monkeypatch):

@@ -139,6 +139,10 @@ def test_xai_voice_agent_env_override(monkeypatch):
     monkeypatch.setenv("XAI_VOICE_AGENT_REGION", "us-east-1")
     monkeypatch.setenv("XAI_VOICE_AGENT_VOICE", "Rex")
     monkeypatch.setenv("XAI_VOICE_AGENT_MAX_SESSION_SECONDS", "420")
+    monkeypatch.setenv("XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", "90")
+    monkeypatch.setenv("XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", "480")
+    monkeypatch.setenv("XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", "3")
+    monkeypatch.setenv("XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", "12")
     monkeypatch.setenv("XAI_VOICE_AGENT_CLIENT_SECRET_URL", "https://api.x.ai/v1/realtime/client_secrets")
     monkeypatch.setenv("XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
 
@@ -149,6 +153,10 @@ def test_xai_voice_agent_env_override(monkeypatch):
     assert config.XAI_VOICE_AGENT_REGION == "us-east-1"
     assert config.XAI_VOICE_AGENT_VOICE == "Rex"
     assert config.XAI_VOICE_AGENT_MAX_SESSION_SECONDS == 420
+    assert config.XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS == 90
+    assert config.XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS == 480
+    assert config.XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY == 3
+    assert config.XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY == 12
     assert config.XAI_VOICE_AGENT_CLIENT_SECRET_URL == "https://api.x.ai/v1/realtime/client_secrets"
     assert config.XAI_VOICE_AGENT_WEBSOCKET_URL == "wss://api.x.ai/v1/realtime"
 

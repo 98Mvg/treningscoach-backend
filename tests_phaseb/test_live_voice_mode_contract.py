@@ -32,8 +32,8 @@ def test_summary_screen_exposes_live_voice_cta_behind_flag_and_premium_gate() ->
     assert "@EnvironmentObject var authManager: AuthManager" in text
     assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }' in text
     assert "AppConfig.LiveVoice.isEnabled" in text
-    assert "authManager.productFlags.allowsPremiumGating" in text
-    assert "authManager.currentUser?.subscriptionTier == .premium" in text
+    assert "authManager.isAuthenticated" in text
+    assert "authManager.currentUser != nil" in text
     assert ".fullScreenCover(isPresented: $showLiveCoachVoice)" in text
     assert 'event: "voice_cta_tapped"' in text
 
@@ -79,12 +79,12 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
 def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     assert "struct LiveVoice" in config_text
-    assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: false)' in config_text
+    assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)' in config_text
 
     with INFO_PLIST.open("rb") as f:
         info = plistlib.load(f)
 
-    assert info.get("LIVE_COACH_VOICE_ENABLED") is False
+    assert info.get("LIVE_COACH_VOICE_ENABLED") is True
     assert "NSMicrophoneUsageDescription" in info
 
 

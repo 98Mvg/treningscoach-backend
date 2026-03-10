@@ -261,11 +261,15 @@ def bootstrap_post_workout_voice_session(
     language: str,
     user_name: str | None = None,
     voice_session_id: str | None = None,
+    max_duration_seconds: int | None = None,
     logger: Any = None,
 ) -> dict[str, Any]:
-    max_duration_seconds = max(60, int(getattr(config, "XAI_VOICE_AGENT_MAX_SESSION_SECONDS", 300) or 300))
+    resolved_max_duration_seconds = max(
+        60,
+        int(max_duration_seconds or getattr(config, "XAI_VOICE_AGENT_MAX_SESSION_SECONDS", 300) or 300),
+    )
     realtime_secret_payload = create_realtime_client_secret(
-        max_duration_seconds=max_duration_seconds,
+        max_duration_seconds=resolved_max_duration_seconds,
         logger=logger,
     )
     client_secret, expires_at = extract_client_secret(realtime_secret_payload)
@@ -288,7 +292,7 @@ def bootstrap_post_workout_voice_session(
         "voice": str(getattr(config, "XAI_VOICE_AGENT_VOICE", "Rex") or "Rex").strip() or "Rex",
         "model": str(getattr(config, "XAI_VOICE_AGENT_MODEL", "") or "").strip(),
         "region": str(getattr(config, "XAI_VOICE_AGENT_REGION", "us-east-1") or "us-east-1").strip(),
-        "max_duration_seconds": max_duration_seconds,
+        "max_duration_seconds": resolved_max_duration_seconds,
         "summary_context": sanitize_post_workout_summary_context(summary_context),
         "session_update": session_update,
         "session_update_json": json.dumps(session_update, separators=(",", ":"), ensure_ascii=True),

@@ -22,7 +22,7 @@ Before deploying to Render or any production-like environment:
 5. Set the active AI/TTS credentials used by the current production path:
    - `ELEVENLABS_API_KEY`
    - `XAI_API_KEY`
-   - `OPENAI_API_KEY` if speech transcription is enabled
+   - `OPENAI_API_KEY` only if `TALK_STT_ENABLED=true`
 6. If launch analytics/error tracking are enabled, set:
    - `POSTHOG_ENABLED=true`
    - `POSTHOG_API_KEY`
@@ -37,6 +37,58 @@ Before deploying to Render or any production-like environment:
    - `EMAIL_FROM`
    - `RESEND_API_KEY` for Resend, or SMTP credentials for SMTP
 8. Keep `APP_FREE_MODE=true` and `BILLING_ENABLED=false` until premium boundaries are explicitly launched.
+
+## Live Voice Rollout Checklist
+
+Use this when enabling the post-workout xAI live voice mode for real users.
+
+Required backend env:
+
+1. Set `XAI_API_KEY`.
+2. Confirm `XAI_VOICE_AGENT_ENABLED=true`.
+3. Confirm `XAI_VOICE_AGENT_MODEL=grok-3-mini` unless intentionally overridden.
+4. Confirm `XAI_VOICE_AGENT_REGION=us-east-1`.
+5. Confirm `XAI_VOICE_AGENT_VOICE=Rex`.
+6. Confirm `XAI_VOICE_AGENT_CLIENT_SECRET_URL=https://api.x.ai/v1/realtime/client_secrets`.
+7. Confirm `XAI_VOICE_AGENT_WEBSOCKET_URL=wss://api.x.ai/v1/realtime`.
+8. Confirm session policy:
+   - `XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS=120`
+   - `XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS=300`
+   - `XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY=2`
+   - `XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY=10`
+
+Expected current product behavior:
+
+1. Live voice is enabled by default in the iPhone app build via `LIVE_COACH_VOICE_ENABLED=true`.
+2. The post-workout summary CTA is visible for authenticated users.
+3. Free users get shorter/fewer live sessions.
+4. Premium users get longer/more live sessions.
+5. Fallback text still uses the existing `/coach/talk` path.
+
+Fastest manual smoke test:
+
+```bash
+chmod +x ./scripts/smoke_live_voice.sh
+FREE_USER_BEARER_TOKEN="..." \
+PREMIUM_USER_BEARER_TOKEN="..." \
+BASE_URL="https://treningscoach-backend.onrender.com" \
+./scripts/smoke_live_voice.sh
+```
+
+Optional quota-burn verification:
+
+```bash
+CHECK_DAILY_LIMITS=true \
+FREE_USER_BEARER_TOKEN="..." \
+PREMIUM_USER_BEARER_TOKEN="..." \
+BASE_URL="https://treningscoach-backend.onrender.com" \
+./scripts/smoke_live_voice.sh
+```
+
+Important:
+
+- `CHECK_DAILY_LIMITS=true` consumes real daily live-voice quota for both tokens.
+- Use separate test accounts for free and premium smoke checks.
 
 ## Phrase Rotation Audit Truth
 

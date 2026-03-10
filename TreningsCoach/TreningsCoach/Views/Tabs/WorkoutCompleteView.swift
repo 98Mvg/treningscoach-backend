@@ -71,10 +71,7 @@ struct WorkoutCompleteView: View {
               authManager.currentUser != nil else {
             return false
         }
-        if !authManager.productFlags.allowsPremiumGating {
-            return true
-        }
-        return authManager.currentUser?.subscriptionTier == .premium
+        return true
     }
     private var liveVoiceLanguageCode: String {
         authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
