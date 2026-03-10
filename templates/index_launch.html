@@ -591,6 +591,40 @@
         /* ── HOW IT WORKS PAGE ── */
         .hiw-page { display: none; }
         .hiw-page.active { display: block; }
+        .dl-page { display: none; }
+        .dl-page.active { display: block; }
+
+        /* ── DOWNLOAD PAGE ── */
+        .dl-hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 120px 24px 60px;
+            background: linear-gradient(170deg, #0c1020 0%, #151d3a 50%, #0c1020 100%);
+        }
+        .dl-hero-inner { max-width: 560px; }
+        .dl-hero h1 {
+            font-size: clamp(2rem, 4vw, 3rem); color: #fff;
+            margin-bottom: 14px; letter-spacing: -0.03em;
+        }
+        .dl-hero p {
+            color: rgba(240,238,255,0.72); font-size: 1.05rem;
+            line-height: 1.65; margin-bottom: 36px;
+        }
+        .dl-phones {
+            display: flex; justify-content: center; gap: 18px;
+            margin-bottom: 40px;
+        }
+        .dl-phone {
+            width: 160px; border-radius: 22px; overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+        .dl-phone img { width: 100%; display: block; }
+        .dl-phone-back { transform: translateY(24px) scale(0.92); opacity: 0.7; }
+        .dl-stores { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+        .dl-trust {
+            display: flex; align-items: center; gap: 8px; justify-content: center;
+            color: rgba(240,238,255,0.55); font-size: 0.85rem; margin-top: 10px;
+        }
+        .dl-trust svg { width: 16px; height: 16px; flex-shrink: 0; }
         .home-page { display: block; }
         .home-page.hidden { display: none; }
 
@@ -846,7 +880,7 @@
                         <a data-nav-page="home" class="active" data-i18n="nav_home">Hjem</a>
                         <a data-nav-page="how" data-i18n="nav_how">Slik fungerer det</a>
                         <a href="#faq" data-i18n="nav_faq">Sp&oslash;rsm&aring;l</a>
-                        <a href="#download" class="pill pill-primary" data-i18n="nav_download">Last ned</a>
+                        <a data-nav-page="download" class="pill pill-primary" data-i18n="nav_download">Last ned</a>
                     </div>
                     <div class="lang-switch">
                         <button class="lang-btn active" data-lang-btn="no" aria-pressed="true">NO</button>
@@ -864,7 +898,7 @@
             <a data-nav-page="home" data-i18n="nav_home">Hjem</a>
             <a data-nav-page="how" data-i18n="nav_how">Slik fungerer det</a>
             <a href="#faq" data-i18n="nav_faq">Sp&oslash;rsm&aring;l</a>
-            <a href="#download" data-i18n="nav_download">Last ned</a>
+            <a data-nav-page="download" data-i18n="nav_download">Last ned</a>
             <div style="padding-top: 8px; display: flex; gap: 8px;">
                 <button class="lang-btn active" data-lang-btn="no" aria-pressed="true" style="font-size: 0.8rem;">NO</button>
                 <button class="lang-btn" data-lang-btn="en" aria-pressed="false" style="font-size: 0.8rem;">EN</button>
@@ -886,7 +920,7 @@
                         <h1 data-i18n="hero_title">Din personlige l&oslash;pecoach</h1>
                         <p data-i18n="hero_body">AI-drevet stemmeveiledning som hjelper deg l&oslash;pe smartere.</p>
                         <div class="hero-cta-row">
-                            <a class="hero-btn" href="#download" data-landing-event="hero_cta_click" data-i18n="hero_cta">Kom i gang</a>
+                            <a class="hero-btn" href="#download" data-nav-page="download" data-landing-event="hero_cta_click" data-i18n="hero_cta">Kom i gang</a>
                         </div>
                     </div>
                     <div class="hero-devices">
@@ -1145,6 +1179,40 @@
             </section>
         </div><!-- /hiw-page -->
 
+        <!-- ═══════════════════════════════════════ -->
+        <!-- DOWNLOAD PAGE -->
+        <!-- ═══════════════════════════════════════ -->
+        <div class="dl-page" id="dlPage">
+            <div class="dl-hero">
+                <div class="dl-hero-inner">
+                    <h1 data-i18n="dl_title">Last ned Coachi</h1>
+                    <p data-i18n="dl_body">Kom i gang p&aring; under 2 minutter. Velg treningsform, f&aring; veiledning, og l&oslash;p smartere fra f&oslash;rste &oslash;kt.</p>
+                    <div class="dl-phones">
+                        <div class="dl-phone dl-phone-back">
+                            <img src="{{ url_for('static', filename='site/images/app-coach-score.jpg') }}" alt="" loading="lazy">
+                        </div>
+                        <div class="dl-phone">
+                            <img src="{{ url_for('static', filename='site/images/app-home-screen.png') }}" alt="Coachi app" loading="lazy">
+                        </div>
+                    </div>
+                    <div class="dl-stores">
+                        <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#63743;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">App Store</span></span>
+                        </a>
+                        <a class="store-badge-black" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
+                            <span class="badge-icon">&#9654;</span>
+                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
+                        </a>
+                    </div>
+                    <div class="dl-trust">
+                        <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /dl-page -->
+
         <!-- FOOTER (shared) -->
         <footer class="footer">
           <div class="footer-inner">
@@ -1231,6 +1299,8 @@
                 hero_title: "Din personlige l\u00f8pecoach",
                 hero_body: "AI-drevet stemmeveiledning som hjelper deg l\u00f8pe smartere.",
                 hero_cta: "Kom i gang",
+                dl_title: "Last ned Coachi",
+                dl_body: "Kom i gang p\u00e5 under 2 minutter. Velg treningsform, f\u00e5 veiledning, og l\u00f8p smartere fra f\u00f8rste \u00f8kt.",
                 store_prefix: "Last ned p\u00e5",
                 works_with_label: "Fungerer med",
                 two_numbers_title: "F\u00e5 en score basert p\u00e5 kvaliteten p\u00e5 treningen",
@@ -1321,6 +1391,8 @@
                 hero_title: "Your personal running coach",
                 hero_body: "AI-powered voice coaching that helps you run smarter.",
                 hero_cta: "Get started",
+                dl_title: "Download Coachi",
+                dl_body: "Get started in under 2 minutes. Choose your workout, get guidance, and run smarter from your first session.",
                 store_prefix: "Download on",
                 works_with_label: "Works with",
                 two_numbers_title: "Get a score based on your workout quality",
@@ -1458,9 +1530,10 @@
            ══════════════════════════════════════════ */
         const homePage = document.getElementById("homePage");
         const hiwPage = document.getElementById("hiwPage");
+        const dlPage = document.getElementById("dlPage");
 
         function switchPage(page, pushState = true) {
-            const target = page === "how" ? "how" : "home";
+            const target = page === "how" ? "how" : page === "download" ? "download" : "home";
             if (target === currentPage) return;
             currentPage = target;
 
@@ -1469,24 +1542,22 @@
                 el.classList.toggle("active", el.dataset.navPage === target);
             });
 
-            // Switch pages with fade
+            // Hide all pages
+            homePage.classList.add("hidden");
+            hiwPage.classList.remove("active", "page-fade-active");
+            dlPage.classList.remove("active", "page-fade-active");
+
+            // Show target page with fade
             if (target === "how") {
-                homePage.classList.add("hidden");
-                hiwPage.classList.add("active");
-                hiwPage.classList.add("page-fade-enter");
-                requestAnimationFrame(() => {
-                    hiwPage.classList.remove("page-fade-enter");
-                    hiwPage.classList.add("page-fade-active");
-                });
+                hiwPage.classList.add("active", "page-fade-enter");
+                requestAnimationFrame(() => { hiwPage.classList.remove("page-fade-enter"); hiwPage.classList.add("page-fade-active"); });
+            } else if (target === "download") {
+                dlPage.classList.add("active", "page-fade-enter");
+                requestAnimationFrame(() => { dlPage.classList.remove("page-fade-enter"); dlPage.classList.add("page-fade-active"); });
             } else {
-                hiwPage.classList.remove("active");
-                hiwPage.classList.remove("page-fade-active");
                 homePage.classList.remove("hidden");
                 homePage.classList.add("page-fade-enter");
-                requestAnimationFrame(() => {
-                    homePage.classList.remove("page-fade-enter");
-                    homePage.classList.add("page-fade-active");
-                });
+                requestAnimationFrame(() => { homePage.classList.remove("page-fade-enter"); homePage.classList.add("page-fade-active"); });
             }
 
             // Scroll to top
@@ -1494,7 +1565,8 @@
 
             // Update hash
             if (pushState) {
-                history.pushState({ page: target }, "", target === "how" ? "#how-it-works" : "#top");
+                const hash = target === "how" ? "#how-it-works" : target === "download" ? "#download" : "#top";
+                history.pushState({ page: target }, "", hash);
             }
 
             // Re-observe new reveals
@@ -1520,14 +1592,17 @@
                 switchPage(e.state.page, false);
             } else {
                 const hash = window.location.hash;
-                switchPage(hash === "#how-it-works" ? "how" : "home", false);
+                switchPage(hash === "#how-it-works" ? "how" : hash === "#download" ? "download" : "home", false);
             }
         });
 
         // Handle initial hash
         if (window.location.hash === "#how-it-works") {
-            currentPage = "home"; // trick switchPage into actually switching
+            currentPage = "home";
             switchPage("how", false);
+        } else if (window.location.hash === "#download") {
+            currentPage = "home";
+            switchPage("download", false);
         }
 
         /* ── LANGUAGE TOGGLE ── */
