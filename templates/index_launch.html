@@ -446,36 +446,35 @@
         .section-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.4rem); margin-bottom: 8px; }
         .section-head p { color: var(--muted); max-width: 40ch; margin: 0 auto; font-size: 0.95rem; }
 
-        /* ── TESTIMONIALS ── */
-        .testimonials-section { text-align: center; background: #0c1020; }
-        .testimonials-section .section-head h2 { color: #fff; }
-        .testimonials-section .eyebrow { color: var(--teal); }
-        .testimonials-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-            max-width: 960px; margin: 40px auto 0;
+        /* ── REVIEW PHOTO ── */
+        .review-photo {
+            position: relative; overflow: hidden;
+            min-height: 80vh; display: flex; align-items: flex-end;
+            background-size: cover; background-position: center 30%;
         }
-        .testimonial-card {
-            background: rgba(20, 27, 53, 0.75); border-radius: 16px; padding: 28px 24px;
-            text-align: left; border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 4px 20px rgba(3, 5, 12, 0.30);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        .review-photo::before {
+            content: ""; position: absolute; inset: 0; z-index: 1;
+            background: linear-gradient(180deg,
+                rgba(12, 16, 32, 0.05) 0%,
+                rgba(12, 16, 32, 0.10) 40%,
+                rgba(12, 16, 32, 0.55) 75%,
+                rgba(12, 16, 32, 0.85) 100%);
         }
-        .testimonial-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(3, 5, 12, 0.40); }
-        .testimonial-stars { color: #f5a623; font-size: 1rem; letter-spacing: 2px; margin-bottom: 14px; }
-        .testimonial-text { font-size: 0.9rem; line-height: 1.65; color: rgba(240,238,255,0.75); margin-bottom: 18px; }
-        .testimonial-author { display: flex; align-items: center; gap: 10px; }
-        .testimonial-avatar {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--teal));
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-weight: 700; font-size: 0.8rem;
+        .review-photo-inner {
+            position: relative; z-index: 2;
+            padding: 0 64px 64px; max-width: 600px;
         }
-        .testimonial-name { font-weight: 700; font-size: 0.85rem; color: #fff; }
-        .testimonial-location { font-size: 0.75rem; color: rgba(182,190,223,0.6); }
+        .review-stars { color: #f5a623; font-size: 1.4rem; letter-spacing: 4px; margin-bottom: 14px; }
+        .review-quote {
+            font-family: "Poppins", sans-serif;
+            font-size: clamp(1.3rem, 2.5vw, 1.8rem); font-weight: 600;
+            color: #fff; line-height: 1.4; margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        .review-author { color: rgba(240,238,255,0.6); font-size: 0.9rem; }
 
         @media (max-width: 900px) {
-            .testimonials-grid { grid-template-columns: 1fr; max-width: 480px; }
+            .review-photo-inner { padding: 0 24px 40px; }
         }
 
         /* ── FAQ ── */
@@ -1016,48 +1015,12 @@
                 </div>
             </section>
 
-            <!-- TESTIMONIALS -->
-            <section class="testimonials-section section-spacer" id="testimonials">
-                <div class="container">
-                    <div class="section-head reveal">
-                        <span class="eyebrow" data-i18n="testimonials_eyebrow">Brukere</span>
-                        <h2 data-i18n="testimonials_title">Det l&oslash;pere sier</h2>
-                    </div>
-                    <div class="testimonials-grid stagger">
-                        <div class="testimonial-card reveal">
-                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
-                            <p class="testimonial-text" data-i18n="testimonial_1_text">Endelig en app som faktisk hjelper meg holde riktig tempo. Stemmecoachen f&oslash;les som &aring; l&oslash;pe med en personlig trener.</p>
-                            <div class="testimonial-author">
-                                <div class="testimonial-avatar">K</div>
-                                <div>
-                                    <div class="testimonial-name">Kristine M.</div>
-                                    <div class="testimonial-location">Oslo</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="testimonial-card reveal">
-                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
-                            <p class="testimonial-text" data-i18n="testimonial_2_text">Bruker den p&aring; alle l&oslash;peturene mine n&aring;. Pulssonene og de korte r&aring;dene gj&oslash;r at jeg ikke overtrer lenger.</p>
-                            <div class="testimonial-author">
-                                <div class="testimonial-avatar">E</div>
-                                <div>
-                                    <div class="testimonial-name">Erik S.</div>
-                                    <div class="testimonial-location">Bergen</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="testimonial-card reveal">
-                            <div class="testimonial-stars">&starf;&starf;&starf;&starf;&starf;</div>
-                            <p class="testimonial-text" data-i18n="testimonial_3_text">Coach Score etter hver &oslash;kt motiverer meg enormt. Elsker at den snakker norsk uten kl&oslash;nete oversettelser.</p>
-                            <div class="testimonial-author">
-                                <div class="testimonial-avatar">M</div>
-                                <div>
-                                    <div class="testimonial-name">Maria L.</div>
-                                    <div class="testimonial-location">Trondheim</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- REVIEW — big photo -->
+            <section class="review-photo reveal" id="testimonials" style="background-image: url('{{ url_for('static', filename='site/images/sunset-hilltop-rest.png') }}');">
+                <div class="review-photo-inner">
+                    <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <p class="review-quote">&laquo;Endelig en app som faktisk hjelper meg holde riktig tempo.&raquo;</p>
+                    <span class="review-author">&mdash; Kristine M., Oslo</span>
                 </div>
             </section>
 
