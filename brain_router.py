@@ -99,6 +99,77 @@ class BrainRouter:
         "zone", "sone", "heart", "rate", "hr", "bpm", "puls", "warmup", "oppvarming",
         "cooldown", "nedjogg", "main", "work",
     }
+    _WORKOUT_GUIDANCE_PROMPT_PREFIXES = (
+        "can i walk",
+        "should i walk",
+        "can i jog",
+        "should i jog",
+        "should i ease up",
+        "can i ease up",
+        "should i back off",
+        "can i back off",
+        "should i slow down",
+        "can i slow down",
+        "should i stop",
+        "can i stop",
+        "can i take a break",
+        "do i need a break",
+        "can i take a water break",
+        "can i drink water",
+        "should i keep this pace",
+        "can i keep this pace",
+        "am i going too hard",
+        "is this too hard",
+        "i feel dizzy",
+        "i am dizzy",
+        "i'm dizzy",
+        "i feel lightheaded",
+        "i am lightheaded",
+        "i'm lightheaded",
+        "i feel pain",
+        "i have pain",
+        "i have a cramp",
+        "i have cramp",
+        "i have a stitch",
+        "i have side stitch",
+        "kan jeg gå",
+        "bør jeg gå",
+        "kan jeg jogge",
+        "bør jeg roe ned",
+        "kan jeg roe ned",
+        "bør jeg senke farten",
+        "kan jeg senke farten",
+        "bør jeg stoppe",
+        "kan jeg stoppe",
+        "kan jeg ta en pause",
+        "trenger jeg en pause",
+        "kan jeg ta en vannpause",
+        "kan jeg drikke vann",
+        "kan jeg holde dette tempoet",
+        "bør jeg holde dette tempoet",
+        "jeg er svimmel",
+        "jeg blir svimmel",
+        "jeg føler meg svimmel",
+        "jeg er ør",
+        "jeg har vondt",
+        "jeg har smerter",
+        "jeg har krampe",
+        "jeg har sting",
+    )
+    _WORKOUT_GUIDANCE_KEYWORDS = {
+        "walk", "walking", "jog", "jogging", "pace", "tempo", "water", "drink",
+        "hydrate", "hydration", "break", "pause", "rest", "recover", "recovery",
+        "slow", "slower", "ease", "easier", "back", "off", "stop", "zone", "hr",
+        "bpm", "heart", "breath", "breathing", "dizzy", "lightheaded", "pain",
+        "cramp", "stitch", "hard", "gå", "jogge", "tempoet", "vann", "drikke",
+        "pause", "hvile", "restitusjon", "roe", "senke", "farten", "stoppe",
+        "sone", "puls", "hjerte", "pust", "svimmel", "ør", "vondt", "smerter",
+        "krampe", "sting", "hardt",
+    }
+    _WORKOUT_GUIDANCE_QUESTION_MARKERS = {
+        "can", "should", "do", "am", "is", "i", "my", "me",
+        "kan", "bør", "skal", "jeg", "meg", "min", "mitt",
+    }
 
     def __init__(self, brain_type: Optional[str] = None, use_hybrid: Optional[bool] = None):
         """
@@ -293,6 +364,7 @@ class BrainRouter:
                 "- Forklar enkelt, uten lange avsnitt.\n"
                 "- Hold svaret muntlig og naturlig på norsk.\n"
                 "- Ikke finn opp medisinske fakta eller tall.\n"
+                "- Hvis utøveren nevner smerte, svimmelhet eller ubehag, svar konservativt: ro ned eller stopp, og søk hjelp fysisk hvis symptomene er sterke eller vedvarer.\n"
                 "- Svar kun på tema om trening, helse, kropp, restitusjon og ernæring.\n"
                 "- Avvis seksualisert, trakasserende eller irrelevante tema kort og høflig.\n"
                 f"- Persona: {persona_key} (tone påvirkes, ikke fakta).\n"
@@ -303,13 +375,14 @@ class BrainRouter:
             "You are a running coach answering athlete questions clearly.\n"
             "- Keep answers as short as possible. Target 1-3 sentences.\n"
             f"- You may use up to {self._qa_max_sentences()} sentences when needed for clarity.\n"
-            "- Keep it practical, plain language, and spoken-friendly.\n"
-            "- Do not invent medical facts or fake citations.\n"
-            "- Only answer training/health/body/recovery/nutrition questions.\n"
-            "- Refuse sexual, harassing, or unrelated topics briefly and politely.\n"
-            f"- Persona: {persona_key} (tone only, not facts).\n"
-            f"- Context: {mode_hint}.\n"
-            f"{name_hint}"
+                "- Keep it practical, plain language, and spoken-friendly.\n"
+                "- Do not invent medical facts or fake citations.\n"
+                "- If the athlete mentions pain, dizziness, or feeling unwell, answer conservatively: slow down or stop, and seek in-person help if symptoms are severe or persist.\n"
+                "- Only answer training/health/body/recovery/nutrition questions.\n"
+                "- Refuse sexual, harassing, or unrelated topics briefly and politely.\n"
+                f"- Persona: {persona_key} (tone only, not facts).\n"
+                f"- Context: {mode_hint}.\n"
+                f"{name_hint}"
         )
 
     def build_workout_talk_prompt(
@@ -481,6 +554,20 @@ class BrainRouter:
             return False
         return bool(tokens.intersection(self._WORKOUT_FOLLOW_UP_TOKENS))
 
+    def _is_workout_guidance_prompt(self, text: str) -> bool:
+        lowered = (text or "").strip().lower()
+        if not lowered:
+            return False
+        if any(lowered.startswith(prefix) for prefix in self._WORKOUT_GUIDANCE_PROMPT_PREFIXES):
+            return True
+
+        tokens = self._question_tokens(text)
+        if not tokens or len(tokens) > 14:
+            return False
+        return bool(tokens.intersection(self._WORKOUT_GUIDANCE_KEYWORDS)) and bool(
+            tokens.intersection(self._WORKOUT_GUIDANCE_QUESTION_MARKERS)
+        )
+
     def _next_talk_policy_refusal(self, language: str, category: str) -> tuple[str, str]:
         normalized_language = self._normalize_language(language)
         bank = getattr(config, "COACH_TALK_POLICY_REFUSAL_BANK", {}) or {}
@@ -523,6 +610,7 @@ class BrainRouter:
             and (
                 self._is_workout_context_prompt(message)
                 or self._is_workout_follow_up(message)
+                or self._is_workout_guidance_prompt(message)
             )
         ):
             category = None

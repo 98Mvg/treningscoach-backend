@@ -72,6 +72,23 @@ def test_talk_policy_allows_short_workout_follow_up_in_workout_context():
     assert allowed["policy_blocked"] is False
 
 
+def test_talk_policy_allows_immediate_workout_guidance_and_symptom_prompts():
+    router = BrainRouter(brain_type="config")
+
+    prompts = (
+        ("Can I walk for 30 seconds?", "en"),
+        ("Should I ease up?", "en"),
+        ("I feel dizzy, should I stop?", "en"),
+        ("Kan jeg gå i 30 sekunder?", "no"),
+        ("Bør jeg roe ned litt?", "no"),
+        ("Jeg blir svimmel, bør jeg stoppe?", "no"),
+    )
+
+    for prompt, language in prompts:
+        decision = router.evaluate_talk_policy(prompt, language, talk_context="workout")
+        assert decision["policy_blocked"] is False
+
+
 def test_coach_talk_policy_applies_to_all_personas(monkeypatch, tmp_path):
     fake_audio = tmp_path / "talk_policy.wav"
     fake_audio.write_bytes(b"RIFF")
@@ -100,3 +117,38 @@ def test_coach_talk_policy_applies_to_all_personas(monkeypatch, tmp_path):
         assert payload.get("policy_blocked") is True
         assert payload.get("policy_category") == "sexual_explicit"
         assert payload.get("text") in (config.COACH_TALK_POLICY_REFUSAL_BANK.get("en") or [])
+
+
+def test_coach_talk_workout_symptom_guidance_is_not_policy_blocked(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk_guidance.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_question_response",
+        lambda *args, **kwargs: "Ease up now. Stop if the dizziness continues.",
+    )
+    monkeypatch.setattr(
+        main.brain_router,
+        "get_last_route_meta",
+        lambda: {"provider": "grok", "source": "ai_qna", "status": "success"},
+    )
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/talk",
+        json={
+            "message": "I feel dizzy, should I stop?",
+            "context": "workout",
+            "trigger_source": "button",
+            "language": "en",
+            "persona": "personal_trainer",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload.get("policy_blocked") is False
+    assert payload.get("provider") == "grok"
+    assert payload.get("text") == "Ease up now. Stop if the dizziness continues."
