@@ -36,11 +36,10 @@ def test_watch_support_files_exist() -> None:
         assert required.exists(), f"Missing required watch file: {required}"
 
 
-def test_watch_entitlements_include_healthkit_workout_access() -> None:
+def test_watch_entitlements_include_healthkit_capability() -> None:
     text = WATCH_ENTITLEMENTS.read_text(encoding="utf-8")
     assert "com.apple.developer.healthkit" in text
-    assert "com.apple.developer.healthkit.access" in text
-    assert "workout" in text
+    assert "com.apple.developer.healthkit.access" not in text
 
 
 def test_watch_plist_enables_workout_processing_background_mode() -> None:
