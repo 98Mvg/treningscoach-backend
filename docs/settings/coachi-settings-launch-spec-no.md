@@ -1,7 +1,7 @@
 # Coachi Settings Launch Spec (NO)
 
 ## Formål
-Dette dokumentet beskriver en launch-klar settingsstruktur for Coachi. Det er skrevet for produkt, design og implementasjon, og bruker placeholders der selskaps- eller abonnementdetaljer ikke er avklart.
+Dette dokumentet beskriver en launch-klar settingsstruktur for Coachi. Det er skrevet for produkt, design og implementasjon, og bruker launch-sikker copy som matcher den aktive appflaten.
 
 ## Prinsipper
 - Settings skal være enkle å forstå.
@@ -333,13 +333,6 @@ Disse bør være synlige før launch:
 - `Om Coachi`
 - `Appversjon`
 
-## Åpne placeholders
-- [COMPANY_NAME]
-- [ORG_NUMBER]
-- [COMPANY_ADDRESS]
-- [SUPPORT_EMAIL]
-- [PRIVACY_EMAIL]
-- [WEBSITE_URL]
-- [LAST_UPDATED_DATE]
-- [SUBSCRIPTION_DETAILS]
-- [PLACEHOLDER_FOR_VENUE]
+## Avklaringer som fortsatt kan forbedres senere
+- Hvis juridiske dokumenter skal publiseres utenfor appen, bør formell selskapsidentitet og eventuell postadresse bekreftes i den publiserte versjonen.
+- Hvis betalte abonnement lanseres senere, oppdateres abonnementskapitlene med pris, periode og oppsigelsesdetaljer.

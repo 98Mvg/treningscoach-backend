@@ -1,8 +1,8 @@
 # Vilkår for bruk av Coachi
 
-**Sist oppdatert:** [LAST_UPDATED_DATE]
+**Sist oppdatert:** 10. mars 2026
 
-Disse vilkårene gjelder for bruk av Coachi og tilbys av [COMPANY_NAME].
+Disse vilkårene gjelder for bruk av Coachi.
 
 Ved å bruke appen godtar du vilkårene.
 
@@ -22,10 +22,7 @@ Noen deler av Coachi kan brukes uten konto. Andre funksjoner kan kreve innloggin
 Du er ansvarlig for at opplysningene du gir er riktige, og for å beskytte enheten og innloggingsinformasjonen din.
 
 ## 3. Abonnement og betaling
-Coachi kan tilby gratisversjon, prøveperiode og betalte abonnementer.
-
-Detaljer om abonnement, pris, prøveperiode, fornyelse og oppsigelse:
-[SUBSCRIPTION_DETAILS]
+Coachi lanseres i gratis modus. Hvis betalte abonnement blir introdusert senere, vises pris, vilkar, fornyelse og oppsigelse tydelig i appen for brukeren før kjøp.
 
 Hvis kjøp skjer via App Store, håndteres betaling og oppsigelse i henhold til Apples systemer og vilkår.
 
@@ -62,12 +59,12 @@ Vi forsøker å holde tjenesten tilgjengelig og oppdatert, men garanterer ikke f
 Vi kan oppdatere, endre, begrense eller fjerne funksjoner når det er nødvendig av tekniske, produktmessige eller sikkerhetsmessige grunner.
 
 ## 9. Immaterielle rettigheter
-Appen, navnet Coachi, lydfiler, design, teknologi og annet innhold tilhører [COMPANY_NAME] eller våre lisensgivere.
+Appen, navnet Coachi, lydfiler, design, teknologi og annet innhold tilhører Coachi eller våre lisensgivere.
 
 Du får en begrenset, personlig og ikke-overførbar rett til å bruke appen i samsvar med disse vilkårene.
 
 ## 10. Ansvarsbegrensning
-Så langt loven tillater det, er [COMPANY_NAME] ikke ansvarlig for indirekte tap, driftstap, datatap eller tap som følge av feil bruk, sensorfeil, tjenesteavbrudd eller tredjepartstjenester.
+Så langt loven tillater det, er vi ikke ansvarlige for indirekte tap, driftstap, datatap eller tap som følge av feil bruk, sensorfeil, tjenesteavbrudd eller tredjepartstjenester.
 
 Dette begrenser ikke ansvar som ikke lovlig kan fraskrives.
 
@@ -82,12 +79,11 @@ Behandling av personopplysninger er regulert i personvernerklæringen.
 ## 13. Lovvalg og verneting
 Vilkårene reguleres av norsk rett, med mindre annet følger av ufravikelig lov.
 
-Tvister søkes løst i minnelighet først. Hvis det ikke lykkes, avgjøres saken av ordinære domstoler med [PLACEHOLDER_FOR_VENUE] som verneting, med mindre annet følger av lov.
+Tvister søkes løst i minnelighet først. Hvis det ikke lykkes, avgjøres saken av ordinære norske domstoler, med mindre annet følger av ufravikelig lov.
 
 ## 14. Kontakt
 Spørsmål om vilkårene kan sendes til:
 
-**[COMPANY_NAME]**  
-E-post: [SUPPORT_EMAIL]  
-Adresse: [COMPANY_ADDRESS]  
-Nettside: [WEBSITE_URL]
+**Coachi**  
+E-post: AI.Coachi@hotmail.com  
+Nettside: https://coachi.app

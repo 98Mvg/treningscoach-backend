@@ -11,6 +11,8 @@ from database import db, User, UserSettings
 from email_sender import send_account_welcome_email
 from auth import (
     create_jwt,
+    enforce_rate_limit,
+    get_request_refresh_token_user_id,
     require_auth,
     rate_limit,
     issue_auth_tokens,
@@ -154,15 +156,57 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
     return user
 
 
+def _find_existing_user(provider: str, provider_info: dict) -> User | None:
+    user = User.query.filter_by(
+        auth_provider=provider,
+        auth_provider_id=provider_info["provider_id"],
+    ).first()
+    if user is not None:
+        return user
+
+    email = str(provider_info.get("email") or "").strip()
+    if email:
+        return User.query.filter_by(email=email).first()
+    return None
+
+
+def _enforce_register_rate_limit_if_new_user(provider: str, provider_info: dict):
+    if _find_existing_user(provider, provider_info) is not None:
+        return None
+
+    limited = enforce_rate_limit(
+        getattr(config, "AUTH_REGISTER_RATE_LIMIT_PER_10_MINUTES", 3),
+        10 * 60,
+        key_prefix="auth.register",
+        scope="ip",
+    )
+    if limited is not None:
+        return limited
+
+    return enforce_rate_limit(
+        getattr(config, "AUTH_REGISTER_RATE_LIMIT_PER_DAY", 10),
+        24 * 3600,
+        key_prefix="auth.register",
+        scope="ip",
+    )
+
+
 # ============================================
 # AUTH ENDPOINTS
 # ============================================
 
 @auth_bp.route("/apple", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
     window_seconds=3600,
-    key_prefix="auth.apple",
+    key_prefix="auth.login",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.login",
+    scope="ip",
 )
 def auth_apple():
     """
@@ -202,6 +246,10 @@ def auth_apple():
             email=data.get("email"),
             full_name=data.get("full_name"),
         )
+        register_limited = _enforce_register_rate_limit_if_new_user("apple", provider_info)
+        if register_limited is not None:
+            _record_apple_auth_metric(success=False, reason="apple_register_rate_limited", started_at=started_at)
+            return register_limited
         user = find_or_create_user("apple", provider_info)
         token_bundle = issue_auth_tokens(user.id, user.email)
         _record_apple_auth_metric(success=True, reason="ok", started_at=started_at)
@@ -237,9 +285,16 @@ def auth_apple():
 
 @auth_bp.route("/google", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
     window_seconds=3600,
-    key_prefix="auth.google",
+    key_prefix="auth.login",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.login",
+    scope="ip",
 )
 def auth_google():
     """
@@ -265,6 +320,9 @@ def auth_google():
 
         # Verify with Google
         provider_info = verify_google_token(data["id_token"])
+        register_limited = _enforce_register_rate_limit_if_new_user("google", provider_info)
+        if register_limited is not None:
+            return register_limited
 
         # Find or create user
         user = find_or_create_user("google", provider_info)
@@ -291,9 +349,16 @@ def auth_google():
 
 @auth_bp.route("/facebook", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
     window_seconds=3600,
-    key_prefix="auth.facebook",
+    key_prefix="auth.login",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.login",
+    scope="ip",
 )
 def auth_facebook():
     """
@@ -319,6 +384,9 @@ def auth_facebook():
 
         # Verify with Facebook
         provider_info = verify_facebook_token(data["access_token"])
+        register_limited = _enforce_register_rate_limit_if_new_user("facebook", provider_info)
+        if register_limited is not None:
+            return register_limited
 
         # Find or create user
         user = find_or_create_user("facebook", provider_info)
@@ -345,9 +413,16 @@ def auth_facebook():
 
 @auth_bp.route("/vipps", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "AUTH_RATE_LIMIT_PER_HOUR", 40),
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
     window_seconds=3600,
-    key_prefix="auth.vipps",
+    key_prefix="auth.login",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.login",
+    scope="ip",
 )
 def auth_vipps():
     """
@@ -373,6 +448,9 @@ def auth_vipps():
 
         # Verify with Vipps
         provider_info = verify_vipps_token(data["access_token"])
+        register_limited = _enforce_register_rate_limit_if_new_user("vipps", provider_info)
+        if register_limited is not None:
+            return register_limited
 
         # Find or create user
         user = find_or_create_user("vipps", provider_info)
@@ -408,9 +486,11 @@ def auth_vipps():
 
 @auth_bp.route("/refresh", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "REFRESH_RATE_LIMIT_PER_HOUR", 60),
-    window_seconds=3600,
+    limit=getattr(config, "AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", 30),
+    window_seconds=60,
     key_prefix="auth.refresh",
+    scope="user",
+    key_func=get_request_refresh_token_user_id,
 )
 def refresh_tokens():
     """
@@ -446,9 +526,11 @@ def refresh_tokens():
 
 @auth_bp.route("/logout", methods=["POST"])
 @rate_limit(
-    limit=getattr(config, "REFRESH_RATE_LIMIT_PER_HOUR", 60),
-    window_seconds=3600,
+    limit=getattr(config, "AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", 30),
+    window_seconds=60,
     key_prefix="auth.logout",
+    scope="user",
+    key_func=get_request_refresh_token_user_id,
 )
 def logout():
     """
@@ -468,9 +550,10 @@ def logout():
 
 @auth_bp.route("/me", methods=["GET"])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="auth.me.get",
+    limit=getattr(config, "AUTH_ME_RATE_LIMIT_PER_MINUTE", 60),
+    window_seconds=60,
+    key_prefix="auth.me",
+    scope="user",
 )
 @require_auth
 def get_profile():
@@ -493,9 +576,10 @@ def get_profile():
 
 @auth_bp.route("/me", methods=["PUT"])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="auth.me.put",
+    limit=getattr(config, "AUTH_ME_RATE_LIMIT_PER_MINUTE", 60),
+    window_seconds=60,
+    key_prefix="auth.me",
+    scope="user",
 )
 @require_auth
 def update_profile():
@@ -553,9 +637,10 @@ def update_profile():
 
 @auth_bp.route("/me", methods=["DELETE"])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="auth.me.delete",
+    limit=getattr(config, "AUTH_ME_RATE_LIMIT_PER_MINUTE", 60),
+    window_seconds=60,
+    key_prefix="auth.me",
+    scope="user",
 )
 @require_auth
 def delete_account():

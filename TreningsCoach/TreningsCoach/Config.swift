@@ -106,6 +106,47 @@ struct AppConfig {
         }
     }
 
+    // MARK: - Internal Debug Access
+    struct Debug {
+        private static func stringListInfoValue(_ key: String, default defaultValue: [String] = []) -> [String] {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else {
+                return defaultValue
+            }
+            if let arrayValue = raw as? [String] {
+                return arrayValue
+            }
+            if let stringValue = raw as? String {
+                return stringValue
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            }
+            return defaultValue
+        }
+
+        // Launch-safe whitelist for the internal workout diagnostics surface.
+        static var workoutDiagnosticsAllowedEmails: Set<String> {
+            Set(
+                stringListInfoValue(
+                    "WORKOUT_DIAGNOSTICS_ALLOWED_EMAILS",
+                    default: ["ai.coachi@hotmail.com"]
+                )
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                .filter { !$0.isEmpty }
+            )
+        }
+
+        static func canAccessWorkoutDiagnostics(email: String?) -> Bool {
+            guard let normalizedEmail = email?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased(),
+                !normalizedEmail.isEmpty else {
+                return false
+            }
+            return workoutDiagnosticsAllowedEmails.contains(normalizedEmail)
+        }
+    }
+
     // MARK: - Continuous Coaching Settings
     struct ContinuousCoaching {
         static let defaultInterval: TimeInterval = 8.0

@@ -214,6 +214,35 @@ class RefreshToken(db.Model):
 
 
 # ============================================
+# USER SUBSCRIPTION MODEL
+# ============================================
+
+class UserSubscription(db.Model):
+    __tablename__ = "user_subscriptions"
+
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), primary_key=True)
+    tier = db.Column(db.String(20), nullable=False, default="free")
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
+
+
+# ============================================
+# RATE LIMIT COUNTER MODEL
+# ============================================
+
+class RateLimitCounter(db.Model):
+    __tablename__ = "rate_limit_counters"
+
+    subject_key = db.Column(db.String(255), primary_key=True)
+    rule_name = db.Column(db.String(120), primary_key=True)
+    window_start = db.Column(db.Integer, primary_key=True)
+    window_seconds = db.Column(db.Integer, nullable=False)
+    count = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive, index=True)
+
+
+# ============================================
 # WAITLIST SIGNUP MODEL
 # ============================================
 

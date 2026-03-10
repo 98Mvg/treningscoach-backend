@@ -8,6 +8,9 @@
 import SwiftUI
 
 private let coachiSupportEmail = "AI.Coachi@hotmail.com"
+private let coachiWebsiteURL = "https://coachi.app"
+private let coachiPrivacyUpdatedNo = "10. mars 2026"
+private let coachiPrivacyUpdatedEn = "March 10, 2026"
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
@@ -945,17 +948,17 @@ private struct FAQView: View {
                 FAQItem(
                     id: "premium",
                     question: "Hva er inkludert i Premium?",
-                    answer: "Premium kan gi mer innsikt, mer historikk og mer personlig coaching. Endelige abonnementdetaljer kommer senere."
+                    answer: "Coachi lanseres uten aktiv Premium-betaling. Hvis betalte funksjoner kommer senere, forklares de tydelig i appen før kjøp."
                 ),
                 FAQItem(
                     id: "subscription",
                     question: "Hvordan avslutter jeg abonnementet?",
-                    answer: "Når abonnement er aktivt, administrerer du det i App Store eller via abonnementssiden i appen."
+                    answer: "Coachi har ingen aktiv abonnementsflyt i appen ved launch. Hvis betalte abonnement kommer senere via Apple, administreres de i App Store."
                 ),
                 FAQItem(
                     id: "delete",
                     question: "Hvordan sletter jeg kontoen min?",
-                    answer: "Du kan bruke Slett konto i innstillinger når funksjonen er tilgjengelig, eller kontakte support på \(coachiSupportEmail)."
+                    answer: "Åpne Slett konto i innstillinger for veiledning og kontakt support på \(coachiSupportEmail) hvis du vil ha hjelp med sletting."
                 ),
                 FAQItem(
                     id: "support",
@@ -989,17 +992,17 @@ private struct FAQView: View {
             FAQItem(
                 id: "premium",
                 question: "What is included in Premium?",
-                answer: "Premium may include deeper insights, longer history, and more personal coaching. Final subscription details come later."
+                answer: "Coachi launches without active Premium billing. If paid features arrive later, the app will explain them clearly before any purchase."
             ),
             FAQItem(
                 id: "subscription",
                 question: "How do I cancel my subscription?",
-                answer: "When subscriptions are active, you manage them in the App Store or from the subscription page inside the app."
+                answer: "Coachi does not have an active in-app subscription flow at launch. If paid subscriptions arrive later through Apple, you will manage them in the App Store."
             ),
             FAQItem(
                 id: "delete",
                 question: "How do I delete my account?",
-                answer: "Use Delete account in settings when available, or contact support at \(coachiSupportEmail)."
+                answer: "Open Delete account in settings for guidance, or contact support at \(coachiSupportEmail) if you need deletion help."
             ),
             FAQItem(
                 id: "support",
@@ -1109,10 +1112,10 @@ private struct PrivacyPolicyView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
                 SupportCard(
-                    title: isNorwegian ? "Behandlingsansvarlig" : "Controller",
+                    title: isNorwegian ? "Kontakt for personvern" : "Privacy contact",
                     copyText: isNorwegian
-                        ? "[COMPANY_NAME]\n[ORG_NUMBER]\n[COMPANY_ADDRESS]\n[PRIVACY_EMAIL]\n[WEBSITE_URL]"
-                        : "[COMPANY_NAME]\n[ORG_NUMBER]\n[COMPANY_ADDRESS]\n[PRIVACY_EMAIL]\n[WEBSITE_URL]"
+                        ? "Coachi\nE-post: \(coachiSupportEmail)\nNettside: \(coachiWebsiteURL)"
+                        : "Coachi\nEmail: \(coachiSupportEmail)\nWebsite: \(coachiWebsiteURL)"
                 )
 
                 SupportCard(
@@ -1146,21 +1149,21 @@ private struct PrivacyPolicyView: View {
                 SupportCard(
                     title: isNorwegian ? "Databehandlere" : "Processors",
                     copyText: isNorwegian
-                        ? "Hosting og drift: [VERIFY PROCESSOR]\nLydlagring og synk: [VERIFY PROCESSOR]\nTale/AI-funksjoner: [VERIFY PROCESSOR]\nAbonnement og distribusjon: Apple"
-                        : "Hosting and operations: [VERIFY PROCESSOR]\nAudio storage and sync: [VERIFY PROCESSOR]\nSpeech/AI features: [VERIFY PROCESSOR]\nSubscription and distribution: Apple"
+                        ? "Hosting og drift: Render\nLydlagring og synk: Cloudflare R2\nTale og lydgenerering: ElevenLabs\nAI-funksjoner: xAI, Google, OpenAI og Anthropic når disse er aktivert\nAnalyse og feilovervåking: PostHog og Sentry når disse er aktivert\nE-post: Resend eller konfigurert SMTP-leverandør når e-post er aktivert\nDistribusjon og innlogging: Apple"
+                        : "Hosting and operations: Render\nAudio storage and sync: Cloudflare R2\nSpeech and audio generation: ElevenLabs\nAI features: xAI, Google, OpenAI, and Anthropic when enabled\nAnalytics and error monitoring: PostHog and Sentry when enabled\nEmail delivery: Resend or a configured SMTP provider when email is enabled\nDistribution and sign-in: Apple"
                 )
 
                 SupportCard(
                     title: isNorwegian ? "Dine rettigheter" : "Your rights",
                     copyText: isNorwegian
-                        ? "Du kan be om innsyn, retting, sletting, begrensning, dataportabilitet og protestere der loven gir grunnlag. Kontakt oss på [PRIVACY_EMAIL]."
-                        : "You can request access, correction, deletion, restriction, data portability, and object where the law allows it. Contact us at [PRIVACY_EMAIL]."
+                        ? "Du kan be om innsyn, retting, sletting, begrensning, dataportabilitet og protestere der loven gir grunnlag. Kontakt oss på \(coachiSupportEmail)."
+                        : "You can request access, correction, deletion, restriction, data portability, and object where the law allows it. Contact us at \(coachiSupportEmail)."
                 )
 
                 Text(
                     isNorwegian
-                        ? "Sist oppdatert: [LAST_UPDATED_DATE]"
-                        : "Last updated: [LAST_UPDATED_DATE]"
+                        ? "Sist oppdatert: \(coachiPrivacyUpdatedNo)"
+                        : "Last updated: \(coachiPrivacyUpdatedEn)"
                 )
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(CoachiTheme.textSecondary)
@@ -1192,8 +1195,8 @@ private struct TermsOfUseView: View {
                 SupportCard(
                     title: isNorwegian ? "Abonnement og betaling" : "Subscriptions and payment",
                     copyText: isNorwegian
-                        ? "Coachi kan tilby gratisversjon, prøveperiode og betalte abonnementer. Detaljer: [SUBSCRIPTION_DETAILS]"
-                        : "Coachi may offer a free tier, trial period, and paid subscriptions. Details: [SUBSCRIPTION_DETAILS]"
+                        ? "Coachi lanseres i gratis modus. Hvis betalte abonnement blir introdusert senere, vises pris og vilkår tydelig i appen før kjøp, og Apple håndterer kjøp og oppsigelse."
+                        : "Coachi launches in free mode. If paid subscriptions are introduced later, pricing and terms will be shown clearly in the app before purchase, and Apple will handle purchase and cancellation."
                 )
 
                 SupportCard(
@@ -1227,14 +1230,14 @@ private struct TermsOfUseView: View {
                 SupportCard(
                     title: isNorwegian ? "Kontakt" : "Contact",
                     copyText: isNorwegian
-                        ? "[COMPANY_NAME]\n\(coachiSupportEmail)\n[COMPANY_ADDRESS]\n[WEBSITE_URL]"
-                        : "[COMPANY_NAME]\n\(coachiSupportEmail)\n[COMPANY_ADDRESS]\n[WEBSITE_URL]"
+                        ? "Coachi\n\(coachiSupportEmail)\n\(coachiWebsiteURL)"
+                        : "Coachi\n\(coachiSupportEmail)\n\(coachiWebsiteURL)"
                 )
 
                 Text(
                     isNorwegian
-                        ? "Sist oppdatert: [LAST_UPDATED_DATE]"
-                        : "Last updated: [LAST_UPDATED_DATE]"
+                        ? "Sist oppdatert: \(coachiPrivacyUpdatedNo)"
+                        : "Last updated: \(coachiPrivacyUpdatedEn)"
                 )
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(CoachiTheme.textSecondary)
@@ -1260,8 +1263,8 @@ private struct DeleteAccountInfoView: View {
                 SupportCard(
                     title: isNorwegian ? "Slett konto" : "Delete account",
                     copyText: isNorwegian
-                        ? "Hvis du vil slette Coachi-kontoen din, kan du bruke denne handlingen når selvbetjent sletting er aktiv i appen. Inntil da kan du kontakte support."
-                        : "If you want to delete your Coachi account, use this action when self-service deletion is active in the app. Until then, contact support."
+                        ? "Hvis du vil slette Coachi-kontoen din, kan du bruke denne siden som veiviser og kontakte support for hjelp med sletting."
+                        : "If you want to delete your Coachi account, use this page for guidance and contact support if you want help with deletion."
                 )
 
                 SupportCard(

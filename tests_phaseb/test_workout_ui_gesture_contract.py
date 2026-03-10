@@ -40,6 +40,12 @@ WAVEFORM_VIEW = (
     / "Components"
     / "WaveformView.swift"
 )
+CONFIG_SWIFT = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Config.swift"
+)
 
 
 def _active_workout_view_text() -> str:
@@ -60,6 +66,10 @@ def _workout_view_model_text() -> str:
 
 def _waveform_view_text() -> str:
     return WAVEFORM_VIEW.read_text(encoding="utf-8")
+
+
+def _config_text() -> str:
+    return CONFIG_SWIFT.read_text(encoding="utf-8")
 
 
 def test_finish_control_requires_confirmation_alert() -> None:
@@ -87,12 +97,25 @@ def test_active_workout_has_visible_finish_button() -> None:
 def test_spotify_is_in_top_row_corner_button() -> None:
     text = _active_workout_view_text()
     assert "spotifyIconButton" in text
-    assert "SpotifyLogoBadge(size: 22)" in text
+    assert "SpotifyLogoBadge(size: 30)" in text
+    assert ".offset(y: -1)" in text
+    assert "SpotifyGlyph(size: size * 0.62)" in text
 
 
 def test_diagnostics_panel_uses_sheet_presentation() -> None:
     text = _active_workout_view_text()
-    assert ".sheet(isPresented: $showDiagnostics)" in text
+    assert ".sheet(isPresented: diagnosticsSheetIsPresented)" in text
+
+
+def test_diagnostics_button_is_hidden_behind_admin_whitelist() -> None:
+    text = _active_workout_view_text()
+    config = _config_text()
+    assert "@EnvironmentObject var authManager: AuthManager" in text
+    assert "if canAccessWorkoutDiagnostics {" in text
+    assert "AppConfig.Debug.canAccessWorkoutDiagnostics(email: authManager.currentUser?.email)" in text
+    assert "AudioPipelineDiagnostics.shared.isOverlayVisible = false" in text
+    assert "WORKOUT_DIAGNOSTICS_ALLOWED_EMAILS" in config
+    assert "static func canAccessWorkoutDiagnostics(email: String?) -> Bool" in config
 
 
 def test_main_workout_surface_has_no_coach_text_line() -> None:

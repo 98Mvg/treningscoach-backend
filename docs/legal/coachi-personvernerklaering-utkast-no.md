@@ -1,19 +1,17 @@
 # Personvernerklæring for Coachi
 
-**Sist oppdatert:** [LAST_UPDATED_DATE]
+**Sist oppdatert:** 10. mars 2026
 
-Denne personvernerklæringen beskriver hvordan [COMPANY_NAME] behandler personopplysninger når du bruker Coachi.
+Denne personvernerklæringen beskriver hvordan Coachi behandler personopplysninger når du bruker tjenesten.
 
 Coachi er en treningsapp som tilbyr løpecoaching, lydveiledning, treningshistorikk, konto, eventuelle Premium-funksjoner og support.
 
-## 1. Behandlingsansvarlig
-Behandlingsansvarlig er:
+## 1. Kontakt for personvern
+Kontaktpunkt for spørsmål om personvern:
 
-**[COMPANY_NAME]**  
-Organisasjonsnummer: [ORG_NUMBER]  
-Adresse: [COMPANY_ADDRESS]  
-E-post: [PRIVACY_EMAIL]  
-Nettside: [WEBSITE_URL]
+**Coachi**  
+E-post: AI.Coachi@hotmail.com  
+Nettside: https://coachi.app
 
 ## 2. Hvilke opplysninger vi behandler
 Vi kan behandle følgende opplysninger:
@@ -39,8 +37,8 @@ Vi kan behandle følgende opplysninger:
 - teknisk informasjon om lydpakker og avspilling
 
 ### Abonnementsopplysninger
-- abonnementstatus
-- prøveperiode
+- abonnementstatus når betalte abonnement er aktive
+- prøveperiode når dette tilbys
 - kjøpsrelaterte metadata
 - produktnivå
 
@@ -60,7 +58,7 @@ Vi behandler opplysninger for å:
 - lagre og vise treningshistorikk
 - gi treningsoppsummeringer og innsikt
 - administrere konto og innlogging
-- håndtere abonnement og Premium-funksjoner
+- håndtere abonnement og Premium-funksjoner når disse er aktive
 - synkronisere lydpakker og appinnhold
 - yte support
 - forbedre stabilitet, sikkerhet og kvalitet
@@ -93,13 +91,14 @@ Ved sletting av konto vil vi slette eller anonymisere opplysninger så langt det
 Vi deler ikke personopplysninger med andre enn det som er nødvendig for å levere tjenesten, oppfylle lovkrav eller beskytte rettigheter.
 
 Vi kan bruke databehandlere for:
-- hosting og drift: [VERIFY PROCESSOR]
-- lydlagring og innholdssynk: [VERIFY PROCESSOR]
-- tekst-til-tale: [VERIFY PROCESSOR]
-- tale-til-tekst og AI-funksjoner: [VERIFY PROCESSOR]
+- hosting og drift: Render
+- lydlagring og innholdssynk: Cloudflare R2
+- tekst-til-tale: ElevenLabs
+- tale-til-tekst og AI-funksjoner: xAI, Google, OpenAI og Anthropic når disse er aktivert
+- analyse og feilovervåking: PostHog og Sentry når disse er aktivert
 - abonnement og appdistribusjon: Apple
-- innlogging: Apple, [VERIFY PROCESSOR]
-- e-post og support: [VERIFY PROCESSOR]
+- innlogging: Apple
+- e-post og support: Resend eller konfigurert SMTP-leverandør når e-post er aktivert
 
 Ved overføring utenfor EØS skal vi bruke gyldig overføringsgrunnlag.
 
@@ -113,7 +112,7 @@ Du kan be om:
 - å protestere mot visse former for behandling
 - å trekke tilbake samtykke
 
-Kontakt oss på [PRIVACY_EMAIL] dersom du vil bruke rettighetene dine.
+Kontakt oss på AI.Coachi@hotmail.com dersom du vil bruke rettighetene dine.
 
 Du kan også klage til Datatilsynet.
 
@@ -121,12 +120,12 @@ Du kan også klage til Datatilsynet.
 Vi bruker tekniske og organisatoriske tiltak for å beskytte personopplysninger, inkludert tilgangskontroll, begrensning av tilgang og sikker lagring der det er relevant.
 
 ## 10. Endringer
-Vi kan oppdatere personvernerklæringen ved endringer i tjenesten eller regelverket. Vesentlige endringer varsles i appen eller på [WEBSITE_URL].
+Vi kan oppdatere personvernerklæringen ved endringer i tjenesten eller regelverket. Vesentlige endringer varsles i appen eller på https://coachi.app.
 
 ## 11. Kontakt
 For spørsmål om personvern:
 
-**[COMPANY_NAME]**  
-E-post: [PRIVACY_EMAIL]  
-Support: [SUPPORT_EMAIL]  
-Adresse: [COMPANY_ADDRESS]
+**Coachi**  
+E-post: AI.Coachi@hotmail.com  
+Support: AI.Coachi@hotmail.com  
+Nettside: https://coachi.app

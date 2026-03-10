@@ -139,9 +139,15 @@ def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("VIPPS_AUTH_ENABLED", "true")
     monkeypatch.setenv("MOBILE_API_AUTH_REQUIRED", "true")
     monkeypatch.setenv("RATE_LIMIT_ENABLED", "true")
+    monkeypatch.setenv("RATE_LIMIT_STORAGE_BACKEND", "database")
+    monkeypatch.setenv("RATE_LIMIT_RETENTION_SECONDS", "172800")
     monkeypatch.setenv("API_RATE_LIMIT_PER_HOUR", "150")
     monkeypatch.setenv("AUTH_RATE_LIMIT_PER_HOUR", "20")
     monkeypatch.setenv("CONTINUOUS_RATE_LIMIT_PER_HOUR", "900")
+    monkeypatch.setenv("AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", "7")
+    monkeypatch.setenv("AUTH_REFRESH_RATE_LIMIT_PER_MINUTE", "22")
+    monkeypatch.setenv("PROFILE_UPSERT_RATE_LIMIT_PER_MINUTE", "12")
+    monkeypatch.setenv("COACH_TALK_FREE_RATE_LIMIT_PER_DAY", "8")
     monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://coachi.app,https://www.coachi.app")
     monkeypatch.setenv("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", "false")
 
@@ -156,9 +162,15 @@ def test_security_env_overrides(monkeypatch):
     assert config.VIPPS_AUTH_ENABLED is True
     assert config.MOBILE_API_AUTH_REQUIRED is True
     assert config.RATE_LIMIT_ENABLED is True
+    assert config.RATE_LIMIT_STORAGE_BACKEND == "database"
+    assert config.RATE_LIMIT_RETENTION_SECONDS == 172800
     assert config.API_RATE_LIMIT_PER_HOUR == 150
     assert config.AUTH_RATE_LIMIT_PER_HOUR == 20
     assert config.CONTINUOUS_RATE_LIMIT_PER_HOUR == 900
+    assert config.AUTH_LOGIN_RATE_LIMIT_PER_MINUTE == 7
+    assert config.AUTH_REFRESH_RATE_LIMIT_PER_MINUTE == 22
+    assert config.PROFILE_UPSERT_RATE_LIMIT_PER_MINUTE == 12
+    assert config.COACH_TALK_FREE_RATE_LIMIT_PER_DAY == 8
     assert config.CORS_ALLOWED_ORIGINS == ["https://coachi.app", "https://www.coachi.app"]
     assert config.AUDIO_SIGNATURE_BYPASS_FOR_TESTS is False
 

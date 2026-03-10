@@ -350,53 +350,260 @@ def require_mobile_auth(f):
     return decorated
 
 
+# Compatibility vestige for local tests that referenced the old in-memory store.
 _RATE_LIMIT_STORE: dict[str, list[float]] = {}
 _RATE_LIMIT_LOCK = threading.Lock()
+_RATE_LIMIT_CLEANUP_LOCK = threading.Lock()
+_LAST_RATE_LIMIT_CLEANUP_AT = 0.0
 
 
-def _rate_limit_key(prefix: str) -> str:
-    user_id = getattr(g, "current_user_id", None)
-    if user_id:
-        return f"{prefix}:user:{user_id}"
-    ip = (request.remote_addr or "unknown").strip()
-    return f"{prefix}:ip:{ip}"
+def _request_ip_address() -> str:
+    forwarded = (request.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
+    if forwarded:
+        return forwarded
+    return (request.remote_addr or "unknown").strip() or "unknown"
 
 
-def rate_limit(limit: int, window_seconds: int, *, key_prefix: str) -> callable:
-    """
-    In-memory rate limiter (process-local) for immediate endpoint protection.
-    """
+def get_request_auth_user_id() -> str | None:
+    current_user_id = getattr(g, "current_user_id", None)
+    if current_user_id:
+        return str(current_user_id).strip() or None
 
+    auth_header = (request.headers.get("Authorization") or "").strip()
+    if not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header.split("Bearer ", 1)[1].strip()
+    if not token:
+        return None
+
+    try:
+        payload = decode_jwt(token)
+    except jwt.InvalidTokenError:
+        return None
+
+    user_id = str(payload.get("user_id") or "").strip()
+    return user_id or None
+
+
+def get_request_refresh_token_user_id() -> str | None:
+    data = request.get_json(silent=True) or {}
+    refresh_token = str(data.get("refresh_token") or "").strip()
+    if not refresh_token:
+        return None
+
+    from database import RefreshToken
+
+    record = RefreshToken.query.filter_by(token_hash=_hash_token(refresh_token)).first()
+    if record is None:
+        return None
+    return str(record.user_id or "").strip() or None
+
+
+def resolve_user_subscription_tier(user_id: str | None) -> str:
+    normalized_user_id = str(user_id or "").strip()
+    if not normalized_user_id:
+        return "free"
+
+    from database import UserSubscription
+
+    subscription = UserSubscription.query.filter_by(user_id=normalized_user_id).first()
+    raw_tier = str(getattr(subscription, "tier", "") or "").strip().lower()
+    if raw_tier == "premium":
+        return "premium"
+    return "free"
+
+
+def _rate_limit_rule_name(prefix: str, window_seconds: int) -> str:
+    return f"{prefix}:{max(0, int(window_seconds))}"
+
+
+def _rate_limit_window_start(now_ts: float, window_seconds: int) -> int:
+    normalized_window = int(window_seconds)
+    if normalized_window <= 0:
+        return 0
+    return int(now_ts // normalized_window) * normalized_window
+
+
+def _rate_limit_retry_after(now_ts: float, window_seconds: int) -> int | None:
+    normalized_window = int(window_seconds)
+    if normalized_window <= 0:
+        return None
+    window_start = _rate_limit_window_start(now_ts, normalized_window)
+    return max(1, int(window_start + normalized_window - now_ts))
+
+
+def _cleanup_rate_limit_counters_if_due(now_ts: float) -> None:
+    global _LAST_RATE_LIMIT_CLEANUP_AT
+
+    retention = max(3600, int(getattr(config, "RATE_LIMIT_RETENTION_SECONDS", 7 * 24 * 3600)))
+    cleanup_interval = min(300, retention)
+    if now_ts - _LAST_RATE_LIMIT_CLEANUP_AT < cleanup_interval:
+        return
+
+    with _RATE_LIMIT_CLEANUP_LOCK:
+        if now_ts - _LAST_RATE_LIMIT_CLEANUP_AT < cleanup_interval:
+            return
+
+        from database import RateLimitCounter, db
+
+        cutoff = datetime.fromtimestamp(max(0, now_ts - retention), tz=timezone.utc).replace(tzinfo=None)
+        try:
+            RateLimitCounter.query.filter(RateLimitCounter.updated_at < cutoff).delete(synchronize_session=False)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.debug("Rate limit counter cleanup failed", exc_info=True)
+        finally:
+            _LAST_RATE_LIMIT_CLEANUP_AT = now_ts
+
+
+def _increment_rate_limit_counter(subject_key: str, rule_name: str, window_seconds: int, now_ts: float) -> int:
+    from database import RateLimitCounter, db
+
+    now_dt = datetime.fromtimestamp(now_ts, tz=timezone.utc).replace(tzinfo=None)
+    window_start = _rate_limit_window_start(now_ts, window_seconds)
+    values = {
+        "subject_key": subject_key,
+        "rule_name": rule_name,
+        "window_start": window_start,
+        "window_seconds": int(window_seconds),
+        "count": 1,
+        "created_at": now_dt,
+        "updated_at": now_dt,
+    }
+    table = RateLimitCounter.__table__
+    bind = db.session.get_bind()
+    dialect_name = bind.dialect.name if bind is not None else ""
+
+    try:
+        if dialect_name == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as dialect_insert
+        elif dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as dialect_insert
+        else:
+            raise RuntimeError("dialect_fallback")
+
+        stmt = dialect_insert(table).values(**values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["subject_key", "rule_name", "window_start"],
+            set_={
+                "count": table.c.count + 1,
+                "updated_at": now_dt,
+            },
+        ).returning(table.c.count)
+        count = int(db.session.execute(stmt).scalar_one())
+        db.session.commit()
+        return count
+    except Exception:
+        db.session.rollback()
+
+    row = db.session.get(
+        RateLimitCounter,
+        {
+            "subject_key": subject_key,
+            "rule_name": rule_name,
+            "window_start": window_start,
+        },
+    )
+    if row is None:
+        row = RateLimitCounter(**values)
+        db.session.add(row)
+        count = 1
+    else:
+        row.count = int(row.count or 0) + 1
+        row.updated_at = now_dt
+        count = row.count
+    db.session.commit()
+    return int(count)
+
+
+def _resolve_rate_limit_subject(*, scope: str, key_func=None) -> str | None:
+    if callable(key_func):
+        custom_value = key_func()
+        normalized_custom = str(custom_value or "").strip()
+        return normalized_custom or None
+
+    normalized_scope = str(scope or "auto").strip().lower()
+    if normalized_scope == "user":
+        return get_request_auth_user_id()
+    if normalized_scope == "ip":
+        return _request_ip_address()
+    if normalized_scope == "auto":
+        return get_request_auth_user_id() or _request_ip_address()
+    return None
+
+
+def _rate_limit_response(retry_after: int | None):
+    payload = {"error": "Rate limit exceeded"}
+    if retry_after is not None:
+        payload["retry_after_seconds"] = retry_after
+    response = jsonify(payload)
+    response.status_code = 429
+    if retry_after is not None:
+        response.headers["Retry-After"] = str(retry_after)
+    return response
+
+
+def enforce_rate_limit(
+    limit: int,
+    window_seconds: int,
+    *,
+    key_prefix: str,
+    scope: str = "auto",
+    key_func=None,
+):
     enforced = bool(getattr(config, "RATE_LIMIT_ENABLED", True))
+    if not enforced:
+        return None
+
+    if _testing_bypass_enabled(
+        "RATE_LIMIT_BYPASS_FOR_TESTS",
+        bool(getattr(config, "RATE_LIMIT_BYPASS_FOR_TESTS", True)),
+    ):
+        return None
+
+    subject = _resolve_rate_limit_subject(scope=scope, key_func=key_func)
+    if not subject:
+        return None
+
     max_requests = max(1, int(limit))
-    window = max(1, int(window_seconds))
+    window = int(window_seconds)
+    now_ts = time.time()
+    _cleanup_rate_limit_counters_if_due(now_ts)
+
+    rule_name = _rate_limit_rule_name(key_prefix, window)
+    subject_key = f"{scope}:{subject}"
+    count = _increment_rate_limit_counter(subject_key, rule_name, window, now_ts)
+    if count <= max_requests:
+        return None
+    return _rate_limit_response(_rate_limit_retry_after(now_ts, window))
+
+
+def rate_limit(
+    limit: int,
+    window_seconds: int,
+    *,
+    key_prefix: str,
+    scope: str = "auto",
+    key_func=None,
+) -> callable:
+    """
+    Database-backed fixed-window rate limiter shared across workers.
+    """
 
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            if not enforced:
-                return f(*args, **kwargs)
-
-            if _testing_bypass_enabled(
-                "RATE_LIMIT_BYPASS_FOR_TESTS",
-                bool(getattr(config, "RATE_LIMIT_BYPASS_FOR_TESTS", True)),
-            ):
-                return f(*args, **kwargs)
-
-            key = _rate_limit_key(key_prefix)
-            now = time.time()
-            with _RATE_LIMIT_LOCK:
-                bucket = _RATE_LIMIT_STORE.setdefault(key, [])
-                cutoff = now - window
-                while bucket and bucket[0] < cutoff:
-                    bucket.pop(0)
-                if len(bucket) >= max_requests:
-                    retry_after = max(1, int(bucket[0] + window - now))
-                    response = jsonify({"error": "Rate limit exceeded", "retry_after_seconds": retry_after})
-                    response.status_code = 429
-                    response.headers["Retry-After"] = str(retry_after)
-                    return response
-                bucket.append(now)
+            limited = enforce_rate_limit(
+                limit,
+                window_seconds,
+                key_prefix=key_prefix,
+                scope=scope,
+                key_func=key_func,
+            )
+            if limited is not None:
+                return limited
             return f(*args, **kwargs)
 
         return decorated

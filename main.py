@@ -33,7 +33,14 @@ from strategic_brain import get_strategic_brain  # Import Strategic Brain for hi
 from database import init_db, db, WaitlistSignup, UserProfile  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
-from auth import require_auth, require_mobile_auth, rate_limit
+from auth import (
+    enforce_rate_limit,
+    get_request_auth_user_id,
+    rate_limit,
+    require_auth,
+    require_mobile_auth,
+    resolve_user_subscription_tier,
+)
 from norwegian_phrase_quality import rewrite_norwegian_phrase
 from coaching_engine import validate_coaching_text, get_template_message
 from breathing_timeline import BreathingTimeline
@@ -398,6 +405,112 @@ def _coerce_profile_user_id(value: str | None) -> str | None:
     if not candidate or candidate.lower() == "unknown":
         return None
     return candidate
+
+
+def _request_ip_fallback_key() -> str:
+    forwarded = (request.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
+    candidate = forwarded or (request.remote_addr or "").strip() or "unknown"
+    return f"guest-ip:{candidate}"
+
+
+def _mobile_rate_limit_subject_from_request() -> str | None:
+    auth_user_id = get_request_auth_user_id()
+    if auth_user_id:
+        return auth_user_id
+
+    payload = request.get_json(silent=True) or {}
+    explicit_user_id = _coerce_profile_user_id(
+        request.form.get("user_profile_id") if request.form is not None else None
+    ) or _coerce_profile_user_id(
+        (payload.get("user_profile_id") if isinstance(payload, dict) else None)
+        or (payload.get("user_id") if isinstance(payload, dict) else None)
+    )
+    if explicit_user_id:
+        return explicit_user_id
+
+    session_id = (
+        (request.form.get("session_id") if request.form is not None else None)
+        or (payload.get("session_id") if isinstance(payload, dict) else None)
+        or ""
+    ).strip()
+    if session_id and session_manager.session_exists(session_id):
+        metadata = session_manager.sessions.get(session_id, {}).get("metadata", {})
+        session_user_id = _coerce_profile_user_id(
+            metadata.get("user_profile_id") or metadata.get("user_id")
+        )
+        if session_user_id:
+            return session_user_id
+
+    return _request_ip_fallback_key()
+
+
+def _coach_talk_rate_limit_subject(
+    *,
+    talk_profile_user_id: str | None,
+    talk_session_id: str | None,
+) -> str:
+    normalized_user_id = _coerce_profile_user_id(talk_profile_user_id)
+    if normalized_user_id:
+        return normalized_user_id
+
+    normalized_session_id = str(talk_session_id or "").strip()
+    if normalized_session_id and session_manager.session_exists(normalized_session_id):
+        metadata = session_manager.sessions.get(normalized_session_id, {}).get("metadata", {})
+        session_user_id = _coerce_profile_user_id(
+            metadata.get("user_profile_id") or metadata.get("user_id")
+        )
+        if session_user_id:
+            return session_user_id
+
+    return _request_ip_fallback_key()
+
+
+def _enforce_coach_talk_rate_limits(
+    *,
+    talk_subject: str,
+    talk_session_id: str | None,
+):
+    normalized_subject = str(talk_subject or "").strip()
+    if not normalized_subject:
+        return None
+
+    subscription_tier = resolve_user_subscription_tier(normalized_subject)
+    if subscription_tier == "premium":
+        for limit, window_seconds in (
+            (getattr(config, "COACH_TALK_PREMIUM_RATE_LIMIT_PER_MINUTE", 15), 60),
+            (getattr(config, "COACH_TALK_PREMIUM_RATE_LIMIT_PER_HOUR", 25), 3600),
+            (getattr(config, "COACH_TALK_PREMIUM_RATE_LIMIT_PER_DAY", 25), 24 * 3600),
+        ):
+            limited = enforce_rate_limit(
+                limit,
+                window_seconds,
+                key_prefix="api.coach.talk.premium",
+                scope="user",
+                key_func=lambda subject=normalized_subject: subject,
+            )
+            if limited is not None:
+                return limited
+        return None
+
+    normalized_session_id = str(talk_session_id or "").strip()
+    if normalized_session_id:
+        session_limited = enforce_rate_limit(
+            getattr(config, "COACH_TALK_FREE_RATE_LIMIT_PER_SESSION", 3),
+            0,
+            key_prefix="api.coach.talk.free.session",
+            scope="user",
+            key_func=lambda subject=normalized_subject, session_id=normalized_session_id: f"{subject}:{session_id}",
+        )
+        if session_limited is not None:
+            return session_limited
+
+    return enforce_rate_limit(
+        getattr(config, "COACH_TALK_FREE_RATE_LIMIT_PER_DAY", 6),
+        24 * 3600,
+        key_prefix="api.coach.talk.free.day",
+        scope="user",
+        key_func=lambda subject=normalized_subject: subject,
+    )
 
 
 def _resolve_runtime_profile(
@@ -2661,9 +2774,18 @@ def analyze():
 
 @app.route('/coach/continuous', methods=['POST'])
 @rate_limit(
-    limit=getattr(config, "CONTINUOUS_RATE_LIMIT_PER_HOUR", 1200),
+    limit=getattr(config, "CONTINUOUS_RATE_LIMIT_PER_HOUR", 500),
     window_seconds=3600,
     key_prefix="api.coach.continuous",
+    scope="user",
+    key_func=_mobile_rate_limit_subject_from_request,
+)
+@rate_limit(
+    limit=getattr(config, "CONTINUOUS_RATE_LIMIT_PER_MINUTE", 30),
+    window_seconds=60,
+    key_prefix="api.coach.continuous",
+    scope="user",
+    key_func=_mobile_rate_limit_subject_from_request,
 )
 @require_mobile_auth
 def coach_continuous():
@@ -3810,9 +3932,10 @@ def switch_persona():
 
 @app.route('/workouts', methods=['POST'])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="api.workouts.post",
+    limit=getattr(config, "WORKOUTS_RATE_LIMIT_PER_MINUTE", 60),
+    window_seconds=60,
+    key_prefix="api.workouts",
+    scope="user",
 )
 @require_auth
 def save_workout():
@@ -3863,9 +3986,10 @@ def save_workout():
 
 @app.route('/workouts', methods=['GET'])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="api.workouts.get",
+    limit=getattr(config, "WORKOUTS_RATE_LIMIT_PER_MINUTE", 60),
+    window_seconds=60,
+    key_prefix="api.workouts",
+    scope="user",
 )
 @require_auth
 def get_workouts():
@@ -3905,9 +4029,10 @@ def get_workouts():
 
 @app.route('/profile/upsert', methods=['POST'])
 @rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
+    limit=getattr(config, "PROFILE_UPSERT_RATE_LIMIT_PER_MINUTE", 20),
+    window_seconds=60,
     key_prefix="api.profile.upsert",
+    scope="user",
 )
 @require_auth
 def profile_upsert():
@@ -4016,11 +4141,6 @@ def profile_upsert():
 # ============================================
 
 @app.route('/coach/talk', methods=['POST'])
-@rate_limit(
-    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
-    window_seconds=3600,
-    key_prefix="api.coach.talk",
-)
 @require_mobile_auth
 def coach_talk():
     """
@@ -4120,6 +4240,16 @@ def coach_talk():
             talk_profile_user_id = _coerce_profile_user_id(
                 (talk_meta.get("user_profile_id") or talk_meta.get("user_id"))
             )
+        talk_subject = _coach_talk_rate_limit_subject(
+            talk_profile_user_id=talk_profile_user_id,
+            talk_session_id=talk_session_id,
+        )
+        talk_rate_limited = _enforce_coach_talk_rate_limits(
+            talk_subject=talk_subject,
+            talk_session_id=talk_session_id if context == "workout" else None,
+        )
+        if talk_rate_limited is not None:
+            return talk_rate_limited
         talk_profile, talk_profile_source = _resolve_runtime_profile(
             user_id=talk_profile_user_id,
             snapshot_profile=None,

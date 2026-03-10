@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 
 struct ActiveWorkoutView: View {
+    @EnvironmentObject var authManager: AuthManager
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var showDiagnostics = false
     @State private var showStopConfirmation = false
@@ -31,7 +32,9 @@ struct ActiveWorkoutView: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 10) {
                         Spacer()
-                        consoleIconButton
+                        if canAccessWorkoutDiagnostics {
+                            consoleIconButton
+                        }
                         spotifyIconButton
                     }
                     .padding(.horizontal, 20)
@@ -113,12 +116,26 @@ struct ActiveWorkoutView: View {
             }
         }
         .onAppear {
-            showDiagnostics = AudioPipelineDiagnostics.shared.isOverlayVisible
+            let shouldRestoreDiagnostics = canAccessWorkoutDiagnostics && AudioPipelineDiagnostics.shared.isOverlayVisible
+            showDiagnostics = shouldRestoreDiagnostics
+            if !canAccessWorkoutDiagnostics {
+                AudioPipelineDiagnostics.shared.isOverlayVisible = false
+            }
         }
         .onChange(of: showDiagnostics) { _, isVisible in
+            guard canAccessWorkoutDiagnostics else {
+                showDiagnostics = false
+                AudioPipelineDiagnostics.shared.isOverlayVisible = false
+                return
+            }
             AudioPipelineDiagnostics.shared.isOverlayVisible = isVisible
         }
-        .sheet(isPresented: $showDiagnostics) {
+        .onChange(of: authManager.currentUser?.email) { _, _ in
+            guard !canAccessWorkoutDiagnostics else { return }
+            showDiagnostics = false
+            AudioPipelineDiagnostics.shared.isOverlayVisible = false
+        }
+        .sheet(isPresented: diagnosticsSheetIsPresented) {
             ZStack {
                 CoachiTheme.backgroundGradient
                     .ignoresSafeArea()
@@ -158,6 +175,23 @@ struct ActiveWorkoutView: View {
         } message: {
             Text(L10n.current == .no ? "Vil du avslutte treningen nå?" : "Do you want to end the workout now?")
         }
+    }
+
+    private var canAccessWorkoutDiagnostics: Bool {
+        AppConfig.Debug.canAccessWorkoutDiagnostics(email: authManager.currentUser?.email)
+    }
+
+    private var diagnosticsSheetIsPresented: Binding<Bool> {
+        Binding(
+            get: {
+                canAccessWorkoutDiagnostics && showDiagnostics
+            },
+            set: { newValue in
+                let shouldShow = canAccessWorkoutDiagnostics && newValue
+                showDiagnostics = shouldShow
+                AudioPipelineDiagnostics.shared.isOverlayVisible = shouldShow
+            }
+        )
     }
 
     private var bpmText: String {
@@ -205,7 +239,8 @@ struct ActiveWorkoutView: View {
         Button {
             viewModel.handleSpotifyButtonTapped()
         } label: {
-            SpotifyLogoBadge(size: 22)
+            SpotifyLogoBadge(size: 30)
+                .offset(y: -1)
                 .frame(width: 40, height: 40)
                 .background(
                     Circle()
@@ -512,7 +547,8 @@ struct SpotifyLogoBadge: View {
                 .fill(Color(hex: "1DB954"))
                 .frame(width: size, height: size)
                 .shadow(color: Color(hex: "1DB954").opacity(0.4), radius: 10, y: 2)
-            SpotifyGlyph(size: size * 0.56)
+            SpotifyGlyph(size: size * 0.62)
+                .offset(y: -size * 0.04)
         }
         .overlay(
             Circle()

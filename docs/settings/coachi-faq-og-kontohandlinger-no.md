@@ -12,7 +12,7 @@ Nei. Du kan bruke Coachi uten Apple Watch eller pulsklokke. Hvis puls er tilgjen
 Hvis puls ikke er tilgjengelig, bytter Coachi til en enklere coachingmodus basert på øktstruktur og timing. Du skal fortsatt kunne gjennomføre økten uten at opplevelsen stopper opp.
 
 ### Hva er inkludert i gratisversjonen?
-Gratisversjonen bør gi deg en fullverdig grunnopplevelse med:
+Gratisversjonen gir deg en fullverdig grunnopplevelse med:
 - treningsøkter
 - deterministisk coaching
 - lydsignaler
@@ -23,23 +23,16 @@ Gratisversjonen bør gi deg en fullverdig grunnopplevelse med:
 - begrenset bruk av Talk to Coach
 
 ### Hva er inkludert i Premium?
-Premium kan gi deg mer personlig og dypere coaching, for eksempel:
-- mer Talk to Coach
-- mer innsikt og analyse
-- lengre historikk
-- flere stemmer eller coach-profiler
-- flere avanserte funksjoner over tid
-
-Endelig innhold: [SUBSCRIPTION_DETAILS]
+Coachi lanseres uten aktiv Premium-betaling. Hvis betalte funksjoner kommer senere, forklares de tydelig i appen før kjøp.
 
 ### Hvordan avslutter jeg abonnementet?
-Hvis abonnementet er kjøpt i App Store, administrerer du det i Apple-ID-/App Store-innstillingene dine. Når abonnementssiden er aktiv i appen, finner du også snarvei under **Din profil > Abonnement**.
+Coachi har ingen aktiv abonnementsflyt i appen ved launch. Hvis betalte abonnement kommer senere via Apple, administreres de i App Store.
 
 ### Hvordan sletter jeg kontoen min?
-Når kontosletting er tilgjengelig i appen, finner du den under **Din profil > Konto > Slett konto**. Hvis funksjonen ikke er aktiv ennå, kan du kontakte oss på [SUPPORT_EMAIL].
+Åpne **Din profil > Konto > Slett konto** for veiledning og kontakt support på AI.Coachi@hotmail.com hvis du vil ha hjelp med sletting.
 
 ### Hvordan kontakter jeg support?
-Du kan kontakte oss på [SUPPORT_EMAIL]. Hvis du rapporterer et problem, hjelper det om du beskriver hva som skjedde, hvilken enhet du bruker, og gjerne legger ved skjermbilder.
+Du kan kontakte oss på AI.Coachi@hotmail.com. Hvis du rapporterer et problem, hjelper det om du beskriver hva som skjedde, hvilken enhet du bruker, og gjerne legger ved skjermbilder.
 
 ### Må jeg være innlogget for å bruke Coachi?
 Nei, ikke nødvendigvis. Noen funksjoner kan brukes uten konto, mens andre krever innlogging for å lagre historikk, abonnement eller personlige data.
@@ -74,8 +67,4 @@ Kjernecoaching og lokale lydpakker bør fungere så langt appen har nødvendig i
 ### Kontakt support
 **Label:** `Kontakt support`  
 **Mikrotekst:** `Vi hjelper deg så raskt vi kan.`  
-**Hjelpetekst:** `Send oss en e-post på [SUPPORT_EMAIL].`
-
-## Åpne placeholders
-- [SUPPORT_EMAIL]
-- [SUBSCRIPTION_DETAILS]
+**Hjelpetekst:** `Send oss en e-post på AI.Coachi@hotmail.com.`

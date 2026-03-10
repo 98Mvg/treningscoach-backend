@@ -98,10 +98,15 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'title: isNorwegian ? "Send e-post til support" : "Email support"' in text
     assert 'title: isNorwegian ? "Kontakt support om sletting" : "Contact support about deletion"' in text
     assert "[SUPPORT_EMAIL]" not in text
-    assert "[COMPANY_NAME]" in text
-    assert "[SUBSCRIPTION_DETAILS]" in text
-    assert "[PRIVACY_EMAIL]" in text
-    assert "[VERIFY PROCESSOR]" in text
+    assert "[COMPANY_NAME]" not in text
+    assert "[SUBSCRIPTION_DETAILS]" not in text
+    assert "[PRIVACY_EMAIL]" not in text
+    assert "[VERIFY PROCESSOR]" not in text
+    assert "Coachi\\nE-post: \\(coachiSupportEmail)\\nNettside: \\(coachiWebsiteURL)" in text
+    assert "Hosting og drift: Render" in text
+    assert "Audio storage and sync: Cloudflare R2" in text
+    assert "Coachi launches in free mode." in text
+    assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
