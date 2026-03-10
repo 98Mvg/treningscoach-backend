@@ -37,6 +37,13 @@
       "size" : "29x29"
     },
     {
+      "idiom" : "watch",
+      "role" : "notificationCenter",
+      "scale" : "2x",
+      "size" : "33x33",
+      "subtype" : "45mm"
+    },
+    {
       "filename" : "AppIcon-watch-launcher-38mm@2x.png",
       "idiom" : "watch",
       "role" : "appLauncher",

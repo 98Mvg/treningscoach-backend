@@ -60,11 +60,25 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     text = LIVE_VOICE_VIEW.read_text(encoding="utf-8")
     assert "final class LiveCoachConversationViewModel: ObservableObject" in text
     assert "struct LiveCoachConversationView: View" in text
-    assert 'Button(viewModel.languageCode == "no" ? "Koble fra" : "Disconnect")' in text
+    assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead")' in text
     assert "PostWorkoutTextCoachView(" in text
     assert 'event: "voice_fallback_text_opened"' in text
+
+
+def test_live_voice_view_generates_shareable_insight_card_after_conversation() -> None:
+    text = LIVE_VOICE_VIEW.read_text(encoding="utf-8")
+    assert "PostWorkoutInsightShareSection(" in text
+    assert "viewModel.latestShareInsight" in text
+    assert "viewModel.isConversationEnded" in text
+    assert 'Button("Instagram Story")' in text
+    assert 'Button("Snapchat")' in text
+    assert 'Button(languageCode == "no" ? "Kopier lenke" : "Copy Link")' in text
+    assert "ImageRenderer(" in text
+    assert "UIActivityViewController(activityItems:" in text
+    assert 'AppConfig.Share.instagramStoriesScheme' in text
+    assert 'UIPasteboard.general.url = shareURL' in text
 
 
 def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
@@ -80,9 +94,12 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert 'case timeLimit = "time_limit"' in text
 
 
-def test_live_voice_prompt_is_scoped_to_post_workout_summary_not_full_history() -> None:
+def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory() -> None:
     text = XAI_VOICE_HELPER.read_text(encoding="utf-8")
-    assert "Stay tightly focused on the just-finished workout summary and recovery guidance." in text
+    assert "Use the just-finished workout summary first." in text
+    assert "sanitize_workout_history_context" in text
+    assert "full-history aggregates and recent workout entries" in text
+    assert "Do not claim to remember prior conversations" in text
     assert "sanitize_post_workout_summary_context" in text
     assert "conversation_history" not in text
     assert "session_history" not in text
@@ -92,12 +109,18 @@ def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     assert "struct LiveVoice" in config_text
     assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)' in config_text
+    assert "struct Share" in config_text
+    assert 'static let coachiWebsiteURLString = "https://coachi.app"' in config_text
+    assert 'static let instagramStoriesScheme = "instagram-stories://share"' in config_text
+    assert 'static let snapchatScheme = "snapchat://"' in config_text
 
     with INFO_PLIST.open("rb") as f:
         info = plistlib.load(f)
 
     assert info.get("LIVE_COACH_VOICE_ENABLED") is True
     assert "NSMicrophoneUsageDescription" in info
+    assert "instagram-stories" in info.get("LSApplicationQueriesSchemes", [])
+    assert "snapchat" in info.get("LSApplicationQueriesSchemes", [])
 
 
 def test_xcode_project_tracks_new_live_voice_files() -> None:

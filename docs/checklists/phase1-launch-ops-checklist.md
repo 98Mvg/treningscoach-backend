@@ -51,7 +51,8 @@ Required backend env:
 5. Confirm `XAI_VOICE_AGENT_VOICE=Rex`.
 6. Confirm `XAI_VOICE_AGENT_CLIENT_SECRET_URL=https://api.x.ai/v1/realtime/client_secrets`.
 7. Confirm `XAI_VOICE_AGENT_WEBSOCKET_URL=wss://api.x.ai/v1/realtime`.
-8. Confirm session policy:
+8. Confirm `XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT=12` unless intentionally overridden.
+9. Confirm session policy:
    - `XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS=120`
    - `XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS=300`
    - `XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY=2`
@@ -63,7 +64,8 @@ Expected current product behavior:
 2. The post-workout summary CTA is visible for authenticated users.
 3. Free users get shorter/fewer live sessions.
 4. Premium users get longer/more live sessions.
-5. Fallback text still uses the existing `/coach/talk` path.
+5. Live voice uses the current workout summary plus a sanitized structured workout-history overview on the existing backend route.
+6. Fallback text still uses the existing `/coach/talk` path.
 
 Fastest manual smoke test:
 

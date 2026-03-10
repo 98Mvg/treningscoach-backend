@@ -428,7 +428,7 @@ Main integrations:
 ### [2026-03-10 — Watch Surface, Live Voice Scope, And Wake-Word Handoff](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-10-session-learnings-watch-surface-live-voice-and-wakeword-hardening.md)
 - The watch app now has watch-specific icon assets and a real running dashboard with BPM primary and remaining/elapsed time secondary.
 - Post-workout `Talk to Coach Live` is visually aligned with the in-workout coach CTA without changing the backend/runtime path.
-- Wake-word workout-talk handoff now suspends recognition more gracefully, and live voice remains summary-only instead of using full history.
+- Wake-word workout-talk handoff now suspends recognition more gracefully, and live voice now uses a controlled workout-history overview instead of summary-only context.
 
 ### [2026-03-05 — Talk Safety + Security Hardening](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-05-session-learnings-talk-safety-and-security-hardening.md)
 - Strict `/coach/talk` safety gate added on the single existing runtime path.
@@ -457,7 +457,7 @@ Main integrations:
 - Workout talk is Grok-first for wake-word and button triggers, but still depends on backend latency and the current talk capture path.
 - Wake-word workout talk now suspends speech recognition more gracefully before capture to reduce `kAFAssistantErrorDomain Code=1101` churn on device.
 - Post-workout xAI live voice with Rex is enabled by default, tier-limited, and isolated from the continuous workout runtime.
-- `Talk to Coach Live` uses sanitized post-workout summary context only, not full user/workout history, and falls back to the existing `/coach/talk` path.
+- `Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), and still falls back to the existing `/coach/talk` path.
 - Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.
 
 ## 15. Phase 1-4 Status Snapshot
@@ -467,7 +467,7 @@ Main integrations:
 | Phase 1 | Voice + NO/EN experience | Mostly done / launchable | V2 NO/EN voice workflow, launch-safe settings/legal/support, Apple Sign-In enablement, watch icon/dashboard polish, and summary live-voice CTA parity are implemented. | Finish deployed phrase-rotation, coach-score, and no-HR audits on real devices / live backend. |
 | Phase 2 | Deterministic event motor | Done with guarded follow-ups | Deterministic ownership remains in `zone_event_motor.py`; talk safety, auth hardening, rate limiting, and live-voice isolation are on the single runtime path. | Complete targeted dead-code cleanup and final production launch smoke without touching the continuous runtime architecture. |
 | Phase 3 | Sensor layer (Watch HR/cadence + fallback) | Partial but launch-usable | Watch capability gating, companion embedding/signing, request correlation, HR backfeed, local fallback behavior, and the watch running dashboard are implemented. | Run longer paired-device soak tests for reachability transitions, start ACK edge cases, and any cadence/live-pulse follow-up. |
-| Phase 4 | LLM as language layer only | Controlled / partial rollout | Grok-first workout talk and xAI live voice now sit on constrained language surfaces, while continuous coaching remains deterministic-first. | Validate deployed xAI live voice rollout, free/premium limits, and keep the summary-only memory boundary explicit unless product policy changes. |
+| Phase 4 | LLM as language layer only | Controlled / partial rollout | Grok-first workout talk and xAI live voice now sit on constrained language surfaces, while continuous coaching remains deterministic-first. | Validate deployed xAI live voice rollout, free/premium limits, and confirm the new history-aware memory policy on real accounts. |
 
 ## 16. Remaining Roadmap
 
@@ -481,7 +481,7 @@ Main integrations:
 | Phase 3 | Watch soak testing | Continue paired-device testing for `watchReady` <-> `watchInstalledNotReachable` transitions, delayed ACK behavior, and longer workout sessions. |
 | Phase 3 | Wake-word device validation | Repeat wake-word talk capture on physical devices and confirm the local speech-service churn stays suppressed after the suspend handoff change. |
 | Phase 4 | xAI live rollout validation | Validate deployed xAI live voice sessions, free/premium limits, fallback behavior, and session-duration policy with real accounts. |
-| Phase 4 | Explicit memory policy | If broader history is ever added to live voice, document it as a deliberate product change; current truth is summary-only context. |
+| Phase 4 | History-aware memory policy validation | Confirm on deployed accounts that live voice uses the current summary plus sanitized structured workout history only, without prior chat/session memory. |
 
 ## 17. Documentation Hygiene Rules
 

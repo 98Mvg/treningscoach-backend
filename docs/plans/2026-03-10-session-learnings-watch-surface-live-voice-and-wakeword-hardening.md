@@ -5,6 +5,7 @@
 2. Kept post-workout live voice isolated from the workout runtime while aligning the summary CTA with the in-workout coach button.
 3. Hardened the wake-word -> workout-talk handoff to reduce local speech-recognition churn on device.
 4. Clarified the product truth for `Talk to Coach Live` context and updated repo guidance accordingly.
+5. Extended live voice context on the same backend path so it can use structured workout history without opening a second memory architecture.
 
 ## What shipped
 1. Watch launch surface polish
@@ -31,9 +32,9 @@
    - The change is designed to reduce `kAFAssistantErrorDomain Code=1101` log spam during wake-word talk capture on real devices.
 
 5. Truth clarified: `Talk to Coach Live` context
-   - Live voice does **not** inject full account history or prior workout history.
-   - The current xAI live voice session uses only a sanitized post-workout summary snapshot plus the current realtime session turns.
-   - Any broader memory/history behavior must be treated as a future product change, not something that already exists implicitly.
+   - Live voice now uses the current sanitized post-workout summary **plus** a sanitized structured workout-history overview derived from stored workout records.
+   - The current xAI live voice session can use full-history aggregates plus recent workout entries for pattern/progress answers, while still keeping the just-finished workout summary as the primary source of truth.
+   - The session still does **not** inject prior chat history, broader account memory, or implicit session memory beyond the current realtime turns.
 
 ## Verification run in this session
 1. Watch/icon/live-voice contracts
@@ -69,11 +70,11 @@ Result: `BUILD SUCCEEDED` for both targets
    - Missing: longer paired-device soak for watch reachability transitions and any cadence/live-pulse follow-up.
 
 4. Phase 4 (LLM as language layer only): controlled, not fully rolled out operationally
-   - Done: Grok-first workout talk, xAI live voice on a separate post-workout path, summary-only live-voice context.
+   - Done: Grok-first workout talk, xAI live voice on a separate post-workout path, and history-aware live-voice context on the same backend route.
    - Missing: deployed xAI rollout validation, free/premium limit smoke, and continued device verification of local speech-service stability during workout talk.
 
 ## Rules reinforced for future sessions
 1. Keep watch improvements on the existing WC + watch workout path; do not split the watch runtime.
-2. Keep live voice as an isolated summary-mode experience until a deliberate product decision changes that boundary.
-3. Treat `Talk to Coach Live` memory/history scope as explicit product policy, not accidental provider behavior.
+2. Keep live voice as an isolated post-workout experience; expanding memory scope must still stay on the same route and remain explicit product policy.
+3. Treat `Talk to Coach Live` memory/history scope as explicit product policy: current summary + sanitized structured workout history, but no prior chat/session memory.
 4. Device-log issues around speech handoff should be fixed by changing the current path, not by adding a second wake-word/talk stack.

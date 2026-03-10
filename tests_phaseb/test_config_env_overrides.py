@@ -145,6 +145,7 @@ def test_xai_voice_agent_env_override(monkeypatch):
     monkeypatch.setenv("XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", "12")
     monkeypatch.setenv("XAI_VOICE_AGENT_CLIENT_SECRET_URL", "https://api.x.ai/v1/realtime/client_secrets")
     monkeypatch.setenv("XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
+    monkeypatch.setenv("XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT", "18")
 
     importlib.reload(config)
 
@@ -159,6 +160,7 @@ def test_xai_voice_agent_env_override(monkeypatch):
     assert config.XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY == 12
     assert config.XAI_VOICE_AGENT_CLIENT_SECRET_URL == "https://api.x.ai/v1/realtime/client_secrets"
     assert config.XAI_VOICE_AGENT_WEBSOCKET_URL == "wss://api.x.ai/v1/realtime"
+    assert config.XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT == 18
 
 
 def test_security_env_overrides(monkeypatch):

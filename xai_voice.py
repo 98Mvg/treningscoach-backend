@@ -76,6 +76,55 @@ def sanitize_post_workout_summary_context(raw_context: Any) -> dict[str, Any]:
     return {key: value for key, value in sanitized.items() if value is not None}
 
 
+def sanitize_workout_history_context(raw_context: Any) -> dict[str, Any]:
+    if not isinstance(raw_context, Mapping):
+        return {}
+
+    def _clean_string(value: Any, *, limit: int = 80) -> str | None:
+        if value in (None, ""):
+            return None
+        normalized = str(value).strip()
+        if not normalized:
+            return None
+        return normalized[:limit]
+
+    def _clean_int(value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    sanitized: dict[str, Any] = {
+        "total_workouts": _clean_int(raw_context.get("total_workouts")),
+        "total_duration_minutes": _clean_int(raw_context.get("total_duration_minutes")),
+        "workouts_last_7_days": _clean_int(raw_context.get("workouts_last_7_days")),
+        "workouts_last_30_days": _clean_int(raw_context.get("workouts_last_30_days")),
+    }
+
+    recent_workouts = raw_context.get("recent_workouts")
+    if isinstance(recent_workouts, list):
+        cleaned_recent: list[dict[str, Any]] = []
+        for item in recent_workouts[:20]:
+            if not isinstance(item, Mapping):
+                continue
+            cleaned_entry = {
+                "date": _clean_string(item.get("date"), limit=20),
+                "duration_minutes": _clean_int(item.get("duration_minutes")),
+                "final_phase": _clean_string(item.get("final_phase"), limit=40),
+                "avg_intensity": _clean_string(item.get("avg_intensity"), limit=40),
+                "language": _clean_string(item.get("language"), limit=8),
+            }
+            cleaned_entry = {key: value for key, value in cleaned_entry.items() if value is not None}
+            if cleaned_entry:
+                cleaned_recent.append(cleaned_entry)
+        if cleaned_recent:
+            sanitized["recent_workouts"] = cleaned_recent
+
+    return {key: value for key, value in sanitized.items() if value is not None}
+
+
 def _format_zone_pct(raw_value: float | None) -> str | None:
     if raw_value is None:
         return None
@@ -136,13 +185,67 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
     return lines
 
 
+def _history_lines(history_context: Mapping[str, Any], language: str) -> list[str]:
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    lines: list[str] = []
+
+    total_workouts = history_context.get("total_workouts")
+    if total_workouts is not None:
+        prefix = "Total stored workouts" if not is_norwegian else "Totalt lagrede okter"
+        lines.append(f"{prefix}: {total_workouts}")
+
+    total_duration_minutes = history_context.get("total_duration_minutes")
+    if total_duration_minutes is not None:
+        prefix = "Total stored minutes" if not is_norwegian else "Totalt lagrede minutter"
+        lines.append(f"{prefix}: {total_duration_minutes}")
+
+    workouts_last_7_days = history_context.get("workouts_last_7_days")
+    if workouts_last_7_days is not None:
+        prefix = "Workouts in last 7 days" if not is_norwegian else "Okter siste 7 dager"
+        lines.append(f"{prefix}: {workouts_last_7_days}")
+
+    workouts_last_30_days = history_context.get("workouts_last_30_days")
+    if workouts_last_30_days is not None:
+        prefix = "Workouts in last 30 days" if not is_norwegian else "Okter siste 30 dager"
+        lines.append(f"{prefix}: {workouts_last_30_days}")
+
+    recent_workouts = history_context.get("recent_workouts")
+    if isinstance(recent_workouts, list):
+        item_prefix = "Recent workout" if not is_norwegian else "Nylig okt"
+        duration_label = "min"
+        phase_label = "phase" if not is_norwegian else "fase"
+        intensity_label = "intensity" if not is_norwegian else "intensitet"
+        for index, workout in enumerate(recent_workouts, start=1):
+            if not isinstance(workout, Mapping):
+                continue
+            parts: list[str] = []
+            date_value = str(workout.get("date") or "").strip()
+            if date_value:
+                parts.append(date_value)
+            duration_value = workout.get("duration_minutes")
+            if duration_value is not None:
+                parts.append(f"{duration_value} {duration_label}")
+            phase_value = str(workout.get("final_phase") or "").strip()
+            if phase_value:
+                parts.append(f"{phase_label} {phase_value}")
+            intensity_value = str(workout.get("avg_intensity") or "").strip()
+            if intensity_value:
+                parts.append(f"{intensity_label} {intensity_value}")
+            if parts:
+                lines.append(f"{item_prefix} {index}: {', '.join(parts)}")
+
+    return lines
+
+
 def build_post_workout_voice_instructions(
     *,
     summary_context: Mapping[str, Any] | None,
+    history_context: Mapping[str, Any] | None,
     language: str,
     user_name: str | None = None,
 ) -> str:
     context = sanitize_post_workout_summary_context(summary_context)
+    history = sanitize_workout_history_context(history_context)
     is_norwegian = str(language or "").strip().lower().startswith("no")
     language_name = "Norwegian" if is_norwegian else "English"
     athlete_name = str(user_name or "").strip()
@@ -154,38 +257,41 @@ def build_post_workout_voice_instructions(
 
     summary_lines = _summary_lines(context, language)
     summary_block = "\n".join(f"- {line}" for line in summary_lines) if summary_lines else "- No workout summary was provided."
+    history_lines = _history_lines(history, language)
+    history_block = (
+        "\n".join(f"- {line}" for line in history_lines)
+        if history_lines
+        else "- No stored workout history overview was provided."
+    )
 
-    if is_norwegian:
-        return (
-            "You are Coachi's post-workout live voice coach. "
-            f"Speak in {language_name}. "
-            "Use a practical, calm, supportive tone. "
-            "Keep answers short and conversational, usually 1-3 sentences. "
-            "Stay tightly focused on the just-finished workout summary and recovery guidance. "
-            "If the athlete asks for medical diagnosis, tell them to stop training and seek professional care. "
-            "Do not invent metrics that are not in the summary.\n"
-            f"{athlete_line}\n"
-            "Workout summary:\n"
-            f"{summary_block}"
-        )
-
-    return (
+    common_intro = (
         "You are Coachi's post-workout live voice coach. "
         f"Speak in {language_name}. "
         "Use a practical, calm, supportive tone. "
         "Keep answers short and conversational, usually 1-3 sentences. "
-        "Stay tightly focused on the just-finished workout summary and recovery guidance. "
+        "Use the just-finished workout summary first. "
+        "You may also use the supplied workout history overview, which is a sanitized summary of the athlete's stored workout records with full-history aggregates and recent workout entries. "
+        "Use that history only for pattern, progress, and consistency questions. "
+        "Do not claim to remember prior conversations or any data beyond the supplied summary and workout-history overview. "
         "If the athlete asks for medical diagnosis, tell them to stop training and seek professional care. "
-        "Do not invent metrics that are not in the summary.\n"
+        "Do not invent metrics that are not in the supplied data.\n"
         f"{athlete_line}\n"
         "Workout summary:\n"
-        f"{summary_block}"
+        f"{summary_block}\n"
+        "Workout history overview:\n"
+        f"{history_block}"
     )
+
+    if is_norwegian:
+        return common_intro
+
+    return common_intro
 
 
 def build_post_workout_voice_session_update(
     *,
     summary_context: Mapping[str, Any] | None,
+    history_context: Mapping[str, Any] | None,
     language: str,
     user_name: str | None = None,
 ) -> dict[str, Any]:
@@ -193,6 +299,7 @@ def build_post_workout_voice_session_update(
         "voice": str(getattr(config, "XAI_VOICE_AGENT_VOICE", "Rex") or "Rex").strip() or "Rex",
         "instructions": build_post_workout_voice_instructions(
             summary_context=summary_context,
+            history_context=history_context,
             language=language,
             user_name=user_name,
         ),
@@ -258,6 +365,7 @@ def extract_client_secret(payload: Mapping[str, Any]) -> tuple[str, int | None]:
 def bootstrap_post_workout_voice_session(
     *,
     summary_context: Mapping[str, Any] | None,
+    history_context: Mapping[str, Any] | None,
     language: str,
     user_name: str | None = None,
     voice_session_id: str | None = None,
@@ -278,6 +386,7 @@ def bootstrap_post_workout_voice_session(
 
     session_update = build_post_workout_voice_session_update(
         summary_context=summary_context,
+        history_context=history_context,
         language=language,
         user_name=user_name,
     )

@@ -18,7 +18,7 @@ import time
 import inspect
 import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from urllib.parse import quote
 import requests
@@ -31,7 +31,7 @@ from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
-from database import init_db, db, WaitlistSignup, User, UserProfile  # Import database initialization + models
+from database import init_db, db, WaitlistSignup, User, UserProfile, WorkoutHistory  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from auth import (
@@ -4208,6 +4208,69 @@ def profile_upsert():
 # LIVE VOICE MODE
 # ============================================
 
+
+def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
+    recent_limit = max(
+        1,
+        min(
+            int(getattr(config, "XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT", 12) or 12),
+            50,
+        ),
+    )
+    now = _utcnow_naive()
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    aggregate_row = (
+        db.session.query(
+            db.func.count(WorkoutHistory.id),
+            db.func.coalesce(db.func.sum(WorkoutHistory.duration_seconds), 0),
+        )
+        .filter(WorkoutHistory.user_id == user_id)
+        .first()
+    )
+    total_workouts = int(aggregate_row[0] or 0) if aggregate_row is not None else 0
+    total_duration_seconds = int(aggregate_row[1] or 0) if aggregate_row is not None else 0
+
+    workouts_last_7_days = (
+        WorkoutHistory.query.filter(
+            WorkoutHistory.user_id == user_id,
+            WorkoutHistory.date >= seven_days_ago,
+        ).count()
+    )
+    workouts_last_30_days = (
+        WorkoutHistory.query.filter(
+            WorkoutHistory.user_id == user_id,
+            WorkoutHistory.date >= thirty_days_ago,
+        ).count()
+    )
+    recent_workouts = (
+        WorkoutHistory.query.filter_by(user_id=user_id)
+        .order_by(WorkoutHistory.date.desc())
+        .limit(recent_limit)
+        .all()
+    )
+
+    recent_history: list[dict[str, object]] = []
+    for workout in recent_workouts:
+        recent_history.append(
+            {
+                "date": workout.date.date().isoformat() if workout.date is not None else None,
+                "duration_minutes": max(0, round(int(workout.duration_seconds or 0) / 60)),
+                "final_phase": str(workout.final_phase or "").strip() or None,
+                "avg_intensity": str(workout.avg_intensity or "").strip() or None,
+                "language": str(workout.language or "").strip() or None,
+            }
+        )
+
+    return {
+        "total_workouts": total_workouts,
+        "total_duration_minutes": max(0, round(total_duration_seconds / 60)),
+        "workouts_last_7_days": int(workouts_last_7_days or 0),
+        "workouts_last_30_days": int(workouts_last_30_days or 0),
+        "recent_workouts": recent_history,
+    }
+
 @app.route('/voice/session', methods=['POST'])
 @rate_limit(
     limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
@@ -4260,6 +4323,7 @@ def create_voice_session():
         )
 
     summary_context = sanitize_post_workout_summary_context(payload.get("summary_context"))
+    history_context = _build_live_voice_history_context(user_id=user_id)
     language = normalize_language_code(payload.get("language") or user.language or getattr(config, "DEFAULT_LANGUAGE", "en"))
     user_name = (
         str(payload.get("user_name") or user.display_name or "").strip()
@@ -4270,6 +4334,7 @@ def create_voice_session():
     try:
         bootstrap = bootstrap_post_workout_voice_session(
             summary_context=summary_context,
+            history_context=history_context,
             language=language,
             user_name=user_name or None,
             max_duration_seconds=int(session_policy["max_duration_seconds"]),

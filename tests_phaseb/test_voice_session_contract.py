@@ -1,6 +1,7 @@
 import os
 import sys
 import uuid
+from datetime import timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -50,6 +51,27 @@ def _delete_user(user_id: str) -> None:
     db.session.commit()
 
 
+def _create_workout_history(
+    user_id: str,
+    *,
+    days_ago: int,
+    duration_seconds: int,
+    final_phase: str,
+    avg_intensity: str,
+    language: str = "en",
+) -> None:
+    workout = WorkoutHistory(
+        user_id=user_id,
+        date=main._utcnow_naive() - timedelta(days=days_ago),
+        duration_seconds=duration_seconds,
+        final_phase=final_phase,
+        avg_intensity=avg_intensity,
+        language=language,
+    )
+    db.session.add(workout)
+    db.session.commit()
+
+
 def test_voice_session_requires_auth(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
     client = main.app.test_client()
@@ -67,8 +89,17 @@ def test_voice_session_returns_free_tier_bootstrap_for_non_premium_users(monkeyp
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
     captured = {}
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
         captured["summary_context"] = dict(summary_context)
+        captured["history_context"] = dict(history_context or {})
         captured["language"] = language
         captured["user_name"] = user_name
         captured["max_duration_seconds"] = max_duration_seconds
@@ -120,8 +151,16 @@ def test_voice_session_allows_free_users_while_app_free_mode(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120, raising=False)
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
-        _ = (summary_context, language, user_name, logger)
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
+        _ = (summary_context, history_context, language, user_name, logger)
         return {
             "voice_session_id": "voice_free_mode_123",
             "websocket_url": "wss://api.x.ai/v1/realtime",
@@ -169,8 +208,17 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 8, raising=False)
     captured = {}
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
         captured["summary_context"] = dict(summary_context)
+        captured["history_context"] = dict(history_context or {})
         captured["language"] = language
         captured["user_name"] = user_name
         captured["max_duration_seconds"] = max_duration_seconds
@@ -195,6 +243,28 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
     with main.app.app_context():
         user = _create_user("voice-premium", tier="premium")
         user_id = user.id
+        _create_workout_history(
+            user_id,
+            days_ago=1,
+            duration_seconds=1_800,
+            final_phase="cooldown",
+            avg_intensity="moderate",
+            language="no",
+        )
+        _create_workout_history(
+            user_id,
+            days_ago=4,
+            duration_seconds=2_400,
+            final_phase="intense",
+            avg_intensity="intense",
+        )
+        _create_workout_history(
+            user_id,
+            days_ago=40,
+            duration_seconds=1_500,
+            final_phase="warmup",
+            avg_intensity="calm",
+        )
         token = auth.create_jwt(user.id, user.email)
 
     try:
@@ -223,6 +293,11 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
         assert payload["session_update_json"] == "{\"type\":\"session.update\"}"
         assert captured["language"] == "no"
         assert captured["summary_context"]["coach_score"] == 91
+        assert captured["history_context"]["total_workouts"] == 3
+        assert captured["history_context"]["total_duration_minutes"] == 95
+        assert captured["history_context"]["workouts_last_7_days"] == 2
+        assert captured["history_context"]["workouts_last_30_days"] == 2
+        assert captured["history_context"]["recent_workouts"][0]["duration_minutes"] == 30
         assert captured["max_duration_seconds"] == 420
     finally:
         with main.app.app_context():
@@ -236,8 +311,16 @@ def test_voice_session_free_daily_limit_returns_429(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2, raising=False)
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120, raising=False)
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
-        _ = (summary_context, language, user_name, max_duration_seconds, logger)
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
+        _ = (summary_context, history_context, language, user_name, max_duration_seconds, logger)
         return {
             "voice_session_id": f"voice_free_limit_{uuid.uuid4().hex[:6]}",
             "websocket_url": "wss://api.x.ai/v1/realtime",
@@ -284,8 +367,16 @@ def test_voice_session_premium_daily_limit_is_higher(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 3, raising=False)
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 420, raising=False)
 
-    def _fake_bootstrap(*, summary_context, language, user_name=None, max_duration_seconds=None, logger=None):
-        _ = (summary_context, language, user_name, max_duration_seconds, logger)
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
+        _ = (summary_context, history_context, language, user_name, max_duration_seconds, logger)
         return {
             "voice_session_id": f"voice_premium_limit_{uuid.uuid4().hex[:6]}",
             "websocket_url": "wss://api.x.ai/v1/realtime",

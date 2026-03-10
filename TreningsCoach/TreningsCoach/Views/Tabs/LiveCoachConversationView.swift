@@ -7,6 +7,7 @@
 
 import Combine
 import SwiftUI
+import UIKit
 
 @MainActor
 final class LiveCoachConversationViewModel: ObservableObject {
@@ -93,6 +94,23 @@ final class LiveCoachConversationViewModel: ObservableObject {
         }
     }
 
+    var isConversationEnded: Bool {
+        if case .ended = service.connectionState {
+            return true
+        }
+        return false
+    }
+
+    var latestShareInsight: String? {
+        let assistantText = service.transcriptEntries
+            .reversed()
+            .first(where: { $0.role == .assistant && !$0.isPartial })?
+            .text
+
+        guard let assistantText else { return nil }
+        return Self.sanitizedShareInsight(from: assistantText)
+    }
+
     func startIfNeeded() async {
         guard !hasAutoStarted else { return }
         hasAutoStarted = true
@@ -120,6 +138,26 @@ final class LiveCoachConversationViewModel: ObservableObject {
             )
         }
     }
+
+    static func sanitizedShareInsight(from raw: String) -> String? {
+        let collapsed = raw
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !collapsed.isEmpty else { return nil }
+
+        let terminalCharacters = CharacterSet(charactersIn: ".!?")
+        let firstSentence = collapsed.components(separatedBy: terminalCharacters).first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = (firstSentence?.count ?? 0) >= 24 ? firstSentence! : collapsed
+        guard candidate.count > 132 else { return candidate }
+
+        let prefix = candidate.prefix(132)
+        if let lastSpace = prefix.lastIndex(of: " ") {
+            return String(prefix[..<lastSpace]) + "..."
+        }
+        return String(prefix) + "..."
+    }
 }
 
 struct LiveCoachConversationView: View {
@@ -146,6 +184,13 @@ struct LiveCoachConversationView: View {
                     transcriptCard
                     if let failureMessage = viewModel.failureMessage, viewModel.canUseTextFallback {
                         failureCard(message: failureMessage)
+                    }
+                    if let insight = viewModel.latestShareInsight, viewModel.isConversationEnded {
+                        PostWorkoutInsightShareSection(
+                            summaryContext: viewModel.summaryContext,
+                            languageCode: viewModel.languageCode,
+                            insightText: insight
+                        )
                     }
                     Spacer(minLength: 0)
                     actionBar
@@ -375,19 +420,25 @@ struct LiveCoachConversationView: View {
 
     private var actionBar: some View {
         HStack(spacing: 12) {
-            Button(viewModel.languageCode == "no" ? "Koble fra" : "Disconnect") {
-                Task {
-                    await viewModel.disconnect()
+            if viewModel.isConversationEnded {
+                Button(viewModel.languageCode == "no" ? "Lukk" : "Close") {
                     dismiss()
                 }
-            }
-            .buttonStyle(LiveVoiceSecondaryButtonStyle())
-
-            if viewModel.canUseTextFallback {
-                Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead") {
-                    viewModel.openTextFallback()
+                .buttonStyle(LiveVoiceSecondaryButtonStyle())
+            } else {
+                Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation") {
+                    Task {
+                        await viewModel.disconnect()
+                    }
                 }
-                .buttonStyle(LiveVoicePrimaryButtonStyle())
+                .buttonStyle(LiveVoiceSecondaryButtonStyle())
+
+                if viewModel.canUseTextFallback {
+                    Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead") {
+                        viewModel.openTextFallback()
+                    }
+                    .buttonStyle(LiveVoicePrimaryButtonStyle())
+                }
             }
         }
     }
@@ -433,12 +484,25 @@ struct PostWorkoutTextCoachView: View {
     @State private var errorMessage: String?
     @State private var messages: [TextCoachMessage] = []
 
+    private var latestShareInsight: String? {
+        let assistantText = messages.reversed().first(where: { $0.role == .assistant })?.text
+        guard let assistantText else { return nil }
+        return LiveCoachConversationViewModel.sanitizedShareInsight(from: assistantText)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 14) {
                 ScrollView {
                     VStack(spacing: 12) {
                         summaryCard
+                        if let insight = latestShareInsight {
+                            PostWorkoutInsightShareSection(
+                                summaryContext: summaryContext,
+                                languageCode: languageCode,
+                                insightText: insight
+                            )
+                        }
                         ForEach(messages) { message in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(message.role == .assistant ? "COACH" : (languageCode == "no" ? "DEG" : "YOU"))
@@ -549,6 +613,309 @@ struct PostWorkoutTextCoachView: View {
 
         isSending = false
     }
+}
+
+private struct PostWorkoutInsightShareSection: View {
+    let summaryContext: PostWorkoutSummaryContext
+    let languageCode: String
+    let insightText: String
+
+    @State private var showSystemShareSheet = false
+    @State private var shareSheetItems: [Any] = []
+    @State private var copiedLink = false
+
+    private var shareURL: URL {
+        URL(string: AppConfig.Share.coachiWebsiteURLString)!
+    }
+
+    private var titleText: String {
+        languageCode == "no" ? "Del coach-innsikt" : "Share coach insight"
+    }
+
+    private var helperText: String {
+        languageCode == "no"
+            ? "Kortet lages lokalt fra den siste coach-samtalen og er klart for story eller lenke."
+            : "The card is generated locally from the latest coach conversation and is ready for story or link sharing."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(titleText)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.96))
+
+            Text(helperText)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Color.white.opacity(0.72))
+
+            PostWorkoutInsightStoryCardView(
+                summaryContext: summaryContext,
+                languageCode: languageCode,
+                insightText: insightText
+            )
+            .frame(maxWidth: .infinity)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    instagramButton
+                    snapchatButton
+                    copyLinkButton
+                }
+
+                VStack(spacing: 10) {
+                    instagramButton
+                    HStack(spacing: 10) {
+                        snapchatButton
+                        copyLinkButton
+                    }
+                }
+            }
+
+            if copiedLink {
+                Text(languageCode == "no" ? "Lenke kopiert." : "Link copied.")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color(hex: "A5F3EC"))
+                    .transition(.opacity)
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+        )
+        .sheet(isPresented: $showSystemShareSheet) {
+            ActivityShareSheet(activityItems: shareSheetItems)
+        }
+    }
+
+    private var instagramButton: some View {
+        Button("Instagram Story") {
+            shareToInstagramStory()
+        }
+        .buttonStyle(LiveVoicePrimaryButtonStyle())
+    }
+
+    private var snapchatButton: some View {
+        Button("Snapchat") {
+            openGenericShareSheet(for: "snapchat")
+        }
+        .buttonStyle(LiveVoiceSecondaryButtonStyle())
+    }
+
+    private var copyLinkButton: some View {
+        Button(languageCode == "no" ? "Kopier lenke" : "Copy Link") {
+            UIPasteboard.general.url = shareURL
+            withAnimation(.easeOut(duration: 0.2)) {
+                copiedLink = true
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: 1_600_000_000)
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        copiedLink = false
+                    }
+                }
+            }
+        }
+        .buttonStyle(LiveVoiceSecondaryButtonStyle())
+    }
+
+    private func shareToInstagramStory() {
+        guard let storyURL = URL(string: AppConfig.Share.instagramStoriesScheme),
+              UIApplication.shared.canOpenURL(storyURL),
+              let cardImage = renderedCardImage(),
+              let stickerData = cardImage.pngData() else {
+            openGenericShareSheet(for: "instagram_story")
+            return
+        }
+
+        UIPasteboard.general.setItems(
+            [[
+                "com.instagram.sharedSticker.stickerImage": stickerData,
+                "com.instagram.sharedSticker.contentURL": shareURL.absoluteString,
+                "com.instagram.sharedSticker.backgroundTopColor": "#081225",
+                "com.instagram.sharedSticker.backgroundBottomColor": "#112B44",
+            ]],
+            options: [.expirationDate: Date().addingTimeInterval(300)]
+        )
+
+        UIApplication.shared.open(storyURL)
+    }
+
+    private func openGenericShareSheet(for destination: String) {
+        guard let cardImage = renderedCardImage() else {
+            return
+        }
+
+        let caption = languageCode == "no"
+            ? "Coachi-innsikt fra den siste okten • \(shareURL.absoluteString)"
+            : "Coachi insight from the latest workout • \(shareURL.absoluteString)"
+
+        shareSheetItems = [cardImage, caption, shareURL]
+        showSystemShareSheet = true
+
+        if destination == "snapchat",
+           let snapchatURL = URL(string: AppConfig.Share.snapchatScheme),
+           UIApplication.shared.canOpenURL(snapchatURL) {
+            // The system share sheet exposes Snapchat when installed, without introducing the Creative Kit SDK.
+        }
+    }
+
+    @MainActor
+    private func renderedCardImage() -> UIImage? {
+        let renderer = ImageRenderer(
+            content: PostWorkoutInsightStoryCardView(
+                summaryContext: summaryContext,
+                languageCode: languageCode,
+                insightText: insightText
+            )
+            .frame(width: 1080, height: 1920)
+        )
+        renderer.scale = 1
+        return renderer.uiImage
+    }
+}
+
+private struct PostWorkoutInsightStoryCardView: View {
+    let summaryContext: PostWorkoutSummaryContext
+    let languageCode: String
+    let insightText: String
+
+    private var durationLabel: String {
+        languageCode == "no" ? "Varighet" : "Duration"
+    }
+
+    private var scoreLabel: String {
+        languageCode == "no" ? "Coach score" : "Coaching Score"
+    }
+
+    private var insightLabel: String {
+        languageCode == "no" ? "Coach insight" : "Coach insight"
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "081225"), Color(hex: "0D2034"), Color(hex: "12324A")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 34) {
+                HStack(alignment: .center, spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 96, height: 96)
+                        Image(systemName: "figure.run")
+                            .font(.system(size: 40, weight: .semibold))
+                            .foregroundStyle(Color(hex: "A5F3EC"))
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("COACHI")
+                            .font(.system(size: 56, weight: .bold))
+                            .tracking(2.6)
+                            .foregroundStyle(Color.white.opacity(0.98))
+                        Text(summaryContext.workoutLabel.uppercased())
+                            .font(.system(size: 28, weight: .semibold))
+                            .tracking(1.2)
+                            .foregroundStyle(Color.white.opacity(0.72))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(scoreLabel.uppercased())
+                        .font(.system(size: 28, weight: .semibold))
+                        .tracking(1.1)
+                        .foregroundStyle(Color.white.opacity(0.68))
+                    Text("\(summaryContext.coachScore)")
+                        .font(.system(size: 214, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.98))
+                    Text(summaryContext.coachScoreSummaryLine)
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.86))
+                }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(insightLabel.uppercased())
+                        .font(.system(size: 26, weight: .semibold))
+                        .tracking(1.0)
+                        .foregroundStyle(Color(hex: "A5F3EC"))
+                    Text(insightText)
+                        .font(.system(size: 52, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.96))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(28)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 48, style: .continuous)
+                        .fill(Color.white.opacity(0.09))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 48, style: .continuous)
+                                .stroke(Color.white.opacity(0.14), lineWidth: 2)
+                        )
+                )
+
+                HStack(spacing: 18) {
+                    storyMetric(label: durationLabel, value: summaryContext.durationText)
+                    storyMetric(label: scoreLabel, value: "\(summaryContext.coachScore)")
+                }
+
+                Spacer()
+
+                Text("coachi.app")
+                    .font(.system(size: 30, weight: .semibold))
+                    .tracking(1.1)
+                    .foregroundStyle(Color.white.opacity(0.72))
+            }
+            .padding(.horizontal, 72)
+            .padding(.vertical, 96)
+        }
+        .aspectRatio(9.0 / 16.0, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 44, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 2)
+        )
+    }
+
+    private func storyMetric(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(label.uppercased())
+                .font(.system(size: 20, weight: .semibold))
+                .tracking(0.8)
+                .foregroundStyle(Color.white.opacity(0.60))
+            Text(value)
+                .font(.system(size: 34, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color.white.opacity(0.95))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(22)
+        .background(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(Color.black.opacity(0.20))
+        )
+    }
+}
+
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        controller.excludedActivityTypes = [.assignToContact, .print]
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private struct LiveVoicePrimaryButtonStyle: ButtonStyle {

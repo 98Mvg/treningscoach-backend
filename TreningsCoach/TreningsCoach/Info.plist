@@ -9,6 +9,8 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>spotify</string>
+		<string>instagram-stories</string>
+		<string>snapchat</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Bluetooth access is used to connect to live heart-rate sensors during workouts.</string>

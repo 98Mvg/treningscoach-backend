@@ -142,6 +142,7 @@ XAI_VOICE_AGENT_WEBSOCKET_URL = (
     os.getenv("XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
     or "wss://api.x.ai/v1/realtime"
 ).strip()
+XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT = _env_int("XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT", 12)
 
 # Security posture
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)

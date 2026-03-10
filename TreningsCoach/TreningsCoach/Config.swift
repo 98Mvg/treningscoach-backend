@@ -173,6 +173,13 @@ struct AppConfig {
         static let defaultMaxDurationSeconds: Int = 300
     }
 
+    // MARK: - Sharing
+    struct Share {
+        static let coachiWebsiteURLString = "https://coachi.app"
+        static let instagramStoriesScheme = "instagram-stories://share"
+        static let snapchatScheme = "snapchat://"
+    }
+
     // MARK: - Continuous Coaching Settings
     struct ContinuousCoaching {
         static let defaultInterval: TimeInterval = 8.0
