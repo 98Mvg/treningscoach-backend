@@ -726,6 +726,7 @@ class WorkoutViewModel: ObservableObject {
         resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
+        isWatchBackedContinuousSession = false
         watchStartStatusLine = nil
         coachingStatusLine = nil
         workoutState = .idle
@@ -803,6 +804,7 @@ class WorkoutViewModel: ObservableObject {
         resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
+        isWatchBackedContinuousSession = false
         watchStartStatusLine = nil
         coachingStatusLine = nil
         workoutState = .idle
@@ -1180,6 +1182,7 @@ class WorkoutViewModel: ObservableObject {
     private var pendingWatchRequestTimestamp: TimeInterval?
     private var pendingWatchRequestId: String?
     private var activeWatchRequestId: String?
+    private var isWatchBackedContinuousSession = false
     private var guestBackendSuppressed = false
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
@@ -1319,7 +1322,7 @@ class WorkoutViewModel: ObservableObject {
         guard !isTalkingToCoach else { return }
 
         talkCaptureTask?.cancel()
-        wakeWordManager.stopListening()
+        wakeWordManager.suspendForWorkoutTalk()
         isTalkingToCoach = true
         isWakeWordActive = true
         coachInteractionState = .commandMode
@@ -2089,51 +2092,65 @@ class WorkoutViewModel: ObservableObject {
 
     private func configureHeartRatePipeline() {
         watchHRProvider.onSample = { [weak self] sample in
-            self?.heartRateArbiter.ingest(sample: sample)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.ingest(sample: sample)
+            }
         }
         watchHRProvider.onStatus = { [weak self] status in
-            self?.heartRateArbiter.updateStatus(source: .wc, status: status)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.updateStatus(source: .wc, status: status)
+            }
         }
 
         bleHeartRateProvider.onSample = { [weak self] sample in
-            self?.heartRateArbiter.ingest(sample: sample)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.ingest(sample: sample)
+            }
         }
         bleHeartRateProvider.onStatus = { [weak self] status in
-            self?.heartRateArbiter.updateStatus(source: .ble, status: status)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.updateStatus(source: .ble, status: status)
+            }
         }
 
         hkFallbackProvider.onSample = { [weak self] sample in
-            self?.heartRateArbiter.ingest(sample: sample)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.ingest(sample: sample)
+            }
         }
         hkFallbackProvider.onStatus = { [weak self] status in
-            self?.heartRateArbiter.updateStatus(source: .hk, status: status)
+            Task { @MainActor [weak self] in
+                self?.heartRateArbiter.updateStatus(source: .hk, status: status)
+            }
         }
 
         heartRateArbiter.onLog = { line in
             print(line)
         }
         heartRateArbiter.onOutput = { [weak self] output in
-            guard let self else { return }
-            self.heartRate = output.currentBPM
-            self.hrSource = output.hrSource
-            self.hrSignalQuality = output.hrSignalQuality.rawValue
-            self.watchConnected = output.watchConnected
-            self.bleConnected = output.bleConnected
-            self.latestWatchStatusForBackend = output.watchStatus
-            self.latestHeartRateSampleDate = output.lastSampleAt
-            self.liveHRBannerText = output.hrSignalQuality == .degraded || output.hrSource == .none
-                ? (self.currentLanguage == "no" ? "Live puls utilgjengelig / degradert" : "Live HR unavailable / degraded")
-                : nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.heartRate = output.currentBPM
+                self.hrSource = output.hrSource
+                self.hrSignalQuality = output.hrSignalQuality.rawValue
+                self.watchConnected = output.watchConnected
+                self.bleConnected = output.bleConnected
+                self.latestWatchStatusForBackend = output.watchStatus
+                self.latestHeartRateSampleDate = output.lastSampleAt
+                self.liveHRBannerText = output.hrSignalQuality == .degraded || output.hrSource == .none
+                    ? (self.currentLanguage == "no" ? "Live puls utilgjengelig / degradert" : "Live HR unavailable / degraded")
+                    : nil
 
-            switch output.hrSource {
-            case .wc:
-                self.lastWCHRSampleAt = output.lastSampleAt
-            case .ble:
-                self.lastBLEHRSampleAt = output.lastSampleAt
-            case .hk:
-                self.lastHKSampleAt = output.lastSampleAt
-            case .none:
-                break
+                switch output.hrSource {
+                case .wc:
+                    self.lastWCHRSampleAt = output.lastSampleAt
+                case .ble:
+                    self.lastBLEHRSampleAt = output.lastSampleAt
+                case .hk:
+                    self.lastHKSampleAt = output.lastSampleAt
+                case .none:
+                    break
+                }
             }
         }
     }
@@ -2183,12 +2200,14 @@ class WorkoutViewModel: ObservableObject {
         pendingWatchRequestTimestamp = requestTimestamp
         pendingWatchRequestId = requestID
         activeWatchRequestId = requestID
+        isWatchBackedContinuousSession = false
         let workoutType = requestedWatchWorkoutType
 
         let result = phoneWCManager.sendStartRequest(
             workoutType: workoutType,
             timestamp: requestTimestamp,
-            requestID: requestID
+            requestID: requestID,
+            context: watchStartContextPayload()
         )
 
         switch result {
@@ -2206,6 +2225,7 @@ class WorkoutViewModel: ObservableObject {
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=watch_not_reachable capability=\(watchCapabilityState.rawValue)"
             )
             isWaitingForWatchStart = false
+            isWatchBackedContinuousSession = false
             watchStartStatusLine = currentLanguage == "no"
                 ? "Watch ikke tilgjengelig. Starter på iPhone nå."
                 : "Watch unavailable. Starting on iPhone now."
@@ -2215,11 +2235,25 @@ class WorkoutViewModel: ObservableObject {
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=\(reason) capability=\(watchCapabilityState.rawValue)"
             )
             isWaitingForWatchStart = false
+            isWatchBackedContinuousSession = false
             watchStartStatusLine = currentLanguage == "no"
                 ? "Kunne ikke nå Watch (\(reason)). Starter på iPhone."
                 : "Could not reach Watch (\(reason)). Starting on iPhone."
             startContinuousWorkoutInternal()
         }
+    }
+
+    private func watchStartContextPayload() -> [String: Any] {
+        let plan = activeSessionPlan ?? buildSessionPlanFromSelections()
+        return [
+            WCKeys.warmupSeconds: max(0, plan.warmupSeconds),
+            WCKeys.mainSeconds: max(0, plan.mainSeconds),
+            WCKeys.cooldownSeconds: max(0, plan.cooldownSeconds),
+            WCKeys.easyRunSessionMode: plan.easyRunSessionMode.rawValue,
+            WCKeys.intervalRepeats: max(0, plan.intervalRepeats ?? 0),
+            WCKeys.intervalWorkSeconds: max(0, plan.intervalWorkSeconds ?? 0),
+            WCKeys.intervalRecoverySeconds: max(0, plan.intervalRecoverySeconds ?? 0),
+        ]
     }
 
     private func scheduleWatchStartAckTimeout(requestTimestamp: TimeInterval, requestID: String) {
@@ -2232,6 +2266,7 @@ class WorkoutViewModel: ObservableObject {
                 guard self.pendingWatchRequestTimestamp == requestTimestamp else { return }
                 guard self.pendingWatchRequestId == requestID else { return }
                 self.isWaitingForWatchStart = false
+                self.isWatchBackedContinuousSession = false
                 self.pendingWatchRequestTimestamp = nil
                 self.pendingWatchRequestId = nil
                 self.watchStartStatusLine = self.currentLanguage == "no"
@@ -2256,6 +2291,7 @@ class WorkoutViewModel: ObservableObject {
         guard requestID == pendingWatchRequestId else { return }
 
         clearWatchStartPendingState()
+        isWatchBackedContinuousSession = true
         watchStartStatusLine = currentLanguage == "no"
             ? "Watch startet økten."
             : "Workout started on Watch."
@@ -2269,6 +2305,7 @@ class WorkoutViewModel: ObservableObject {
         guard requestID == pendingWatchRequestId else { return }
 
         clearWatchStartPendingState()
+        isWatchBackedContinuousSession = false
         watchStartStatusLine = currentLanguage == "no"
             ? "Watch-feil (\(error)). Starter på iPhone."
             : "Watch failed (\(error)). Starting on iPhone."
@@ -2277,12 +2314,12 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func handleWatchWorkoutStopped(timestamp _: TimeInterval, requestID: String) {
-        if !requestID.isEmpty,
-           let activeWatchRequestId,
-           requestID != activeWatchRequestId {
-            return
-        }
+        guard isWatchBackedContinuousSession,
+              let activeWatchRequestId,
+              !activeWatchRequestId.isEmpty,
+              requestID == activeWatchRequestId else { return }
         clearWatchStartPendingState()
+        isWatchBackedContinuousSession = false
         print("WATCH_ACK request_id=\(requestID) status=stopped")
         if isContinuousMode {
             stopWorkout(notifyWatch: false)
@@ -2714,6 +2751,7 @@ class WorkoutViewModel: ObservableObject {
         // Update state
         clearWatchStartPendingState()
         activeWatchRequestId = nil
+        isWatchBackedContinuousSession = false
         watchStartStatusLine = nil
         isContinuousMode = false
         isPaused = false

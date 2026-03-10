@@ -9,6 +9,8 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     private var workoutBuilder: HKLiveWorkoutBuilder?
     private var requestTimestamp: TimeInterval?
     private var requestID: String?
+    private var sessionPlanSnapshot: WatchSessionPlanSnapshot?
+    private var sessionStartDate: Date?
     private var didSendStopForCurrentSession = false
 
     @Published private(set) var isRunning: Bool = false
@@ -22,9 +24,16 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         try await healthStore.requestAuthorization(toShare: [], read: [hrType])
     }
 
-    func startWorkout(workoutType: String, requestTimestamp: TimeInterval, requestID: String) async {
+    func startWorkout(
+        workoutType: String,
+        requestTimestamp: TimeInterval,
+        requestID: String,
+        sessionPlan: WatchSessionPlanSnapshot?
+    ) async {
         self.requestTimestamp = requestTimestamp
         self.requestID = requestID
+        self.sessionPlanSnapshot = sessionPlan
+        self.sessionStartDate = nil
         didSendStopForCurrentSession = false
         let normalized = WCKeys.WorkoutType.normalized(workoutType)
         let activityType: HKWorkoutActivityType = normalized == WCKeys.WorkoutType.intervals
@@ -46,6 +55,40 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         }
     }
 
+    var dashboardBPMText: String {
+        guard let currentHR else { return "--" }
+        return "\(Int(currentHR.rounded()))"
+    }
+
+    func dashboardTimeLabel(at _: Date = Date()) -> String {
+        sessionPlanSnapshot?.isFreeRun == true ? "Elapsed" : "Time Remaining"
+    }
+
+    func dashboardTimeValue(at date: Date = Date()) -> String {
+        let anchorDate = sessionStartDate ?? requestTimestamp.map { Date(timeIntervalSince1970: $0) }
+        guard let anchorDate else { return "--:--" }
+
+        let elapsedSeconds = max(0, Int(date.timeIntervalSince(anchorDate)))
+        if sessionPlanSnapshot?.isFreeRun == true {
+            return Self.formatClock(elapsedSeconds)
+        }
+
+        guard let totalDurationSeconds = sessionPlanSnapshot?.totalDurationSeconds else {
+            return "--:--"
+        }
+        return Self.formatClock(max(0, totalDurationSeconds - elapsedSeconds))
+    }
+
+    private static func formatClock(_ seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainderSeconds = seconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, remainderSeconds)
+        }
+        return String(format: "%02d:%02d", minutes, remainderSeconds)
+    }
+
     private func startWorkoutSession(activityType: HKWorkoutActivityType, workoutType: String) {
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = activityType
@@ -63,6 +106,7 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
             builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
 
             let startDate = Date()
+            sessionStartDate = startDate
             session.startActivity(with: startDate)
             builder.beginCollection(withStart: startDate) { [weak self] success, error in
                 Task { @MainActor in
@@ -137,6 +181,7 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
         Task { @MainActor in
             self.isRunning = toState == .running
             if toState == .ended {
+                self.sessionStartDate = nil
                 self.sendWorkoutStoppedSignal()
             }
         }

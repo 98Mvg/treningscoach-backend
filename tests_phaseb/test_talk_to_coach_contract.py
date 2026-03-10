@@ -82,7 +82,7 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
 def test_talk_path_pauses_wake_word_listening_while_talk_is_active() -> None:
     text = _viewmodel_text()
     assert "private func startWorkoutTalkCapture(triggerSource: TalkTriggerSource, playWakeAck: Bool)" in text
-    assert "wakeWordManager.stopListening()" in text
+    assert "wakeWordManager.suspendForWorkoutTalk()" in text
     assert "private func startWakeWordListeningIfNeeded()" in text
 
 

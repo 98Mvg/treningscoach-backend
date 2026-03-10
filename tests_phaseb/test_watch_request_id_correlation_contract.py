@@ -15,11 +15,16 @@ def test_request_id_key_exists_on_phone_and_watch() -> None:
     watch_text = WATCH_KEYS.read_text(encoding="utf-8")
     assert 'static let requestId = "request_id"' in ios_text
     assert 'static let requestId = "request_id"' in watch_text
+    assert 'static let warmupSeconds = "warmup_seconds"' in ios_text
+    assert 'static let warmupSeconds = "warmup_seconds"' in watch_text
+    assert 'static let easyRunSessionMode = "easy_run_session_mode"' in ios_text
+    assert 'static let easyRunSessionMode = "easy_run_session_mode"' in watch_text
 
 
 def test_phone_wc_start_and_stop_payloads_include_request_id() -> None:
     text = PHONE_WC.read_text(encoding="utf-8")
-    assert "func sendStartRequest(workoutType: String, timestamp: TimeInterval, requestID: String)" in text
+    assert "context: [String: Any] = [:]" in text
+    assert "context.forEach { payload[$0.key] = $0.value }" in text
     assert "func sendWorkoutStopped(timestamp: TimeInterval, requestID: String)" in text
     assert "WCKeys.requestId: requestID" in text
     assert "onWorkoutStartedAck: ((String, TimeInterval, String) -> Void)?" in text
@@ -49,3 +54,10 @@ def test_view_model_accepts_watch_start_ack_only_for_matching_pending_request_id
     assert "guard requestID == pendingWatchRequestId else { return }" in text
     assert "guard let pendingTimestamp = pendingWatchRequestTimestamp" not in text
 
+
+def test_phone_owned_fallback_sessions_ignore_late_watch_stop_events() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private var isWatchBackedContinuousSession = false" in text
+    assert "isWatchBackedContinuousSession = true" in text
+    assert "guard isWatchBackedContinuousSession," in text
+    assert "requestID == activeWatchRequestId else { return }" in text

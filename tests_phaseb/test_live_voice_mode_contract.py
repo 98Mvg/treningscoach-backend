@@ -18,6 +18,7 @@ LIVE_VOICE_VIEW = (
 VOICE_SERVICE = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "XAIRealtimeVoiceService.swift"
 )
+XAI_VOICE_HELPER = REPO_ROOT / "xai_voice.py"
 CONFIG_SWIFT = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Config.swift"
 )
@@ -36,6 +37,9 @@ def test_summary_screen_exposes_live_voice_cta_behind_flag_and_premium_gate() ->
     assert "authManager.currentUser != nil" in text
     assert ".fullScreenCover(isPresented: $showLiveCoachVoice)" in text
     assert 'event: "voice_cta_tapped"' in text
+    assert 'Image(systemName: "mic.fill")' in text
+    assert ".frame(height: 64)" in text
+    assert "RoundedRectangle(cornerRadius: 22, style: .continuous)" in text
 
 
 def test_auth_manager_fetches_runtime_flags_for_live_voice_policy() -> None:
@@ -74,6 +78,14 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert 'event: "voice_session_ended"' in text
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
+
+
+def test_live_voice_prompt_is_scoped_to_post_workout_summary_not_full_history() -> None:
+    text = XAI_VOICE_HELPER.read_text(encoding="utf-8")
+    assert "Stay tightly focused on the just-finished workout summary and recovery guidance." in text
+    assert "sanitize_post_workout_summary_context" in text
+    assert "conversation_history" not in text
+    assert "session_history" not in text
 
 
 def test_live_voice_flag_and_microphone_usage_are_declared() -> None:

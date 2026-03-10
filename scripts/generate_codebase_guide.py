@@ -166,6 +166,15 @@ RISKS = [
 
 RECENT_SESSION_LEARNINGS = [
     (
+        "2026-03-10 — Watch Surface, Live Voice Scope, And Wake-Word Handoff",
+        "docs/plans/2026-03-10-session-learnings-watch-surface-live-voice-and-wakeword-hardening.md",
+        [
+            "The watch app now has watch-specific icon assets and a real running dashboard with BPM primary and remaining/elapsed time secondary.",
+            "Post-workout `Talk to Coach Live` is visually aligned with the in-workout coach CTA without changing the backend/runtime path.",
+            "Wake-word workout-talk handoff now suspends recognition more gracefully, and live voice remains summary-only instead of using full history.",
+        ],
+    ),
+    (
         "2026-03-05 — Talk Safety + Security Hardening",
         "docs/plans/2026-03-05-session-learnings-talk-safety-and-security-hardening.md",
         [
@@ -196,31 +205,60 @@ RECENT_SESSION_LEARNINGS = [
 
 CURRENT_STATUS = [
     "Deterministic workout ownership still belongs to `zone_event_motor.py` and must remain there.",
-    "Watch capability hardening is implemented on iPhone; no-watch states now start locally and skip WC transport.",
+    "Root Flask runtime at the repository root remains the active backend source of truth; `backend/` stays as compatibility wrappers only.",
     "V2 phrase review, promotion, pack generation, R2 sync, and full bundle rebuild exist as the active audio workflow.",
-    "Workout talk is Grok-first for wake-word and button triggers, but still depends on STT quota and backend latency.",
-    "Wake-word retry cooldown was shortened on iOS and reset after talk sessions to reduce user-facing lockout after failed talk attempts.",
-    "Launch-ready Coachi settings, FAQ, privacy-policy, and terms drafts now live under `docs/settings` and `docs/legal`.",
-    "The Profile flow is the active launch-safe settings surface for FAQ, support, legal pages, and account actions.",
-    "Onboarding now uses launch-safe trust cues (`Start free`, `account optional`, `watch optional`) instead of overpromising Premium or watch dependencies.",
-    "The Profile hub is now sectioned around account, coaching, and help/legal so the launch settings IA is clearer without exposing unfinished Premium screens.",
-    "Launch-safe SwiftUI settings pages now exist for coaching, audio/voices, and history/data without changing workout runtime behavior.",
-    "FAQ, contact support, privacy policy, terms, and delete-account guidance now exist as fuller launch-safe SwiftUI pages with explicit placeholders instead of short stubs.",
-    "Profile settings now show explicit account status and no longer use misleading chevrons on static name and experience rows.",
-    "Settings now include a launch-safe About Coachi page, real in-app support email copy, and an advanced audio-maintenance link instead of routing users straight into a technical settings stub.",
-    "About Coachi, Contact support, and Delete account now expose direct mail actions to `AI.Coachi@hotmail.com` so support flows are actionable before broader account tooling is built.",
+    "Apple Sign-In is enabled in the iPhone app target, and Apple auth is the only real launch-safe mobile provider path in the current app build.",
+    "Watch capability gating, companion embedding/signing, request-id correlation, and local fallback semantics are implemented on the existing WatchConnectivity path.",
+    "The watch app now ships watch-specific app-icon assets and a running dashboard with large BPM plus local remaining/elapsed time.",
+    "Live HR from the watch can reach the iPhone over the current WC path on real paired devices when the companion app is installed.",
+    "Workout talk is Grok-first for wake-word and button triggers, but still depends on backend latency and the current talk capture path.",
+    "Wake-word workout talk now suspends speech recognition more gracefully before capture to reduce `kAFAssistantErrorDomain Code=1101` churn on device.",
+    "Post-workout xAI live voice with Rex is enabled by default, tier-limited, and isolated from the continuous workout runtime.",
+    "`Talk to Coach Live` uses sanitized post-workout summary context only, not full user/workout history, and falls back to the existing `/coach/talk` path.",
+    "Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.",
+]
+
+PHASE_STATUS = [
+    (
+        "Phase 1",
+        "Voice + NO/EN experience",
+        "Mostly done / launchable",
+        "V2 NO/EN voice workflow, launch-safe settings/legal/support, Apple Sign-In enablement, watch icon/dashboard polish, and summary live-voice CTA parity are implemented.",
+        "Finish deployed phrase-rotation, coach-score, and no-HR audits on real devices / live backend.",
+    ),
+    (
+        "Phase 2",
+        "Deterministic event motor",
+        "Done with guarded follow-ups",
+        "Deterministic ownership remains in `zone_event_motor.py`; talk safety, auth hardening, rate limiting, and live-voice isolation are on the single runtime path.",
+        "Complete targeted dead-code cleanup and final production launch smoke without touching the continuous runtime architecture.",
+    ),
+    (
+        "Phase 3",
+        "Sensor layer (Watch HR/cadence + fallback)",
+        "Partial but launch-usable",
+        "Watch capability gating, companion embedding/signing, request correlation, HR backfeed, local fallback behavior, and the watch running dashboard are implemented.",
+        "Run longer paired-device soak tests for reachability transitions, start ACK edge cases, and any cadence/live-pulse follow-up.",
+    ),
+    (
+        "Phase 4",
+        "LLM as language layer only",
+        "Controlled / partial rollout",
+        "Grok-first workout talk and xAI live voice now sit on constrained language surfaces, while continuous coaching remains deterministic-first.",
+        "Validate deployed xAI live voice rollout, free/premium limits, and keep the summary-only memory boundary explicit unless product policy changes.",
+    ),
 ]
 
 KNOWN_REMAINING_STEPS = [
-    ("Phase 1", "Auth and security surface cleanup", "Remove or fully hide placeholder providers, verify Apple sign-in readiness, and keep explicit production env requirements (`JWT_SECRET`, auth flags, mail envs)."),
-    ("Phase 1", "Phrase rotation and coach score verification", "Finish the launch audit of phrase rotation behavior and coach-score credibility on the deployed backend and app bundle."),
-    ("Phase 1", "No-HR product validation", "Verify deployed no-HR structure coaching, phrase/audio parity, and local-pack vs bundled-core resolution on real devices."),
-    ("Phase 1", "Launch settings completion", "Fill legal/company placeholders, keep only useful launch-critical settings visible, and avoid exposing unfinished Premium or data-management screens."),
-    ("Phase 1", "Launch settings implementation", "Only small launch-safe settings batches remain in SwiftUI; keep Premium, export, restore-purchase, and broader data-management surfaces deferred until they are real."),
-    ("Phase 1", "Website and email automation", "Improve launch-site truthfulness and wire a basic waitlist/app welcome email path without overbuilding marketing systems."),
-    ("Phase 1", "Targeted dead-code cleanup", "Delete only legacy or unused paths that reduce launch risk without destabilizing the runtime."),
-    ("Phase 2", "Premium architecture and gating", "Ship feature flags first, then StoreKit, paywalls, talk limits, extended history, and advanced analytics on the same runtime path."),
-    ("Phase 2", "Watch live pulse after launch", "Keep iPhone-first launch unblocked; return to real watch live pulse only after launch readiness and Apple developer constraints are resolved."),
+    ("Phase 1", "Deployed phrase and coach-score audit", "Finish real-device and deployed validation for phrase rotation, coach-score credibility, and audio/source parity."),
+    ("Phase 1", "No-HR launch validation", "Verify no-HR structure coaching, local-pack vs backend TTS behavior, and score ceilings on real sessions."),
+    ("Phase 1", "Launch ops smoke", "Run `scripts/release_check.sh`, live voice smoke, and final landing/mail smoke once Render and production envs are confirmed live."),
+    ("Phase 2", "Targeted dead-code cleanup", "Delete only verified dormant paths that reduce launch risk without introducing a second runtime architecture."),
+    ("Phase 2", "Premium follow-up architecture", "Keep free-mode/tiered live voice as-is until StoreKit, durable entitlements, paywalls, and restore-purchase flows are genuinely real."),
+    ("Phase 3", "Watch soak testing", "Continue paired-device testing for `watchReady` <-> `watchInstalledNotReachable` transitions, delayed ACK behavior, and longer workout sessions."),
+    ("Phase 3", "Wake-word device validation", "Repeat wake-word talk capture on physical devices and confirm the local speech-service churn stays suppressed after the suspend handoff change."),
+    ("Phase 4", "xAI live rollout validation", "Validate deployed xAI live voice sessions, free/premium limits, fallback behavior, and session-duration policy with real accounts."),
+    ("Phase 4", "Explicit memory policy", "If broader history is ever added to live voice, document it as a deliberate product change; current truth is summary-only context."),
 ]
 
 
@@ -366,6 +404,13 @@ def _format_recent_session_learnings() -> str:
 
 def _format_current_status() -> str:
     return "\n".join(f"- {item}" for item in CURRENT_STATUS)
+
+
+def _format_phase_status() -> str:
+    lines = ["| Phase | Scope | Status | Done | Missing |", "|---|---|---|---|---|"]
+    for phase, scope, status, done, missing in PHASE_STATUS:
+        lines.append(f"| {phase} | {scope} | {status} | {done} | {missing} |")
+    return "\n".join(lines)
 
 
 def _format_remaining_steps() -> str:
@@ -612,18 +657,22 @@ def build_guide() -> str:
 
         {_format_current_status()}
 
-        ## 15. Remaining Roadmap
+        ## 15. Phase 1-4 Status Snapshot
+
+        {_format_phase_status()}
+
+        ## 16. Remaining Roadmap
 
         {_format_remaining_steps()}
 
-        ## 16. Documentation Hygiene Rules
+        ## 17. Documentation Hygiene Rules
 
         1. This file is generated. Update [{Path('scripts/generate_codebase_guide.py').name}]({_abs('scripts/generate_codebase_guide.py')}) and regenerate.
         2. The sync contract lives in [test_codebase_guide_sync.py]({_abs('tests_phaseb/test_codebase_guide_sync.py')}).
         3. Release checks should fail if this guide drifts from the generator.
         4. Runtime code is more authoritative than historical docs.
 
-        ## 17. Final Rule
+        ## 18. Final Rule
 
         When in doubt:
         - preserve the single existing runtime path

@@ -48,3 +48,10 @@ def test_workout_view_model_uses_arbiter_as_single_hr_output_path() -> None:
     assert "private func handleWCHRUpdate(bpm: Double, timestamp: TimeInterval)" in text
     assert "watchHRProvider.ingestHeartRate(bpm: bpm, timestamp: timestamp)" in text
 
+
+def test_workout_view_model_marshals_hr_pipeline_updates_to_main_actor() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "watchHRProvider.onSample = { [weak self] sample in\n            Task { @MainActor [weak self] in" in text
+    assert "bleHeartRateProvider.onStatus = { [weak self] status in\n            Task { @MainActor [weak self] in" in text
+    assert "hkFallbackProvider.onStatus = { [weak self] status in\n            Task { @MainActor [weak self] in" in text
+    assert "heartRateArbiter.onOutput = { [weak self] output in\n            Task { @MainActor [weak self] in" in text

@@ -36,3 +36,15 @@ def test_wake_word_manager_uses_phrase_spotting_and_no_command_transcription() -
     assert "request.contextualStrings = currentWakeWords" in text
     assert "matchesWakePhrase" in text
     assert "Phase 2: Capturing utterance after wake word" not in text
+
+
+def test_wake_word_manager_suspends_cleanly_for_workout_talk_and_degrades_on_service_interrupts() -> None:
+    text = _wakeword_text()
+    assert "func suspendForWorkoutTalk()" in text
+    assert 'reason: "workout_talk"' in text
+    assert "private var isSuspendingRecognition = false" in text
+    assert "request?.endAudio()" in text
+    assert "speechServiceInterrupted && self.isSuspendingRecognition" in text
+    assert "self.enterDegradedMode(reason: detail)" in text
+    assert "private func isSpeechServiceInterruption(_ error: Error) -> Bool" in text
+    assert "AudioPipelineDiagnostics.shared.recordSpeechRestart(" in text

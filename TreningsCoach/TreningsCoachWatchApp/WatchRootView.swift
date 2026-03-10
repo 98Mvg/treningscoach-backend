@@ -17,6 +17,7 @@ struct WatchRootView: View {
             .onAppear {
                 wcManager.onRemoteStopRequest = { _ in
                     workoutManager.stopWorkout(sendRemoteSignal: false)
+                    wcManager.showStartScreen = false
                 }
             }
             .navigationDestination(isPresented: $wcManager.showStartScreen) {

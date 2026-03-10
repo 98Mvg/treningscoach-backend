@@ -66,6 +66,7 @@ class WakeWordManager: ObservableObject {
     private var restartWindowStart: Date = .distantPast
     private var pendingRestartTask: Task<Void, Never>?
     private var degradedRecoveryTask: Task<Void, Never>?
+    private var isSuspendingRecognition = false
     private let restartWindowSeconds: TimeInterval = 20.0
     private let maxRestartAttemptsPerWindow = 6
     private let maxRestartBackoffSeconds: TimeInterval = 5.0
@@ -127,11 +128,18 @@ class WakeWordManager: ObservableObject {
         }
         diag.speechRecognizerAvailable = true
 
-        // Cancel any existing task
-        stopListening()
-
+        // If Apple's local speech service is recovering, keep the manager wired to
+        // the shared audio engine but avoid thrashing the recognizer meanwhile.
         self.audioEngine = audioEngine
         self.onUtteranceCaptured = onUtterance
+        if isDegradedMode {
+            diag.log(.speechRecogError, detail: "Wake word paused while speech service recovers")
+            print("⚠️ Wake word paused while speech service recovers")
+            return
+        }
+
+        // Cancel any existing task
+        stopListening()
 
         // Create recognition request
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -267,6 +275,16 @@ class WakeWordManager: ObservableObject {
         diag.log(.wakeWordListening, detail: "Button capture started")
     }
 
+    /// Suspend wake-word listening cleanly while workout talk uses the shared mic path.
+    /// Ending audio before cancellation reduces Apple speech-service churn during talk capture.
+    func suspendForWorkoutTalk() {
+        teardownRecognition(
+            reason: "workout_talk",
+            preserveDegradedMode: true,
+            gracefulCancelDelay: 0.12
+        )
+    }
+
     /// Finish a button-triggered capture session
     private func finishCapture() {
         guard isCapturingUtterance else { return }  // Already finished
@@ -311,28 +329,12 @@ class WakeWordManager: ObservableObject {
 
     /// Stop listening for wake word
     func stopListening() {
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        recognitionRequest?.endAudio()
-        recognitionRequest = nil
-        utteranceCaptureTimer?.invalidate()
-        utteranceCaptureTimer = nil
-        isListening = false
-        isCapturingUtterance = false
-        isButtonCaptureSession = false
-        wakeWordDetected = false
-        isDegradedMode = false
-        lastWakeDetectionAt = nil
-        restartAttemptCount = 0
-        restartWindowStart = .distantPast
-        pendingRestartTask?.cancel()
-        pendingRestartTask = nil
-        degradedRecoveryTask?.cancel()
-        degradedRecoveryTask = nil
-
-        AudioPipelineDiagnostics.shared.isWakeWordListening = false
-        AudioPipelineDiagnostics.shared.wakeWordDetected = false
-        print("🔇 Wake word listening stopped")
+        let preserveDegradedMode = isDegradedMode || degradedRecoveryTask != nil
+        teardownRecognition(
+            reason: "stop",
+            preserveDegradedMode: preserveDegradedMode,
+            gracefulCancelDelay: 0
+        )
     }
 
     /// Clear wake retrigger cooldown after talk ends so the user can retry
@@ -353,10 +355,14 @@ class WakeWordManager: ObservableObject {
                 let canceled = self.isCancellationLikeError(error)
                 let detail = error.localizedDescription
                 let noSpeech = self.isNoSpeechError(error)
+                let speechServiceInterrupted = self.isSpeechServiceInterruption(error)
 
                 // Transitional cancellation/no-speech can happen when switching between
                 // wake-word listening and manual button capture; keep logs clean.
-                if canceled || (!self.isListening && (self.isButtonCaptureSession || noSpeech)) {
+                if canceled || (speechServiceInterrupted && self.isSuspendingRecognition) {
+                    return
+                }
+                if !self.isListening && (self.isButtonCaptureSession || noSpeech || speechServiceInterrupted) {
                     return
                 }
 
@@ -383,6 +389,8 @@ class WakeWordManager: ObservableObject {
                                 isErrorRetry: false,
                                 delayOverride: self.idleNoSpeechRestartDelaySeconds
                             )
+                        } else if speechServiceInterrupted {
+                            self.enterDegradedMode(reason: detail)
                         } else {
                             self.restartRecognition(reason: detail, isErrorRetry: true)
                         }
@@ -435,6 +443,56 @@ class WakeWordManager: ObservableObject {
         let escaped = NSRegularExpression.escapedPattern(for: phrase)
         let pattern = "(^|[^a-zA-ZæøåÆØÅ])\(escaped)([^a-zA-ZæøåÆØÅ]|$)"
         return transcription.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    private func teardownRecognition(
+        reason: String,
+        preserveDegradedMode: Bool,
+        gracefulCancelDelay: TimeInterval
+    ) {
+        let task = recognitionTask
+        let request = recognitionRequest
+
+        recognitionTask = nil
+        recognitionRequest = nil
+        utteranceCaptureTimer?.invalidate()
+        utteranceCaptureTimer = nil
+        isListening = false
+        isCapturingUtterance = false
+        isButtonCaptureSession = false
+        wakeWordDetected = false
+        lastWakeDetectionAt = nil
+        restartAttemptCount = 0
+        restartWindowStart = .distantPast
+        pendingRestartTask?.cancel()
+        pendingRestartTask = nil
+
+        if preserveDegradedMode {
+            isDegradedMode = true
+        } else {
+            isDegradedMode = false
+            degradedRecoveryTask?.cancel()
+            degradedRecoveryTask = nil
+        }
+
+        AudioPipelineDiagnostics.shared.isWakeWordListening = false
+        AudioPipelineDiagnostics.shared.wakeWordDetected = false
+        request?.endAudio()
+
+        if gracefulCancelDelay > 0 {
+            isSuspendingRecognition = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + gracefulCancelDelay) {
+                task?.cancel()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + gracefulCancelDelay + 0.35) { [weak self] in
+                self?.isSuspendingRecognition = false
+            }
+            print("🔇 Wake word listening suspended (\(reason))")
+        } else {
+            task?.cancel()
+            isSuspendingRecognition = false
+            print("🔇 Wake word listening stopped")
+        }
     }
 
     private func resetErrorRetryState() {
@@ -517,9 +575,28 @@ class WakeWordManager: ObservableObject {
         }
     }
 
+    private func enterDegradedMode(reason: String) {
+        guard audioEngine != nil, speechRecognizer != nil else { return }
+        AudioPipelineDiagnostics.shared.recordSpeechRestart(
+            detail: "Speech service interrupted: \(reason)",
+            degraded: true
+        )
+        teardownRecognition(
+            reason: "speech_service_interrupted",
+            preserveDegradedMode: true,
+            gracefulCancelDelay: 0
+        )
+        scheduleDegradedRecovery()
+    }
+
     private func isNoSpeechError(_ error: Error) -> Bool {
         let text = error.localizedDescription.lowercased()
         return text.contains("no speech")
+    }
+
+    private func isSpeechServiceInterruption(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        return nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 1101 || nsError.code == 1107 || nsError.code == 1110)
     }
 
     private func isCancellationLikeError(_ error: Error) -> Bool {
@@ -530,9 +607,6 @@ class WakeWordManager: ObservableObject {
             return true
         }
         if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-            return true
-        }
-        if nsError.domain == "kAFAssistantErrorDomain" && (nsError.code == 1101 || nsError.code == 1107 || nsError.code == 1110) {
             return true
         }
         if nsError.domain == "kAFAssistantErrorDomain" && text.contains("recognition request was canceled") {

@@ -225,23 +225,23 @@ struct WorkoutCompleteView: View {
             }
             showLiveCoachVoice = true
         } label: {
-            Text(liveCoachVoiceLabel)
-                .font(.system(size: 15, weight: .semibold))
-                .tracking(0.8)
-                .foregroundColor(Color.black.opacity(0.88))
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "A5F3EC").opacity(0.98), Color(hex: "67E8F9").opacity(0.94)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
+            HStack(spacing: 9) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 17, weight: .bold))
+                Text(liveCoachVoiceLabel)
+                    .font(.system(size: 20, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundColor(CoachiTheme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 64)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.white.opacity(0.76))
+            )
         }
+        .buttonStyle(.plain)
     }
 
     private func freezeSummaryValues() {

@@ -65,7 +65,12 @@ final class PhoneWCManager: NSObject, ObservableObject {
         session.activate()
     }
 
-    func sendStartRequest(workoutType: String, timestamp: TimeInterval, requestID: String) -> StartRequestOutcome {
+    func sendStartRequest(
+        workoutType: String,
+        timestamp: TimeInterval,
+        requestID: String,
+        context: [String: Any] = [:]
+    ) -> StartRequestOutcome {
         guard WCSession.isSupported() else {
             return .failed("watch_unavailable")
         }
@@ -77,12 +82,13 @@ final class PhoneWCManager: NSObject, ObservableObject {
             return .failed("watch_unavailable")
         }
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.requestStartWorkout,
             WCKeys.requestId: requestID,
             WCKeys.workoutType: WCKeys.WorkoutType.normalized(workoutType),
             WCKeys.timestamp: timestamp,
         ]
+        context.forEach { payload[$0.key] = $0.value }
 
         switch watchCapabilityState {
         case .watchReady:

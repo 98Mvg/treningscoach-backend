@@ -16,6 +16,10 @@ def test_wc_keys_define_required_commands_on_both_sides() -> None:
 
     assert 'static let requestId = "request_id"' in ios_text
     assert 'static let requestId = "request_id"' in watch_text
+    assert 'static let warmupSeconds = "warmup_seconds"' in ios_text
+    assert 'static let mainSeconds = "main_seconds"' in watch_text
+    assert 'static let intervalWorkSeconds = "interval_work_seconds"' in ios_text
+    assert 'static let easyRunSessionMode = "easy_run_session_mode"' in watch_text
 
     for command in (
         "request_start_workout",
@@ -42,6 +46,7 @@ def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     assert ".liveRequestSent" in text
     assert ".deferredAndFallback" in text
     assert "WCKeys.requestId: requestID" in text
+    assert "context.forEach { payload[$0.key] = $0.value }" in text
     assert "guard canUseWatchTransport else {" in text
     assert "guard canUseWatchTransport else {" in text
     assert "WATCH_NOTIFY_SKIPPED reason=watch_unavailable" in text
@@ -63,6 +68,7 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "private var pendingWatchRequestTimestamp: TimeInterval?" in text
     assert "private var pendingWatchRequestId: String?" in text
     assert "private var activeWatchRequestId: String?" in text
+    assert "private var isWatchBackedContinuousSession = false" in text
     assert "private let watchStartAckTimeoutSeconds: TimeInterval = 15.0" in text
     assert "requestWatchStartOrFallback()" in text
     assert "scheduleWatchStartAckTimeout(requestTimestamp:" in text
@@ -70,6 +76,7 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "handleWatchWorkoutStartFailed(error:" in text
     assert "handleWatchWorkoutStopped(timestamp:" in text
     assert "guard requestID == pendingWatchRequestId else { return }" in text
+    assert "guard isWatchBackedContinuousSession," in text
     assert "func startWorkout()" in text
     assert "func startWorkout() {\n        activeSessionPlan = buildSessionPlanFromSelections()" in text
     assert "watchStartStatusLine = launchAuthRequirementText" not in text
@@ -82,10 +89,13 @@ def test_watch_side_receives_both_message_and_application_context() -> None:
     assert "requestTTLSeconds: TimeInterval = 120" in text
     assert "handledRequestIDs" in text
     assert "guard !requestID.isEmpty else { return }" in text
+    assert "@Published var pendingSessionPlan: WatchSessionPlanSnapshot?" in text
+    assert "pendingSessionPlan = WatchSessionPlanSnapshot(payload: payload)" in text
 
 
 def test_watch_workout_ack_and_failure_semantics() -> None:
     text = WATCH_WORKOUT.read_text(encoding="utf-8")
+    assert "sessionPlan: WatchSessionPlanSnapshot?" in text
     assert "builder.beginCollection(withStart: startDate)" in text
     assert "self.sendStartedAck(workoutType: workoutType)" in text
     assert "self.sendStartFailed(error:" in text

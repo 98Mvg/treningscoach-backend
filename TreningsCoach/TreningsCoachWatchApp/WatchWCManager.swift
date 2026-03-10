@@ -1,11 +1,59 @@
 import Foundation
 import WatchConnectivity
 
+struct WatchSessionPlanSnapshot: Equatable {
+    let warmupSeconds: Int
+    let mainSeconds: Int
+    let cooldownSeconds: Int
+    let intervalRepeats: Int?
+    let intervalWorkSeconds: Int?
+    let intervalRecoverySeconds: Int?
+    let easyRunSessionMode: String
+
+    init?(payload: [String: Any]) {
+        let warmupSeconds = max(0, Self.parseInt(payload[WCKeys.warmupSeconds]) ?? 0)
+        let mainSeconds = max(0, Self.parseInt(payload[WCKeys.mainSeconds]) ?? 0)
+        let cooldownSeconds = max(0, Self.parseInt(payload[WCKeys.cooldownSeconds]) ?? 0)
+        let easyRunSessionMode = (payload[WCKeys.easyRunSessionMode] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+
+        let hasTimingData = warmupSeconds > 0 || mainSeconds > 0 || cooldownSeconds > 0 || easyRunSessionMode == "free_run"
+        guard hasTimingData else { return nil }
+
+        self.warmupSeconds = warmupSeconds
+        self.mainSeconds = mainSeconds
+        self.cooldownSeconds = cooldownSeconds
+        self.intervalRepeats = Self.parseInt(payload[WCKeys.intervalRepeats])
+        self.intervalWorkSeconds = Self.parseInt(payload[WCKeys.intervalWorkSeconds])
+        self.intervalRecoverySeconds = Self.parseInt(payload[WCKeys.intervalRecoverySeconds])
+        self.easyRunSessionMode = easyRunSessionMode
+    }
+
+    var isFreeRun: Bool {
+        easyRunSessionMode == "free_run"
+    }
+
+    var totalDurationSeconds: Int? {
+        guard !isFreeRun else { return nil }
+        let total = warmupSeconds + mainSeconds + cooldownSeconds
+        return total > 0 ? total : nil
+    }
+
+    private static func parseInt(_ value: Any?) -> Int? {
+        if let intValue = value as? Int { return intValue }
+        if let numberValue = value as? NSNumber { return numberValue.intValue }
+        if let stringValue = value as? String, let parsed = Int(stringValue) { return parsed }
+        return nil
+    }
+}
+
 @MainActor
 final class WatchWCManager: NSObject, ObservableObject {
     @Published var pendingWorkoutType: String?
     @Published var pendingRequestId: String?
     @Published var pendingRequestTimestamp: TimeInterval?
+    @Published var pendingSessionPlan: WatchSessionPlanSnapshot?
     @Published var showStartScreen: Bool = false
 
     private var handledRequestIDs: [String: TimeInterval] = [:]
@@ -49,6 +97,7 @@ final class WatchWCManager: NSObject, ObservableObject {
         pendingRequestId = requestID
         pendingRequestTimestamp = timestamp
         pendingWorkoutType = WCKeys.WorkoutType.normalized(payload[WCKeys.workoutType] as? String)
+        pendingSessionPlan = WatchSessionPlanSnapshot(payload: payload)
         showStartScreen = true
     }
 
