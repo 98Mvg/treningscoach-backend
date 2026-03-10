@@ -315,6 +315,92 @@ def test_workout_talk_fast_falls_back_when_stt_errors(monkeypatch, tmp_path):
     assert "Stay smooth and controlled" in payload["text"]
 
 
+def test_workout_talk_fast_falls_back_when_stt_is_disabled(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    called = {"router": False}
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main,
+        "transcribe_talk_audio",
+        lambda filepath, language, timeout_seconds: (None, "stt_disabled"),
+    )
+
+    def _unexpected_router(*args, **kwargs):
+        called["router"] = True
+        return "Should not be used."
+
+    monkeypatch.setattr(main.brain_router, "get_question_response", _unexpected_router)
+    monkeypatch.setattr(main.config, "TALK_CONTEXT_SUMMARY_ENABLED", True, raising=False)
+
+    client = main.app.test_client()
+    with open(fake_audio, "rb") as audio_handle:
+        response = client.post(
+            "/coach/talk",
+            data={
+                "context": "workout",
+                "trigger_source": "wake_word",
+                "language": "en",
+                "persona": "personal_trainer",
+                "audio": (audio_handle, "talk.wav"),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["fallback_used"] is True
+    assert payload["provider"] == "config"
+    assert payload["stt_source"] == "stt_disabled"
+    assert called["router"] is False
+    assert "Stay smooth and controlled" in payload["text"]
+
+
+def test_workout_talk_fast_falls_back_when_stt_is_quota_limited(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "talk.wav"
+    fake_audio.write_bytes(b"RIFF")
+
+    called = {"router": False}
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(
+        main,
+        "transcribe_talk_audio",
+        lambda filepath, language, timeout_seconds: (None, "stt_quota_limited"),
+    )
+
+    def _unexpected_router(*args, **kwargs):
+        called["router"] = True
+        return "Should not be used."
+
+    monkeypatch.setattr(main.brain_router, "get_question_response", _unexpected_router)
+    monkeypatch.setattr(main.config, "TALK_CONTEXT_SUMMARY_ENABLED", True, raising=False)
+
+    client = main.app.test_client()
+    with open(fake_audio, "rb") as audio_handle:
+        response = client.post(
+            "/coach/talk",
+            data={
+                "context": "workout",
+                "trigger_source": "wake_word",
+                "language": "en",
+                "persona": "personal_trainer",
+                "audio": (audio_handle, "talk.wav"),
+            },
+            content_type="multipart/form-data",
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["fallback_used"] is True
+    assert payload["provider"] == "config"
+    assert payload["stt_source"] == "stt_quota_limited"
+    assert called["router"] is False
+    assert "Stay smooth and controlled" in payload["text"]
+
+
 def test_workout_talk_forces_grok_only_for_button_and_wake_word(monkeypatch, tmp_path):
     fake_audio = tmp_path / "talk.wav"
     fake_audio.write_bytes(b"RIFF")

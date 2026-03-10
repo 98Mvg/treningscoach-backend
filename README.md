@@ -297,7 +297,7 @@ Cloudflare deploy source of truth is now versioned in git:
 | `ELEVENLABS_VOICE_ID` | Yes | Default English voice ID |
 | `ELEVENLABS_VOICE_ID_NO` | Recommended | Norwegian voice ID (fallback: nhvaqgRyAq6BmFs3WcdX) |
 | `ANTHROPIC_API_KEY` | If using Claude | Claude API key |
-| `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
+| `OPENAI_API_KEY` | Only if `TALK_STT_ENABLED=true` or OpenAI is explicitly enabled elsewhere | OpenAI API key |
 | `GEMINI_API_KEY` | If using Gemini | Gemini API key |
 | `JWT_ACCESS_TOKEN_MAX_DAYS` | Recommended | Access token TTL (default: 7 days) |
 | `JWT_REFRESH_TOKEN_MAX_DAYS` | Recommended | Refresh token TTL (default: 7 days) |

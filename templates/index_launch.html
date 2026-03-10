@@ -188,19 +188,15 @@
             opacity: 0; transform: translateX(-30px);
             animation: fadeInLeft 0.8s ease 0.6s forwards;
         }
-        .store-badge-hero {
-            display: inline-flex; align-items: center; gap: 10px;
-            border-radius: 12px; padding: 12px 22px;
-            background: rgba(255,255,255,0.12); color: #fff; text-decoration: none;
-            transition: transform 0.2s, background 0.2s;
-            border: 1px solid rgba(255,255,255,0.20);
-            backdrop-filter: blur(8px);
+        .hero-btn {
+            display: inline-block; padding: 16px 44px;
+            background: var(--teal); color: #fff; text-decoration: none;
+            font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.1rem;
+            border-radius: 14px; letter-spacing: -0.01em;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(32, 185, 167, 0.35);
         }
-        .store-badge-hero:hover { transform: translateY(-2px); background: rgba(255,255,255,0.18); }
-        .store-badge-hero .badge-icon { font-size: 1.5rem; line-height: 1; }
-        .store-badge-hero .badge-text { text-align: left; }
-        .store-badge-hero .badge-text .prefix { font-size: 0.62rem; opacity: 0.8; display: block; line-height: 1.1; }
-        .store-badge-hero .badge-text .name { font-size: 1.05rem; font-weight: 700; display: block; line-height: 1.2; }
+        .hero-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(32, 185, 167, 0.5); }
 
         /* ── HERO DEVICES ── */
         .hero-devices {
@@ -882,17 +878,10 @@
                 </div>
                 <div class="hero-inner">
                     <div class="hero-copy">
-                        <h1 data-i18n="hero_title">F&aring; tydelig veiledning mens du l&oslash;per ved hjelp av kunstig intelligens</h1>
-                        <p data-i18n="hero_body">Coachen hjelper deg &aring; holde riktig tempo, basert p&aring; puls og pust-analyse.</p>
+                        <h1 data-i18n="hero_title">Din personlige l&oslash;pecoach</h1>
+                        <p data-i18n="hero_body">AI-drevet stemmeveiledning som hjelper deg l&oslash;pe smartere.</p>
                         <div class="hero-cta-row">
-                            <a class="store-badge-hero" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                                <span class="badge-icon">&#63743;</span>
-                                <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">App Store</span></span>
-                            </a>
-                            <a class="store-badge-hero" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                                <span class="badge-icon">&#9654;</span>
-                                <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
-                            </a>
+                            <a class="hero-btn" href="#download" data-landing-event="hero_cta_click" data-i18n="hero_cta">Kom i gang</a>
                         </div>
                     </div>
                     <div class="hero-devices">
@@ -1234,8 +1223,9 @@
                 nav_faq: "Sp\u00f8rsm\u00e5l",
                 nav_download: "Last ned",
                 nav_home: "Hjem",
-                hero_title: "F\u00e5 tydelig veiledning mens du l\u00f8per ved hjelp av kunstig intelligens",
-                hero_body: "Coachen hjelper deg \u00e5 holde riktig tempo, basert p\u00e5 puls og pust-analyse.",
+                hero_title: "Din personlige l\u00f8pecoach",
+                hero_body: "AI-drevet stemmeveiledning som hjelper deg l\u00f8pe smartere.",
+                hero_cta: "Kom i gang",
                 store_prefix: "Last ned p\u00e5",
                 works_with_label: "Fungerer med",
                 two_numbers_title: "F\u00e5 en score basert p\u00e5 kvaliteten p\u00e5 treningen",
@@ -1323,8 +1313,9 @@
                 nav_faq: "FAQ",
                 nav_download: "Download",
                 nav_home: "Home",
-                hero_title: "Get clear guidance while you run, powered by artificial intelligence",
-                hero_body: "The coach helps you keep the right pace, based on heart rate and breathing analysis.",
+                hero_title: "Your personal running coach",
+                hero_body: "AI-powered voice coaching that helps you run smarter.",
+                hero_cta: "Get started",
                 store_prefix: "Download on",
                 works_with_label: "Works with",
                 two_numbers_title: "Get a score based on your workout quality",

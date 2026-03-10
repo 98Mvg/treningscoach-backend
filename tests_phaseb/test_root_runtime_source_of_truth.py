@@ -25,6 +25,14 @@ def test_release_check_runs_source_of_truth_guard():
     assert "generate_codebase_guide.py --check" in content
 
 
+def test_release_check_uses_curl_timeouts_for_prod_probes():
+    content = _read_text("scripts/release_check.sh")
+    assert 'CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-10}"' in content
+    assert 'CURL_MAX_TIME="${CURL_MAX_TIME:-20}"' in content
+    assert 'curl_checked() {' in content
+    assert '--connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}"' in content
+
+
 def test_backend_runtime_modules_are_wrappers():
     files = [
         "auth.py",
