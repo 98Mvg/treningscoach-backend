@@ -4,6 +4,7 @@ This repo now includes Cloudflare Worker deploy config in git:
 
 - `/Users/mariusgaarder/Documents/treningscoach/wrangler.toml`
 - `/Users/mariusgaarder/Documents/treningscoach/cloudflare/worker.js`
+- `/Users/mariusgaarder/Documents/treningscoach/package.json`
 
 ## Why this exists
 
@@ -26,6 +27,13 @@ This repo now includes Cloudflare Worker deploy config in git:
 - Compatibility date
 - `ORIGIN_URL` default: `https://treningscoach-backend.onrender.com`
 
+`package.json` defines:
+
+- pinned Wrangler dependency for Workers Builds
+- `cf:deploy`
+- `cf:dry-run`
+- `cf:versions:upload`
+
 ## Deploy
 
 ```bash
@@ -47,8 +55,9 @@ Expect HTTP 200 for both.
 In Cloudflare Workers project:
 
 1. Set project to use repo root.
-2. Ensure build/deploy uses `wrangler.toml`.
-3. Remove old static-assets-only build settings if present.
-4. Redeploy latest commit.
+2. Ensure build/deploy uses `wrangler.toml` from repo root.
+3. Ensure Workers Builds sees the root `package.json` so it installs the repo-pinned Wrangler version.
+4. Remove old static-assets-only build settings if present.
+5. Redeploy latest commit.
 
 After that, config is controlled from git instead of ad-hoc dashboard edits.

@@ -242,6 +242,7 @@ Cloudflare deploy source of truth is now versioned in git:
 
 - `/Users/mariusgaarder/Documents/treningscoach/wrangler.toml`
 - `/Users/mariusgaarder/Documents/treningscoach/cloudflare/worker.js`
+- `/Users/mariusgaarder/Documents/treningscoach/package.json`
 - guide: [/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md](/Users/mariusgaarder/Documents/treningscoach/docs/CLOUDFLARE_DEPLOY_SOURCE_OF_TRUTH.md)
 
 ## 📊 API Endpoints

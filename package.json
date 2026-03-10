@@ -1,0 +1,17 @@
+{
+  "name": "treningscoach-backend-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "cf:deploy": "wrangler deploy",
+    "cf:dry-run": "wrangler deploy --dry-run",
+    "cf:versions:upload": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "wrangler": "^4.71.0"
+  }
+}
