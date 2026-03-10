@@ -6,6 +6,7 @@ PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbx
 WATCH_ROOT = REPO_ROOT / "TreningsCoach" / "TreningsCoachWatchApp"
 WATCH_PLIST = WATCH_ROOT / "Info.plist"
 WATCH_ENTITLEMENTS = WATCH_ROOT / "TreningsCoachWatchApp.entitlements"
+WATCH_ROOT_VIEW = WATCH_ROOT / "WatchRootView.swift"
 
 
 def test_project_contains_watch_target_markers() -> None:
@@ -13,6 +14,14 @@ def test_project_contains_watch_target_markers() -> None:
     assert "WDTARGET /* TreningsCoachWatchApp */" in text
     assert 'productType = "com.apple.product-type.application";' in text
     assert "WDWATCHAPP /* TreningsCoachWatch.app */" in text
+
+
+def test_phone_target_embeds_watch_app_and_depends_on_watch_target() -> None:
+    text = PBXPROJ.read_text(encoding="utf-8")
+    assert 'name = "Embed Watch Content";' in text
+    assert 'dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";' in text
+    assert "TreningsCoachWatch.app in Embed Watch Content" in text
+    assert "WD3004 /* PBXTargetDependency */" in text
 
 
 def test_watch_target_contains_healthkit_usage_key_in_build_settings() -> None:
@@ -46,3 +55,9 @@ def test_watch_plist_enables_workout_processing_background_mode() -> None:
     text = WATCH_PLIST.read_text(encoding="utf-8")
     assert "WKBackgroundModes" in text
     assert "workout-processing" in text
+
+
+def test_watch_root_uses_modern_navigation_destination_api() -> None:
+    text = WATCH_ROOT_VIEW.read_text(encoding="utf-8")
+    assert ".navigationDestination(isPresented: $wcManager.showStartScreen)" in text
+    assert "NavigationLink(" not in text

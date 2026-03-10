@@ -27,6 +27,7 @@
 		WD1007 /* WatchWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1006 /* WatchWCManager.swift */; };
 		WD1009 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1008 /* WatchWorkoutManager.swift */; };
 		WD1011 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1010 /* WCKeys.swift */; };
+		WD3002 /* TreningsCoachWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = WDWATCHAPP /* TreningsCoachWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA0016 /* WorkoutViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0015 /* WorkoutViewModel.swift */; };
 		AA0020 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0019 /* Config.swift */; };
 		AA0022 /* ContinuousRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0021 /* ContinuousRecordingManager.swift */; };
@@ -68,6 +69,30 @@
 		BB0045 /* WorkoutLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0044 /* WorkoutLaunchView.swift */; };
 		BB0047 /* LiveCoachConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0046 /* LiveCoachConversationView.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		WD3003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAPROJECT /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = WDTARGET;
+			remoteInfo = TreningsCoachWatchApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		WD3001 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				WD3002 /* TreningsCoachWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		955D713A2F544FE0001A88FA /* AudioPackSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPackSyncManager.swift; sourceTree = "<group>"; };
@@ -366,10 +391,12 @@
 				AASOURCES /* Sources */,
 				AAFRAMEWORKS /* Frameworks */,
 				AARESOURCESBUILD /* Resources */,
+				WD3001 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				WD3004 /* PBXTargetDependency */,
 			);
 			name = TreningsCoach;
 			productName = TreningsCoach;
@@ -406,9 +433,25 @@
 				TargetAttributes = {
 					AATARGET = {
 						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+							com.apple.SignInWithApple = {
+								enabled = 1;
+							};
+						};
 					};
 					WDTARGET = {
 						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+							com.apple.HealthKit = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -448,6 +491,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		WD3004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = WDTARGET /* TreningsCoachWatchApp */;
+			targetProxy = WD3003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AASOURCES /* Sources */ = {

@@ -35,6 +35,17 @@ def test_project_does_not_enable_entitlements_modification_override():
     assert "CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;" not in text
 
 
+def test_project_capabilities_match_entitlements_configuration():
+    text = PBXPROJ.read_text(encoding="utf-8")
+    assert "com.apple.HealthKit" in text
+
+    with INFO_PLIST.open("rb") as f:
+        info = plistlib.load(f)
+
+    if bool(info.get("APPLE_SIGN_IN_ENABLED", False)):
+        assert "com.apple.SignInWithApple" in text
+
+
 def test_apple_signin_disabled_mode_has_no_apple_entitlement():
     with INFO_PLIST.open("rb") as f:
         info = plistlib.load(f)

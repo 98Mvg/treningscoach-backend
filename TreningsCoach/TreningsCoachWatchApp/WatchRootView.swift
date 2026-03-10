@@ -10,14 +10,6 @@ struct WatchRootView: View {
                 Text("Coachi")
                     .font(.headline)
 
-                NavigationLink(
-                    destination: WatchStartWorkoutView(wcManager: wcManager, workoutManager: workoutManager),
-                    isActive: $wcManager.showStartScreen
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-
                 Text("Waiting for iPhone…")
                     .foregroundStyle(.secondary)
             }
@@ -26,6 +18,9 @@ struct WatchRootView: View {
                 wcManager.onRemoteStopRequest = { _ in
                     workoutManager.stopWorkout(sendRemoteSignal: false)
                 }
+            }
+            .navigationDestination(isPresented: $wcManager.showStartScreen) {
+                WatchStartWorkoutView(wcManager: wcManager, workoutManager: workoutManager)
             }
         }
     }
