@@ -110,6 +110,22 @@ if APP_FREE_MODE:
     BILLING_ENABLED = False
     PREMIUM_SURFACES_ENABLED = False
 
+# Launch integrations
+POSTHOG_ENABLED = _env_bool("POSTHOG_ENABLED", False)
+POSTHOG_API_KEY = (os.getenv("POSTHOG_API_KEY", "") or "").strip()
+POSTHOG_HOST = (os.getenv("POSTHOG_HOST", "https://us.i.posthog.com") or "https://us.i.posthog.com").strip()
+SENTRY_ENABLED = _env_bool("SENTRY_ENABLED", False)
+SENTRY_DSN = (os.getenv("SENTRY_DSN", "") or "").strip()
+SENTRY_ENVIRONMENT = (
+    os.getenv("SENTRY_ENVIRONMENT")
+    or os.getenv("ENVIRONMENT")
+    or os.getenv("APP_ENV")
+    or os.getenv("FLASK_ENV")
+    or "development"
+).strip()
+SENTRY_RELEASE = (os.getenv("SENTRY_RELEASE", APP_VERSION) or APP_VERSION).strip()
+SENTRY_TRACES_SAMPLE_RATE = _env_float("SENTRY_TRACES_SAMPLE_RATE", 0.0)
+
 # Security posture
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)
 JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 7)

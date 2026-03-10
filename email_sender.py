@@ -12,6 +12,8 @@ import ssl
 from email.message import EmailMessage
 from typing import Any
 
+import requests
+
 
 DEFAULT_SUPPORT_EMAIL = "AI.Coachi@hotmail.com"
 
@@ -33,7 +35,45 @@ def _smtp_settings() -> dict[str, Any]:
     }
 
 
-def is_email_configured() -> bool:
+def _resend_settings() -> dict[str, Any]:
+    return {
+        "api_key": (os.getenv("RESEND_API_KEY") or "").strip(),
+        "api_url": (os.getenv("RESEND_API_URL") or "https://api.resend.com/emails").strip(),
+        "from_email": (os.getenv("EMAIL_FROM") or os.getenv("SUPPORT_EMAIL") or DEFAULT_SUPPORT_EMAIL).strip(),
+        "reply_to": (os.getenv("EMAIL_REPLY_TO") or os.getenv("SUPPORT_EMAIL") or DEFAULT_SUPPORT_EMAIL).strip(),
+        "enabled": _truthy(os.getenv("EMAIL_SENDING_ENABLED")),
+    }
+
+
+def _requested_email_provider() -> str:
+    raw = (os.getenv("EMAIL_PROVIDER") or "auto").strip().lower()
+    if raw in {"smtp", "resend"}:
+        return raw
+    return "auto"
+
+
+def is_resend_configured() -> bool:
+    settings = _resend_settings()
+    return bool(settings["enabled"] and settings["api_key"] and settings["from_email"])
+
+
+def active_email_provider() -> str:
+    requested = _requested_email_provider()
+    smtp_configured = _smtp_configured()
+    resend_configured = is_resend_configured()
+
+    if requested == "resend":
+        return "resend" if resend_configured else "none"
+    if requested == "smtp":
+        return "smtp" if smtp_configured else "none"
+    if resend_configured:
+        return "resend"
+    if smtp_configured:
+        return "smtp"
+    return "none"
+
+
+def _smtp_configured() -> bool:
     settings = _smtp_settings()
     return bool(
         settings["enabled"]
@@ -42,6 +82,10 @@ def is_email_configured() -> bool:
         and settings["password"]
         and settings["from_email"]
     )
+
+
+def is_email_configured() -> bool:
+    return active_email_provider() in {"smtp", "resend"}
 
 
 def _logger(logger: Any):
@@ -61,10 +105,45 @@ class _NoOpLogger:
 
 def _send_email(*, to_email: str, subject: str, body: str, logger: Any = None) -> bool:
     log = _logger(logger)
-    settings = _smtp_settings()
-    if not is_email_configured():
+    provider = active_email_provider()
+    if provider == "none":
         log.info("EMAIL_SEND_SKIPPED reason=not_configured to=%s", to_email)
         return False
+
+    if provider == "resend":
+        settings = _resend_settings()
+        try:
+            response = requests.post(
+                settings["api_url"],
+                headers={
+                    "Authorization": f"Bearer {settings['api_key']}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": settings["from_email"],
+                    "to": [to_email],
+                    "subject": subject,
+                    "text": body,
+                    "reply_to": settings["reply_to"] or None,
+                },
+                timeout=5,
+            )
+            if response.status_code >= 400:
+                log.warning(
+                    "EMAIL_SEND_FAILED provider=resend to=%s subject=%s status=%s body=%s",
+                    to_email,
+                    subject,
+                    response.status_code,
+                    response.text[:200],
+                )
+                return False
+            log.info("EMAIL_SEND_OK provider=resend to=%s subject=%s", to_email, subject)
+            return True
+        except Exception as exc:
+            log.warning("EMAIL_SEND_FAILED provider=resend to=%s subject=%s error=%s", to_email, subject, exc)
+            return False
+
+    settings = _smtp_settings()
 
     message = EmailMessage()
     message["Subject"] = subject
@@ -81,10 +160,10 @@ def _send_email(*, to_email: str, subject: str, body: str, logger: Any = None) -
                 server.starttls(context=context)
             server.login(settings["username"], settings["password"])
             server.send_message(message)
-        log.info("EMAIL_SEND_OK to=%s subject=%s", to_email, subject)
+        log.info("EMAIL_SEND_OK provider=smtp to=%s subject=%s", to_email, subject)
         return True
     except Exception as exc:
-        log.warning("EMAIL_SEND_FAILED to=%s subject=%s error=%s", to_email, subject, exc)
+        log.warning("EMAIL_SEND_FAILED provider=smtp to=%s subject=%s error=%s", to_email, subject, exc)
         return False
 
 

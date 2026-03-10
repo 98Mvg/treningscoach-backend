@@ -51,6 +51,7 @@ def test_health_contract(monkeypatch, tmp_path):
     assert isinstance(payload.get("timestamp"), str)
     assert isinstance(payload.get("quality_guards"), dict)
     assert isinstance(payload.get("product_flags"), dict)
+    assert isinstance(payload.get("integrations"), dict)
     assert isinstance(payload.get("endpoints"), dict)
     assert "coach" not in payload["endpoints"]
     assert payload["endpoints"]["coach_continuous"] == "/coach/continuous"
@@ -391,6 +392,11 @@ def test_app_runtime_contract(monkeypatch, tmp_path):
     assert isinstance(flags.get("billing_enabled"), bool)
     assert isinstance(flags.get("premium_surfaces_enabled"), bool)
     assert isinstance(flags.get("monetization_phase"), str)
+    integrations = payload.get("integrations")
+    assert isinstance(integrations, dict)
+    assert isinstance(integrations.get("posthog"), dict)
+    assert isinstance(integrations.get("sentry"), dict)
+    assert isinstance(integrations.get("email"), dict)
 
 
 def test_landing_analytics_accepts_download_events_and_rejects_legacy_demo(monkeypatch, tmp_path):

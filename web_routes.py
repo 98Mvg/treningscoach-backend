@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from auth import rate_limit
 import config
 from email_sender import send_waitlist_welcome_email
+from launch_integrations import capture_posthog_event, integration_status_snapshot
 
 
 def _utcnow_naive() -> datetime:
@@ -79,6 +80,7 @@ def create_web_blueprint(
                 "timestamp": datetime.now().isoformat(),
                 "quality_guards": quality_guard_snapshot_fn(),
                 "product_flags": product_flags_snapshot_fn(),
+                "integrations": integration_status_snapshot(),
                 "endpoints": {
                     "analyze": "/analyze",
                     "coach_continuous": "/coach/continuous",
@@ -99,6 +101,7 @@ def create_web_blueprint(
                 "version": config_module.APP_VERSION,
                 "timestamp": datetime.now().isoformat(),
                 "product_flags": product_flags_snapshot_fn(),
+                "integrations": integration_status_snapshot(),
             }
         )
 
@@ -180,11 +183,18 @@ def create_web_blueprint(
 
         event = (data.get("event") or "").strip()
         metadata = data.get("metadata", {})
+        remote_addr = request.remote_addr or "unknown"
 
         if event not in valid_landing_events:
             return jsonify({"error": "Invalid event"}), 400
 
         logger.info("Landing analytics event: %s | %s", event, json.dumps(metadata))
+        capture_posthog_event(
+            event,
+            metadata=metadata if isinstance(metadata, dict) else {},
+            distinct_id=f"web:{hashlib.sha256(remote_addr.encode()).hexdigest()[:16]}",
+            logger=logger,
+        )
         return jsonify({"success": True}), 200
 
     return web_bp

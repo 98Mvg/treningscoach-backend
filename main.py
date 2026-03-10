@@ -55,6 +55,7 @@ from workout_contracts import (
     normalize_talk_contract,
     profile_validation_errors,
 )
+from launch_integrations import init_sentry
 
 # Configure logging
 logging.basicConfig(
@@ -76,6 +77,7 @@ def _utcnow_iso_z() -> str:
     return _utcnow().isoformat().replace("+00:00", "Z")
 
 app = Flask(__name__)
+SENTRY_RUNTIME = init_sentry(logger=logger)
 _cors_origins = list(getattr(config, "CORS_ALLOWED_ORIGINS", []) or [])
 CORS(
     app,

@@ -23,12 +23,20 @@ Before deploying to Render or any production-like environment:
    - `ELEVENLABS_API_KEY`
    - `XAI_API_KEY`
    - `OPENAI_API_KEY` if speech transcription is enabled
-6. Keep `APP_FREE_MODE=true` and `BILLING_ENABLED=false` until premium boundaries are explicitly launched.
-
-Reserved for later Phase 1 growth work, not wired yet:
-
-- `RESEND_API_KEY`
-- `EMAIL_FROM`
+6. If launch analytics/error tracking are enabled, set:
+   - `POSTHOG_ENABLED=true`
+   - `POSTHOG_API_KEY`
+   - `POSTHOG_HOST`
+   - `SENTRY_ENABLED=true`
+   - `SENTRY_DSN`
+   - `SENTRY_ENVIRONMENT`
+   - `SENTRY_RELEASE`
+7. If welcome/account emails are enabled, set:
+   - `EMAIL_SENDING_ENABLED=true`
+   - `EMAIL_PROVIDER` (`auto`, `resend`, or `smtp`)
+   - `EMAIL_FROM`
+   - `RESEND_API_KEY` for Resend, or SMTP credentials for SMTP
+8. Keep `APP_FREE_MODE=true` and `BILLING_ENABLED=false` until premium boundaries are explicitly launched.
 
 ## Phrase Rotation Audit Truth
 
