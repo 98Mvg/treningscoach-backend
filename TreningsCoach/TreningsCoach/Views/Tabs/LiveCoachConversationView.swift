@@ -659,6 +659,7 @@ private struct PostWorkoutInsightShareSection: View {
                 HStack(spacing: 10) {
                     instagramButton
                     snapchatButton
+                    tiktokButton
                     copyLinkButton
                 }
 
@@ -666,6 +667,9 @@ private struct PostWorkoutInsightShareSection: View {
                     instagramButton
                     HStack(spacing: 10) {
                         snapchatButton
+                        tiktokButton
+                    }
+                    HStack(spacing: 10) {
                         copyLinkButton
                     }
                 }
@@ -702,6 +706,13 @@ private struct PostWorkoutInsightShareSection: View {
     private var snapchatButton: some View {
         Button("Snapchat") {
             openGenericShareSheet(for: "snapchat")
+        }
+        .buttonStyle(LiveVoiceSecondaryButtonStyle())
+    }
+
+    private var tiktokButton: some View {
+        Button("TikTok") {
+            openGenericShareSheet(for: "tiktok")
         }
         .buttonStyle(LiveVoiceSecondaryButtonStyle())
     }

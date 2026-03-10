@@ -58,9 +58,7 @@
 		BB0019 /* ParticleBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0018 /* ParticleBackgroundView.swift */; };
 		BB0021 /* PersonaChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0020 /* PersonaChipView.swift */; };
 		BB0023 /* PulseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0022 /* PulseButtonView.swift */; };
-		BB0025 /* RecentWorkoutRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0024 /* RecentWorkoutRow.swift */; };
 		BB0027 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0026 /* WaveformView.swift */; };
-		BB0029 /* WeeklyProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0028 /* WeeklyProgressRing.swift */; };
 		BB0031 /* FeaturesPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0030 /* FeaturesPageView.swift */; };
 		BB0037 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0036 /* RootView.swift */; };
 		BB0039 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0038 /* SettingsView.swift */; };
@@ -151,9 +149,7 @@
 		BB0018 /* ParticleBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParticleBackgroundView.swift; sourceTree = "<group>"; };
 		BB0020 /* PersonaChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaChipView.swift; sourceTree = "<group>"; };
 		BB0022 /* PulseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulseButtonView.swift; sourceTree = "<group>"; };
-		BB0024 /* RecentWorkoutRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentWorkoutRow.swift; sourceTree = "<group>"; };
 		BB0026 /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
-		BB0028 /* WeeklyProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressRing.swift; sourceTree = "<group>"; };
 		BB0030 /* FeaturesPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturesPageView.swift; sourceTree = "<group>"; };
 		BB0036 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BB0038 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -194,9 +190,7 @@
 				BB0018 /* ParticleBackgroundView.swift */,
 				BB0020 /* PersonaChipView.swift */,
 				BB0022 /* PulseButtonView.swift */,
-				BB0024 /* RecentWorkoutRow.swift */,
 				BB0026 /* WaveformView.swift */,
-				BB0028 /* WeeklyProgressRing.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -547,9 +541,7 @@
 				BB0019 /* ParticleBackgroundView.swift in Sources */,
 				BB0021 /* PersonaChipView.swift in Sources */,
 				BB0023 /* PulseButtonView.swift in Sources */,
-				BB0025 /* RecentWorkoutRow.swift in Sources */,
 				BB0027 /* WaveformView.swift in Sources */,
-				BB0029 /* WeeklyProgressRing.swift in Sources */,
 				BB0031 /* FeaturesPageView.swift in Sources */,
 				BB0037 /* RootView.swift in Sources */,
 				BB0039 /* SettingsView.swift in Sources */,

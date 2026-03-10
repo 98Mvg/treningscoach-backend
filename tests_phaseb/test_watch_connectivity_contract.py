@@ -34,6 +34,7 @@ def test_wc_keys_define_required_commands_on_both_sides() -> None:
 def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     text = PHONE_WC.read_text(encoding="utf-8")
     assert "enum WatchCapabilityState: String" in text
+    assert "enum WatchLaunchOutcome: Equatable" in text
     assert "case noWatchSupport" in text
     assert "case watchNotInstalled" in text
     assert "case watchInstalledNotReachable" in text
@@ -44,13 +45,17 @@ def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     assert "session.sendMessage(payload" in text
     assert "session.updateApplicationContext(payload)" in text
     assert ".liveRequestSent" in text
-    assert ".deferredAndFallback" in text
+    assert ".deferredAwaitingReachability" in text
     assert "WCKeys.requestId: requestID" in text
     assert "context.forEach { payload[$0.key] = $0.value }" in text
     assert "guard canUseWatchTransport else {" in text
     assert "guard canUseWatchTransport else {" in text
     assert "WATCH_NOTIFY_SKIPPED reason=watch_unavailable" in text
     assert "private var hasActivatedSession = false" in text
+    assert "private let healthStore = HKHealthStore()" in text
+    assert "func launchWatchAppForWorkout(workoutType: String) async -> WatchLaunchOutcome" in text
+    assert "try await healthStore.startWatchApp(toHandle: configuration)" in text
+    assert "case .watchReady:\n            try? session.updateApplicationContext(payload)\n            session.sendMessage(payload" in text
 
 
 def test_phone_wc_manager_activates_once_after_callbacks_are_wired() -> None:
@@ -69,14 +74,17 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "private var pendingWatchRequestId: String?" in text
     assert "private var activeWatchRequestId: String?" in text
     assert "private var isWatchBackedContinuousSession = false" in text
+    assert "private var watchLaunchTask: Task<Void, Never>?" in text
     assert "private let watchStartAckTimeoutSeconds: TimeInterval = 15.0" in text
     assert "requestWatchStartOrFallback()" in text
+    assert "requestSystemWatchLaunch(workoutType: workoutType, requestID: requestID)" in text
     assert "scheduleWatchStartAckTimeout(requestTimestamp:" in text
     assert "handleWatchWorkoutStartedAck(workoutType" in text
     assert "handleWatchWorkoutStartFailed(error:" in text
     assert "handleWatchWorkoutStopped(timestamp:" in text
     assert "guard requestID == pendingWatchRequestId else { return }" in text
     assert "guard isWatchBackedContinuousSession," in text
+    assert "self.phoneWCManager.sendWorkoutStopped(" in text
     assert "func startWorkout()" in text
     assert "func startWorkout() {\n        activeSessionPlan = buildSessionPlanFromSelections()" in text
     assert "watchStartStatusLine = launchAuthRequirementText" not in text
@@ -84,13 +92,25 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
 
 def test_watch_side_receives_both_message_and_application_context() -> None:
     text = WATCH_WC.read_text(encoding="utf-8")
+    assert "static let shared = WatchWCManager()" in text
     assert "didReceiveMessage" in text
     assert "didReceiveApplicationContext" in text
+    assert "applyPendingApplicationContextIfNeeded(from: session)" in text
+    assert "let applicationContext = session.receivedApplicationContext" in text
     assert "requestTTLSeconds: TimeInterval = 120" in text
     assert "handledRequestIDs" in text
     assert "guard !requestID.isEmpty else { return }" in text
     assert "@Published var pendingSessionPlan: WatchSessionPlanSnapshot?" in text
     assert "pendingSessionPlan = WatchSessionPlanSnapshot(payload: payload)" in text
+    assert "if !requestID.isEmpty, requestID == pendingRequestId {" in text
+    assert "showStartScreen = false" in text
+
+
+def test_watch_side_can_prime_start_prompt_from_system_workout_launch() -> None:
+    text = WATCH_WC.read_text(encoding="utf-8")
+    assert "func primePendingStartFromSystemLaunch(workoutConfiguration: HKWorkoutConfiguration)" in text
+    assert "pendingWorkoutType = Self.normalizedWorkoutType(from: workoutConfiguration)" in text
+    assert "showStartScreen = true" in text
 
 
 def test_watch_workout_ack_and_failure_semantics() -> None:

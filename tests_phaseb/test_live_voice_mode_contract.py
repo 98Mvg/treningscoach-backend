@@ -74,6 +74,7 @@ def test_live_voice_view_generates_shareable_insight_card_after_conversation() -
     assert "viewModel.isConversationEnded" in text
     assert 'Button("Instagram Story")' in text
     assert 'Button("Snapchat")' in text
+    assert 'Button("TikTok")' in text
     assert 'Button(languageCode == "no" ? "Kopier lenke" : "Copy Link")' in text
     assert "ImageRenderer(" in text
     assert "UIActivityViewController(activityItems:" in text

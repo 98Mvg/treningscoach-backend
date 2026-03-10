@@ -41,7 +41,9 @@ def test_wake_word_manager_uses_phrase_spotting_and_no_command_transcription() -
 def test_wake_word_manager_suspends_cleanly_for_workout_talk_and_degrades_on_service_interrupts() -> None:
     text = _wakeword_text()
     assert "func suspendForWorkoutTalk()" in text
+    assert "private let workoutTalkSuspendGraceSeconds: TimeInterval = 0.35" in text
     assert 'reason: "workout_talk"' in text
+    assert "gracefulCancelDelay: workoutTalkSuspendGraceSeconds" in text
     assert "private var isSuspendingRecognition = false" in text
     assert "request?.endAudio()" in text
     assert "speechServiceInterrupted && self.isSuspendingRecognition" in text

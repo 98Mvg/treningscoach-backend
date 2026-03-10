@@ -76,7 +76,9 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
     assert "coachInteractionState = .passiveListening" in text
     assert "voiceState = isContinuousMode && !isPaused ? .listening : .idle" in text
     assert "wakeWordManager.resetWakeCooldown()" in text
-    assert "startWakeWordListeningIfNeeded()" in text
+    assert "wakeWordResumeTask?.cancel()" in text
+    assert "private let wakeWordResumeDelayAfterTalkSeconds: TimeInterval = 0.6" in text
+    assert "self.startWakeWordListeningIfNeeded()" in text
 
 
 def test_talk_path_pauses_wake_word_listening_while_talk_is_active() -> None:

@@ -53,9 +53,13 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "private var shareSummaryText: String {" in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
-    assert "ShareLink(" in text
-    assert "item: shareSummaryText" in text
-    assert "preview: SharePreview(sharePreviewTitle)" in text
+    assert "@State private var showShareOptions = false" in text
+    assert ".confirmationDialog(shareChooserTitle, isPresented: $showShareOptions" in text
+    assert 'Button("Instagram Story")' in text
+    assert 'Button(L10n.current == .no ? "Del til Snapchat" : "Share to Snapchat")' in text
+    assert 'Button(L10n.current == .no ? "Del til TikTok" : "Share to TikTok")' in text
+    assert 'Button(L10n.current == .no ? "Kopier lenke" : "Copy Link")' in text
+    assert "WorkoutSummaryShareCardView(" in text
 
 
 def test_onboarding_data_and_result_use_gamified_ring() -> None:

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WatchRootView: View {
-    @StateObject private var wcManager = WatchWCManager()
+    @StateObject private var wcManager = WatchWCManager.shared
     @StateObject private var workoutManager = WatchWorkoutManager()
 
     var body: some View {
@@ -12,6 +12,11 @@ struct WatchRootView: View {
 
                 Text("Waiting for iPhone…")
                     .foregroundStyle(.secondary)
+
+                Text("Coachi opens from iPhone workout start. If it does not, open the app here and allow workout access if prompted.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .padding()
             .onAppear {

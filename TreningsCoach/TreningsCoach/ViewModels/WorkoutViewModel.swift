@@ -588,8 +588,8 @@ class WorkoutViewModel: ObservableObject {
             return nil
         }
         return currentLanguage == "no"
-            ? "Åpne Coachi på Apple Watch for live puls."
-            : "Open Coachi on Apple Watch for live HR."
+            ? "Starter Coachi på Apple Watch når du trykker Start. Hvis ingenting skjer, åpne appen manuelt og godkjenn tilgang hvis du blir spurt."
+            : "Coachi opens on Apple Watch when you press Start. If nothing happens, open the app manually and accept access if prompted."
     }
 
     var isCoachTalkActive: Bool {
@@ -1186,6 +1186,7 @@ class WorkoutViewModel: ObservableObject {
     private var guestBackendSuppressed = false
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
+    private var watchLaunchTask: Task<Void, Never>?
     private let watchStartAckTimeoutSeconds: TimeInterval = 15.0
     private var latestMovementSampleDate: Date?
     private var latestMovementSource: String = "none"
@@ -1197,6 +1198,8 @@ class WorkoutViewModel: ObservableObject {
     private let maxSpeechTranscriptEntries = 120
     private var talkCaptureTask: Task<Void, Never>?
     private let workoutTalkCaptureSeconds: TimeInterval = 4.0
+    private var wakeWordResumeTask: Task<Void, Never>?
+    private let wakeWordResumeDelayAfterTalkSeconds: TimeInterval = 0.6
 
     // Wake word for user-initiated speech ("Coach" / "Trener")
     let wakeWordManager = WakeWordManager()
@@ -1322,6 +1325,8 @@ class WorkoutViewModel: ObservableObject {
         guard !isTalkingToCoach else { return }
 
         talkCaptureTask?.cancel()
+        wakeWordResumeTask?.cancel()
+        wakeWordResumeTask = nil
         wakeWordManager.suspendForWorkoutTalk()
         isTalkingToCoach = true
         isWakeWordActive = true
@@ -1448,7 +1453,15 @@ class WorkoutViewModel: ObservableObject {
         coachInteractionState = .passiveListening
         voiceState = isContinuousMode && !isPaused ? .listening : .idle
         wakeWordManager.resetWakeCooldown()
-        startWakeWordListeningIfNeeded()
+        wakeWordResumeTask?.cancel()
+        wakeWordResumeTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(self.wakeWordResumeDelayAfterTalkSeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self.startWakeWordListeningIfNeeded()
+            }
+        }
         // Drop stale event scheduler state once talk flow ends.
         lastEventSpeechAt = nil
         lastEventSpeechPriority = -1
@@ -2220,16 +2233,17 @@ class WorkoutViewModel: ObservableObject {
                 ? "Venter på bekreftelse fra Watch…"
                 : "Waiting for Watch confirmation..."
             scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp, requestID: requestID)
-        case .deferredAndFallback:
+        case .deferredAwaitingReachability:
             print(
-                "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=watch_not_reachable capability=\(watchCapabilityState.rawValue)"
+                "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=watch_deferred reason=watch_not_reachable capability=\(watchCapabilityState.rawValue)"
             )
-            isWaitingForWatchStart = false
+            isWaitingForWatchStart = true
             isWatchBackedContinuousSession = false
             watchStartStatusLine = currentLanguage == "no"
-                ? "Watch ikke tilgjengelig. Starter på iPhone nå."
-                : "Watch unavailable. Starting on iPhone now."
-            startContinuousWorkoutInternal()
+                ? "Starter Coachi på Apple Watch…"
+                : "Opening Coachi on Apple Watch..."
+            requestSystemWatchLaunch(workoutType: workoutType, requestID: requestID)
+            scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp, requestID: requestID)
         case .failed(let reason):
             print(
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=\(reason) capability=\(watchCapabilityState.rawValue)"
@@ -2269,6 +2283,12 @@ class WorkoutViewModel: ObservableObject {
                 self.isWatchBackedContinuousSession = false
                 self.pendingWatchRequestTimestamp = nil
                 self.pendingWatchRequestId = nil
+                if self.phoneWCManager.canUseWatchTransport {
+                    self.phoneWCManager.sendWorkoutStopped(
+                        timestamp: Date().timeIntervalSince1970,
+                        requestID: requestID
+                    )
+                }
                 self.watchStartStatusLine = self.currentLanguage == "no"
                     ? "Ingen svar fra Watch. Starter på iPhone."
                     : "No Watch response. Starting on iPhone."
@@ -2277,7 +2297,33 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
+    private func requestSystemWatchLaunch(workoutType: String, requestID: String) {
+        watchLaunchTask?.cancel()
+        watchLaunchTask = Task { [weak self] in
+            guard let self else { return }
+            let outcome = await phoneWCManager.launchWatchAppForWorkout(workoutType: workoutType)
+            await MainActor.run {
+                guard self.isWaitingForWatchStart else { return }
+                guard self.pendingWatchRequestId == requestID else { return }
+
+                switch outcome {
+                case .launched:
+                    print("WATCH_LAUNCH request_id=\(requestID) status=launched")
+                case .skipped(let reason):
+                    print("WATCH_LAUNCH request_id=\(requestID) status=skipped reason=\(reason)")
+                case .failed(let reason):
+                    print("WATCH_LAUNCH request_id=\(requestID) status=failed reason=\(reason)")
+                    self.watchStartStatusLine = self.currentLanguage == "no"
+                        ? "Kunne ikke åpne Watch automatisk. Åpne Coachi på Apple Watch nå."
+                        : "Could not open Watch automatically. Open Coachi on Apple Watch now."
+                }
+            }
+        }
+    }
+
     private func clearWatchStartPendingState() {
+        watchLaunchTask?.cancel()
+        watchLaunchTask = nil
         watchStartAckTimeoutTask?.cancel()
         watchStartAckTimeoutTask = nil
         isWaitingForWatchStart = false
@@ -2493,6 +2539,8 @@ class WorkoutViewModel: ObservableObject {
             isTalkingToCoach = false
             talkCaptureTask?.cancel()
             talkCaptureTask = nil
+            wakeWordResumeTask?.cancel()
+            wakeWordResumeTask = nil
             hrSource = .none
             watchConnected = false
             bleConnected = false
@@ -2668,6 +2716,8 @@ class WorkoutViewModel: ObservableObject {
         isTalkingToCoach = false
         talkCaptureTask?.cancel()
         talkCaptureTask = nil
+        wakeWordResumeTask?.cancel()
+        wakeWordResumeTask = nil
         consecutiveChunkFailures = 0
         consecutiveBackendFailures = 0
         coachingStatusLine = nil
@@ -2696,6 +2746,8 @@ class WorkoutViewModel: ObservableObject {
         isTalkingToCoach = false
         talkCaptureTask?.cancel()
         talkCaptureTask = nil
+        wakeWordResumeTask?.cancel()
+        wakeWordResumeTask = nil
 
         // Resume wake word listening
         startWakeWordListeningIfNeeded()
@@ -2761,6 +2813,8 @@ class WorkoutViewModel: ObservableObject {
         isTalkingToCoach = false
         talkCaptureTask?.cancel()
         talkCaptureTask = nil
+        wakeWordResumeTask?.cancel()
+        wakeWordResumeTask = nil
         sessionId = nil
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0

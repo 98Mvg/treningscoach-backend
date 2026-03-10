@@ -1,11 +1,18 @@
 import Foundation
+import HealthKit
 import WatchConnectivity
 
 @MainActor
 final class PhoneWCManager: NSObject, ObservableObject {
     enum StartRequestOutcome {
         case liveRequestSent
-        case deferredAndFallback
+        case deferredAwaitingReachability
+        case failed(String)
+    }
+
+    enum WatchLaunchOutcome: Equatable {
+        case launched
+        case skipped(String)
         case failed(String)
     }
 
@@ -19,6 +26,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
     @Published private(set) var isReachable: Bool = false
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var isWatchAppInstalled: Bool = false
+    private let healthStore = HKHealthStore()
 
     var watchCapabilityState: WatchCapabilityState {
         if !WCSession.isSupported() || !isPaired {
@@ -92,6 +100,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
 
         switch watchCapabilityState {
         case .watchReady:
+            try? session.updateApplicationContext(payload)
             session.sendMessage(payload, replyHandler: nil) { error in
                 Task { @MainActor in
                     self.onWorkoutStartFailed?(error.localizedDescription, timestamp, requestID)
@@ -101,12 +110,38 @@ final class PhoneWCManager: NSObject, ObservableObject {
         case .watchInstalledNotReachable:
             do {
                 try session.updateApplicationContext(payload)
-                return .deferredAndFallback
+                return .deferredAwaitingReachability
             } catch {
                 return .failed(error.localizedDescription)
             }
         case .noWatchSupport, .watchNotInstalled:
             return .failed("watch_unavailable")
+        }
+    }
+
+    func launchWatchAppForWorkout(workoutType: String) async -> WatchLaunchOutcome {
+        refreshState(from: .default)
+
+        guard canUseWatchTransport else {
+            return .skipped("watch_unavailable")
+        }
+        guard HKHealthStore.isHealthDataAvailable() else {
+            return .failed("healthkit_unavailable")
+        }
+
+        let normalizedWorkoutType = WCKeys.WorkoutType.normalized(workoutType)
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = normalizedWorkoutType == WCKeys.WorkoutType.intervals
+            ? .highIntensityIntervalTraining
+            : .running
+        configuration.locationType = .outdoor
+
+        do {
+            try await healthStore.startWatchApp(toHandle: configuration)
+            return .launched
+        } catch {
+            let reason = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            return .failed(reason.isEmpty ? "watch_launch_failed" : reason)
         }
     }
 

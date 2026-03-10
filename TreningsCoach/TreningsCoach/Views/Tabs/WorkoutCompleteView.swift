@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct WorkoutCompleteView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -19,6 +20,10 @@ struct WorkoutCompleteView: View {
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
     @State private var showLiveCoachVoice = false
+    @State private var showShareOptions = false
+    @State private var showShareSheet = false
+    @State private var shareSheetItems: [Any] = []
+    @State private var copiedLink = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -54,17 +59,12 @@ struct WorkoutCompleteView: View {
         return "I finished \(workoutLabel) with Coachi. \(metrics)"
     }
 
-    private var sharePreviewTitle: String {
-        if L10n.current == .no {
-            return "\(workoutLabel) med Coachi"
-        }
-        return "\(workoutLabel) with Coachi"
-    }
-
     private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
+    private var shareChooserTitle: String { L10n.current == .no ? "Del økten" : "Share workout" }
     private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
+    private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
     private var canUseLiveCoachVoice: Bool {
         guard AppConfig.LiveVoice.isEnabled,
               authManager.isAuthenticated,
@@ -201,6 +201,24 @@ struct WorkoutCompleteView: View {
                 userName: liveVoiceUserName
             )
         }
+        .confirmationDialog(shareChooserTitle, isPresented: $showShareOptions, titleVisibility: .visible) {
+            Button("Instagram Story") {
+                shareToInstagramStory()
+            }
+            Button(L10n.current == .no ? "Del til Snapchat" : "Share to Snapchat") {
+                openGenericShareSheet(destination: "snapchat")
+            }
+            Button(L10n.current == .no ? "Del til TikTok" : "Share to TikTok") {
+                openGenericShareSheet(destination: "tiktok")
+            }
+            Button(L10n.current == .no ? "Kopier lenke" : "Copy Link") {
+                copyWorkoutLink()
+            }
+            Button(L10n.cancel, role: .cancel) {}
+        }
+        .sheet(isPresented: $showShareSheet) {
+            WorkoutSummaryActivityShareSheet(activityItems: shareSheetItems)
+        }
         .onAppear {
             freezeSummaryValues()
             withAnimation(.spring(response: 0.72, dampingFraction: 0.65).delay(0.10)) {
@@ -289,15 +307,24 @@ struct WorkoutCompleteView: View {
 
     @ViewBuilder
     private var buttonGroup: some View {
-        if UIScreen.main.bounds.width < 335 {
-            VStack(spacing: 10) {
-                doneButton
-                shareButton
+        VStack(spacing: 10) {
+            if UIScreen.main.bounds.width < 335 {
+                VStack(spacing: 10) {
+                    doneButton
+                    shareButton
+                }
+            } else {
+                HStack(spacing: 14) {
+                    doneButton
+                    shareButton
+                }
             }
-        } else {
-            HStack(spacing: 14) {
-                doneButton
-                shareButton
+
+            if copiedLink {
+                Text(L10n.current == .no ? "Lenke kopiert." : "Link copied.")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(hex: "A5F3EC"))
+                    .transition(.opacity)
             }
         }
     }
@@ -364,10 +391,9 @@ struct WorkoutCompleteView: View {
     }
 
     private var shareButton: some View {
-        ShareLink(
-            item: shareSummaryText,
-            preview: SharePreview(sharePreviewTitle)
-        ) {
+        Button {
+            showShareOptions = true
+        } label: {
             Text(shareLabel)
                 .font(.system(size: 16, weight: .medium))
                 .tracking(0.8)
@@ -382,5 +408,183 @@ struct WorkoutCompleteView: View {
                         )
                 )
         }
+        .buttonStyle(.plain)
     }
+
+    private func copyWorkoutLink() {
+        UIPasteboard.general.url = shareURL
+        withAnimation(.easeOut(duration: 0.2)) {
+            copiedLink = true
+        }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    copiedLink = false
+                }
+            }
+        }
+    }
+
+    private func shareToInstagramStory() {
+        guard let storyURL = URL(string: AppConfig.Share.instagramStoriesScheme),
+              UIApplication.shared.canOpenURL(storyURL),
+              let cardImage = renderedShareCardImage(),
+              let stickerData = cardImage.pngData() else {
+            openGenericShareSheet(destination: "instagram_story")
+            return
+        }
+
+        UIPasteboard.general.setItems(
+            [[
+                "com.instagram.sharedSticker.stickerImage": stickerData,
+                "com.instagram.sharedSticker.contentURL": shareURL.absoluteString,
+                "com.instagram.sharedSticker.backgroundTopColor": "#081225",
+                "com.instagram.sharedSticker.backgroundBottomColor": "#112B44",
+            ]],
+            options: [.expirationDate: Date().addingTimeInterval(300)]
+        )
+
+        UIApplication.shared.open(storyURL)
+    }
+
+    private func openGenericShareSheet(destination: String) {
+        var items: [Any] = [shareSummaryText, shareURL]
+        if let cardImage = renderedShareCardImage() {
+            items.insert(cardImage, at: 0)
+        }
+        shareSheetItems = items
+        showShareSheet = true
+
+        if destination == "snapchat" {
+            _ = URL(string: AppConfig.Share.snapchatScheme)
+        }
+    }
+
+    @MainActor
+    private func renderedShareCardImage() -> UIImage? {
+        let renderer = ImageRenderer(
+            content: WorkoutSummaryShareCardView(
+                workoutLabel: workoutLabel,
+                durationText: finalDurationText,
+                heartRateText: hasFinalHeartRate ? finalBPMText : nil,
+                coachScore: targetScore,
+                languageCode: L10n.current.rawValue
+            )
+            .frame(width: 1080, height: 1920)
+        )
+        renderer.scale = 1
+        return renderer.uiImage
+    }
+}
+
+private struct WorkoutSummaryShareCardView: View {
+    let workoutLabel: String
+    let durationText: String
+    let heartRateText: String?
+    let coachScore: Int
+    let languageCode: String
+
+    private var durationLabel: String {
+        languageCode == "no" ? "Varighet" : "Duration"
+    }
+
+    private var heartRateLabel: String {
+        languageCode == "no" ? "Puls" : "Heart Rate"
+    }
+
+    private var scoreLabel: String {
+        languageCode == "no" ? "Coach score" : "Coaching Score"
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "081225"), Color(hex: "10253A"), Color(hex: "153A56")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 34) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 96, height: 96)
+                        Image(systemName: "figure.run")
+                            .font(.system(size: 40, weight: .semibold))
+                            .foregroundStyle(Color(hex: "A5F3EC"))
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("COACHI")
+                            .font(.system(size: 28, weight: .black))
+                            .tracking(2.4)
+                            .foregroundStyle(Color.white.opacity(0.95))
+                        Text(workoutLabel.uppercased())
+                            .font(.system(size: 28, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.78))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(scoreLabel.uppercased())
+                        .font(.system(size: 24, weight: .semibold))
+                        .tracking(1.4)
+                        .foregroundStyle(Color(hex: "A5F3EC"))
+
+                    Text("\(coachScore)")
+                        .font(.system(size: 176, weight: .black, design: .rounded))
+                        .foregroundStyle(Color.white)
+                        .minimumScaleFactor(0.7)
+                }
+
+                VStack(spacing: 14) {
+                    metricRow(label: durationLabel, value: durationText)
+                    metricRow(label: heartRateLabel, value: heartRateText ?? "--")
+                }
+
+                Spacer()
+
+                Text(languageCode == "no" ? "Del økten din med Coachi" : "Share your workout with Coachi")
+                    .font(.system(size: 34, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.88))
+
+                Text("coachi.app")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.7))
+            }
+            .padding(72)
+        }
+    }
+
+    @ViewBuilder
+    private func metricRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.7))
+            Spacer()
+            Text(value)
+                .font(.system(size: 42, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white)
+        }
+        .padding(.horizontal, 26)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+        )
+    }
+}
+
+private struct WorkoutSummaryActivityShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

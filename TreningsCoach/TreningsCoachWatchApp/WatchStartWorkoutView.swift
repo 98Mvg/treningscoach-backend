@@ -4,6 +4,11 @@ struct WatchStartWorkoutView: View {
     @ObservedObject var wcManager: WatchWCManager
     @ObservedObject var workoutManager: WatchWorkoutManager
 
+    private var isWaitingForPhoneRequestDetails: Bool {
+        let requestId = wcManager.pendingRequestId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return requestId.isEmpty
+    }
+
     var body: some View {
         Group {
             if workoutManager.isRunning {
@@ -20,7 +25,7 @@ struct WatchStartWorkoutView: View {
 
     private var startPrompt: some View {
         VStack(spacing: 12) {
-            Text("Start workout?")
+            Text(isWaitingForPhoneRequestDetails ? "Syncing with iPhone..." : "Start workout?")
                 .font(.headline)
 
             Text("Requested: \(wcManager.pendingWorkoutType ?? WCKeys.WorkoutType.easyRun)")
@@ -45,6 +50,7 @@ struct WatchStartWorkoutView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+            .disabled(isWaitingForPhoneRequestDetails)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }

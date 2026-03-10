@@ -72,6 +72,7 @@ class WakeWordManager: ObservableObject {
     private let maxRestartBackoffSeconds: TimeInterval = 5.0
     private let degradedRecoveryDelaySeconds: TimeInterval = 8.0
     private let idleNoSpeechRestartDelaySeconds: TimeInterval = 1.5
+    private let workoutTalkSuspendGraceSeconds: TimeInterval = 0.35
 
     // MARK: - Initialization
 
@@ -281,7 +282,7 @@ class WakeWordManager: ObservableObject {
         teardownRecognition(
             reason: "workout_talk",
             preserveDegradedMode: true,
-            gracefulCancelDelay: 0.12
+            gracefulCancelDelay: workoutTalkSuspendGraceSeconds
         )
     }
 

@@ -202,8 +202,8 @@ def test_workout_view_model_launch_cta_and_helper_are_watch_capability_driven() 
     assert "@Published private(set) var watchCapabilityState: PhoneWCManager.WatchCapabilityState = .noWatchSupport" in text
     assert "if watchCapabilityState == .watchReady {" in text
     assert "guard watchCapabilityState == .watchInstalledNotReachable else {" in text
-    assert ' ? "Åpne Coachi på Apple Watch for live puls."' in text
-    assert ' : "Open Coachi on Apple Watch for live HR."' in text
+    assert ' ? "Starter Coachi på Apple Watch når du trykker Start. Hvis ingenting skjer, åpne appen manuelt og godkjenn tilgang hvis du blir spurt."' in text
+    assert ' : "Coachi opens on Apple Watch when you press Start. If nothing happens, open the app manually and accept access if prompted."' in text
 
 
 def test_warmup_stage_labels_easy_intensity_cue() -> None:

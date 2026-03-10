@@ -381,8 +381,7 @@ Frontend UI entry: Web only
 | Partially Implemented Feature | [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) | `Google/Facebook/Vipps sign-in` | Explicit TODOs and placeholder tokens remain. | high |
 | Partially Implemented Feature | [AuthView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift) | `Email/password register flow` | UI exists, but no real backend email/password auth path exists in the current runtime. | high |
 | Possible Future Feature | [chat_routes.py](/Users/mariusgaarder/Documents/treningscoach/chat_routes.py) | `/chat/*` | Documented and tested, but not wired from the current iOS/watch product UI. | medium |
-| Dead Code | [HomeViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/HomeViewModel.swift) | `recentWorkouts / stats consumption` | HomeView fetches history and computes stats that are not actually rendered by HomeView. | high |
-| Dead Code | [Components](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Components) | `GlassCardView / WeeklyProgressRing / StatCardView / WaveformView / CoachOrbView / RecentWorkoutRow` | Static search found definitions but no active references from navigation or runtime views. | high |
+| Dead Code | [Components](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Components) | `GlassCardView / StatCardView / WaveformView / CoachOrbView` | Static search found definitions but no active references from navigation or runtime views. | high |
 
 ## 11. Architectural Risks
 

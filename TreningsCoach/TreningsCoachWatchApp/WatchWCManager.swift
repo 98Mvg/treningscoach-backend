@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import WatchConnectivity
 
 struct WatchSessionPlanSnapshot: Equatable {
@@ -50,6 +51,8 @@ struct WatchSessionPlanSnapshot: Equatable {
 
 @MainActor
 final class WatchWCManager: NSObject, ObservableObject {
+    static let shared = WatchWCManager()
+
     @Published var pendingWorkoutType: String?
     @Published var pendingRequestId: String?
     @Published var pendingRequestTimestamp: TimeInterval?
@@ -71,6 +74,12 @@ final class WatchWCManager: NSObject, ObservableObject {
         let session = WCSession.default
         session.delegate = self
         session.activate()
+        applyPendingApplicationContextIfNeeded(from: session)
+    }
+
+    func primePendingStartFromSystemLaunch(workoutConfiguration: HKWorkoutConfiguration) {
+        pendingWorkoutType = Self.normalizedWorkoutType(from: workoutConfiguration)
+        showStartScreen = true
     }
 
     private func parseTimestamp(_ value: Any?) -> TimeInterval {
@@ -110,9 +119,31 @@ final class WatchWCManager: NSObject, ObservableObject {
         case WCKeys.Command.workoutStopped:
             let requestID = (payload[WCKeys.requestId] as? String)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !requestID.isEmpty, requestID == pendingRequestId {
+                pendingRequestId = nil
+                pendingRequestTimestamp = nil
+                pendingWorkoutType = nil
+                pendingSessionPlan = nil
+                showStartScreen = false
+            }
             onRemoteStopRequest?(requestID)
         default:
             break
+        }
+    }
+
+    private func applyPendingApplicationContextIfNeeded(from session: WCSession) {
+        let applicationContext = session.receivedApplicationContext
+        guard !applicationContext.isEmpty else { return }
+        handlePayload(applicationContext)
+    }
+
+    private static func normalizedWorkoutType(from workoutConfiguration: HKWorkoutConfiguration) -> String {
+        switch workoutConfiguration.activityType {
+        case .highIntensityIntervalTraining:
+            return WCKeys.WorkoutType.intervals
+        default:
+            return WCKeys.WorkoutType.easyRun
         }
     }
 }
@@ -135,6 +166,9 @@ extension WatchWCManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
-        _ = (session, activationState, error)
+        _ = (activationState, error)
+        Task { @MainActor in
+            self.applyPendingApplicationContextIfNeeded(from: session)
+        }
     }
 }
