@@ -62,6 +62,18 @@ private struct TokenRefreshResponse: Codable {
     }
 }
 
+private struct VoiceSessionRequest: Encodable {
+    let language: String
+    let userName: String?
+    let summaryContext: PostWorkoutSummaryContext
+
+    enum CodingKeys: String, CodingKey {
+        case language
+        case userName = "user_name"
+        case summaryContext = "summary_context"
+    }
+}
+
 class BackendAPIService {
     // MARK: - Configuration
 
@@ -277,6 +289,16 @@ class BackendAPIService {
         let url = URL(string: "\(baseURL)/health")!
         let (data, _) = try await session.data(from: url)
         return try JSONDecoder().decode(HealthResponse.self, from: data)
+    }
+
+    func fetchAppRuntime() async throws -> AppRuntimeResponse {
+        let url = URL(string: "\(baseURL)/app/runtime")!
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.invalidResponse
+        }
+        return try jsonDecoder.decode(AppRuntimeResponse.self, from: data)
     }
 
     /// Send audio for analysis only
@@ -528,6 +550,76 @@ class BackendAPIService {
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw APIError.invalidResponse
+        }
+    }
+
+    func createLiveVoiceSession(
+        summaryContext: PostWorkoutSummaryContext,
+        language: String,
+        userName: String = ""
+    ) async throws -> VoiceSessionBootstrap {
+        guard currentAuthToken() != nil else {
+            throw APIError.authenticationRequired
+        }
+
+        let url = URL(string: "\(baseURL)/voice/session")!
+        var request = URLRequest(url: url, timeoutInterval: 20)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+        request.httpBody = try jsonEncoder.encode(
+            VoiceSessionRequest(
+                language: language,
+                userName: userName.isEmpty ? nil : userName,
+                summaryContext: summaryContext
+            )
+        )
+
+        let (data, response) = try await dataWithAuthRetry(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            let errorMessage = try? jsonDecoder.decode(ErrorResponse.self, from: data)
+            if let message = errorMessage?.error, !message.isEmpty {
+                throw APIError.serverError(message: message)
+            }
+            throw APIError.httpError(statusCode: httpResponse.statusCode)
+        }
+
+        return try jsonDecoder.decode(VoiceSessionBootstrap.self, from: data)
+    }
+
+    @discardableResult
+    func trackVoiceTelemetry(
+        event: String,
+        metadata: [String: Any] = [:]
+    ) async -> Bool {
+        guard currentAuthToken() != nil,
+              let url = URL(string: "\(baseURL)/voice/telemetry") else {
+            return false
+        }
+
+        do {
+            var request = URLRequest(url: url, timeoutInterval: 10)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            addAuthHeader(to: &request)
+            request.httpBody = try JSONSerialization.data(
+                withJSONObject: [
+                    "event": event,
+                    "metadata": metadata,
+                ]
+            )
+
+            let (_, response) = try await dataWithAuthRetry(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return false
+            }
+            return httpResponse.statusCode == 200
+        } catch {
+            print("VOICE_TELEMETRY failed event=\(event) reason=\(error.localizedDescription)")
+            return false
         }
     }
 

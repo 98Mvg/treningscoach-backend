@@ -147,6 +147,32 @@ struct AppConfig {
         }
     }
 
+    // MARK: - Live Voice Mode
+    struct LiveVoice {
+        private static func boolInfoValue(_ key: String, default defaultValue: Bool = false) -> Bool {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else {
+                return defaultValue
+            }
+            if let boolValue = raw as? Bool {
+                return boolValue
+            }
+            if let stringValue = raw as? String {
+                switch stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                case "1", "true", "yes", "on":
+                    return true
+                case "0", "false", "no", "off":
+                    return false
+                default:
+                    return defaultValue
+                }
+            }
+            return defaultValue
+        }
+
+        static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: false)
+        static let defaultMaxDurationSeconds: Int = 300
+    }
+
     // MARK: - Continuous Coaching Settings
     struct ContinuousCoaching {
         static let defaultInterval: TimeInterval = 8.0

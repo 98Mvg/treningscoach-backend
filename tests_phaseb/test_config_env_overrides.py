@@ -118,15 +118,39 @@ def test_coach_score_version_env_override(monkeypatch):
 
 
 def test_talk_safety_flags_env_override(monkeypatch):
+    monkeypatch.setenv("TALK_STT_ENABLED", "true")
     monkeypatch.setenv("COACH_TALK_STRICT_SAFETY_ENABLED", "false")
     monkeypatch.setenv("COACH_TALK_POLICY_ROTATE_ENABLED", "false")
+    monkeypatch.setenv("TALK_STT_QUOTA_COOLDOWN_SECONDS", "120")
 
     importlib.reload(config)
 
+    assert config.TALK_STT_ENABLED is True
     assert config.COACH_TALK_STRICT_SAFETY_ENABLED is False
     assert config.COACH_TALK_POLICY_ROTATE_ENABLED is False
+    assert config.TALK_STT_QUOTA_COOLDOWN_SECONDS == 120.0
     assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("en"), list)
     assert isinstance(config.COACH_TALK_POLICY_REFUSAL_BANK.get("no"), list)
+
+
+def test_xai_voice_agent_env_override(monkeypatch):
+    monkeypatch.setenv("XAI_VOICE_AGENT_ENABLED", "true")
+    monkeypatch.setenv("XAI_VOICE_AGENT_MODEL", "grok-voice-latest")
+    monkeypatch.setenv("XAI_VOICE_AGENT_REGION", "us-east-1")
+    monkeypatch.setenv("XAI_VOICE_AGENT_VOICE", "Rex")
+    monkeypatch.setenv("XAI_VOICE_AGENT_MAX_SESSION_SECONDS", "420")
+    monkeypatch.setenv("XAI_VOICE_AGENT_CLIENT_SECRET_URL", "https://api.x.ai/v1/realtime/client_secrets")
+    monkeypatch.setenv("XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
+
+    importlib.reload(config)
+
+    assert config.XAI_VOICE_AGENT_ENABLED is True
+    assert config.XAI_VOICE_AGENT_MODEL == "grok-voice-latest"
+    assert config.XAI_VOICE_AGENT_REGION == "us-east-1"
+    assert config.XAI_VOICE_AGENT_VOICE == "Rex"
+    assert config.XAI_VOICE_AGENT_MAX_SESSION_SECONDS == 420
+    assert config.XAI_VOICE_AGENT_CLIENT_SECRET_URL == "https://api.x.ai/v1/realtime/client_secrets"
+    assert config.XAI_VOICE_AGENT_WEBSOCKET_URL == "wss://api.x.ai/v1/realtime"
 
 
 def test_security_env_overrides(monkeypatch):

@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 from datetime import datetime, timezone
 from threading import Lock
 from urllib.parse import quote
+import requests
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
 from session_manager import SessionManager  # Import Session Manager
@@ -30,7 +31,7 @@ from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
-from database import init_db, db, WaitlistSignup, UserProfile  # Import database initialization + models
+from database import init_db, db, WaitlistSignup, User, UserProfile  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from auth import (
@@ -62,7 +63,8 @@ from workout_contracts import (
     normalize_talk_contract,
     profile_validation_errors,
 )
-from launch_integrations import init_sentry
+from launch_integrations import capture_posthog_event, init_sentry
+from xai_voice import bootstrap_post_workout_voice_session, sanitize_post_workout_summary_context
 
 # Configure logging
 logging.basicConfig(
@@ -122,6 +124,8 @@ breath_analyzer = BreathAnalyzer(
 _breath_analysis_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="breath-analysis")
 _breath_analysis_lock = Lock()
 _breath_analysis_skip_until = 0.0
+_talk_stt_lock = Lock()
+_talk_stt_quota_skip_until = 0.0
 running_personalization = RunningPersonalizationStore(
     storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "instance/zone_personalization.json"),
     max_recovery_samples=getattr(config, "ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24),
@@ -247,6 +251,19 @@ def _product_flags_snapshot() -> dict:
         "premium_surfaces_enabled": premium_surfaces,
         "monetization_phase": "free_only" if free_mode else "billing_ready",
     }
+
+
+def _voice_error(message: str, *, status: int, error_code: str):
+    return jsonify({"error": message, "error_code": error_code}), status
+
+
+def _capture_voice_event(event: str, *, user_id: str, metadata: dict | None = None) -> None:
+    capture_posthog_event(
+        event,
+        metadata=metadata if isinstance(metadata, dict) else {},
+        distinct_id=f"user:{user_id}",
+        logger=logger,
+    )
 
 # ============================================
 # HELPER FUNCTIONS
@@ -916,6 +933,11 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
     Best-effort speech-to-text for /coach/talk multipart audio.
     Returns (text, source_status).
     """
+    global _talk_stt_quota_skip_until
+
+    if not bool(getattr(config, "TALK_STT_ENABLED", False)):
+        return None, "stt_disabled"
+
     api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         return None, "stt_skipped_no_api_key"
@@ -927,6 +949,21 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
 
     model = (os.getenv("OPENAI_STT_MODEL") or "gpt-4o-mini-transcribe").strip()
     client_timeout = max(1.0, float(timeout_seconds))
+    quota_cooldown_seconds = max(
+        15.0,
+        float(getattr(config, "TALK_STT_QUOTA_COOLDOWN_SECONDS", 300.0)),
+    )
+    now = time.time()
+
+    with _talk_stt_lock:
+        skip_until = _talk_stt_quota_skip_until
+    if now < skip_until:
+        remaining = max(0.0, skip_until - now)
+        logger.info(
+            "Coach talk STT skipped due to active quota cooldown remaining_s=%.1f",
+            remaining,
+        )
+        return None, "stt_quota_limited"
 
     try:
         client = OpenAI(api_key=api_key, timeout=client_timeout, max_retries=0)
@@ -943,7 +980,13 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
     except Exception as exc:
         normalized_error = f"{type(exc).__name__}: {exc}".lower()
         if any(marker in normalized_error for marker in ("insufficient_quota", "rate limit", "too many requests", "429", "quota")):
-            logger.warning("Coach talk STT fast-fail quota/rate-limit: %s", exc)
+            with _talk_stt_lock:
+                _talk_stt_quota_skip_until = time.time() + quota_cooldown_seconds
+            logger.warning(
+                "Coach talk STT fast-fail quota/rate-limit cooldown_s=%.1f: %s",
+                quota_cooldown_seconds,
+                exc,
+            )
             return None, "stt_quota_limited"
         if "timeout" in normalized_error or "timed out" in normalized_error:
             logger.warning("Coach talk STT timeout: %s", exc)
@@ -4137,6 +4180,184 @@ def profile_upsert():
 
 
 # ============================================
+# LIVE VOICE MODE
+# ============================================
+
+@app.route('/voice/session', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.voice.session",
+    scope="user",
+)
+@require_mobile_auth
+def create_voice_session():
+    """Bootstrap an isolated post-workout xAI Voice Agent session."""
+    user_id = get_request_auth_user_id()
+    if not user_id:
+        return _voice_error(
+            "Authentication required",
+            status=401,
+            error_code="authentication_required",
+        )
+
+    if not bool(getattr(config, "XAI_VOICE_AGENT_ENABLED", False)):
+        return _voice_error(
+            "Live voice mode is not available",
+            status=503,
+            error_code="voice_mode_disabled",
+        )
+
+    subscription_tier = resolve_user_subscription_tier(user_id)
+    premium_gate_active = bool(getattr(config, "PREMIUM_SURFACES_ENABLED", False)) and not bool(
+        getattr(config, "APP_FREE_MODE", True)
+    )
+    if premium_gate_active and subscription_tier != "premium":
+        return _voice_error(
+            "Premium subscription required",
+            status=403,
+            error_code="premium_required",
+        )
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        return _voice_error(
+            "User not found",
+            status=404,
+            error_code="user_not_found",
+        )
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return _voice_error(
+            "Invalid request body",
+            status=400,
+            error_code="invalid_request_body",
+        )
+
+    summary_context = sanitize_post_workout_summary_context(payload.get("summary_context"))
+    language = normalize_language_code(payload.get("language") or user.language or getattr(config, "DEFAULT_LANGUAGE", "en"))
+    user_name = (
+        str(payload.get("user_name") or user.display_name or "").strip()
+        if isinstance(payload, dict)
+        else str(user.display_name or "").strip()
+    )
+
+    try:
+        bootstrap = bootstrap_post_workout_voice_session(
+            summary_context=summary_context,
+            language=language,
+            user_name=user_name or None,
+            logger=logger,
+        )
+    except requests.HTTPError as exc:
+        response = getattr(exc, "response", None)
+        body_preview = ""
+        if response is not None:
+            try:
+                body_preview = (response.text or "")[:200]
+            except Exception:
+                body_preview = ""
+        logger.error(
+            "VOICE_SESSION_BOOTSTRAP_FAILED user=%s status=%s body=%s",
+            user_id,
+            getattr(response, "status_code", "unknown"),
+            body_preview,
+        )
+        _capture_voice_event(
+            "voice_session_failed",
+            user_id=user_id,
+            metadata={
+                "stage": "bootstrap",
+                "reason": "provider_http_error",
+                "provider_status": getattr(response, "status_code", None),
+            },
+        )
+        return _voice_error(
+            "Failed to start live voice session",
+            status=503,
+            error_code="voice_provider_error",
+        )
+    except Exception as exc:
+        logger.error("VOICE_SESSION_BOOTSTRAP_FAILED user=%s error=%s", user_id, exc, exc_info=True)
+        _capture_voice_event(
+            "voice_session_failed",
+            user_id=user_id,
+            metadata={
+                "stage": "bootstrap",
+                "reason": "bootstrap_exception",
+            },
+        )
+        return _voice_error(
+            "Failed to start live voice session",
+            status=503,
+            error_code="voice_session_unavailable",
+        )
+
+    bootstrap["subscription_tier"] = subscription_tier
+    _capture_voice_event(
+        "voice_session_requested",
+        user_id=user_id,
+        metadata={
+            "voice_session_id": bootstrap.get("voice_session_id"),
+            "region": bootstrap.get("region"),
+            "voice": bootstrap.get("voice"),
+            "language": language,
+        },
+    )
+    return jsonify(bootstrap), 200
+
+
+@app.route('/voice/telemetry', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.voice.telemetry",
+    scope="user",
+)
+@require_mobile_auth
+def voice_telemetry():
+    """Best-effort mobile analytics for the isolated live voice mode."""
+    user_id = get_request_auth_user_id()
+    if not user_id:
+        return _voice_error(
+            "Authentication required",
+            status=401,
+            error_code="authentication_required",
+        )
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return _voice_error(
+            "Invalid request body",
+            status=400,
+            error_code="invalid_request_body",
+        )
+
+    event = str(payload.get("event") or "").strip()
+    metadata = payload.get("metadata")
+    allowed_events = {
+        "voice_cta_tapped",
+        "voice_session_requested",
+        "voice_session_started",
+        "voice_session_failed",
+        "voice_session_ended",
+        "voice_fallback_text_opened",
+    }
+    if event not in allowed_events:
+        return _voice_error(
+            "Invalid voice event",
+            status=400,
+            error_code="invalid_voice_event",
+        )
+
+    event_metadata = dict(metadata) if isinstance(metadata, dict) else {}
+    event_metadata["subscription_tier"] = resolve_user_subscription_tier(user_id)
+    _capture_voice_event(event, user_id=user_id, metadata=event_metadata)
+    return jsonify({"success": True}), 200
+
+
+# ============================================
 # TALK TO COACH (Conversational + Voice)
 # ============================================
 
@@ -4323,7 +4544,7 @@ def coach_talk():
             conversation_history = _recent_talk_messages(talk_session_id, limit=6)
             recent_zone_events = _recent_zone_event_context(talk_session_id, limit=3)
 
-        if context == "workout" and stt_source == "stt_error":
+        if context == "workout" and stt_source in {"stt_disabled", "stt_error", "stt_timeout", "stt_quota_limited"}:
             coach_text = enforce_language_consistency(
                 workout_talk_fallback(language, workout_context),
                 language,
@@ -4339,11 +4560,12 @@ def coach_talk():
             audio_url = f"/download/{relative_path}"
             latency_ms = int(round((time.perf_counter() - started_at) * 1000))
             logger.info(
-                "Coach talk fast fallback trigger=%s context=%s persona=%s user=%s provider=config reason=stt_error latency_ms=%s",
+                "Coach talk fast fallback trigger=%s context=%s persona=%s user=%s provider=config reason=%s latency_ms=%s",
                 trigger_source,
                 context,
                 persona,
                 user_name or "anon",
+                stt_source,
                 latency_ms,
             )
             _record_talk_session_message(talk_session_id, "assistant", coach_text)

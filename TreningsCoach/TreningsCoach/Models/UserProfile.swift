@@ -64,6 +64,15 @@ enum TrainingLevel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum SubscriptionTier: String, Codable {
+    case free = "free"
+    case premium = "premium"
+
+    var isPremium: Bool {
+        self == .premium
+    }
+}
+
 // MARK: - User Profile
 
 struct UserProfile: Codable {
@@ -74,6 +83,7 @@ struct UserProfile: Codable {
     var language: AppLanguage
     var trainingLevel: TrainingLevel
     var preferredPersona: String?
+    var subscriptionTier: SubscriptionTier
 
     enum CodingKeys: String, CodingKey {
         case id, email
@@ -82,6 +92,7 @@ struct UserProfile: Codable {
         case language
         case trainingLevel = "training_level"
         case preferredPersona = "preferred_persona"
+        case subscriptionTier = "subscription_tier"
     }
 
     init(from decoder: Decoder) throws {
@@ -98,6 +109,8 @@ struct UserProfile: Codable {
         trainingLevel = TrainingLevel(rawValue: levelString) ?? .beginner
 
         preferredPersona = try container.decodeIfPresent(String.self, forKey: .preferredPersona)
+        let tierString = try container.decodeIfPresent(String.self, forKey: .subscriptionTier) ?? "free"
+        subscriptionTier = SubscriptionTier(rawValue: tierString) ?? .free
     }
 }
 

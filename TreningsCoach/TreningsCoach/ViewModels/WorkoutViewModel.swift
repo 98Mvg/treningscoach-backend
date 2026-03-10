@@ -422,6 +422,38 @@ class WorkoutViewModel: ObservableObject {
         return formattedCoachScoreLine(score: coachScore)
     }
 
+    var postWorkoutLabel: String {
+        switch selectedWorkoutMode {
+        case .easyRun:
+            return currentLanguage == "no" ? "Rolig tur" : "Easy Run"
+        case .intervals:
+            return currentLanguage == "no" ? "Intervaller" : "Intervals"
+        case .standard:
+            return currentLanguage == "no" ? "Økt" : "Workout"
+        }
+    }
+
+    var postWorkoutSummaryContext: PostWorkoutSummaryContext {
+        PostWorkoutSummaryContext(
+            workoutMode: selectedWorkoutMode.rawValue,
+            workoutLabel: postWorkoutLabel,
+            durationText: elapsedFormatted,
+            finalHeartRateText: watchBPMDisplayText,
+            coachScore: max(0, min(100, coachScore)),
+            coachScoreSummaryLine: coachScoreSummaryLine,
+            zoneTimeInTargetPct: zoneTimeInTargetPct,
+            zoneOvershoots: zoneOvershoots,
+            phase: workoutContextSummary?.phase,
+            elapsedS: workoutContextSummary?.elapsedS ?? Int(elapsedTime),
+            timeLeftS: workoutContextSummary?.timeLeftS,
+            repIndex: workoutContextSummary?.repIndex,
+            repsTotal: workoutContextSummary?.repsTotal,
+            repRemainingS: workoutContextSummary?.repRemainingS,
+            repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
+            elapsedSource: workoutContextSummary?.elapsedSource
+        )
+    }
+
     var coachScoreCapHint: String? {
         let sensorHintNo = "Koble til klokke eller aktiver pusteanalyse for mer nøyaktig score."
         let sensorHintEn = "Connect watch or enable breath analysis for more accurate scoring."

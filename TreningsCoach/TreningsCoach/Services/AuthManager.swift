@@ -21,6 +21,7 @@ class AuthManager: ObservableObject {
     @Published var currentUser: UserProfile?
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var productFlags: ProductFlags = .launchDefaults
 
     // MARK: - Token
 
@@ -71,6 +72,10 @@ class AuthManager: ObservableObject {
     // MARK: - Init
 
     init() {
+        Task {
+            await fetchRuntimeFlags()
+        }
+
         // Check if we have a stored token on launch
         if hasUsableSession() {
             isAuthenticated = true
@@ -249,6 +254,15 @@ class AuthManager: ObservableObject {
         }
     }
 
+    func fetchRuntimeFlags() async {
+        do {
+            let runtime = try await BackendAPIService.shared.fetchAppRuntime()
+            productFlags = runtime.productFlags
+        } catch {
+            print("Failed to fetch runtime flags: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Private
 
     private func sendAuthRequest(provider: String, body: [String: String]) async throws -> AuthResponse {
@@ -343,6 +357,10 @@ class AuthManager: ObservableObject {
         let defaults = UserDefaults.standard
         if !defaults.bool(forKey: "spotify_prompt_seen") {
             defaults.set(true, forKey: "spotify_prompt_pending")
+        }
+
+        Task {
+            await fetchRuntimeFlags()
         }
 
         print("Authenticated: \(response.user.email)")

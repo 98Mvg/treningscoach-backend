@@ -404,6 +404,81 @@ struct WorkoutContextSummary: Codable {
     }
 }
 
+struct PostWorkoutSummaryContext: Codable, Equatable {
+    let workoutMode: String
+    let workoutLabel: String
+    let durationText: String
+    let finalHeartRateText: String
+    let coachScore: Int
+    let coachScoreSummaryLine: String
+    let zoneTimeInTargetPct: Double?
+    let zoneOvershoots: Int
+    let phase: String?
+    let elapsedS: Int?
+    let timeLeftS: Int?
+    let repIndex: Int?
+    let repsTotal: Int?
+    let repRemainingS: Int?
+    let repsRemainingIncludingCurrent: Int?
+    let elapsedSource: String?
+
+    enum CodingKeys: String, CodingKey {
+        case workoutMode = "workout_mode"
+        case workoutLabel = "workout_label"
+        case durationText = "duration_text"
+        case finalHeartRateText = "final_heart_rate_text"
+        case coachScore = "coach_score"
+        case coachScoreSummaryLine = "coach_score_summary_line"
+        case zoneTimeInTargetPct = "zone_time_in_target_pct"
+        case zoneOvershoots = "zone_overshoots"
+        case phase
+        case elapsedS = "elapsed_s"
+        case timeLeftS = "time_left_s"
+        case repIndex = "rep_index"
+        case repsTotal = "reps_total"
+        case repRemainingS = "rep_remaining_s"
+        case repsRemainingIncludingCurrent = "reps_remaining_including_current"
+        case elapsedSource = "elapsed_source"
+    }
+
+    func fallbackPrompt(for question: String, languageCode: String) -> String {
+        let isNorwegian = languageCode.lowercased() == "no"
+        var lines = [
+            isNorwegian ? "Oppsummering fra den siste treningsokten:" : "Summary from the last workout:",
+            isNorwegian ? "- Oekt: \(workoutLabel)" : "- Workout: \(workoutLabel)",
+            isNorwegian ? "- Varighet: \(durationText)" : "- Duration: \(durationText)",
+            isNorwegian ? "- Sluttpuls: \(finalHeartRateText)" : "- Final heart rate: \(finalHeartRateText)",
+            isNorwegian ? "- Coach score: \(coachScore)" : "- Coach score: \(coachScore)",
+            isNorwegian ? "- Oppsummering: \(coachScoreSummaryLine)" : "- Summary: \(coachScoreSummaryLine)",
+        ]
+
+        if let zoneTimeInTargetPct {
+            let normalizedPct = zoneTimeInTargetPct <= 1 ? zoneTimeInTargetPct * 100.0 : zoneTimeInTargetPct
+            let pctText = String(format: "%.0f%%", normalizedPct)
+            lines.append(isNorwegian ? "- Tid i malsonen: \(pctText)" : "- Time in target zone: \(pctText)")
+        }
+
+        lines.append(isNorwegian ? "- Overshoots over malsonen: \(zoneOvershoots)" : "- Zone overshoots: \(zoneOvershoots)")
+
+        if let phase, !phase.isEmpty {
+            lines.append(isNorwegian ? "- Siste fase: \(phase)" : "- Last phase: \(phase)")
+        }
+
+        lines.append("")
+        lines.append(isNorwegian ? "Sporsmal: \(question)" : "Question: \(question)")
+        return lines.joined(separator: "\n")
+    }
+
+    func telemetryMetadata() -> [String: String] {
+        [
+            "workout_mode": workoutMode,
+            "workout_label": workoutLabel,
+            "coach_score": String(coachScore),
+            "duration_text": durationText,
+        ]
+    }
+}
+
 struct CoachingEvent: Codable, Identifiable {
     var id: String { "\(eventType)-\(ts)" }
     let eventType: String
@@ -608,6 +683,97 @@ struct UserStats {
     var currentStreak: Int = 0
     var workoutsThisWeek: Int = 0
     var weeklyGoal: Int = 4
+}
+
+enum LiveCoachTranscriptRole: String {
+    case user
+    case assistant
+    case system
+}
+
+struct LiveCoachTranscriptEntry: Identifiable, Equatable {
+    let id: UUID
+    let role: LiveCoachTranscriptRole
+    let text: String
+    let timestamp: Date
+    let isPartial: Bool
+
+    init(
+        id: UUID = UUID(),
+        role: LiveCoachTranscriptRole,
+        text: String,
+        timestamp: Date = Date(),
+        isPartial: Bool = false
+    ) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.timestamp = timestamp
+        self.isPartial = isPartial
+    }
+}
+
+struct ProductFlags: Codable, Equatable {
+    let appFreeMode: Bool
+    let billingEnabled: Bool
+    let premiumSurfacesEnabled: Bool
+    let monetizationPhase: String
+
+    enum CodingKeys: String, CodingKey {
+        case appFreeMode = "app_free_mode"
+        case billingEnabled = "billing_enabled"
+        case premiumSurfacesEnabled = "premium_surfaces_enabled"
+        case monetizationPhase = "monetization_phase"
+    }
+
+    static let launchDefaults = ProductFlags(
+        appFreeMode: true,
+        billingEnabled: false,
+        premiumSurfacesEnabled: false,
+        monetizationPhase: "free_only"
+    )
+
+    var allowsPremiumGating: Bool {
+        !appFreeMode && premiumSurfacesEnabled
+    }
+}
+
+struct AppRuntimeResponse: Codable {
+    let status: String
+    let version: String?
+    let timestamp: String?
+    let productFlags: ProductFlags
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case version
+        case timestamp
+        case productFlags = "product_flags"
+    }
+}
+
+struct VoiceSessionBootstrap: Codable {
+    let voiceSessionId: String
+    let websocketURL: String
+    let clientSecret: String
+    let clientSecretExpiresAt: Int?
+    let voice: String
+    let model: String?
+    let region: String?
+    let maxDurationSeconds: Int
+    let sessionUpdateJSON: String
+
+    enum CodingKeys: String, CodingKey {
+        case voiceSessionId = "voice_session_id"
+        case websocketURL = "websocket_url"
+        case clientSecret = "client_secret"
+        case clientSecretExpiresAt = "client_secret_expires_at"
+        case voice
+        case model
+        case region
+        case maxDurationSeconds = "max_duration_seconds"
+        case sessionUpdateJSON = "session_update_json"
+    }
 }
 
 // MARK: - Coach Talk Response

@@ -13,6 +13,7 @@
 		AA0005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0004 /* Assets.xcassets */; };
 		AA0010 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0009 /* Models.swift */; };
 		AA0014 /* BackendAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0013 /* BackendAPIService.swift */; };
+		CC2001 /* XAIRealtimeVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2000 /* XAIRealtimeVoiceService.swift */; };
 		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
 		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
 		HR1001 /* HeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1000 /* HeartRateProvider.swift */; };
@@ -65,6 +66,7 @@
 		BB0041 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0040 /* ActiveWorkoutView.swift */; };
 		BB0043 /* WorkoutCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0042 /* WorkoutCompleteView.swift */; };
 		BB0045 /* WorkoutLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0044 /* WorkoutLaunchView.swift */; };
+		BB0047 /* LiveCoachConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0046 /* LiveCoachConversationView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -75,6 +77,7 @@
 		AA0004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		AA0013 /* BackendAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIService.swift; sourceTree = "<group>"; };
+		CC2000 /* XAIRealtimeVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAIRealtimeVoiceService.swift; sourceTree = "<group>"; };
 		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
 		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
 		HR1000 /* HeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateProvider.swift; sourceTree = "<group>"; };
@@ -132,6 +135,7 @@
 		BB0040 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveWorkoutView.swift; sourceTree = "<group>"; };
 		BB0042 /* WorkoutCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCompleteView.swift; sourceTree = "<group>"; };
 		BB0044 /* WorkoutLaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLaunchView.swift; sourceTree = "<group>"; };
+		BB0046 /* LiveCoachConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCoachConversationView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -232,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0013 /* BackendAPIService.swift */,
+				CC2000 /* XAIRealtimeVoiceService.swift */,
 				CC1000 /* PhoneWCManager.swift */,
 				AA0021 /* ContinuousRecordingManager.swift */,
 				AA2004 /* AuthManager.swift */,
@@ -282,6 +287,7 @@
 				BB0040 /* ActiveWorkoutView.swift */,
 				BB0042 /* WorkoutCompleteView.swift */,
 				BB0044 /* WorkoutLaunchView.swift */,
+				BB0046 /* LiveCoachConversationView.swift */,
 			);
 			path = Tabs;
 			sourceTree = "<group>";
@@ -452,6 +458,7 @@
 				AA0001 /* TreningsCoachApp.swift in Sources */,
 				AA0010 /* Models.swift in Sources */,
 				AA0014 /* BackendAPIService.swift in Sources */,
+				CC2001 /* XAIRealtimeVoiceService.swift in Sources */,
 				CC1001 /* PhoneWCManager.swift in Sources */,
 				CC1003 /* WCKeys.swift in Sources */,
 				HR1003 /* AppleWatchWCProvider.swift in Sources */,
@@ -498,6 +505,7 @@
 				BB0041 /* ActiveWorkoutView.swift in Sources */,
 				BB0043 /* WorkoutCompleteView.swift in Sources */,
 				BB0045 /* WorkoutLaunchView.swift in Sources */,
+				BB0047 /* LiveCoachConversationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

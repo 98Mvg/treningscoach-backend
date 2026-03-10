@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct WorkoutCompleteView: View {
+    @EnvironmentObject var authManager: AuthManager
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var checkmarkScale: CGFloat = 0.65
     @State private var contentVisible = false
@@ -17,6 +18,7 @@ struct WorkoutCompleteView: View {
     @State private var hasAnimatedScore = false
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
+    @State private var showLiveCoachVoice = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -61,7 +63,25 @@ struct WorkoutCompleteView: View {
 
     private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
+    private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
+    private var canUseLiveCoachVoice: Bool {
+        guard AppConfig.LiveVoice.isEnabled,
+              authManager.isAuthenticated,
+              authManager.currentUser != nil else {
+            return false
+        }
+        if !authManager.productFlags.allowsPremiumGating {
+            return true
+        }
+        return authManager.currentUser?.subscriptionTier == .premium
+    }
+    private var liveVoiceLanguageCode: String {
+        authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
+    }
+    private var liveVoiceUserName: String {
+        authManager.currentUser?.displayName ?? ""
+    }
 
     var body: some View {
         ZStack {
@@ -162,6 +182,13 @@ struct WorkoutCompleteView: View {
 
                     Spacer()
 
+                    if canUseLiveCoachVoice {
+                        liveCoachVoiceButton
+                            .padding(.horizontal, 30)
+                            .padding(.bottom, 14)
+                            .opacity(contentVisible ? 1 : 0)
+                    }
+
                     buttonGroup
                     .padding(.horizontal, 30)
                     .padding(.bottom, max(geo.safeAreaInsets.bottom + 12, 26))
@@ -169,6 +196,13 @@ struct WorkoutCompleteView: View {
                 }
                 .padding(.horizontal, 12)
             }
+        }
+        .fullScreenCover(isPresented: $showLiveCoachVoice) {
+            LiveCoachConversationView(
+                summaryContext: viewModel.postWorkoutSummaryContext,
+                languageCode: liveVoiceLanguageCode,
+                userName: liveVoiceUserName
+            )
         }
         .onAppear {
             freezeSummaryValues()
@@ -180,6 +214,36 @@ struct WorkoutCompleteView: View {
             }
             ringGlowPulse = true
             animateScoreIfNeeded()
+        }
+    }
+
+    private var liveCoachVoiceButton: some View {
+        Button {
+            let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
+            Task {
+                _ = await BackendAPIService.shared.trackVoiceTelemetry(
+                    event: "voice_cta_tapped",
+                    metadata: metadata
+                )
+            }
+            showLiveCoachVoice = true
+        } label: {
+            Text(liveCoachVoiceLabel)
+                .font(.system(size: 15, weight: .semibold))
+                .tracking(0.8)
+                .foregroundColor(Color.black.opacity(0.88))
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "A5F3EC").opacity(0.98), Color(hex: "67E8F9").opacity(0.94)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
         }
     }
 

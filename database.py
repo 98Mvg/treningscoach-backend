@@ -72,9 +72,15 @@ class User(db.Model):
     # Relationships
     settings = db.relationship("UserSettings", backref="user", uselist=False, cascade="all, delete-orphan")
     profile = db.relationship("UserProfile", backref="user", uselist=False, cascade="all, delete-orphan")
+    subscription = db.relationship("UserSubscription", backref="user", uselist=False, cascade="all, delete-orphan")
     workouts = db.relationship("WorkoutHistory", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
+        subscription_tier = "free"
+        if self.subscription is not None:
+            raw_tier = str(getattr(self.subscription, "tier", "") or "").strip().lower()
+            if raw_tier == "premium":
+                subscription_tier = "premium"
         return {
             "id": self.id,
             "email": self.email,
@@ -84,6 +90,7 @@ class User(db.Model):
             "language": self.language,
             "training_level": self.training_level,
             "preferred_persona": self.preferred_persona,
+            "subscription_tier": subscription_tier,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }

@@ -125,6 +125,19 @@ SENTRY_ENVIRONMENT = (
 ).strip()
 SENTRY_RELEASE = (os.getenv("SENTRY_RELEASE", APP_VERSION) or APP_VERSION).strip()
 SENTRY_TRACES_SAMPLE_RATE = _env_float("SENTRY_TRACES_SAMPLE_RATE", 0.0)
+XAI_VOICE_AGENT_ENABLED = _env_bool("XAI_VOICE_AGENT_ENABLED", False)
+XAI_VOICE_AGENT_MODEL = (os.getenv("XAI_VOICE_AGENT_MODEL", "grok-3-mini") or "grok-3-mini").strip()
+XAI_VOICE_AGENT_REGION = (os.getenv("XAI_VOICE_AGENT_REGION", "us-east-1") or "us-east-1").strip()
+XAI_VOICE_AGENT_VOICE = (os.getenv("XAI_VOICE_AGENT_VOICE", "Rex") or "Rex").strip()
+XAI_VOICE_AGENT_MAX_SESSION_SECONDS = _env_int("XAI_VOICE_AGENT_MAX_SESSION_SECONDS", 300)
+XAI_VOICE_AGENT_CLIENT_SECRET_URL = (
+    os.getenv("XAI_VOICE_AGENT_CLIENT_SECRET_URL", "https://api.x.ai/v1/realtime/client_secrets")
+    or "https://api.x.ai/v1/realtime/client_secrets"
+).strip()
+XAI_VOICE_AGENT_WEBSOCKET_URL = (
+    os.getenv("XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
+    or "wss://api.x.ai/v1/realtime"
+).strip()
 
 # Security posture
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)
@@ -263,6 +276,8 @@ BREATH_MIN_AUDIO_BYTES = 8000
 BREATH_ANALYSIS_TIMEOUT_SECONDS = _env_float("BREATH_ANALYSIS_TIMEOUT_SECONDS", 2.5)
 # Cooldown after a timeout to avoid piling work onto a still-running analyzer task.
 BREATH_ANALYSIS_TIMEOUT_COOLDOWN_SECONDS = _env_float("BREATH_ANALYSIS_TIMEOUT_COOLDOWN_SECONDS", 20.0)
+# Cooldown after STT quota/rate-limit failures so workout talk degrades fast instead of retrying every request.
+TALK_STT_QUOTA_COOLDOWN_SECONDS = _env_float("TALK_STT_QUOTA_COOLDOWN_SECONDS", 300.0)
 # Smoothing for breath metrics (EMA over recent history)
 BREATH_SMOOTHING_ALPHA = 0.5
 BREATH_SMOOTHING_WINDOW = 4
@@ -511,6 +526,7 @@ BRAIN_MODE_TIMEOUTS = _env_json_dict("BRAIN_MODE_TIMEOUTS_JSON", {})
 COACH_QA_TIMEOUT_SECONDS = _env_float("COACH_QA_TIMEOUT_SECONDS", 5.0)
 COACH_TALK_WAKE_TIMEOUT_SECONDS = _env_float("COACH_TALK_WAKE_TIMEOUT_SECONDS", 1.2)
 COACH_TALK_BUTTON_TIMEOUT_SECONDS = _env_float("COACH_TALK_BUTTON_TIMEOUT_SECONDS", 2.0)
+TALK_STT_ENABLED = _env_bool("TALK_STT_ENABLED", False)
 TALK_CONTEXT_SUMMARY_ENABLED = _env_bool("TALK_CONTEXT_SUMMARY_ENABLED", True)
 COACH_QA_MAX_TOKENS = _env_int("COACH_QA_MAX_TOKENS", 80)
 COACH_QA_MAX_SENTENCES = _env_int("COACH_QA_MAX_SENTENCES", 3)
