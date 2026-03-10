@@ -40,7 +40,13 @@ class ElevenLabsTTS:
         self.default_voice_id = voice_id
 
         # Cache directory for generated audio
-        self.cache_dir = os.path.join(os.path.dirname(__file__), "output", "cache")
+        self.cache_dir = str(
+            getattr(
+                config,
+                "TTS_AUDIO_CACHE_DIR",
+                os.path.join(os.path.dirname(__file__), "output", "cache"),
+            )
+        )
         os.makedirs(self.cache_dir, exist_ok=True)
         self._cache_hits = 0
         self._cache_misses = 0
@@ -422,7 +428,13 @@ def synthesize_speech_mock(text: str) -> str:
     """
     Generate a short audible beep file as deterministic fallback when cloud TTS is unavailable.
     """
-    output_folder = os.path.join(os.path.dirname(__file__), "output")
+    output_folder = str(
+        getattr(
+            config,
+            "TTS_AUDIO_CACHE_DIR",
+            os.path.join(os.path.dirname(__file__), "output", "cache"),
+        )
+    )
     os.makedirs(output_folder, exist_ok=True)
     timestamp = datetime.now().timestamp()
     output_path = os.path.join(output_folder, f"coach_mock_{timestamp}.wav")

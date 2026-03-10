@@ -1,10 +1,12 @@
 import importlib
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
+import database
 
 
 def test_brain_priority_env_override(monkeypatch):
@@ -131,6 +133,10 @@ def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("JWT_ACCESS_TOKEN_MAX_DAYS", "5")
     monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")
     monkeypatch.setenv("JWT_SECRET_MAX_AGE_DAYS", "30")
+    monkeypatch.setenv("APPLE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("GOOGLE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("FACEBOOK_AUTH_ENABLED", "true")
+    monkeypatch.setenv("VIPPS_AUTH_ENABLED", "true")
     monkeypatch.setenv("MOBILE_API_AUTH_REQUIRED", "true")
     monkeypatch.setenv("RATE_LIMIT_ENABLED", "true")
     monkeypatch.setenv("API_RATE_LIMIT_PER_HOUR", "150")
@@ -144,6 +150,10 @@ def test_security_env_overrides(monkeypatch):
     assert config.JWT_ACCESS_TOKEN_MAX_DAYS == 5
     assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 20
     assert config.JWT_SECRET_MAX_AGE_DAYS == 30
+    assert config.APPLE_AUTH_ENABLED is True
+    assert config.GOOGLE_AUTH_ENABLED is True
+    assert config.FACEBOOK_AUTH_ENABLED is True
+    assert config.VIPPS_AUTH_ENABLED is True
     assert config.MOBILE_API_AUTH_REQUIRED is True
     assert config.RATE_LIMIT_ENABLED is True
     assert config.API_RATE_LIMIT_PER_HOUR == 150
@@ -169,3 +179,73 @@ def test_mobile_api_auth_defaults_to_guest_friendly(monkeypatch):
     importlib.reload(config)
 
     assert config.MOBILE_API_AUTH_REQUIRED is False
+
+
+def test_non_apple_auth_providers_default_to_disabled(monkeypatch):
+    monkeypatch.delenv("APPLE_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("GOOGLE_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("FACEBOOK_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("VIPPS_AUTH_ENABLED", raising=False)
+
+    importlib.reload(config)
+
+    assert config.APPLE_AUTH_ENABLED is True
+    assert config.GOOGLE_AUTH_ENABLED is False
+    assert config.FACEBOOK_AUTH_ENABLED is False
+    assert config.VIPPS_AUTH_ENABLED is False
+
+
+def test_storage_paths_default_to_absolute_runtime_dirs(monkeypatch):
+    for key in (
+        "INSTANCE_DIR",
+        "UPLOAD_DIR",
+        "OUTPUT_DIR",
+        "TTS_AUDIO_CACHE_DIR",
+        "WELCOME_ROTATION_STATE_PATH",
+        "ZONE_PERSONALIZATION_STORAGE_PATH",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    importlib.reload(config)
+
+    assert Path(config.INSTANCE_DIR).is_absolute()
+    assert Path(config.UPLOAD_DIR).is_absolute()
+    assert Path(config.OUTPUT_DIR).is_absolute()
+    assert Path(config.TTS_AUDIO_CACHE_DIR).is_absolute()
+    assert Path(config.WELCOME_ROTATION_STATE_PATH).is_absolute()
+    assert Path(config.ZONE_PERSONALIZATION_STORAGE_PATH).is_absolute()
+    assert config.INSTANCE_DIR.endswith("/instance")
+    assert config.UPLOAD_DIR.endswith("/uploads")
+    assert config.OUTPUT_DIR.endswith("/output")
+    assert config.TTS_AUDIO_CACHE_DIR.endswith("/output/cache")
+    assert config.WELCOME_ROTATION_STATE_PATH.endswith("/instance/cache/utterance_rotation_state.json")
+    assert config.ZONE_PERSONALIZATION_STORAGE_PATH.endswith("/instance/zone_personalization.json")
+
+
+def test_storage_paths_allow_env_overrides(monkeypatch):
+    monkeypatch.setenv("INSTANCE_DIR", "tmp/runtime-instance")
+    monkeypatch.setenv("UPLOAD_DIR", "tmp/runtime-uploads")
+    monkeypatch.setenv("OUTPUT_DIR", "tmp/runtime-output")
+    monkeypatch.setenv("TTS_AUDIO_CACHE_DIR", "tmp/runtime-output/cache")
+    monkeypatch.setenv("WELCOME_ROTATION_STATE_PATH", "tmp/runtime-instance/rotation.json")
+    monkeypatch.setenv("ZONE_PERSONALIZATION_STORAGE_PATH", "tmp/runtime-instance/personalization.json")
+
+    importlib.reload(config)
+
+    assert config.INSTANCE_DIR.endswith("/tmp/runtime-instance")
+    assert config.UPLOAD_DIR.endswith("/tmp/runtime-uploads")
+    assert config.OUTPUT_DIR.endswith("/tmp/runtime-output")
+    assert config.TTS_AUDIO_CACHE_DIR.endswith("/tmp/runtime-output/cache")
+    assert config.WELCOME_ROTATION_STATE_PATH.endswith("/tmp/runtime-instance/rotation.json")
+    assert config.ZONE_PERSONALIZATION_STORAGE_PATH.endswith("/tmp/runtime-instance/personalization.json")
+
+
+def test_database_default_url_uses_instance_dir(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("INSTANCE_DIR", "tmp/test-instance-db")
+
+    importlib.reload(config)
+
+    database_url = database.get_database_url()
+    assert database_url.startswith("sqlite:////")
+    assert database_url.endswith("/tmp/test-instance-db/treningscoach.db")

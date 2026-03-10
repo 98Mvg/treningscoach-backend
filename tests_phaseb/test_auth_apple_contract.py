@@ -84,6 +84,23 @@ def test_auth_apple_invalid_token_returns_401(monkeypatch):
     assert payload["error_code"] == "apple_token_invalid"
 
 
+def test_non_apple_auth_providers_are_disabled_for_launch_surface():
+    client = main.app.test_client()
+
+    cases = [
+        ("/auth/google", {"id_token": "fake"}),
+        ("/auth/facebook", {"access_token": "fake"}),
+        ("/auth/vipps", {"access_token": "fake"}),
+    ]
+
+    for path, body in cases:
+        response = client.post(path, json=body)
+        assert response.status_code == 404
+        payload = response.get_json()
+        assert payload["error"] == "Provider unavailable"
+        assert payload["error_code"] == "provider_disabled"
+
+
 def test_auth_refresh_rotates_token_family(monkeypatch):
     provider_id = f"apple-{uuid.uuid4().hex[:12]}"
     email = f"apple-user-{uuid.uuid4().hex[:10]}@example.com"

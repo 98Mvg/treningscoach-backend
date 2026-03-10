@@ -5,7 +5,7 @@ This module keeps the same endpoint behavior while reducing main.py surface.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -16,6 +16,10 @@ from sqlalchemy.exc import IntegrityError
 from auth import rate_limit
 import config
 from email_sender import send_waitlist_welcome_email
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def create_web_blueprint(
@@ -120,7 +124,7 @@ def create_web_blueprint(
 
         remote_addr = request.remote_addr or "unknown"
         ip_hash = hashlib.sha256(remote_addr.encode()).hexdigest()
-        now = datetime.utcnow()
+        now = _utcnow_naive()
         window_start = now - timedelta(hours=1)
 
         recent_count = waitlist_model.query.filter(

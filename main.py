@@ -63,6 +63,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _utcnow_naive() -> datetime:
+    return _utcnow().replace(tzinfo=None)
+
+
+def _utcnow_iso_z() -> str:
+    return _utcnow().isoformat().replace("+00:00", "Z")
+
 app = Flask(__name__)
 _cors_origins = list(getattr(config, "CORS_ALLOWED_ORIGINS", []) or [])
 CORS(
@@ -84,8 +96,8 @@ MAX_FILE_SIZE = config.MAX_FILE_SIZE
 ALLOWED_EXTENSIONS = config.ALLOWED_EXTENSIONS
 
 # Folders for temporary file storage
-UPLOAD_FOLDER = 'uploads'
-OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), 'output')  # Match tts_service.py
+UPLOAD_FOLDER = getattr(config, "UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
+OUTPUT_FOLDER = getattr(config, "OUTPUT_DIR", os.path.join(os.path.dirname(__file__), "output"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -102,7 +114,7 @@ _breath_analysis_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix
 _breath_analysis_lock = Lock()
 _breath_analysis_skip_until = 0.0
 running_personalization = RunningPersonalizationStore(
-    storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json"),
+    storage_path=getattr(config, "ZONE_PERSONALIZATION_STORAGE_PATH", "instance/zone_personalization.json"),
     max_recovery_samples=getattr(config, "ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24),
     max_session_history=getattr(config, "ZONE_PERSONALIZATION_MAX_SESSION_HISTORY", 20),
 )
@@ -458,7 +470,7 @@ def _resolve_runtime_profile(
             record.weight_kg = snapshot.weight_kg
             record.max_hr_bpm = snapshot.max_hr_bpm
             record.resting_hr_bpm = snapshot.resting_hr_bpm
-            record.profile_updated_at = snapshot_ts or datetime.utcnow()
+            record.profile_updated_at = snapshot_ts or _utcnow_naive()
             db.session.commit()
         return snapshot, "snapshot"
 
@@ -655,7 +667,7 @@ def _append_recent_zone_event(session_id: str, zone_tick: dict | None, coach_tex
         {
             "event_type": str(zone_tick.get("primary_event_type") or zone_tick.get("event_type") or "").strip(),
             "text": text,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": _utcnow_iso_z(),
         }
     )
     max_items = max(1, int(getattr(config, "TALK_RECENT_ZONE_EVENT_LIMIT", 3)))
@@ -671,7 +683,7 @@ def _recent_zone_event_context(session_id: str, limit: int = 3) -> list[dict]:
     if not isinstance(raw_items, list):
         return []
 
-    now = datetime.utcnow()
+    now = _utcnow()
     result = []
     for item in raw_items[-max(1, int(limit)):]:
         if not isinstance(item, dict):
@@ -1657,7 +1669,7 @@ def _maybe_rephrase_zone_event_text(
 
 def _record_tts_success(provider: str, language: str, persona: str, file_path: str):
     TTS_RUNTIME_DIAGNOSTICS["last_success"] = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": _utcnow_iso_z(),
         "provider": provider,
         "language": normalize_language_code(language or "en"),
         "persona": persona or "personal_trainer",
@@ -1667,7 +1679,7 @@ def _record_tts_success(provider: str, language: str, persona: str, file_path: s
 
 def _record_tts_error(stage: str, language: str, persona: str, error_type: str, status_code, message: str):
     TTS_RUNTIME_DIAGNOSTICS["last_error"] = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": _utcnow_iso_z(),
         "stage": stage,
         "language": normalize_language_code(language or "en"),
         "persona": persona or "personal_trainer",
@@ -2525,8 +2537,8 @@ def welcome():
             raise RuntimeError("No welcome utterance IDs available in phrase catalog")
 
         rotation_state_raw = str(
-            getattr(config, "WELCOME_ROTATION_STATE_PATH", "output/cache/utterance_rotation_state.json")
-            or "output/cache/utterance_rotation_state.json"
+            getattr(config, "WELCOME_ROTATION_STATE_PATH", "instance/cache/utterance_rotation_state.json")
+            or "instance/cache/utterance_rotation_state.json"
         ).strip()
         rotation_state_path = Path(rotation_state_raw)
         if not rotation_state_path.is_absolute():
@@ -3970,7 +3982,7 @@ def profile_upsert():
             if incoming_ts is not None:
                 existing.profile_updated_at = incoming_ts
             elif existing.profile_updated_at is None:
-                existing.profile_updated_at = datetime.utcnow()
+                existing.profile_updated_at = _utcnow_naive()
 
             db.session.commit()
 

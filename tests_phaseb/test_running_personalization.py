@@ -67,3 +67,19 @@ def test_empty_user_id_returns_default_without_writing(tmp_path):
 
     assert result["profile"]["sessions_completed"] == 0
     assert result["next_time_tip"] == ""
+
+
+def test_record_session_creates_parent_storage_directory(tmp_path):
+    store_path = tmp_path / "instance" / "state" / "personalization.json"
+    store = RunningPersonalizationStore(storage_path=str(store_path))
+
+    store.record_session(
+        user_id="runner_3",
+        language="en",
+        score=81,
+        time_in_target_pct=78.0,
+        overshoots=1,
+        recovery_avg_seconds=29.0,
+    )
+
+    assert store_path.exists()

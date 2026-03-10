@@ -3,7 +3,11 @@
 
 import json
 import os
+from pathlib import Path
 from locale_config import SUPPORTED_LOCALES, get_voice_id as locale_get_voice_id
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -66,12 +70,35 @@ def _env_csv_set(name: str, default: list[str]) -> list[str]:
             values.append(candidate)
     return values or list(default)
 
+
+def _resolve_repo_path(raw_value: str | None, default_relative: str) -> str:
+    raw = (raw_value or default_relative).strip() or default_relative
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return str(path.resolve())
+
+
+def _resolve_child_runtime_path(base_dir: str, raw_value: str | None, default_relative: str) -> str:
+    base_path = Path(base_dir)
+    default_path = (base_path / default_relative).resolve()
+    path = Path(_resolve_repo_path(raw_value, str(default_path)))
+    if not path.is_relative_to(base_path):
+        path = default_path
+    return str(path.resolve())
+
 # ============================================
 # APP SETTINGS
 # ============================================
 APP_NAME = "Coachi"
 APP_VERSION = "3.0.0"
 WEB_UI_VARIANT = (os.getenv("WEB_UI_VARIANT", "codex") or "codex").strip().lower()
+
+# Runtime storage directories
+INSTANCE_DIR = _resolve_repo_path(os.getenv("INSTANCE_DIR"), "instance")
+UPLOAD_DIR = _resolve_repo_path(os.getenv("UPLOAD_DIR"), "uploads")
+OUTPUT_DIR = _resolve_repo_path(os.getenv("OUTPUT_DIR"), "output")
+TTS_AUDIO_CACHE_DIR = _resolve_child_runtime_path(OUTPUT_DIR, os.getenv("TTS_AUDIO_CACHE_DIR"), "cache")
 
 # Monetization runtime policy:
 # - Keep app fully free while APP_FREE_MODE=true.
@@ -87,6 +114,10 @@ if APP_FREE_MODE:
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)
 JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 7)
 JWT_SECRET_MAX_AGE_DAYS = _env_int("JWT_SECRET_MAX_AGE_DAYS", 90)
+APPLE_AUTH_ENABLED = _env_bool("APPLE_AUTH_ENABLED", True)
+GOOGLE_AUTH_ENABLED = _env_bool("GOOGLE_AUTH_ENABLED", False)
+FACEBOOK_AUTH_ENABLED = _env_bool("FACEBOOK_AUTH_ENABLED", False)
+VIPPS_AUTH_ENABLED = _env_bool("VIPPS_AUTH_ENABLED", False)
 
 # Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).
 # Default is guest-friendly for the current pre-launch phase; set env true to re-enable strict auth.
@@ -323,9 +354,12 @@ WELCOME_ROTATION_RECENT_K = _env_int("WELCOME_ROTATION_RECENT_K", 2)
 WELCOME_ROTATION_AVOID_HOURS = _env_int("WELCOME_ROTATION_AVOID_HOURS", 24)
 WELCOME_ROTATION_HISTORY_MAX = _env_int("WELCOME_ROTATION_HISTORY_MAX", 50)
 WELCOME_ROTATION_STATE_PATH = (
-    os.getenv("WELCOME_ROTATION_STATE_PATH", "output/cache/utterance_rotation_state.json")
-    or "output/cache/utterance_rotation_state.json"
-).strip()
+    _resolve_child_runtime_path(
+        INSTANCE_DIR,
+        os.getenv("WELCOME_ROTATION_STATE_PATH"),
+        "cache/utterance_rotation_state.json",
+    )
+)
 
 # Spoken once at workout start (before first breath)
 # Purpose: Acknowledge start, set expectations, establish rhythm
@@ -727,9 +761,12 @@ ZONE_EVENT_LLM_REWRITE_ALLOWED_EVENTS = _env_csv_list(
 # Phase 5: personalization is analytics/insight only in v1 (no decision mutation).
 ZONE_PERSONALIZATION_ENABLED = _env_bool("ZONE_PERSONALIZATION_ENABLED", True)
 ZONE_PERSONALIZATION_STORAGE_PATH = (
-    os.getenv("ZONE_PERSONALIZATION_STORAGE_PATH", "zone_personalization.json")
-    or "zone_personalization.json"
-).strip()
+    _resolve_child_runtime_path(
+        INSTANCE_DIR,
+        os.getenv("ZONE_PERSONALIZATION_STORAGE_PATH"),
+        "zone_personalization.json",
+    )
+)
 ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES = _env_int("ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24)
 ZONE_PERSONALIZATION_MAX_SESSION_HISTORY = _env_int("ZONE_PERSONALIZATION_MAX_SESSION_HISTORY", 20)
 

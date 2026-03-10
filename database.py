@@ -5,20 +5,39 @@ SQLite for development, PostgreSQL for production (via DATABASE_URL env var)
 
 import os
 import uuid
-from datetime import datetime
+from pathlib import Path
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
+import config
 
 db = SQLAlchemy()
 
 
+def _utcnow_naive() -> datetime:
+    """Return UTC as naive datetime for existing DB columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def get_database_url():
     """Get database URL from environment or default to SQLite"""
-    return os.getenv("DATABASE_URL", "sqlite:///treningscoach.db")
+    configured = (os.getenv("DATABASE_URL") or "").strip()
+    if configured:
+        return configured
+
+    instance_dir = Path(getattr(config, "INSTANCE_DIR", Path(__file__).resolve().parent / "instance"))
+    sqlite_path = instance_dir / "treningscoach.db"
+    return f"sqlite:///{sqlite_path.as_posix()}"
 
 
 def init_db(app):
     """Initialize database with Flask app"""
-    app.config["SQLALCHEMY_DATABASE_URI"] = get_database_url()
+    database_url = get_database_url()
+    if database_url.startswith("sqlite:///") and "://" in database_url and not os.getenv("DATABASE_URL"):
+        Path(getattr(config, "INSTANCE_DIR", Path(__file__).resolve().parent / "instance")).mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
     with app.app_context():
@@ -47,8 +66,8 @@ class User(db.Model):
     preferred_persona = db.Column(db.String(50), nullable=True, default="personal_trainer")
 
     # Timestamps
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
 
     # Relationships
     settings = db.relationship("UserSettings", backref="user", uselist=False, cascade="all, delete-orphan")
@@ -88,8 +107,8 @@ class UserSettings(db.Model):
     coaching_frequency = db.Column(db.String(20), nullable=True, default="normal")  # low/normal/high
 
     # Timestamps
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
 
     def to_dict(self):
         return {
@@ -117,8 +136,8 @@ class UserProfile(db.Model):
     max_hr_bpm = db.Column(db.Integer, nullable=True)
     resting_hr_bpm = db.Column(db.Integer, nullable=True)
     profile_updated_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
 
     def to_dict(self):
         return {
@@ -147,7 +166,7 @@ class WorkoutHistory(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
 
     # Workout data
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    date = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
     duration_seconds = db.Column(db.Integer, nullable=False, default=0)
     final_phase = db.Column(db.String(20), nullable=True)  # warmup/intense/cooldown
     avg_intensity = db.Column(db.String(20), nullable=True)  # calm/moderate/intense
@@ -155,7 +174,7 @@ class WorkoutHistory(db.Model):
     language = db.Column(db.String(5), nullable=True, default="en")
 
     # Timestamps
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
 
     def to_dict(self):
         return {
@@ -183,7 +202,7 @@ class RefreshToken(db.Model):
     token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
     family_id = db.Column(db.String(36), nullable=False, index=True)
     expires_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
     last_used_at = db.Column(db.DateTime, nullable=True)
     revoked_at = db.Column(db.DateTime, nullable=True, index=True)
     replaced_by_hash = db.Column(db.String(64), nullable=True)
@@ -191,7 +210,7 @@ class RefreshToken(db.Model):
     issued_user_agent = db.Column(db.String(512), nullable=True)
 
     def is_active(self) -> bool:
-        return self.revoked_at is None and self.expires_at > datetime.utcnow()
+        return self.revoked_at is None and self.expires_at > _utcnow_naive()
 
 
 # ============================================
@@ -206,7 +225,7 @@ class WaitlistSignup(db.Model):
     language = db.Column(db.String(10), nullable=False, default="en")
     source = db.Column(db.String(50), nullable=False, default="website")
     ip_hash = db.Column(db.String(64), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
 
     def to_dict(self):
         return {

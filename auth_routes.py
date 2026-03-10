@@ -1,11 +1,11 @@
 """
 Auth API routes for Treningscoach
-Handles Apple, Google, Facebook, and Vipps authentication
+Launch-safe auth keeps Apple available and leaves other providers disabled by default
 """
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, g
 from database import db, User, UserSettings
 from email_sender import send_account_welcome_email
@@ -36,6 +36,18 @@ _apple_auth_metrics = {
 }
 
 
+_PROVIDER_FLAG_BY_NAME = {
+    "apple": "APPLE_AUTH_ENABLED",
+    "google": "GOOGLE_AUTH_ENABLED",
+    "facebook": "FACEBOOK_AUTH_ENABLED",
+    "vipps": "VIPPS_AUTH_ENABLED",
+}
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def _record_apple_auth_metric(*, success: bool, reason: str, started_at: float) -> None:
     """
     Lightweight in-process telemetry for Apple sign-in outcomes.
@@ -58,6 +70,18 @@ def _record_apple_auth_metric(*, success: bool, reason: str, started_at: float) 
         _apple_auth_metrics["failure"],
         reason_counts[reason],
     )
+
+
+def _provider_enabled(provider: str) -> bool:
+    flag_name = _PROVIDER_FLAG_BY_NAME.get(provider, "")
+    if not flag_name:
+        return False
+    return bool(getattr(config, flag_name, False))
+
+
+def _provider_unavailable_response(provider: str):
+    logger.info("Auth provider disabled for launch surface: %s", provider)
+    return jsonify({"error": "Provider unavailable", "error_code": "provider_disabled"}), 404
 
 
 # ============================================
@@ -85,7 +109,7 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
         # Update name/avatar if changed
         user.display_name = provider_info.get("display_name") or user.display_name
         user.avatar_url = provider_info.get("avatar_url") or user.avatar_url
-        user.updated_at = datetime.utcnow()
+        user.updated_at = _utcnow_naive()
         db.session.commit()
         logger.info(f"Existing user signed in: {user.email} ({provider})")
         return user
@@ -97,7 +121,7 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
         if user:
             # Link this provider to existing account
             logger.info(f"Linking {provider} to existing user: {email}")
-            user.updated_at = datetime.utcnow()
+            user.updated_at = _utcnow_naive()
             db.session.commit()
             return user
 
@@ -159,6 +183,10 @@ def auth_apple():
     }
     """
     started_at = time.perf_counter()
+    if not _provider_enabled("apple"):
+        reason = "apple_provider_disabled"
+        _record_apple_auth_metric(success=False, reason=reason, started_at=started_at)
+        return _provider_unavailable_response("apple")
     try:
         data = request.get_json()
         if not data or "identity_token" not in data:
@@ -228,6 +256,8 @@ def auth_google():
         "user": { ... }
     }
     """
+    if not _provider_enabled("google"):
+        return _provider_unavailable_response("google")
     try:
         data = request.get_json()
         if not data or "id_token" not in data:
@@ -280,6 +310,8 @@ def auth_facebook():
         "user": { ... }
     }
     """
+    if not _provider_enabled("facebook"):
+        return _provider_unavailable_response("facebook")
     try:
         data = request.get_json()
         if not data or "access_token" not in data:
@@ -332,6 +364,8 @@ def auth_vipps():
         "user": { ... }
     }
     """
+    if not _provider_enabled("vipps"):
+        return _provider_unavailable_response("vipps")
     try:
         data = request.get_json()
         if not data or "access_token" not in data:
@@ -391,7 +425,7 @@ def refresh_tokens():
         from database import User
 
         new_refresh_token, _family_id, user_id = rotate_refresh_token(refresh_token)
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         access_token = create_jwt(user_id, user.email if user is not None else None)
         return jsonify(
             {
@@ -450,7 +484,7 @@ def get_profile():
         "user": { id, email, display_name, language, training_level, ... }
     }
     """
-    user = User.query.get(g.current_user_id)
+    user = db.session.get(User, g.current_user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -483,7 +517,7 @@ def update_profile():
         "user": { ... updated ... }
     }
     """
-    user = User.query.get(g.current_user_id)
+    user = db.session.get(User, g.current_user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -510,7 +544,7 @@ def update_profile():
     if "preferred_persona" in data:
         user.preferred_persona = data["preferred_persona"]
 
-    user.updated_at = datetime.utcnow()
+    user.updated_at = _utcnow_naive()
     db.session.commit()
 
     logger.info(f"Profile updated: {user.email}")
@@ -530,7 +564,7 @@ def delete_account():
 
     Requires: Authorization: Bearer <token>
     """
-    user = User.query.get(g.current_user_id)
+    user = db.session.get(User, g.current_user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 

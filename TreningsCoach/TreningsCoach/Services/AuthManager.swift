@@ -2,7 +2,7 @@
 //  AuthManager.swift
 //  TreningsCoach
 //
-//  Manages authentication state with Apple, Google, Facebook, and Vipps
+//  Manages authentication state with Apple as the only launch-enabled provider
 //  Stores JWT token in Keychain, communicates with backend /auth/* endpoints
 //
 

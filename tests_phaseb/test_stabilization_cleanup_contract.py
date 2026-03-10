@@ -32,5 +32,9 @@ def test_repo_cleanup_removes_runtime_db_and_unused_memory_hook() -> None:
     gitignore_text = GITIGNORE.read_text(encoding="utf-8")
     user_memory_text = USER_MEMORY.read_text(encoding="utf-8")
 
+    assert "uploads/*" in gitignore_text
+    assert "output/cache/" in gitignore_text
     assert "instance/*.db" in gitignore_text
+    assert "instance/*.json" in gitignore_text
+    assert "instance/cache/" in gitignore_text
     assert "def detect_coaching_preference(" not in user_memory_text

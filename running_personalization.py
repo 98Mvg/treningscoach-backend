@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 from statistics import median
 from typing import Any, Dict, Optional
@@ -21,7 +22,7 @@ class RunningPersonalizationStore:
 
     def __init__(
         self,
-        storage_path: str = "zone_personalization.json",
+        storage_path: str = "instance/zone_personalization.json",
         max_recovery_samples: int = 24,
         max_session_history: int = 20,
     ) -> None:
@@ -60,7 +61,9 @@ class RunningPersonalizationStore:
 
     def _save(self) -> None:
         try:
-            with open(self.storage_path, "w", encoding="utf-8") as handle:
+            path = Path(self.storage_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("w", encoding="utf-8") as handle:
                 json.dump(self._profiles, handle, indent=2, ensure_ascii=True)
         except Exception:
             # Personalization should never block runtime coaching.

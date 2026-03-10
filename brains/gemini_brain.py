@@ -7,6 +7,7 @@
 
 import os
 import random
+import warnings
 from typing import Dict, Any, Optional, AsyncIterator, List
 
 from .base_brain import BaseBrain
@@ -14,7 +15,9 @@ import config
 from persona_manager import get_coach_prompt
 
 try:
-    import google.generativeai as genai
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        import google.generativeai as genai
 except Exception as e:  # pragma: no cover - import-time guard
     genai = None
     _GENAI_IMPORT_ERROR = e

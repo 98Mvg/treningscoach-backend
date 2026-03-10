@@ -42,6 +42,8 @@ env/
 htmlcov/
 
 # Audio files (generated/uploaded)
+uploads/*
+output/cache/
 backend/uploads/*
 backend/output/*
 backend/outputs/*
@@ -106,3 +108,5 @@ output/candidate_review.xlsx
 
 # Local runtime state
 instance/*.db
+instance/*.json
+instance/cache/

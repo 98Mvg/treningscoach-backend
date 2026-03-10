@@ -6,6 +6,7 @@ import pytest
 
 
 AUTH_PATH = Path("/Users/mariusgaarder/Documents/treningscoach/auth.py")
+REPO_ROOT = Path("/Users/mariusgaarder/Documents/treningscoach")
 
 
 def _load_auth_module(module_name: str):
@@ -45,3 +46,19 @@ def test_auth_allows_runtime_secret_locally(monkeypatch, tmp_path) -> None:
     assert module.JWT_SECRET
     assert module.JWT_SECRET != module.DEFAULT_INSECURE_JWT_SECRET
     assert secret_file.exists()
+
+
+def test_env_examples_expose_launch_auth_flags_and_secret_requirements() -> None:
+    expected = [
+        "JWT_SECRET=",
+        "APPLE_AUTH_ENABLED=",
+        "GOOGLE_AUTH_ENABLED=",
+        "FACEBOOK_AUTH_ENABLED=",
+        "VIPPS_AUTH_ENABLED=",
+        "APPLE_CLIENT_ID=",
+    ]
+
+    for path in [REPO_ROOT / ".env.example", REPO_ROOT / "backend" / ".env.example"]:
+        content = path.read_text(encoding="utf-8")
+        for key in expected:
+            assert key in content

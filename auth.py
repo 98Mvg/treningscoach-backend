@@ -1,6 +1,6 @@
 """
 Authentication module for Treningscoach
-Supports: Apple Sign-In, Google Sign-In, Facebook Login, Vipps Login
+Phase 1 launch auth keeps Apple as the only enabled third-party provider by default.
 Issues JWT tokens for session management
 """
 
@@ -402,32 +402,6 @@ def rate_limit(limit: int, window_seconds: int, *, key_prefix: str) -> callable:
         return decorated
 
     return decorator
-
-
-def optional_auth(f):
-    """
-    Flask decorator for optional authentication.
-    Sets g.current_user_id if token present and valid, otherwise sets to None.
-    Does NOT reject unauthenticated requests.
-    """
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        g.current_user_id = None
-        g.current_user_email = None
-
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split("Bearer ")[1]
-            try:
-                payload = decode_jwt(token)
-                g.current_user_id = payload["user_id"]
-                g.current_user_email = payload.get("email")
-            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-                pass  # Silently ignore invalid tokens for optional auth
-
-        return f(*args, **kwargs)
-
-    return decorated
 
 
 # ============================================

@@ -2,13 +2,17 @@ import hashlib
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
 import web_routes
 from database import WaitlistSignup, db
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def test_waitlist_signup_persists_to_database():
@@ -117,7 +121,7 @@ def test_waitlist_rate_limit_uses_database_window():
                 language="en",
                 source="website",
                 ip_hash=ip_hash,
-                created_at=datetime.utcnow() - timedelta(minutes=10),
+                created_at=_utcnow_naive() - timedelta(minutes=10),
             )
             db.session.add(row)
             db.session.flush()
