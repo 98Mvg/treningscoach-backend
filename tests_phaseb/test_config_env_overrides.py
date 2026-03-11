@@ -168,6 +168,8 @@ def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")
     monkeypatch.setenv("JWT_SECRET_MAX_AGE_DAYS", "30")
     monkeypatch.setenv("APPLE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("EMAIL_AUTH_ENABLED", "true")
+    monkeypatch.setenv("EMAIL_AUTH_CODE_TTL_MINUTES", "15")
     monkeypatch.setenv("GOOGLE_AUTH_ENABLED", "true")
     monkeypatch.setenv("FACEBOOK_AUTH_ENABLED", "true")
     monkeypatch.setenv("VIPPS_AUTH_ENABLED", "true")
@@ -191,6 +193,8 @@ def test_security_env_overrides(monkeypatch):
     assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 20
     assert config.JWT_SECRET_MAX_AGE_DAYS == 30
     assert config.APPLE_AUTH_ENABLED is True
+    assert config.EMAIL_AUTH_ENABLED is True
+    assert config.EMAIL_AUTH_CODE_TTL_MINUTES == 15
     assert config.GOOGLE_AUTH_ENABLED is True
     assert config.FACEBOOK_AUTH_ENABLED is True
     assert config.VIPPS_AUTH_ENABLED is True
@@ -229,6 +233,7 @@ def test_mobile_api_auth_defaults_to_guest_friendly(monkeypatch):
 
 def test_non_apple_auth_providers_default_to_disabled(monkeypatch):
     monkeypatch.delenv("APPLE_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("EMAIL_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("GOOGLE_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("FACEBOOK_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("VIPPS_AUTH_ENABLED", raising=False)
@@ -236,6 +241,7 @@ def test_non_apple_auth_providers_default_to_disabled(monkeypatch):
     importlib.reload(config)
 
     assert config.APPLE_AUTH_ENABLED is True
+    assert config.EMAIL_AUTH_ENABLED is True
     assert config.GOOGLE_AUTH_ENABLED is False
     assert config.FACEBOOK_AUTH_ENABLED is False
     assert config.VIPPS_AUTH_ENABLED is False

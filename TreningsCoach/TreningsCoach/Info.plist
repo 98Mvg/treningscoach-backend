@@ -4,6 +4,8 @@
 <dict>
 	<key>APPLE_SIGN_IN_ENABLED</key>
 	<true/>
+	<key>EMAIL_SIGN_IN_ENABLED</key>
+	<true/>
 	<key>LIVE_COACH_VOICE_ENABLED</key>
 	<true/>
 	<key>LSApplicationQueriesSchemes</key>

@@ -41,6 +41,10 @@ def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     assert "KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)" in text
     assert "let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()" in text
     assert "await BackendAPIService.shared.logout(refreshToken: refreshToken)" in text
+    assert 'httpResponse.statusCode == 404' in text
+    assert 'AUTH_PROFILE stale_session=true status=404 action=sign_out' in text
+    assert 'AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out' in text
+    assert "signOut()" in text
 
 
 def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
@@ -57,16 +61,27 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     view_text = AUTH_VIEW.read_text(encoding="utf-8")
     assert "static var googleSignInEnabled: Bool" in config_text
     assert "false" in config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
+    assert "static var emailSignInEnabled: Bool" in config_text
     assert "if AppConfig.Auth.googleSignInEnabled {" not in view_text
-    assert "Text(L10n.continueWithoutAccount)" in view_text
-    assert "Text(L10n.signInLaterHint)" in view_text
+    assert "Text(L10n.continueWithoutAccount)" not in view_text
+    assert "Text(L10n.signInLaterHint)" not in view_text
+    assert "Text(L10n.accountRequiredHint)" in view_text
     assert "authBenefitRow(icon: \"chart.line.uptrend.xyaxis\", text: L10n.authBenefitSaveHistory)" in view_text
     assert "authBenefitRow(icon: \"person.crop.circle.badge.checkmark\", text: L10n.authBenefitSyncProfile)" in view_text
-    assert "authBenefitRow(icon: \"figure.run\", text: L10n.authBenefitStartWithoutAccount)" in view_text
-    assert "emailAddress" not in view_text
-    assert "passwordLabel" not in view_text
-    assert "repeatPasswordLabel" not in view_text
-    assert ".disabled(!isEnabled)" not in view_text
+    assert "authBenefitRow(icon: \"envelope.badge\", text: L10n.authBenefitAppleOrEmail)" in view_text
+    assert "title: L10n.emailAddress" in view_text
+    assert "title: L10n.emailCodeLabel" in view_text
+    assert "await authManager.requestEmailSignInCode(email: normalizedEmail)" in view_text
+    assert "await authManager.signInWithEmail(" in view_text
+
+
+def test_auth_manager_supports_passwordless_email_sign_in() -> None:
+    text = AUTH_MANAGER.read_text(encoding="utf-8")
+    assert "func requestEmailSignInCode(email rawEmail: String) async -> Bool" in text
+    assert "func signInWithEmail(email rawEmail: String, code rawCode: String) async -> Bool" in text
+    assert '"\\(AppConfig.backendURL)/auth/email/request-code"' in text
+    assert '"\\(AppConfig.backendURL)/auth/email/verify"' in text
+    assert "private func localizedEmailBackendError(errorResponse: ErrorResponse?) -> String" in text
 
 
 def test_workout_view_model_surfaces_backend_backoff_status_line() -> None:

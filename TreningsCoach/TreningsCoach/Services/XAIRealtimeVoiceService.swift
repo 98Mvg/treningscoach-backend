@@ -48,11 +48,11 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
 
     private let playbackEngine = AVAudioEngine()
     private let playbackNode = AVAudioPlayerNode()
+    // Main mixer playback is most stable with standard float PCM; incoming
+    // realtime audio chunks are converted from provider PCM16 before enqueueing.
     private let playbackFormat = AVAudioFormat(
-        commonFormat: .pcmFormatInt16,
-        sampleRate: 24_000,
-        channels: 1,
-        interleaved: false
+        standardFormatWithSampleRate: 24_000,
+        channels: 1
     )!
 
     private var playbackPrepared = false
@@ -61,6 +61,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     private var webSocketTask: URLSessionWebSocketTask?
     private var receiveTask: Task<Void, Never>?
     private var sessionTimerTask: Task<Void, Never>?
+    private var startupTimeoutTask: Task<Void, Never>?
     private var sessionBootstrap: VoiceSessionBootstrap?
     private var didSendStartTelemetry = false
     private var hasConnectedSession = false
@@ -107,6 +108,22 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         do {
+            startupTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                guard let self else { return }
+                switch self.connectionState {
+                case .preparing, .connecting:
+                    break
+                default:
+                    return
+                }
+                await self.handleFailure(
+                    self.languageCode == "no"
+                        ? "Live voice tok for lang tid a starte. Prov igjen eller bruk tekst."
+                        : "Live voice took too long to start. Try again or use text instead."
+                )
+            }
+
             let bootstrap = try await apiService.createLiveVoiceSession(
                 summaryContext: summaryContext,
                 language: languageCode,
@@ -124,6 +141,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             hasConnectedSession = true
             connectionState = .connected
             micState = .capturing
+            startupTimeoutTask?.cancel()
+            startupTimeoutTask = nil
             appendSystemMessage(
                 languageCode == "no"
                     ? "Live voice er koblet til. Still et sporsmal om den siste okten."
@@ -158,22 +177,25 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             return
         }
         let shouldSendEndedTelemetry = hasConnectedSession && !isFailureState
+        let telemetryPayload = mergedTelemetryMetadata(
+            extra: [
+                "voice_session_id": voiceSessionId ?? "",
+                "reason": reason.rawValue,
+                "duration_seconds": sessionDurationSeconds,
+                "turn_count": turnCount,
+            ]
+        )
         cleanupRealtimeRuntime()
         connectionState = .ended
         micState = .idle
 
         if shouldSendEndedTelemetry {
-            _ = await apiService.trackVoiceTelemetry(
-                event: "voice_session_ended",
-                metadata: mergedTelemetryMetadata(
-                    extra: [
-                        "voice_session_id": voiceSessionId ?? "",
-                        "reason": reason.rawValue,
-                        "duration_seconds": sessionDurationSeconds,
-                        "turn_count": turnCount,
-                    ]
+            Task {
+                _ = await self.apiService.trackVoiceTelemetry(
+                    event: "voice_session_ended",
+                    metadata: telemetryPayload
                 )
-            )
+            }
         }
     }
 
@@ -428,14 +450,16 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         let frameCount = audioData.count / MemoryLayout<Int16>.size
         guard frameCount > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: playbackFormat, frameCapacity: AVAudioFrameCount(frameCount)),
-              let channelData = buffer.int16ChannelData?[0] else {
+              let channelData = buffer.floatChannelData?[0] else {
             return
         }
 
         buffer.frameLength = AVAudioFrameCount(frameCount)
         audioData.withUnsafeBytes { rawBuffer in
             guard let source = rawBuffer.bindMemory(to: Int16.self).baseAddress else { return }
-            channelData.update(from: source, count: frameCount)
+            for index in 0..<frameCount {
+                channelData[index] = Float(source[index]) / Float(Int16.max)
+            }
         }
         if !playbackEngine.isRunning {
             try? playbackEngine.start()
@@ -468,6 +492,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         receiveTask = nil
         sessionTimerTask?.cancel()
         sessionTimerTask = nil
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = nil
 
         if let engine = captureEngine {
             engine.inputNode.removeTap(onBus: 0)
@@ -492,17 +518,20 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         appendSystemMessage(message)
         connectionState = .failed(message)
         micState = .idle
-
-        _ = await apiService.trackVoiceTelemetry(
-            event: "voice_session_failed",
-            metadata: mergedTelemetryMetadata(
-                extra: [
-                    "voice_session_id": voiceSessionId ?? "",
-                    "reason": message,
-                    "turn_count": turnCount,
-                ]
-            )
+        let telemetryPayload = mergedTelemetryMetadata(
+            extra: [
+                "voice_session_id": voiceSessionId ?? "",
+                "reason": message,
+                "turn_count": turnCount,
+            ]
         )
+
+        Task {
+            _ = await self.apiService.trackVoiceTelemetry(
+                event: "voice_session_failed",
+                metadata: telemetryPayload
+            )
+        }
     }
 
     private func appendSystemMessage(_ message: String) {

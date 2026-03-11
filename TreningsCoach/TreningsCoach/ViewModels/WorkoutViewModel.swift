@@ -3507,7 +3507,7 @@ class WorkoutViewModel: ObservableObject {
             print("👋 Fetching welcome message...")
             let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue, userName: currentUserName)
             coachMessage = welcome.text
-            print("👋 Welcome [\(welcome.utteranceID)]: '\(welcome.text)' - resolving audio source...")
+            print("👋 Welcome: '\(welcome.text)' - resolving audio source...")
             _ = await playCoachAudio(
                 welcome.audioURL,
                 utteranceID: welcome.utteranceID,

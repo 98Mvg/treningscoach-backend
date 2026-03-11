@@ -237,3 +237,37 @@ def send_account_welcome_email(
         )
 
     return _send_email(to_email=email, subject=subject, body=body, logger=logger)
+
+
+def send_sign_in_code_email(
+    email: str,
+    *,
+    code: str,
+    language: str = "en",
+    logger: Any = None,
+) -> bool:
+    normalized_language = (language or "en").strip().lower()
+    if normalized_language == "no":
+        subject = "Innloggingskode for Coachi"
+        body = (
+            "Hei,\n\n"
+            "Bruk denne koden for å logge inn i Coachi:\n\n"
+            f"{code}\n\n"
+            "Koden utløper snart. Hvis du ikke ba om dette, kan du ignorere e-posten.\n\n"
+            f"Trenger du hjelp? Kontakt {os.getenv('SUPPORT_EMAIL') or DEFAULT_SUPPORT_EMAIL}.\n\n"
+            "Hilsen\n"
+            "Coachi"
+        )
+    else:
+        subject = "Your Coachi sign-in code"
+        body = (
+            "Hi,\n\n"
+            "Use this code to sign in to Coachi:\n\n"
+            f"{code}\n\n"
+            "The code expires soon. If you did not request this, you can ignore this email.\n\n"
+            f"Need help? Contact {os.getenv('SUPPORT_EMAIL') or DEFAULT_SUPPORT_EMAIL}.\n\n"
+            "Regards,\n"
+            "Coachi"
+        )
+
+    return _send_email(to_email=email, subject=subject, body=body, logger=logger)

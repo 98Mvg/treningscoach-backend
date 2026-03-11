@@ -204,9 +204,9 @@ struct LiveCoachConversationView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(viewModel.languageCode == "no" ? "Lukk" : "Close") {
+                        dismiss()
                         Task {
                             await viewModel.disconnect()
-                            dismiss()
                         }
                     }
                     .foregroundStyle(Color.white.opacity(0.92))

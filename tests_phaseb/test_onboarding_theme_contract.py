@@ -108,6 +108,7 @@ def test_onboarding_scaffold_clamps_layout_width_and_vertical_scroll_only() -> N
     assert "let layoutWidth = min(min(renderWidth, deviceWidth), 500)" in text
     assert "let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))" in text
     assert "let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))" in text
+    assert "let contentTopInset = max(renderHeight * 0.08, 24.0)" in text
     assert "ScrollView(.vertical, showsIndicators: false)" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
     assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in text
@@ -148,13 +149,13 @@ def test_intro_value_carousel_contract() -> None:
     assert "currentPage += 1" in text
     assert "currentPage -= 1" in text
     assert "@State private var autoAdvanceTask: Task<Void, Never>?" in text
-    assert "Task.sleep(nanoseconds: 7_000_000_000)" in text
+    assert "Task.sleep(nanoseconds: 5_000_000_000)" in text
     assert "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls." in text
     assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." in text
     assert "Apple Watch gir mer presis pulscoaching. Uten klokke coacher vi på struktur og tid." in text
-    assert "Konto er valgfritt. Du kan starte i dag." in text
+    assert "Logg inn med Apple eller e-post for å fortsette." in text
     assert "introTrustBadge(L10n.startFreeBadge)" in text
-    assert "introTrustBadge(L10n.accountOptionalBadge)" in text
+    assert "introTrustBadge(L10n.accountRequiredBadge)" in text
     assert "introTrustBadge(L10n.watchOptionalBadge)" in text
     assert "score: 100" in text
 
@@ -184,6 +185,7 @@ def test_intro_layout_reserves_width_for_card_padding() -> None:
     assert ".frame(maxWidth: .infinity, alignment: .top)" in text
     assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in text
     assert ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)" in text
+    assert "let topSpacing: CGFloat = max(renderHeight * 0.22, safeAreaInsets.top + 28)" in text
 
 
 def test_intro_layout_keeps_headline_and_body_multiline() -> None:
@@ -221,6 +223,7 @@ def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
     assert "let layoutWidth = min(min(renderWidth, deviceWidth), 500)" in text
     assert "let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))" in text
     assert "let bottomInset = min(42.0, max(24.0, geo.safeAreaInsets.bottom + 10.0))" in text
+    assert "Spacer().frame(height: max(renderHeight * 0.16, geo.safeAreaInsets.top + 22.0))" in text
     assert "Spacer().frame(height: bottomInset)" in text
     assert "ScrollView(.vertical, showsIndicators: false)" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
@@ -278,6 +281,7 @@ def test_norwegian_language_strings_use_sprak() -> None:
     assert '"Språk"' in l10n_text
     assert '"Velg språk"' in l10n_text
     assert '"Spraak"' not in l10n_text
+    assert "Spacer(minLength: max(24, geo.size.height * 0.18))" in language_selection_text
     assert '"Velg spraak"' not in l10n_text
     assert "Norsk språk & coach" in language_selection_text
     assert "Norsk spraak & coach" not in language_selection_text

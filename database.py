@@ -57,7 +57,7 @@ class User(db.Model):
     avatar_url = db.Column(db.String(500), nullable=True)
 
     # Auth
-    auth_provider = db.Column(db.String(50), nullable=False)  # "apple", "google", "facebook", "vipps"
+    auth_provider = db.Column(db.String(50), nullable=False)  # "apple", "email", "google", "facebook", "vipps"
     auth_provider_id = db.Column(db.String(255), nullable=False)  # Provider's user ID
 
     # Preferences
@@ -218,6 +218,17 @@ class RefreshToken(db.Model):
 
     def is_active(self) -> bool:
         return self.revoked_at is None and self.expires_at > _utcnow_naive()
+
+
+class EmailAuthCode(db.Model):
+    __tablename__ = "email_auth_codes"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, index=True)
+    used_at = db.Column(db.DateTime, nullable=True, index=True)
 
 
 # ============================================

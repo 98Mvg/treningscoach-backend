@@ -131,13 +131,48 @@ struct L10n {
             ? "Dette styrer appen og coachen. Du kan endre det senere."
             : "This controls the app and the coach. You can change it later."
     }
-    static var signIn: String { current == .no ? "Vil du lagre framgangen din?" : "Want to save your progress?" }
+    static var signIn: String { current == .no ? "Logg inn for å fortsette" : "Sign in to continue" }
     static var signInSubtitle: String {
         current == .no
-            ? "Konto er valgfritt. Start nå, og koble til konto senere for synk og historikk."
-            : "An account is optional. Start now, then connect an account later for sync and history."
+            ? "Bruk Apple eller e-post for å fortsette oppsettet og lagre framgangen din."
+            : "Use Apple or email to continue setup and save your progress."
     }
     static var registerWithApple: String { current == .no ? "Registrer deg med Apple" : "Register with Apple" }
+    static var continueWithEmail: String { current == .no ? "Fortsett med e-post" : "Continue with email" }
+    static var sendEmailCode: String { current == .no ? "Send kode" : "Send code" }
+    static var verifyEmailCode: String { current == .no ? "Bekreft kode" : "Verify code" }
+    static var emailCodeLabel: String { current == .no ? "Engangskode" : "One-time code" }
+    static var emailCodeSentHint: String {
+        current == .no
+            ? "Skriv inn koden vi sendte til e-posten din for å fortsette."
+            : "Enter the code we sent to your email to continue."
+    }
+    static var accountRequiredHint: String {
+        current == .no
+            ? "Du trenger en konto for å fortsette i onboarding."
+            : "You need an account to continue onboarding."
+    }
+    static var emailAddressInvalid: String {
+        current == .no ? "Skriv inn en gyldig e-postadresse." : "Enter a valid email address."
+    }
+    static var emailCodeInvalid: String {
+        current == .no ? "Skriv inn den seks-sifrede koden fra e-posten." : "Enter the six-digit code from your email."
+    }
+    static var emailCodeRequestFailed: String {
+        current == .no ? "Kunne ikke sende kode. Prøv igjen." : "Could not send code. Please try again."
+    }
+    static var emailCodeVerifyFailed: String {
+        current == .no ? "Kunne ikke bekrefte koden. Prøv igjen." : "Could not verify the code. Please try again."
+    }
+    static var emailDeliveryUnavailable: String {
+        current == .no ? "E-postinnlogging er ikke tilgjengelig akkurat nå." : "Email sign-in is unavailable right now."
+    }
+    static var emailCodeExpired: String {
+        current == .no ? "Koden er utløpt. Be om en ny kode." : "The code expired. Request a new code."
+    }
+    static var emailCodeMismatch: String {
+        current == .no ? "Koden stemmer ikke. Prøv igjen." : "That code does not match. Try again."
+    }
     static var registerWithGoogle: String { current == .no ? "Registrer deg med Google" : "Register with Google" }
     static var or: String { current == .no ? "Eller" : "Or" }
     static var emailAddress: String { current == .no ? "E-postadresse" : "Email address" }
@@ -174,7 +209,7 @@ struct L10n {
             : "You can start free now and connect an account later."
     }
     static var startFreeBadge: String { current == .no ? "Start gratis" : "Start free" }
-    static var accountOptionalBadge: String { current == .no ? "Konto er valgfritt" : "Account optional" }
+    static var accountRequiredBadge: String { current == .no ? "Konto kreves" : "Account required" }
     static var watchOptionalBadge: String { current == .no ? "Klokke er valgfritt" : "Watch optional" }
     static var authBenefitSaveHistory: String {
         current == .no ? "Lagre økter og CoachScore" : "Save workouts and CoachScore"
@@ -182,8 +217,8 @@ struct L10n {
     static var authBenefitSyncProfile: String {
         current == .no ? "Synk profil og språk" : "Sync profile and language"
     }
-    static var authBenefitStartWithoutAccount: String {
-        current == .no ? "Du kan fortsatt starte uten konto" : "You can still start without an account"
+    static var authBenefitAppleOrEmail: String {
+        current == .no ? "Fortsett med Apple eller e-post" : "Continue with Apple or email"
     }
 
     // MARK: - Intensity

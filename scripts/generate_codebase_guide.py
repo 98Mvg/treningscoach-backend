@@ -117,7 +117,7 @@ FEATURES = [
     ),
     (
         "Auth + Profile",
-        "Apple sign-in, token lifecycle, refresh rotation, logout, and profile sync.",
+        "Apple sign-in, passwordless email sign-in, token lifecycle, refresh rotation, logout, and profile sync.",
         [
             "auth.py",
             "auth_routes.py",
@@ -148,7 +148,6 @@ DORMANT_ITEMS = [
     ("Dead Code", "coaching_intelligence.py", "check_safety_override and related helpers", "Static inspection found only calculate_next_interval actively referenced from the main runtime.", "high"),
     ("Legacy System", "main.py", "POST /analyze", "Present in backend, but no active iOS caller was found; current app runtime uses /coach/continuous instead.", "high"),
     ("Partially Implemented Feature", "TreningsCoach/TreningsCoach/Services/AuthManager.swift", "Google/Facebook/Vipps sign-in", "Explicit TODOs and placeholder tokens remain.", "high"),
-    ("Partially Implemented Feature", "TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift", "Email/password register flow", "UI exists, but no real backend email/password auth path exists in the current runtime.", "high"),
     ("Possible Future Feature", "chat_routes.py", "/chat/*", "Documented and tested, but not wired from the current iOS/watch product UI.", "medium"),
     ("Dead Code", "TreningsCoach/TreningsCoach/Views/Components", "GlassCardView / StatCardView / WaveformView / CoachOrbView", "Static search found definitions but no active references from navigation or runtime views.", "high"),
 ]
@@ -164,6 +163,15 @@ RISKS = [
 ]
 
 RECENT_SESSION_LEARNINGS = [
+    (
+        "2026-03-11 — Onboarding Auth And Live Voice Runtime Hardening",
+        "docs/plans/2026-03-11-session-learnings-onboarding-auth-and-live-voice-hardening.md",
+        [
+            "Onboarding now requires Apple Sign-In or passwordless email verification on the existing auth path.",
+            "The app now signs out stale sessions automatically when `/auth/me` returns `404` instead of leaving summary/live-voice gating in a broken half-authenticated state.",
+            "Post-workout live voice now has startup-timeout protection, non-blocking close/failure cleanup, mixer-safe playback, and no welcome utterance IDs in iOS app logs.",
+        ],
+    ),
     (
         "2026-03-10 — Watch Surface, Live Voice Scope, And Wake-Word Handoff",
         "docs/plans/2026-03-10-session-learnings-watch-surface-live-voice-and-wakeword-hardening.md",
@@ -206,14 +214,17 @@ CURRENT_STATUS = [
     "Deterministic workout ownership still belongs to `zone_event_motor.py` and must remain there.",
     "Root Flask runtime at the repository root remains the active backend source of truth; `backend/` stays as compatibility wrappers only.",
     "V2 phrase review, promotion, pack generation, R2 sync, and full bundle rebuild exist as the active audio workflow.",
-    "Apple Sign-In is enabled in the iPhone app target, and Apple auth is the only real launch-safe mobile provider path in the current app build.",
+    "Onboarding now requires either Apple Sign-In or passwordless email verification; there is no guest continue path in the active app flow.",
+    "Apple Sign-In is enabled in the iPhone app target, and passwordless email auth now exists on the same `/auth/*` path as the real secondary launch-safe mobile provider.",
+    "The app now signs out stale sessions when `/auth/me` returns `404`, which prevents summary/live-voice gating from silently disappearing behind broken auth state.",
     "Watch capability gating, companion embedding/signing, request-id correlation, and local fallback semantics are implemented on the existing WatchConnectivity path.",
     "The watch app now ships watch-specific app-icon assets and a running dashboard with large BPM plus local remaining/elapsed time.",
     "Live HR from the watch can reach the iPhone over the current WC path on real paired devices when the companion app is installed.",
     "Workout talk is Grok-first for wake-word and button triggers, but still depends on backend latency and the current talk capture path.",
     "Wake-word workout talk now suspends speech recognition more gracefully before capture to reduce `kAFAssistantErrorDomain Code=1101` churn on device.",
-    "Post-workout xAI live voice with Rex is enabled by default, tier-limited, and isolated from the continuous workout runtime.",
-    "`Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), and still falls back to the existing `/coach/talk` path.",
+    "Post-workout xAI live voice with Rex is enabled by default, tier-limited, isolated from the continuous workout runtime, and hardened with startup timeout plus non-blocking close/failure cleanup.",
+    "`Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), still falls back to the existing `/coach/talk` path, and no longer uses a mixer-unsafe playback format.",
+    "Welcome runtime logs on iOS no longer expose `welcome.standard.*` utterance IDs in the app log output.",
     "Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.",
 ]
 
@@ -222,8 +233,8 @@ PHASE_STATUS = [
         "Phase 1",
         "Voice + NO/EN experience",
         "Mostly done / launchable",
-        "V2 NO/EN voice workflow, launch-safe settings/legal/support, Apple Sign-In enablement, watch icon/dashboard polish, and summary live-voice CTA parity are implemented.",
-        "Finish deployed phrase-rotation, coach-score, and no-HR audits on real devices / live backend.",
+        "V2 NO/EN voice workflow, launch-safe settings/legal/support, mandatory Apple/email onboarding, watch icon/dashboard polish, and summary live-voice CTA parity are implemented.",
+        "Finish deployed phrase-rotation, coach-score, no-HR audits, and final onboarding keyboard/device polish on real devices / live backend.",
     ),
     (
         "Phase 2",
@@ -243,14 +254,15 @@ PHASE_STATUS = [
         "Phase 4",
         "LLM as language layer only",
         "Controlled / partial rollout",
-        "Grok-first workout talk and xAI live voice now sit on constrained language surfaces, while continuous coaching remains deterministic-first.",
-        "Validate deployed xAI live voice rollout, free/premium limits, and confirm the new history-aware memory policy on real accounts.",
+        "Grok-first workout talk and xAI live voice now sit on constrained language surfaces, while continuous coaching remains deterministic-first and live voice is history-aware plus timeout-hardened.",
+        "Validate deployed xAI live voice rollout, free/premium limits, startup/close behavior, and confirm the new history-aware memory policy on real accounts.",
     ),
 ]
 
 KNOWN_REMAINING_STEPS = [
     ("Phase 1", "Deployed phrase and coach-score audit", "Finish real-device and deployed validation for phrase rotation, coach-score credibility, and audio/source parity."),
     ("Phase 1", "No-HR launch validation", "Verify no-HR structure coaching, local-pack vs backend TTS behavior, and score ceilings on real sessions."),
+    ("Phase 1", "Onboarding keyboard/device polish", "Validate the identity-step first-name / last-name experience on physical devices and remove any remaining keyboard lag or CTA overlap."),
     ("Phase 1", "Launch ops smoke", "Run `scripts/release_check.sh`, live voice smoke, and final landing/mail smoke once Render and production envs are confirmed live."),
     ("Phase 2", "Targeted dead-code cleanup", "Delete only verified dormant paths that reduce launch risk without introducing a second runtime architecture."),
     ("Phase 2", "Premium follow-up architecture", "Keep free-mode/tiered live voice as-is until StoreKit, durable entitlements, paywalls, and restore-purchase flows are genuinely real."),
@@ -463,7 +475,7 @@ def build_guide() -> str:
         - Web visitors joining the waitlist or previewing the product
 
         Core user flows:
-        - onboarding -> optional auth -> workout setup -> workout start -> continuous coaching
+        - onboarding -> required Apple or email auth -> workout setup -> workout start -> continuous coaching
         - active workout -> wake word or talk button -> `/coach/talk`
         - workout completion -> save history -> show score/completion UI
         - profile/settings -> update language, personal data, heart-rate monitor info

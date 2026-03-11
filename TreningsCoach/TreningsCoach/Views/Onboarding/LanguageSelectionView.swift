@@ -16,7 +16,7 @@ struct LanguageSelectionView: View {
         GeometryReader { geo in
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    Spacer(minLength: max(20, geo.size.height * 0.1))
+                    Spacer(minLength: max(24, geo.size.height * 0.18))
 
                     Image(systemName: "globe")
                         .font(.largeTitle.weight(.light))
@@ -57,7 +57,7 @@ struct LanguageSelectionView: View {
                 }
                 .frame(minHeight: geo.size.height)
                 .padding(.horizontal, geo.size.width < 390 ? 20 : 24)
-                .padding(.top, max(20, geo.safeAreaInsets.top + 4))
+                .padding(.top, max(24, geo.safeAreaInsets.top + 10))
                 .padding(.bottom, max(24, geo.safeAreaInsets.bottom + 8))
             }
         }

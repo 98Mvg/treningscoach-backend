@@ -94,7 +94,7 @@ struct FeaturesPageView: View {
             let ctaSideInset: CGFloat = (isNarrow ? 18 : 24) + horizontalSafeInset
             let cardWidth: CGFloat = max(0, layoutWidth - (cardSideInset * 2))
             let textWidth: CGFloat = max(0, cardWidth - (cardContentInset * 2))
-            let topSpacing: CGFloat = max(20, safeAreaInsets.top + 12)
+            let topSpacing: CGFloat = max(renderHeight * 0.22, safeAreaInsets.top + 28)
             let bottomInset: CGFloat = max(22, safeAreaInsets.bottom + 8)
             let needsVerticalScroll = renderHeight < 730 || dynamicTypeSize.isAccessibilitySize
             let introCardTopSpacing: CGFloat = topSpacing
@@ -308,8 +308,8 @@ struct FeaturesPageView: View {
 
                 Text(
                     L10n.current == .no
-                        ? "Konto er valgfritt. Du kan starte i dag."
-                        : "An account is optional. You can start today."
+                        ? "Logg inn med Apple eller e-post for å fortsette."
+                        : "Sign in with Apple or email to continue."
                 )
                 .font(.footnote.weight(.semibold))
                 .foregroundColor(.white.opacity(0.88))
@@ -319,13 +319,13 @@ struct FeaturesPageView: View {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 8) {
                         introTrustBadge(L10n.startFreeBadge)
-                        introTrustBadge(L10n.accountOptionalBadge)
+                        introTrustBadge(L10n.accountRequiredBadge)
                         introTrustBadge(L10n.watchOptionalBadge)
                     }
 
                     VStack(spacing: 8) {
                         introTrustBadge(L10n.startFreeBadge)
-                        introTrustBadge(L10n.accountOptionalBadge)
+                        introTrustBadge(L10n.accountRequiredBadge)
                         introTrustBadge(L10n.watchOptionalBadge)
                     }
                 }
@@ -349,7 +349,7 @@ struct FeaturesPageView: View {
         autoAdvanceTask?.cancel()
         autoAdvanceTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 7_000_000_000)
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
                 if Task.isCancelled { return }
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.28)) {

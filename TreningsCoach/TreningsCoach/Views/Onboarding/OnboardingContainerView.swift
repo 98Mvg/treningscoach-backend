@@ -1462,6 +1462,7 @@ private struct OnboardingScaffold<Content: View>: View {
             let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
             // Cap bottom inset so keyboard safe-area growth does not push form content off-screen.
             let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))
+            let contentTopInset = max(renderHeight * 0.08, 24.0)
 
             VStack(spacing: 0) {
                 HStack {
@@ -1501,7 +1502,7 @@ private struct OnboardingScaffold<Content: View>: View {
                         content
                     }
                     .frame(width: contentWidth, alignment: .leading)
-                    .padding(.top, 12)
+                    .padding(.top, contentTopInset)
                     .padding(.bottom, 18)
                     .frame(width: layoutWidth, alignment: .center)
                 }

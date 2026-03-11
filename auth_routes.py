@@ -4,11 +4,13 @@ Launch-safe auth keeps Apple available and leaves other providers disabled by de
 """
 
 import logging
+import hashlib
+import secrets
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify, g
-from database import db, User, UserSettings
-from email_sender import send_account_welcome_email
+from database import db, EmailAuthCode, User, UserSettings
+from email_sender import send_account_welcome_email, send_sign_in_code_email
 from auth import (
     create_jwt,
     enforce_rate_limit,
@@ -40,6 +42,7 @@ _apple_auth_metrics = {
 
 _PROVIDER_FLAG_BY_NAME = {
     "apple": "APPLE_AUTH_ENABLED",
+    "email": "EMAIL_AUTH_ENABLED",
     "google": "GOOGLE_AUTH_ENABLED",
     "facebook": "FACEBOOK_AUTH_ENABLED",
     "vipps": "VIPPS_AUTH_ENABLED",
@@ -95,7 +98,7 @@ def find_or_create_user(provider: str, provider_info: dict) -> User:
     Find existing user by provider ID or create new one.
 
     Args:
-        provider: "apple", "google", "facebook", or "vipps"
+        provider: "apple", "email", "google", "facebook", or "vipps"
         provider_info: Dict from verify_*_token()
 
     Returns:
@@ -191,9 +194,155 @@ def _enforce_register_rate_limit_if_new_user(provider: str, provider_info: dict)
     )
 
 
+def _normalize_email(raw_value) -> str:
+    return str(raw_value or "").strip().lower()
+
+
+def _is_valid_email(email: str) -> bool:
+    if not email or "@" not in email:
+        return False
+    local, _, domain = email.partition("@")
+    return bool(local and domain and "." in domain)
+
+
+def _generate_email_auth_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _hash_email_auth_code(code: str) -> str:
+    return hashlib.sha256((code or "").strip().encode("utf-8")).hexdigest()
+
+
+def _email_provider_info(email: str) -> dict:
+    normalized = _normalize_email(email)
+    return {
+        "provider_id": normalized,
+        "email": normalized,
+        "display_name": "",
+        "avatar_url": "",
+    }
+
+
+def _prune_expired_email_auth_codes() -> None:
+    EmailAuthCode.query.filter(EmailAuthCode.expires_at < _utcnow_naive()).delete()
+    db.session.commit()
+
+
 # ============================================
 # AUTH ENDPOINTS
 # ============================================
+
+
+@auth_bp.route("/email/request-code", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
+    window_seconds=3600,
+    key_prefix="auth.email.request",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.email.request",
+    scope="ip",
+)
+def auth_email_request_code():
+    if not _provider_enabled("email"):
+        return _provider_unavailable_response("email")
+
+    data = request.get_json(silent=True) or {}
+    email = _normalize_email(data.get("email"))
+    language = str(data.get("language") or "en").strip().lower()
+    if language not in {"en", "no"}:
+        language = "en"
+
+    if not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required", "error_code": "email_invalid"}), 400
+
+    _prune_expired_email_auth_codes()
+
+    ttl_minutes = max(3, int(getattr(config, "EMAIL_AUTH_CODE_TTL_MINUTES", 10)))
+    code = _generate_email_auth_code()
+    expires_at = _utcnow_naive() + timedelta(minutes=ttl_minutes)
+
+    EmailAuthCode.query.filter_by(email=email, used_at=None).delete()
+    db.session.add(
+        EmailAuthCode(
+            email=email,
+            code_hash=_hash_email_auth_code(code),
+            expires_at=expires_at,
+        )
+    )
+    db.session.commit()
+
+    if not send_sign_in_code_email(email, code=code, language=language, logger=logger):
+        EmailAuthCode.query.filter_by(email=email, used_at=None).delete()
+        db.session.commit()
+        return jsonify({"error": "Email sign-in unavailable", "error_code": "email_delivery_unavailable"}), 503
+
+    logger.info("EMAIL_AUTH_CODE_SENT email=%s ttl_minutes=%s", email, ttl_minutes)
+    return jsonify({"success": True, "code_sent": True, "expires_in": ttl_minutes * 60}), 200
+
+
+@auth_bp.route("/email/verify", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_HOUR", 20),
+    window_seconds=3600,
+    key_prefix="auth.email.verify",
+    scope="ip",
+)
+@rate_limit(
+    limit=getattr(config, "AUTH_LOGIN_RATE_LIMIT_PER_MINUTE", 5),
+    window_seconds=60,
+    key_prefix="auth.email.verify",
+    scope="ip",
+)
+def auth_email_verify():
+    if not _provider_enabled("email"):
+        return _provider_unavailable_response("email")
+
+    data = request.get_json(silent=True) or {}
+    email = _normalize_email(data.get("email"))
+    code = str(data.get("code") or "").strip()
+
+    if not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required", "error_code": "email_invalid"}), 400
+    if len(code) != 6 or not code.isdigit():
+        return jsonify({"error": "Valid code is required", "error_code": "email_code_invalid"}), 400
+
+    _prune_expired_email_auth_codes()
+
+    auth_code = (
+        EmailAuthCode.query.filter_by(email=email, used_at=None)
+        .order_by(EmailAuthCode.created_at.desc())
+        .first()
+    )
+    if auth_code is None:
+        return jsonify({"error": "Code expired or unavailable", "error_code": "email_code_expired"}), 401
+
+    if not secrets.compare_digest(auth_code.code_hash, _hash_email_auth_code(code)):
+        return jsonify({"error": "Invalid sign-in code", "error_code": "email_code_mismatch"}), 401
+
+    provider_info = _email_provider_info(email)
+    register_limited = _enforce_register_rate_limit_if_new_user("email", provider_info)
+    if register_limited is not None:
+        return register_limited
+
+    auth_code.used_at = _utcnow_naive()
+    db.session.commit()
+
+    user = find_or_create_user("email", provider_info)
+    token_bundle = issue_auth_tokens(user.id, user.email)
+
+    return jsonify({
+        "token": token_bundle["access_token"],
+        "access_token": token_bundle["access_token"],
+        "refresh_token": token_bundle["refresh_token"],
+        "token_type": "bearer",
+        "expires_in": token_bundle["expires_in"],
+        "refresh_expires_in": token_bundle["refresh_expires_in"],
+        "user": user.to_dict(),
+    }), 200
 
 @auth_bp.route("/apple", methods=["POST"])
 @rate_limit(

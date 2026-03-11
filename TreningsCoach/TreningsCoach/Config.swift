@@ -80,6 +80,7 @@ struct AppConfig {
         }
 
         static let appleSignInFeatureEnabled: Bool = boolInfoValue("APPLE_SIGN_IN_ENABLED", default: false)
+        static let emailSignInFeatureEnabled: Bool = boolInfoValue("EMAIL_SIGN_IN_ENABLED", default: true)
         static let googleSignInFeatureEnabled: Bool = boolInfoValue("GOOGLE_SIGN_IN_ENABLED", default: false)
         static let facebookSignInFeatureEnabled: Bool = boolInfoValue("FACEBOOK_SIGN_IN_ENABLED", default: false)
         static let vippsSignInFeatureEnabled: Bool = boolInfoValue("VIPPS_SIGN_IN_ENABLED", default: false)
@@ -89,6 +90,10 @@ struct AppConfig {
         // Personal Team default is disabled to avoid capability/signing friction.
         static var appleSignInEnabled: Bool {
             appleSignInFeatureEnabled
+        }
+
+        static var emailSignInEnabled: Bool {
+            emailSignInFeatureEnabled
         }
 
         static var googleSignInEnabled: Bool {

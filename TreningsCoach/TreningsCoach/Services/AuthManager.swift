@@ -2,7 +2,7 @@
 //  AuthManager.swift
 //  TreningsCoach
 //
-//  Manages authentication state with Apple as the only launch-enabled provider
+//  Manages authentication state with Apple and passwordless email sign-in
 //  Stores JWT token in Keychain, communicates with backend /auth/* endpoints
 //
 
@@ -92,6 +92,64 @@ class AuthManager: ObservableObject {
         markUnsupportedProvider(label: L10n.registerWithGoogle)
     }
 
+    // MARK: - Email Sign-In
+
+    func requestEmailSignInCode(email rawEmail: String) async -> Bool {
+        guard AppConfig.Auth.emailSignInEnabled else {
+            errorMessage = L10n.emailDeliveryUnavailable
+            return false
+        }
+
+        let email = normalizedEmail(rawEmail)
+        guard isValidEmail(email) else {
+            errorMessage = L10n.emailAddressInvalid
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            _ = try await sendEmailCodeRequest(email: email)
+            return true
+        } catch {
+            errorMessage = localizedEmailRequestError(error)
+            return false
+        }
+    }
+
+    func signInWithEmail(email rawEmail: String, code rawCode: String) async -> Bool {
+        guard AppConfig.Auth.emailSignInEnabled else {
+            errorMessage = L10n.emailDeliveryUnavailable
+            return false
+        }
+
+        let email = normalizedEmail(rawEmail)
+        let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(email) else {
+            errorMessage = L10n.emailAddressInvalid
+            return false
+        }
+        guard code.count == 6 else {
+            errorMessage = L10n.emailCodeInvalid
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let response = try await sendEmailVerifyRequest(email: email, code: code)
+            handleAuthSuccess(response)
+            return true
+        } catch {
+            errorMessage = localizedEmailVerifyError(error)
+            return false
+        }
+    }
+
     // MARK: - Apple Sign-In
 
     func signInWithApple() async -> Bool {
@@ -102,6 +160,7 @@ class AuthManager: ObservableObject {
 
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
 
         do {
             let credential = try await requestAppleCredential()
@@ -193,6 +252,11 @@ class AuthManager: ObservableObject {
 
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 404 {
+                    print("AUTH_PROFILE stale_session=true status=404 action=sign_out")
+                    signOut()
+                }
                 return
             }
 
@@ -228,6 +292,11 @@ class AuthManager: ObservableObject {
 
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 404 {
+                    print("AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out")
+                    signOut()
+                }
                 return
             }
 
@@ -302,6 +371,50 @@ class AuthManager: ObservableObject {
         return try await coordinator.perform(controller: controller)
     }
 
+    private func sendEmailCodeRequest(email: String) async throws -> EmailCodeRequestResponse {
+        let url = URL(string: "\(AppConfig.backendURL)/auth/email/request-code")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode([
+            "email": email,
+            "language": L10n.current.rawValue,
+        ])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            let errorResp = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            throw APIError.serverError(message: localizedEmailBackendError(errorResponse: errorResp))
+        }
+
+        return try JSONDecoder().decode(EmailCodeRequestResponse.self, from: data)
+    }
+
+    private func sendEmailVerifyRequest(email: String, code: String) async throws -> AuthResponse {
+        let url = URL(string: "\(AppConfig.backendURL)/auth/email/verify")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode([
+            "email": email,
+            "code": code,
+        ])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            let errorResp = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            throw APIError.serverError(message: localizedEmailBackendError(errorResponse: errorResp))
+        }
+
+        return try JSONDecoder().decode(AuthResponse.self, from: data)
+    }
+
     private func localizedAuthError(provider: String, error: Error) -> String {
         if provider == "apple" {
             if let apiError = error as? APIError {
@@ -336,6 +449,39 @@ class AuthManager: ObservableObject {
             return L10n.appleTokenExpired
         }
         return fallback.isEmpty ? L10n.appleSignInFailedTryAgain : fallback
+    }
+
+    private func localizedEmailBackendError(errorResponse: ErrorResponse?) -> String {
+        switch errorResponse?.errorCode {
+        case "email_invalid":
+            return L10n.emailAddressInvalid
+        case "email_code_invalid":
+            return L10n.emailCodeInvalid
+        case "email_code_expired":
+            return L10n.emailCodeExpired
+        case "email_code_mismatch":
+            return L10n.emailCodeMismatch
+        case "email_delivery_unavailable":
+            return L10n.emailDeliveryUnavailable
+        default:
+            return errorResponse?.error ?? L10n.emailCodeVerifyFailed
+        }
+    }
+
+    private func localizedEmailRequestError(_ error: Error) -> String {
+        if let apiError = error as? APIError,
+           case .serverError(let message) = apiError {
+            return message
+        }
+        return L10n.emailCodeRequestFailed
+    }
+
+    private func localizedEmailVerifyError(_ error: Error) -> String {
+        if let apiError = error as? APIError,
+           case .serverError(let message) = apiError {
+            return message
+        }
+        return L10n.emailCodeVerifyFailed
     }
 
     private func markUnsupportedProvider(label: String) {
@@ -434,6 +580,18 @@ class AuthManager: ObservableObject {
     private func isExpired(_ expiresAt: TimeInterval) -> Bool {
         Date().timeIntervalSince1970 >= expiresAt
     }
+
+    private func normalizedEmail(_ rawEmail: String) -> String {
+        rawEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let trimmed = normalizedEmail(email)
+        guard let atIndex = trimmed.firstIndex(of: "@") else { return false }
+        let local = trimmed[..<atIndex]
+        let domain = trimmed[trimmed.index(after: atIndex)...]
+        return !local.isEmpty && domain.contains(".")
+    }
 }
 
 private struct AppleAuthorizationPayload {
@@ -441,6 +599,18 @@ private struct AppleAuthorizationPayload {
     let authorizationCode: String?
     let email: String?
     let fullName: String?
+}
+
+private struct EmailCodeRequestResponse: Codable {
+    let success: Bool
+    let codeSent: Bool
+    let expiresIn: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case codeSent = "code_sent"
+        case expiresIn = "expires_in"
+    }
 }
 
 private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {

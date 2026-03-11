@@ -65,6 +65,8 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert 'Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead")' in text
     assert "PostWorkoutTextCoachView(" in text
     assert 'event: "voice_fallback_text_opened"' in text
+    assert 'Button(viewModel.languageCode == "no" ? "Lukk" : "Close")' in text
+    assert "dismiss()" in text
 
 
 def test_live_voice_view_generates_shareable_insight_card_after_conversation() -> None:
@@ -87,12 +89,17 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "final class XAIRealtimeVoiceService: NSObject, ObservableObject" in text
     assert "URLSession.shared.webSocketTask(with: request)" in text
     assert 'try await socket.send(.string(rawJSON))' in text
+    assert "standardFormatWithSampleRate: 24_000" in text
     assert "input_audio_buffer.append" in text
     assert 'event: "voice_session_started"' in text
     assert 'event: "voice_session_failed"' in text
     assert 'event: "voice_session_ended"' in text
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
+    assert "Float(source[index]) / Float(Int16.max)" in text
+    assert "startupTimeoutTask" in text
+    assert "Live voice took too long to start" in text
+    assert "Task {" in text
 
 
 def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory() -> None:
