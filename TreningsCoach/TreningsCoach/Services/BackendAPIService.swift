@@ -320,24 +320,6 @@ class BackendAPIService {
         return try JSONDecoder().decode(BreathAnalysis.self, from: data)
     }
 
-    /// Get welcome message for workout start
-    func getWelcomeMessage(language: String = "en", persona: String = "personal_trainer", userName: String = "") async throws -> WelcomeResponse {
-        var urlString = "\(baseURL)/welcome?language=\(language)&persona=\(persona)"
-        if !userName.isEmpty, let encoded = userName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-            urlString += "&user_name=\(encoded)"
-        }
-        let url = URL(string: urlString)!
-        let request = authenticatedRequest(url: url)
-        let (data, response) = try await dataWithAuthRetry(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw APIError.invalidResponse
-        }
-
-        return try JSONDecoder().decode(WelcomeResponse.self, from: data)
-    }
-
     /// Download voice audio file
     func downloadVoiceAudio(from path: String) async throws -> Data {
         let urlString = path.hasPrefix("http") ? path : "\(baseURL)\(path)"

@@ -27,11 +27,17 @@ def _fallback_interval(_phase):
     return 35.0
 
 
-def test_pipeline_first_breath_wins_with_welcome_owner():
+def test_pipeline_first_breath_is_consumed_without_welcome_owner():
     decision = run(
         is_first_breath=True,
         zone_mode_active=True,
-        zone_tick={"events": [], "coach_text": "zone text"},
+        zone_tick={
+            "should_speak": False,
+            "primary_event_type": "zone_no_change",
+            "reason": "zone_no_change",
+            "events": [],
+            "coach_text": "zone text",
+        },
         breath_quality_state="reliable",
         speech_decision_owner_v2=True,
         unified_zone_router_active=True,
@@ -51,11 +57,9 @@ def test_pipeline_first_breath_wins_with_welcome_owner():
         max_silence_seconds=30.0,
     )
 
-    assert decision.speak is True
-    assert decision.owner == "welcome"
-    assert decision.reason == "welcome_message"
+    assert decision.owner == "zone_event"
+    assert decision.reason == "zone_no_change"
     assert decision.mark_first_breath_consumed is True
-    assert decision.mark_use_welcome_phrase is True
 
 
 def test_pipeline_zone_owner_bypasses_max_silence_override_when_unified_router_active():

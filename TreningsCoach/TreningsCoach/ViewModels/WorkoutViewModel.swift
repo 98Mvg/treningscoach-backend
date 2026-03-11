@@ -2591,15 +2591,13 @@ class WorkoutViewModel: ObservableObject {
             // Start wake word listening
             startWakeWordListeningIfNeeded()
 
-            // Force manifest sync on every workout start so welcome/event playback
-            // resolves against the latest cached local pack when available.
-            // Then play welcome and start the coaching loop.
+            // Force manifest sync on every workout start so event playback resolves
+            // against the latest cached local pack when available.
+            // Then start the coaching loop immediately.
             Task {
                 await syncProfileSnapshotToBackend(reason: "workout_start")
                 await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
                 await prefetchCoreAudioIfNeeded()
-                await playWelcomeMessage()
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
                 await MainActor.run {
                     scheduleNextTick()
                 }
@@ -3450,9 +3448,6 @@ class WorkoutViewModel: ObservableObject {
                 ids.append("\(workoutPrefix).motivate.s\(stage).2")
             }
         }
-        for idx in 1 ... 5 {
-            ids.append("welcome.standard.\(idx)")
-        }
         return ids
     }
 
@@ -3500,24 +3495,6 @@ class WorkoutViewModel: ObservableObject {
             eventType: eventType,
             source: source
         )
-    }
-
-    private func playWelcomeMessage() async {
-        do {
-            print("👋 Fetching welcome message...")
-            let welcome = try await apiService.getWelcomeMessage(language: currentLanguage, persona: activePersonality.rawValue, userName: currentUserName)
-            coachMessage = welcome.text
-            print("👋 Welcome: '\(welcome.text)' - resolving audio source...")
-            _ = await playCoachAudio(
-                welcome.audioURL,
-                utteranceID: welcome.utteranceID,
-                eventType: "welcome_message",
-                transcriptText: welcome.text
-            )
-        } catch {
-            print("⚠️ Welcome message failed: \(error.localizedDescription)")
-            // Non-critical: workout continues even if welcome fails
-        }
     }
 
     @discardableResult

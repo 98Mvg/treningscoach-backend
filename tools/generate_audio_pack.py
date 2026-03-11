@@ -50,11 +50,6 @@ V2_FORCE_VOICE_IDS = {
 V2_BUNDLE_INFRASTRUCTURE_IDS = {
     "wake_ack.en.default",
     "wake_ack.no.default",
-    "welcome.standard.1",
-    "welcome.standard.2",
-    "welcome.standard.3",
-    "welcome.standard.4",
-    "welcome.standard.5",
 }
 
 VOICE_SETTINGS = {
@@ -134,11 +129,10 @@ def _save_build_cache(cache_path: Path, cache: dict[str, str]) -> None:
 def _validation_mode(phrase_id: str) -> str:
     """Determine coaching_engine validation mode from phrase ID.
 
-    Welcome / notice / signal phrases allow up to 30 words (strategic).
+    Summary / notice / signal phrases allow up to 30 words (strategic).
     Short workout cues are validated with the tighter 1-15 word realtime limit.
     """
     _strategic_prefixes = (
-        "welcome.",
         "summary.",
         "session.",
         "workout_complete.",
@@ -352,6 +346,41 @@ def _prune_stale_output_files(output_dir: Path, phrases: list[PhraseItem]) -> in
     return removed
 
 
+def _refresh_existing_output(
+    *,
+    version: str,
+    output_dir: Path,
+    core_only: bool,
+    review_path: Optional[Path],
+) -> list[PhraseItem]:
+    phrases = _filter_phrases_for_version(
+        phrases=_build_phrase_list(core_only=core_only),
+        version=version,
+        review_path=review_path,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for lang in LANGUAGES:
+        (output_dir / lang).mkdir(parents=True, exist_ok=True)
+
+    cache_path = output_dir / "build_cache.json"
+    build_cache = _load_build_cache(cache_path)
+    active_keys = {f"{phrase.language}/{phrase.phrase_id}" for phrase in phrases}
+    stale_keys = [key for key in build_cache if key not in active_keys]
+    for key in stale_keys:
+        del build_cache[key]
+    _save_build_cache(cache_path, build_cache)
+
+    pruned = _prune_stale_output_files(output_dir, phrases)
+
+    print(f"Refreshed existing audio-pack artifacts")
+    print(f"  Version: {version}")
+    print(f"  Output: {output_dir}")
+    print(f"  Active phrases: {len(phrases)}")
+    print(f"  Removed stale cache entries: {len(stale_keys)}")
+    print(f"  Pruned stale MP3s: {pruned}")
+    return phrases
+
+
 def _build_latest_payload(*, version: str, manifest_key: str) -> dict[str, Any]:
     payload = {
         "latest_version": version,
@@ -541,6 +570,110 @@ def _upload_to_r2(version: str, output_dir: Path, manifest_path: Path, latest_pa
         print(f"Uploaded {uploads} MP3 files + {manifest_key} to R2 bucket '{bucket}'")
 
 
+def _build_r2_client():
+    account_id = getattr(config, "R2_ACCOUNT_ID", "") or os.getenv("R2_ACCOUNT_ID", "")
+    access_key = getattr(config, "R2_ACCESS_KEY_ID", "") or os.getenv("R2_ACCESS_KEY_ID", "")
+    secret_key = getattr(config, "R2_SECRET_ACCESS_KEY", "") or os.getenv("R2_SECRET_ACCESS_KEY", "")
+    bucket = getattr(config, "R2_BUCKET_NAME", "coachi-audio") or os.getenv("R2_BUCKET_NAME", "coachi-audio")
+
+    if not account_id or not access_key or not secret_key:
+        raise RuntimeError("R2 credentials are missing. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY")
+
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError("boto3 is required for R2 pruning/upload") from exc
+
+    endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="auto",
+    )
+    return s3, bucket
+
+
+def _list_r2_keys(s3: Any, bucket: str, prefix: str) -> list[str]:
+    paginator = s3.get_paginator("list_objects_v2")
+    keys: list[str] = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for item in page.get("Contents", []):
+            key = str(item.get("Key") or "").strip()
+            if key:
+                keys.append(key)
+    return keys
+
+
+def _delete_r2_keys(s3: Any, bucket: str, keys: list[str]) -> int:
+    if not keys:
+        return 0
+
+    deleted = 0
+    for idx in range(0, len(keys), 1000):
+        batch = keys[idx : idx + 1000]
+        s3.delete_objects(
+            Bucket=bucket,
+            Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
+        )
+        deleted += len(batch)
+    return deleted
+
+
+def _manifest_audio_keys(version: str, manifest_path: Path) -> set[str]:
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    keys: set[str] = set()
+    for phrase in payload.get("phrases", []):
+        for lang in LANGUAGES:
+            rel_path = str((phrase.get(lang) or {}).get("file") or "").strip()
+            if rel_path:
+                keys.add(f"{version}/{rel_path}")
+    return keys
+
+
+def _prune_removed_r2_keys(version: str, manifest_path: Path) -> int:
+    s3, bucket = _build_r2_client()
+    desired_keys = _manifest_audio_keys(version, manifest_path)
+    existing_keys: set[str] = set()
+    for lang in LANGUAGES:
+        existing_keys.update(
+            key for key in _list_r2_keys(s3, bucket, f"{version}/{lang}/") if key.endswith(".mp3")
+        )
+    stale_keys = sorted(existing_keys - desired_keys)
+    deleted = _delete_r2_keys(s3, bucket, stale_keys)
+    print(f"Pruned {deleted} stale R2 MP3 objects for {version}")
+    return deleted
+
+
+def _known_audio_pack_versions(audio_pack_root: Path) -> list[str]:
+    if not audio_pack_root.exists():
+        return []
+    return sorted(
+        path.name
+        for path in audio_pack_root.iterdir()
+        if path.is_dir() and path.name.startswith("v")
+    )
+
+
+def _prune_welcome_r2_keys(audio_pack_root: Path) -> int:
+    s3, bucket = _build_r2_client()
+    stale_keys: set[str] = set()
+    for version in _known_audio_pack_versions(audio_pack_root):
+        for lang in LANGUAGES:
+            prefix = f"{version}/{lang}/welcome.standard."
+            stale_keys.update(
+                key for key in _list_r2_keys(s3, bucket, prefix) if key.endswith(".mp3")
+            )
+    deleted = _delete_r2_keys(s3, bucket, sorted(stale_keys))
+    print(f"Pruned {deleted} legacy welcome MP3 objects from R2")
+    return deleted
+
+
+def _prune_welcome_r2(audio_pack_root: Path) -> int:
+    return _prune_welcome_r2_keys(audio_pack_root)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate and upload Coachi audio packs")
     parser.add_argument("--version", default=getattr(config, "AUDIO_PACK_VERSION", "v1"))
@@ -562,6 +695,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--upload", action="store_true", help="Generate then upload")
     parser.add_argument("--upload-only", action="store_true", help="Upload existing output folder only")
+    parser.add_argument(
+        "--refresh-existing-only",
+        action="store_true",
+        help="Refresh manifests/build_cache and prune stale local MP3s without generating new audio.",
+    )
+    parser.add_argument(
+        "--prune-removed-r2",
+        action="store_true",
+        help="Delete stale MP3 objects in R2 that are no longer referenced by the current manifest.",
+    )
+    parser.add_argument(
+        "--prune-welcome-r2",
+        action="store_true",
+        help="Delete all legacy welcome.standard.* MP3 objects from R2 across known pack versions.",
+    )
     return parser
 
 
@@ -590,6 +738,25 @@ def main() -> int:
         _upload_to_r2(version, output_dir, manifest_path, latest_path)
         return 0
 
+    if args.refresh_existing_only:
+        phrases = _refresh_existing_output(
+            version=version,
+            output_dir=output_dir,
+            core_only=args.core_only,
+            review_path=review_path,
+        )
+        manifest = _manifest_for_output(version=version, output_dir=output_dir, generated_phrases=phrases)
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        print(f"Manifest written: {manifest_path}")
+        latest_payload = _build_latest_payload(version=version, manifest_key=f"{version}/manifest.json")
+        latest_path.write_text(json.dumps(latest_payload, indent=2), encoding="utf-8")
+        print(f"Latest pointer written: {latest_path}")
+        if args.prune_removed_r2:
+            _prune_removed_r2_keys(version, manifest_path)
+        if args.prune_welcome_r2:
+            _prune_welcome_r2(output_dir.parent)
+        return 0
+
     phrases, output_dir = _generate_audio(
         version=version,
         output_dir=output_dir,
@@ -615,6 +782,10 @@ def main() -> int:
 
     if args.upload and not args.dry_run:
         _upload_to_r2(version, output_dir, manifest_path, latest_path)
+    if args.prune_removed_r2 and not args.dry_run:
+        _prune_removed_r2_keys(version, manifest_path)
+    if args.prune_welcome_r2 and not args.dry_run:
+        _prune_welcome_r2(output_dir.parent)
 
     return 0
 

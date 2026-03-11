@@ -66,18 +66,7 @@ assert payload.get("success") is True, payload
 PY
 print_ok "Waitlist capture endpoint accepted signup"
 
-# 4) Welcome TTS smoke check (NO)
-welcome_json="$(curl_checked -sf "${BASE_URL}/welcome?language=no&persona=personal_trainer")"
-python3 - <<'PY' "$welcome_json"
-import json
-import sys
-payload = json.loads(sys.argv[1])
-assert payload.get("text"), payload
-assert payload.get("audio_url"), payload
-PY
-print_ok "Welcome endpoint returned text + audio"
-
-# 5) Landing page CTA instrumentation
+# 4) Landing page CTA instrumentation
 landing_html="$(curl_checked -sf "${BASE_URL}/")"
 printf "%s" "$landing_html" | grep -q 'data-landing-event="app_store_click"'
 printf "%s" "$landing_html" | grep -q 'data-landing-event="google_play_click"'

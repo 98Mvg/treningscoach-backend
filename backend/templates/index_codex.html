@@ -2201,7 +2201,6 @@
                 wait_success: "Du er registrert. Vi sender invitasjon snart.",
                 wait_failed: "Kunne ikke registrere nå. Prøv igjen om litt.",
                 feed_audio_blocked: "Audio autoplay blocked by browser policy.",
-                feed_welcome_failed: "Welcome request failed.",
                 feed_coach_response: "Coach response"
             },
             en: {
@@ -2387,7 +2386,6 @@
                 wait_success: "You are registered. We will send your invite soon.",
                 wait_failed: "Could not register right now. Please try again shortly.",
                 feed_audio_blocked: "Audio autoplay blocked by browser policy.",
-                feed_welcome_failed: "Welcome request failed.",
                 feed_coach_response: "Coach response"
             }
         };
@@ -2686,27 +2684,6 @@
                 await audio.play();
             } catch (error) {
                 pushFeed(t("feed_audio_blocked"), "audio");
-            }
-        }
-
-        async function playWelcome() {
-            try {
-                const language = dom.demoLanguage.value;
-                const persona = dom.demoPersona.value;
-                const url = new URL(apiUrl("/welcome"));
-                url.searchParams.set("language", language);
-                url.searchParams.set("persona", persona);
-                const response = await fetch(url.toString());
-                if (!response.ok) return;
-                const data = await response.json();
-                if (data.text) {
-                    pushFeed(data.text, "welcome");
-                }
-                if (data.audio_url) {
-                    await playAudio(data.audio_url);
-                }
-            } catch (error) {
-                pushFeed(t("feed_welcome_failed"), "warn");
             }
         }
 

@@ -20,7 +20,6 @@ import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timedelta, timezone
 from threading import Lock
-from urllib.parse import quote
 import requests
 import config  # Import central configuration
 from brain_router import BrainRouter  # Import Brain Router
@@ -55,8 +54,6 @@ from zone_event_motor import (
 from web_routes import create_web_blueprint
 from chat_routes import create_chat_blueprint
 from locale_config import get_voice_id as locale_voice_id
-from tts_phrase_catalog import get_phrase_text, list_phrase_ids_by_prefix
-from utterance_rotation import select_rotated_utterance
 from workout_contracts import (
     UserProfilePayload,
     normalize_continuous_contract,
@@ -2684,99 +2681,10 @@ def tts_cache_stats():
 
 @app.route('/welcome', methods=['GET'])
 def welcome():
-    """
-    Get welcome message for workout start (Gym Companion style).
-
-    Query params:
-        experience: "beginner", "intermediate", "advanced" (default: "standard")
-
-    Returns:
-        JSON with utterance_id + exactly matching text (+ optional audio URL)
-    """
-    try:
-        experience = request.args.get('experience', 'standard')
-        default_language = getattr(config, "DEFAULT_LANGUAGE", "en")
-        language = normalize_language_code(request.args.get('language', default_language))
-        persona = request.args.get('persona', 'personal_trainer')
-        user_name = request.args.get('user_name', '').strip()
-
-        experience_key = (experience or "standard").strip().lower()
-        # Single source-of-truth: welcome lines are standardized under welcome.standard.*
-        message_category = "standard"
-        category_prefix = "welcome.standard"
-        selected_persona = persona
-
-        available_ids = list_phrase_ids_by_prefix(category_prefix, persona=persona)
-        selected_prefix = category_prefix
-
-        if experience_key not in {"", "standard", "intermediate", "advanced", "beginner", "beginner_friendly", "breath", "breath_aware"}:
-            logger.info("Unknown welcome experience '%s' -> using welcome.standard", experience_key)
-        if not available_ids:
-            selected_prefix = "welcome.standard"
-            selected_persona = "personal_trainer"
-            available_ids = list_phrase_ids_by_prefix(selected_prefix, persona="personal_trainer")
-
-        if not available_ids:
-            raise RuntimeError("No welcome utterance IDs available in phrase catalog")
-
-        rotation_state_raw = str(
-            getattr(config, "WELCOME_ROTATION_STATE_PATH", "instance/cache/utterance_rotation_state.json")
-            or "instance/cache/utterance_rotation_state.json"
-        ).strip()
-        rotation_state_path = Path(rotation_state_raw)
-        if not rotation_state_path.is_absolute():
-            rotation_state_path = Path(__file__).resolve().parent / rotation_state_path
-
-        utterance_id = select_rotated_utterance(
-            category_prefix=selected_prefix,
-            language=language,
-            persona=selected_persona,
-            available_ids=available_ids,
-            recent_k=getattr(config, "WELCOME_ROTATION_RECENT_K", 2),
-            avoid_hours=getattr(config, "WELCOME_ROTATION_AVOID_HOURS", 24),
-            history_limit=getattr(config, "WELCOME_ROTATION_HISTORY_MAX", 50),
-            state_path=rotation_state_path,
-        )
-
-        welcome_text = get_phrase_text(utterance_id, language)
-        if not welcome_text:
-            raise RuntimeError(f"Missing localized welcome text for utterance_id={utterance_id}, lang={language}")
-
-        # IMPORTANT: keep text exactly equal to utterance_id phrase text
-        # to avoid text/audio mismatch with local pre-generated packs.
-        if user_name:
-            logger.info(
-                "Welcome user_name is ignored for utterance-bound welcome to keep text/audio matched."
-            )
-
-        r2_base = (getattr(config, "R2_PUBLIC_URL", "") or "").strip().rstrip("/")
-        audio_url = None
-        if r2_base:
-            encoded_id = quote(utterance_id, safe=".")
-            pack_version = getattr(config, "AUDIO_PACK_VERSION", "v1")
-            audio_url = f"{r2_base}/{pack_version}/{language}/{selected_persona}/{encoded_id}.mp3"
-
-        logger.info(
-            "Welcome selected: category=%s prefix=%s utterance_id=%s language=%s persona=%s user=%s",
-            message_category,
-            selected_prefix,
-            utterance_id,
-            language,
-            selected_persona,
-            user_name or "anon",
-        )
-
-        return jsonify({
-            "utterance_id": utterance_id,
-            "text": welcome_text,
-            "audio_url": audio_url,
-            "category": selected_prefix.split(".", 1)[1] if "." in selected_prefix else message_category,
-            "lang": language,
-        })
-
-    except Exception as e:
-        logger.error(f"Welcome endpoint error: {e}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "error": "welcome_removed",
+        "message": "The welcome audio path has been retired. Start workouts through /coach/continuous instead.",
+    }), 410
 
 @app.route('/analyze', methods=['POST'])
 @rate_limit(
@@ -3375,7 +3283,7 @@ def coach_continuous():
             else:
                 zone_tick = None
 
-        # Check if this is the very first breath (welcome message)
+        # Track the very first breath after session start.
         is_first_breath = workout_state.get("is_first_breath", False)
 
         # Compute time since last coaching (server-side) to cap silence
@@ -3485,7 +3393,6 @@ def coach_continuous():
         }
         pattern_insight = None
         strategic_guidance = None
-        use_welcome = workout_state.get("use_welcome_phrase", False)
         recent_cues = _extract_recent_spoken_cues(
             coaching_context.get("coaching_history", []),
             limit=getattr(config, "BRAIN_RECENT_CUE_WINDOW", 4),
@@ -3552,7 +3459,7 @@ def coach_continuous():
 
         validation_shadow = bool(getattr(config, "COACHING_VALIDATION_SHADOW_MODE", True))
         validation_enforce = bool(getattr(config, "COACHING_VALIDATION_ENFORCE", False))
-        if speak_decision and not use_welcome and (validation_shadow or validation_enforce):
+        if speak_decision and (validation_shadow or validation_enforce):
             _increment_quality_metric("validation_checks")
             is_valid = validate_coaching_text(
                 text=coach_text,
@@ -3587,10 +3494,9 @@ def coach_continuous():
                         "mode": "realtime_coach",
                     }
 
-        # STEP 6: Add human variation to avoid robotic repetition (skip for welcome)
+        # STEP 6: Add human variation to avoid robotic repetition.
         if (
             speak_decision
-            and not use_welcome
             and not fast_fallback_used
             and not str(brain_meta.get("source", "")).startswith("zone_event_")
         ):

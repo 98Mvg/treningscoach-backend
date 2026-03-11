@@ -1726,8 +1726,8 @@
                     <h2 data-i18n="live_title">Prøv Coachi direkte i nettleseren</h2>
                 </div>
                 <p data-i18n="live_intro">
-                    Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for welcome, continuous
-                    coaching, talk-to-coach, waitlist og analytics.
+                    Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for continuous coaching,
+                    talk-to-coach, waitlist og analytics.
                 </p>
             </div>
 
@@ -2095,7 +2095,7 @@
                 feature_4_item_3: "Klar roadmap for wearable-integrasjoner",
                 live_eyebrow: "Live demo",
                 live_title: "Prøv Coachi direkte i nettleseren",
-                live_intro: "Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for welcome, continuous coaching, talk-to-coach, waitlist og analytics.",
+                live_intro: "Denne seksjonen er ikke mock. Den kaller faktiske backend-endepunkter for continuous coaching, talk-to-coach, waitlist og analytics.",
                 live_controls_title: "Kontroller",
                 live_controls_body: "Sett språk, persona og treningsnivå før du starter.",
                 live_label_language: "Språk",
@@ -2201,7 +2201,6 @@
                 wait_success: "Du er registrert. Vi sender invitasjon snart.",
                 wait_failed: "Kunne ikke registrere nå. Prøv igjen om litt.",
                 feed_audio_blocked: "Audio autoplay blocked by browser policy.",
-                feed_welcome_failed: "Welcome request failed.",
                 feed_coach_response: "Coach response"
             },
             en: {
@@ -2281,7 +2280,7 @@
                 feature_4_item_3: "Clear roadmap for wearable integrations",
                 live_eyebrow: "Live demo",
                 live_title: "Try Coachi directly in your browser",
-                live_intro: "This section is not mock content. It calls real backend endpoints for welcome, continuous coaching, talk-to-coach, waitlist, and analytics.",
+                live_intro: "This section is not mock content. It calls real backend endpoints for continuous coaching, talk-to-coach, waitlist, and analytics.",
                 live_controls_title: "Controls",
                 live_controls_body: "Set language, persona, and training level before you start.",
                 live_label_language: "Language",
@@ -2387,7 +2386,6 @@
                 wait_success: "You are registered. We will send your invite soon.",
                 wait_failed: "Could not register right now. Please try again shortly.",
                 feed_audio_blocked: "Audio autoplay blocked by browser policy.",
-                feed_welcome_failed: "Welcome request failed.",
                 feed_coach_response: "Coach response"
             }
         };
@@ -2689,27 +2687,6 @@
             }
         }
 
-        async function playWelcome() {
-            try {
-                const language = dom.demoLanguage.value;
-                const persona = dom.demoPersona.value;
-                const url = new URL(apiUrl("/welcome"));
-                url.searchParams.set("language", language);
-                url.searchParams.set("persona", persona);
-                const response = await fetch(url.toString());
-                if (!response.ok) return;
-                const data = await response.json();
-                if (data.text) {
-                    pushFeed(data.text, "welcome");
-                }
-                if (data.audio_url) {
-                    await playAudio(data.audio_url);
-                }
-            } catch (error) {
-                pushFeed(t("feed_welcome_failed"), "warn");
-            }
-        }
-
         async function startSession() {
             if (state.active) return;
             try {
@@ -2748,7 +2725,6 @@
                 updateButtons();
                 startTimer();
                 trackEvent("demo_started", { session_id: state.sessionId });
-                await playWelcome();
                 scheduleTick(1700);
             } catch (error) {
                 setLiveStateByKey("idle");

@@ -110,7 +110,9 @@ def test_onboarding_scaffold_clamps_layout_width_and_vertical_scroll_only() -> N
     assert "let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))" in text
     assert "let contentTopInset = max(renderHeight * 0.08, 24.0)" in text
     assert "ScrollView(.vertical, showsIndicators: false)" in text
+    assert ".safeAreaInset(edge: .bottom, spacing: 0)" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
+    assert ".scrollDismissesKeyboard(.interactively)" in text
     assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in text
     assert ".clipped()" in text
 
@@ -138,9 +140,14 @@ def test_intro_value_carousel_contract() -> None:
     assert 'imageName: "IntroStory2"' in text
     assert 'imageName: "IntroStory3"' in text
     assert 'imageName: "IntroStory4"' in text
-    assert 'Text(L10n.current == .no ? "Start gratis" : "Start free")' in text
-    assert 'Text(L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account")' in text
+    assert 'Text(primaryTitle)' in text
+    assert 'Mode {' in text
+    assert '.intro' in text
+    assert 'case postAuthExplainer(displayName: String)' in text
+    assert "if let secondaryTitle, let onSecondary {" in text
+    assert "Text(secondaryTitle)" in text
     assert "Circle()" in text
+    assert ".frame(width: 16, height: 16)" in text
     assert ".scaledToFill()" in text
     assert "showsCoachScoreCard" in text
     assert "activePage" in text
@@ -152,11 +159,12 @@ def test_intro_value_carousel_contract() -> None:
     assert "Task.sleep(nanoseconds: 5_000_000_000)" in text
     assert "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls." in text
     assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." in text
-    assert "Apple Watch gir mer presis pulscoaching. Uten klokke coacher vi på struktur og tid." in text
-    assert "Logg inn med Apple eller e-post for å fortsette." in text
-    assert "introTrustBadge(L10n.startFreeBadge)" in text
-    assert "introTrustBadge(L10n.accountRequiredBadge)" in text
-    assert "introTrustBadge(L10n.watchOptionalBadge)" in text
+    assert "Kobles enkelt til pulsklokka di" in text
+    assert "Ingen pulsklokke?" in text
+    assert "Alt i orden! Du kan bli coachet pa pustanalyse." in text
+    assert 'deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"]' in text
+    assert "introTrustBadge(" not in text
+    assert 'Logg inn med Apple eller e-post for å fortsette.' not in text
     assert "score: 100" in text
 
 
@@ -213,7 +221,7 @@ def test_intro_only_ignores_vertical_safe_areas() -> None:
 def test_intro_layout_places_indicator_above_register_cta() -> None:
     text = INTRO_VIEW.read_text(encoding="utf-8")
     dots_idx = text.index("HStack(spacing: 10) {")
-    register_idx = text.index("Button(action: onRegister)")
+    register_idx = text.index("Button(action: onPrimary)")
     assert dots_idx < register_idx
     assert ".padding(.top, max(14, geo.safeAreaInsets.top + 8))" not in text
 
@@ -223,12 +231,32 @@ def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
     assert "let layoutWidth = min(min(renderWidth, deviceWidth), 500)" in text
     assert "let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))" in text
     assert "let bottomInset = min(42.0, max(24.0, geo.safeAreaInsets.bottom + 10.0))" in text
-    assert "Spacer().frame(height: max(renderHeight * 0.16, geo.safeAreaInsets.top + 22.0))" in text
+    assert "Spacer().frame(height: max(renderHeight * 0.12, geo.safeAreaInsets.top + 18.0))" in text
     assert "Spacer().frame(height: bottomInset)" in text
     assert "ScrollView(.vertical, showsIndicators: false)" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
+    assert ".scrollDismissesKeyboard(.interactively)" in text
     assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in text
     assert ".clipped()" in text
+
+
+def test_auth_view_matches_required_account_register_flow() -> None:
+    text = AUTH_VIEW.read_text(encoding="utf-8")
+    assert 'Text(L10n.current == .no ? "Velkommen" : "Welcome")' in text
+    assert "Sign in with Apple or email to continue" in text
+    assert "Logg inn med Apple eller e-post for å fortsette" in text
+    assert "L10n.registerWithApple" in text
+    assert "L10n.registerWithGoogle" in text
+    assert 'badge: L10n.current == .no ? "Kommer snart" : "Coming soon"' in text
+    assert "!acceptedTerms || authManager.isLoading" in text
+    assert "emailCodeRequested" in text
+    assert "requestEmailSignInCode" in text
+    assert "signInWithEmail(" in text
+    assert "Password" not in text
+    assert "Gjenta passordet" not in text
+    assert "showPrivacySheet = true" in text
+    assert "showTermsSheet = true" in text
+    assert "acceptedTerms.toggle()" in text
 
 
 def test_onboarding_birth_date_picker_is_scrollable_wheel() -> None:

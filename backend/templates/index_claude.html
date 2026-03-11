@@ -565,7 +565,7 @@
         orb.classList.add('hidden'); orb.classList.remove('pulsing'); player.classList.add('active');
         demoInfoText.textContent=i18n[currentLang].demo_listening; timerStatus.textContent=i18n[currentLang].demo_recording;
         startRecording(); timerInterval=setInterval(updateTimer,1000); updateTimer();
-        await playWelcomeMessage(); coachingInterval=setInterval(sendAudioForCoaching,COACHING_INTERVAL);
+        coachingInterval=setInterval(sendAudioForCoaching,COACHING_INTERVAL);
       } catch(err) {
         alert(currentLang==='no'?'Mikrofontilgang kreves.':'Microphone access required.');
       }
@@ -574,11 +574,6 @@
       if (!stream) return; mediaRecorder=new MediaRecorder(stream); audioChunks=[];
       mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) audioChunks.push(e.data); };
       mediaRecorder.start(100);
-    }
-    async function playWelcomeMessage() {
-      try { const r=await fetch(`/welcome?language=${currentLang}`); const d=await r.json();
-        if(d.audio_url){ const a=new Audio(d.audio_url); await a.play(); trackEvent('demo_coaching_received'); }
-      } catch(e){}
     }
     async function sendAudioForCoaching() {
       if(!isWorkoutActive||isPaused||audioChunks.length===0) return;

@@ -10,6 +10,10 @@ def test_current_welcome_catalog_is_valid():
     assert errors == []
 
 
+def test_empty_welcome_catalog_is_valid():
+    assert validate_welcome_catalog([]) == []
+
+
 def test_welcome_validation_detects_non_contiguous_group():
     sample = [
         {

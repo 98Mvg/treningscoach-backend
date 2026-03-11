@@ -26,7 +26,6 @@ class CoachingDecision:
     max_silence_override_used: bool = False
     events: Optional[List[Dict[str, Any]]] = None
     mark_first_breath_consumed: bool = False
-    mark_use_welcome_phrase: bool = False
 
 
 def run(
@@ -54,19 +53,7 @@ def run(
 ) -> CoachingDecision:
     zone_forced_text = (zone_tick or {}).get("coach_text") if isinstance(zone_tick, dict) else None
     max_silence_override_used = False
-
-    if is_first_breath:
-        return CoachingDecision(
-            speak=True,
-            reason="welcome_message",
-            owner="welcome",
-            owner_base="welcome",
-            zone_forced_text=zone_forced_text,
-            max_silence_override_used=False,
-            events=(zone_tick or {}).get("events") if isinstance(zone_tick, dict) else [],
-            mark_first_breath_consumed=True,
-            mark_use_welcome_phrase=True,
-        )
+    mark_first_breath_consumed = bool(is_first_breath)
 
     if speech_decision_owner_v2:
         if zone_mode_active and zone_tick is not None:
@@ -194,4 +181,5 @@ def run(
         zone_forced_text=zone_forced_text,
         max_silence_override_used=bool(max_silence_override_used),
         events=(zone_tick or {}).get("events") if isinstance(zone_tick, dict) else [],
+        mark_first_breath_consumed=mark_first_breath_consumed,
     )

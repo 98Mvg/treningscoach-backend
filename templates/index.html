@@ -367,9 +367,6 @@
                 timerInterval = setInterval(updateTimer, 1000);
                 updateTimer();
 
-                // Play welcome message
-                await playWelcomeMessage();
-
                 // Start coaching loop (every 8 seconds)
                 coachingInterval = setInterval(sendAudioForCoaching, COACHING_INTERVAL);
             } catch (error) {
@@ -392,22 +389,6 @@
 
             // Collect 8 seconds of audio chunks
             mediaRecorder.start(100); // Collect in 100ms chunks
-        }
-
-        async function playWelcomeMessage() {
-            try {
-                const response = await fetch('/welcome?language=en');
-                const data = await response.json();
-
-                if (data.audio_url) {
-                    const audio = new Audio(data.audio_url);
-                    await audio.play();
-                }
-
-                console.log('Welcome:', data.text);
-            } catch (error) {
-                console.error('Failed to play welcome:', error);
-            }
         }
 
         async function sendAudioForCoaching() {

@@ -16,6 +16,11 @@ private struct IntroStoryPage {
     let titleEn: String
     let bodyNo: String
     let bodyEn: String
+    let supplementalTitleNo: String?
+    let supplementalTitleEn: String?
+    let supplementalBodyNo: String?
+    let supplementalBodyEn: String?
+    let deviceTags: [String]
     let showsCoachScoreCard: Bool
 
     func title(for language: AppLanguage) -> String {
@@ -25,25 +30,55 @@ private struct IntroStoryPage {
     func body(for language: AppLanguage) -> String {
         language == .no ? bodyNo : bodyEn
     }
+
+    func supplementalTitle(for language: AppLanguage) -> String? {
+        language == .no ? supplementalTitleNo : supplementalTitleEn
+    }
+
+    func supplementalBody(for language: AppLanguage) -> String? {
+        language == .no ? supplementalBodyNo : supplementalBodyEn
+    }
 }
 
 struct FeaturesPageView: View {
-    let onRegister: () -> Void
-    let onExistingUser: () -> Void
+    enum Mode {
+        case intro
+        case postAuthExplainer(displayName: String)
+    }
+
+    let mode: Mode
+    let onPrimary: () -> Void
+    let primaryTitle: String
+    let onSecondary: (() -> Void)?
+    let secondaryTitle: String?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var currentPage = 0
     @State private var autoAdvanceTask: Task<Void, Never>?
 
+    private var pages: [IntroStoryPage] {
+        switch mode {
+        case .intro:
+            return introPages
+        case let .postAuthExplainer(displayName):
+            return postAuthPages(displayName: displayName)
+        }
+    }
+
     private let introPages: [IntroStoryPage] = [
         IntroStoryPage(
             imageName: "IntroStory1",
             icon: "bolt.fill",
-            titleNo: "Start gratis med rolig coaching",
-            titleEn: "Start free with calm coaching",
+            titleNo: "Rolig coaching fra foerste oekt",
+            titleEn: "Calm coaching from your first workout",
             bodyNo: "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls.",
             bodyEn: "Coachi guides intervals and easy runs, with or without heart rate.",
+            supplementalTitleNo: nil,
+            supplementalTitleEn: nil,
+            supplementalBodyNo: nil,
+            supplementalBodyEn: nil,
+            deviceTags: [],
             showsCoachScoreCard: false
         ),
         IntroStoryPage(
@@ -53,6 +88,11 @@ struct FeaturesPageView: View {
             titleEn: "See progress after every workout",
             bodyNo: "CoachScore gir deg et enkelt tall på kontroll, flyt og gjennomføring.",
             bodyEn: "CoachScore gives you one simple score for control, flow, and execution.",
+            supplementalTitleNo: nil,
+            supplementalTitleEn: nil,
+            supplementalBodyNo: nil,
+            supplementalBodyEn: nil,
+            deviceTags: [],
             showsCoachScoreCard: true
         ),
         IntroStoryPage(
@@ -62,21 +102,31 @@ struct FeaturesPageView: View {
             titleEn: "Short cues. Less noise.",
             bodyNo: "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe.",
             bodyEn: "You get clear cues when they matter, and quiet when you should just run.",
+            supplementalTitleNo: nil,
+            supplementalTitleEn: nil,
+            supplementalBodyNo: nil,
+            supplementalBodyEn: nil,
+            deviceTags: [],
             showsCoachScoreCard: false
         ),
         IntroStoryPage(
             imageName: "IntroStory4",
             icon: "applewatch.side.right",
-            titleNo: "Klokke er valgfritt",
-            titleEn: "A watch is optional",
-            bodyNo: "Apple Watch gir mer presis pulscoaching. Uten klokke coacher vi på struktur og tid.",
-            bodyEn: "Apple Watch gives more precise HR coaching. Without one, Coachi guides by structure and timing.",
+            titleNo: "Kobles enkelt til pulsklokka di",
+            titleEn: "Connect easily to your watch",
+            bodyNo: "Apple Watch, Garmin, Polar og Bluetooth-pulsmålere gir mer presis live coaching.",
+            bodyEn: "Apple Watch, Garmin, Polar, and Bluetooth heart-rate sensors give more precise live coaching.",
+            supplementalTitleNo: "Ingen pulsklokke?",
+            supplementalTitleEn: "No watch?",
+            supplementalBodyNo: "Alt i orden! Du kan bli coachet pa pustanalyse.",
+            supplementalBodyEn: "That is okay. Coachi can still guide you with breath analysis.",
+            deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
             showsCoachScoreCard: false
         ),
     ]
 
     private var activePage: IntroStoryPage {
-        introPages[max(0, min(introPages.count - 1, currentPage))]
+        pages[max(0, min(pages.count - 1, currentPage))]
     }
 
     var body: some View {
@@ -169,10 +219,10 @@ struct FeaturesPageView: View {
                 DragGesture(minimumDistance: 24).onEnded { value in
                     let horizontal = value.translation.width
                     let vertical = value.translation.height
-                    guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
+                        guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
 
                     if horizontal < 0 {
-                        guard currentPage < introPages.count - 1 else { return }
+                        guard currentPage < pages.count - 1 else { return }
                         withAnimation(.easeInOut(duration: 0.25)) {
                             currentPage += 1
                         }
@@ -240,6 +290,34 @@ struct FeaturesPageView: View {
                     .frame(width: textWidth, alignment: .leading)
                     .layoutPriority(1)
 
+                if let supplementalTitle = activePage.supplementalTitle(for: L10n.current),
+                   let supplementalBody = activePage.supplementalBody(for: L10n.current) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(supplementalTitle)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundColor(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(supplementalBody)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white.opacity(0.88))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if !activePage.deviceTags.isEmpty {
+                            deviceTagWrap(activePage.deviceTags)
+                                .padding(.top, 4)
+                        }
+                    }
+                    .padding(14)
+                    .frame(width: textWidth, alignment: .leading)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+                }
+
                 if activePage.showsCoachScoreCard {
                     CoachScorePreviewCard()
                         .padding(.top, 2)
@@ -263,7 +341,7 @@ struct FeaturesPageView: View {
 
             VStack(spacing: 12) {
                 HStack(spacing: 10) {
-                    ForEach(0 ..< introPages.count, id: \.self) { index in
+                    ForEach(0 ..< pages.count, id: \.self) { index in
                         Button {
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 currentPage = index
@@ -271,7 +349,7 @@ struct FeaturesPageView: View {
                         } label: {
                             Circle()
                                 .fill(index == currentPage ? Color.white : Color.white.opacity(0.45))
-                                .frame(width: 8, height: 8)
+                                .frame(width: 16, height: 16)
                         }
                         .buttonStyle(.plain)
                     }
@@ -287,8 +365,8 @@ struct FeaturesPageView: View {
                         )
                 )
 
-                Button(action: onRegister) {
-                    Text(L10n.current == .no ? "Start gratis" : "Start free")
+                Button(action: onPrimary) {
+                    Text(primaryTitle)
                         .font(.headline.weight(.bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -297,52 +375,20 @@ struct FeaturesPageView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
-                Button(action: onExistingUser) {
-                    Text(L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 48)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Text(
-                    L10n.current == .no
-                        ? "Logg inn med Apple eller e-post for å fortsette."
-                        : "Sign in with Apple or email to continue."
-                )
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.white.opacity(0.88))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) {
-                        introTrustBadge(L10n.startFreeBadge)
-                        introTrustBadge(L10n.accountRequiredBadge)
-                        introTrustBadge(L10n.watchOptionalBadge)
-                    }
-
-                    VStack(spacing: 8) {
-                        introTrustBadge(L10n.startFreeBadge)
-                        introTrustBadge(L10n.accountRequiredBadge)
-                        introTrustBadge(L10n.watchOptionalBadge)
+                if let secondaryTitle, let onSecondary {
+                    Button(action: onSecondary) {
+                        Text(secondaryTitle)
+                            .font(.body.weight(.semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 48)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
             .padding(.horizontal, ctaSideInset)
             .padding(.bottom, bottomInset)
         }
-    }
-
-    private func introTrustBadge(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.bold))
-            .foregroundColor(.white.opacity(0.94))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(Color.white.opacity(0.14))
-            .clipShape(Capsule())
     }
 
     private func startAutoAdvance() {
@@ -353,11 +399,114 @@ struct FeaturesPageView: View {
                 if Task.isCancelled { return }
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.28)) {
-                        currentPage = (currentPage + 1) % introPages.count
+                        currentPage = (currentPage + 1) % max(pages.count, 1)
                     }
                 }
             }
         }
+    }
+
+    private func postAuthPages(displayName: String) -> [IntroStoryPage] {
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (L10n.current == .no ? "deg" : "you")
+            : displayName
+
+        return [
+            IntroStoryPage(
+                imageName: "IntroStory1",
+                icon: "figure.run",
+                titleNo: "Vi guider \(name) gjennom oekten",
+                titleEn: "We guide \(name) through the workout",
+                bodyNo: "Coachi hjelper deg med intervaller, rolige turer og tydelige overganger uten at du trenger aa stirre paa skjermen.",
+                bodyEn: "Coachi helps with intervals, easy runs, and clear transitions without making you stare at the screen.",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: false
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory2",
+                icon: "chart.line.uptrend.xyaxis",
+                titleNo: "Etter hver oekt ser du fremgang",
+                titleEn: "After every workout you see progress",
+                bodyNo: "CoachScore oppsummerer kontroll, flyt og gjennomfoering i ett enkelt tall du kan bygge videre paa.",
+                bodyEn: "CoachScore summarizes control, flow, and execution in one simple score you can build on.",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: true
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory3",
+                icon: "waveform",
+                titleNo: "Coachen sier bare det som betyr noe",
+                titleEn: "The coach only says what matters",
+                bodyNo: "Korte lydsignaler og tydelige cues hjelper deg aa holde fokus, tempo og pust uten unodig stoy.",
+                bodyEn: "Short audio cues help you hold focus, pacing, and breathing without unnecessary noise.",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: false
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory4",
+                icon: "applewatch.side.right",
+                titleNo: "Med eller uten pulsklokke fortsetter coaching",
+                titleEn: "Coaching keeps going with or without a watch",
+                bodyNo: "Apple Watch og pulssensorer gir mer presis live coaching. Hvis puls mangler, fortsetter Coachi paa struktur og pust.",
+                bodyEn: "Apple Watch and heart-rate sensors make live coaching more precise. If heart rate is missing, Coachi keeps guiding from structure and breathing.",
+                supplementalTitleNo: "Klar til aa sette opp profilen?",
+                supplementalTitleEn: "Ready to set up your profile?",
+                supplementalBodyNo: "Vi bruker svarene dine for aa treffe bedre paa intensitet, oppsummering og stemmecoaching fra foerste oekt.",
+                supplementalBodyEn: "We use your answers to calibrate intensity, summaries, and voice coaching from your first workout.",
+                deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
+                showsCoachScoreCard: false
+            ),
+        ]
+    }
+
+    private func deviceTagWrap(_ tags: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ForEach(tags.prefix(2), id: \.self) { tag in
+                    deviceTag(tag)
+                }
+            }
+
+            if tags.count > 2 {
+                HStack(spacing: 8) {
+                    ForEach(tags.dropFirst(2), id: \.self) { tag in
+                        deviceTag(tag)
+                    }
+                }
+            }
+        }
+    }
+
+    private func deviceTag(_ label: String) -> some View {
+        HStack(spacing: 6) {
+            if label == "Apple Watch" {
+                Image(systemName: "applewatch.side.right")
+                    .font(.caption.weight(.bold))
+            } else if label == "Bluetooth HR" {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.caption.weight(.bold))
+            }
+
+            Text(label)
+                .font(.caption.weight(.bold))
+        }
+        .foregroundColor(.white.opacity(0.95))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.14))
+        .clipShape(Capsule())
     }
 }
 

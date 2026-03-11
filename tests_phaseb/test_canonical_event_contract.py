@@ -325,7 +325,6 @@ def test_resolve_unknown_returns_none():
 
 
 def test_requested_norwegian_phrase_catalog_copy():
-    assert get_phrase_text("welcome.standard.1", "no") == "Varm opp kroppen"
     assert get_phrase_text("zone.phase.warmup.1", "no") == "Forbered deg på økten."
     assert get_phrase_text("zone.countdown.15", "no") == "15!"
     assert get_phrase_text("zone.countdown.5", "no") == "fem"

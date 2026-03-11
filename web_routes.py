@@ -86,7 +86,6 @@ def create_web_blueprint(
                     "coach_continuous": "/coach/continuous",
                     "coach_talk": "/coach/talk",
                     "download": "/download/<filename>",
-                    "welcome": "/welcome",
                     "app_runtime": "/app/runtime",
                 },
             }

@@ -1,13 +1,13 @@
 {
   "version": "v2",
-  "generated_at": "2026-03-07T18:36:46.806858+00:00",
+  "generated_at": "2026-03-11T21:33:45.395909+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
-  "total_files": 114,
-  "total_size_bytes": 2378143,
+  "total_files": 104,
+  "total_size_bytes": 1974376,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -241,71 +241,6 @@
         "file": "no/wake_ack.no.default.mp3",
         "size": 9239,
         "sha256": "876963a565eeb809f4e8cf422bed3e1338004e18c8b758787990904a964df4bc"
-      }
-    },
-    {
-      "id": "welcome.standard.1",
-      "en": {
-        "file": "en/welcome.standard.1.mp3",
-        "size": 33062,
-        "sha256": "8a24af97bb656c6c581e6c7b24b1b96acd1ed2d29522c6fbe2f8c8bbea318bdc"
-      },
-      "no": {
-        "file": "no/welcome.standard.1.mp3",
-        "size": 15926,
-        "sha256": "bbd059135b190557babfec50e4807ad37e904842a2de26fcec82d3bd765dda59"
-      }
-    },
-    {
-      "id": "welcome.standard.2",
-      "en": {
-        "file": "en/welcome.standard.2.mp3",
-        "size": 18852,
-        "sha256": "579320fb4ebe9d4363cf6f55da41c151d34947b2372c51db7df57b2d221ff444"
-      },
-      "no": {
-        "file": "no/welcome.standard.2.mp3",
-        "size": 56050,
-        "sha256": "52284c2a55fd71722912c9869d5df12855e3ff5412fe9a54e8481437c89c7204"
-      }
-    },
-    {
-      "id": "welcome.standard.3",
-      "en": {
-        "file": "en/welcome.standard.3.mp3",
-        "size": 47273,
-        "sha256": "714ef00442c02cadcda84d87b43b9ab0237aa36477f2edf438000911b19998cb"
-      },
-      "no": {
-        "file": "no/welcome.standard.3.mp3",
-        "size": 73186,
-        "sha256": "81b510972d376bcfbe19c0b335cc2f43d8bb858ec7ff7b211fe8daac3b5678fd"
-      }
-    },
-    {
-      "id": "welcome.standard.4",
-      "en": {
-        "file": "en/welcome.standard.4.mp3",
-        "size": 61066,
-        "sha256": "b4baca1412ee46dc7a3cd871cb2b6c5ad2afdc36a7efd24a15095db8d5a34497"
-      },
-      "no": {
-        "file": "no/welcome.standard.4.mp3",
-        "size": 61066,
-        "sha256": "d3c6ea620932ca615f38a19c4eda3feef79019512e4931f8451dacf9f513c3fe"
-      }
-    },
-    {
-      "id": "welcome.standard.5",
-      "en": {
-        "file": "en/welcome.standard.5.mp3",
-        "size": 16762,
-        "sha256": "b48abface9a8afafe3482d7e9e722db48a9c3346e1a0690b6677c204116692c2"
-      },
-      "no": {
-        "file": "no/welcome.standard.5.mp3",
-        "size": 20524,
-        "sha256": "a6d67ac4a0d79630f845033b1f64284c2032f80be2eec49adcb002e4b8b93d46"
       }
     },
     {

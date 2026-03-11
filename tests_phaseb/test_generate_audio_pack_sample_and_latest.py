@@ -142,7 +142,7 @@ def test_approved_v2_phrase_ids_include_active_secondary_and_infrastructure(tmp_
     assert "zone.watch_restored.1" in approved_ids
     assert "zone.above.default.2" not in approved_ids
     assert "wake_ack.en.default" in approved_ids
-    assert "welcome.standard.1" in approved_ids
+    assert "wake_ack.no.default" in approved_ids
 
 
 def test_filter_phrases_for_v2_forces_language_voice_ids(tmp_path: Path):
@@ -172,14 +172,14 @@ def test_filter_phrases_for_v2_forces_language_voice_ids(tmp_path: Path):
         mod.PhraseItem("zone.above.default.1", "en", "Ease back slightly.", "personal_trainer", "core"),
         mod.PhraseItem("zone.watch_restored.1", "no", "Klokken er tilbake.", "personal_trainer", "core"),
         mod.PhraseItem("zone.above.default.2", "en", "future", "personal_trainer", "core"),
-        mod.PhraseItem("welcome.standard.1", "en", "Welcome back.", "personal_trainer", "core"),
+        mod.PhraseItem("wake_ack.en.default", "en", "Yes?", "personal_trainer", "core"),
     ]
     filtered = mod._filter_phrases_for_version(phrases=phrases, version="v2", review_path=review_path)
     ids = {(phrase.phrase_id, phrase.language) for phrase in filtered}
     assert ("zone.above.default.1", "en") in ids
     assert ("zone.watch_restored.1", "no") in ids
     assert ("zone.above.default.2", "en") not in ids
-    assert ("welcome.standard.1", "en") in ids
+    assert ("wake_ack.en.default", "en") in ids
     for phrase in filtered:
         assert phrase.voice_id_override == mod.V2_FORCE_VOICE_IDS[phrase.language]
 
@@ -242,10 +242,10 @@ def test_validation_mode_realtime_for_coaching_cues():
         assert mod._validation_mode(pid) == "realtime", pid
 
 
-def test_validation_mode_strategic_for_welcome():
-    """Welcome phrases get strategic mode (2-30 words) — they're longer by design."""
-    assert mod._validation_mode("welcome.standard.1") == "strategic"
-    assert mod._validation_mode("welcome.standard.12") == "strategic"
+def test_validation_mode_strategic_for_summary_and_session_text():
+    """Longer summary/session phrases still use strategic mode."""
+    assert mod._validation_mode("summary.after_workout.1") == "strategic"
+    assert mod._validation_mode("session.insight.1") == "strategic"
 
 
 def test_validation_mode_strategic_for_signal_notices():
@@ -296,14 +296,104 @@ def test_validate_phrase_blocks_active_workout_cue_over_catalog_limit():
 
 
 def test_validate_phrase_passes_strategic_long_text():
-    """Welcome / notice phrases can be up to 30 words."""
+    """Summary / notice phrases can be up to 30 words."""
     p = mod.PhraseItem(
-        phrase_id="welcome.standard.99", language="en",
+        phrase_id="summary.after_workout.99", language="en",
         text="Great to see you today. Take a moment to settle in, find your breath, and get ready for a solid workout session ahead.",
         persona="personal_trainer", priority="core",
     )
     ok, reason = mod._validate_phrase(p)
     assert ok, reason
+
+
+def test_refresh_existing_output_prunes_removed_welcome_files_and_cache(tmp_path: Path):
+    output_dir = tmp_path / "v2"
+    (output_dir / "en").mkdir(parents=True)
+    (output_dir / "no").mkdir(parents=True)
+    stale_en = output_dir / "en" / "welcome.standard.1.mp3"
+    stale_no = output_dir / "no" / "welcome.standard.1.mp3"
+    stale_en.write_bytes(b"ID3")
+    stale_no.write_bytes(b"ID3")
+    cache_path = output_dir / "build_cache.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "en/welcome.standard.1": "stale",
+                "no/welcome.standard.1": "stale",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    review_path = tmp_path / "phrase_catalog_sorted.csv"
+    with review_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "phrase_id",
+                "active_status",
+                "approved_for_import",
+                "approved_for_recording",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "phrase_id": "zone.above.default.1",
+                "active_status": "active",
+                "approved_for_import": "yes",
+                "approved_for_recording": "yes",
+            }
+        )
+
+    phrases = mod._refresh_existing_output(
+        version="v2",
+        output_dir=output_dir,
+        core_only=False,
+        review_path=review_path,
+    )
+
+    assert all(not phrase.phrase_id.startswith("welcome.") for phrase in phrases)
+    assert not stale_en.exists()
+    assert not stale_no.exists()
+    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    assert "en/welcome.standard.1" not in cache
+    assert "no/welcome.standard.1" not in cache
+
+
+def test_prune_welcome_r2_keys_deletes_legacy_welcome_objects(tmp_path: Path):
+    audio_pack_root = tmp_path / "audio_pack"
+    (audio_pack_root / "v1").mkdir(parents=True)
+    (audio_pack_root / "v2").mkdir(parents=True)
+
+    deleted_batches: list[list[str]] = []
+
+    class _FakePaginator:
+        def paginate(self, **kwargs):
+            prefix = kwargs["Prefix"]
+            if prefix.endswith("welcome.standard."):
+                version = prefix.split("/", 1)[0]
+                lang = prefix.split("/")[1]
+                return [{"Contents": [{"Key": f"{version}/{lang}/welcome.standard.1.mp3"}]}]
+            return [{"Contents": []}]
+
+    class _FakeS3:
+        def get_paginator(self, _name):
+            return _FakePaginator()
+
+        def delete_objects(self, **kwargs):
+            deleted_batches.append([item["Key"] for item in kwargs["Delete"]["Objects"]])
+
+    mod._build_r2_client = lambda: (_FakeS3(), "coachi-audio")
+
+    deleted = mod._prune_welcome_r2(audio_pack_root)
+
+    assert deleted == 4
+    flattened = [key for batch in deleted_batches for key in batch]
+    assert "v1/en/welcome.standard.1.mp3" in flattened
+    assert "v1/no/welcome.standard.1.mp3" in flattened
+    assert "v2/en/welcome.standard.1.mp3" in flattened
+    assert "v2/no/welcome.standard.1.mp3" in flattened
 
 
 def test_all_catalog_phrases_pass_validation():

@@ -323,6 +323,7 @@
         .two-numbers {
             text-align: center; position: relative; overflow: hidden;
             background-size: cover; background-position: center;
+            padding-top: 72px; padding-bottom: 72px;
         }
         .two-numbers::before {
             content: ""; position: absolute; inset: 0;
@@ -450,8 +451,8 @@
         /* ── REVIEW PHOTO ── */
         .review-photo {
             position: relative; overflow: hidden;
-            min-height: 80vh; display: flex; align-items: flex-end;
-            background-size: cover; background-position: center 30%;
+            min-height: 75vh; display: flex; align-items: flex-end;
+            background-size: cover; background-position: center 25%;
         }
         .review-photo::before {
             content: ""; position: absolute; inset: 0; z-index: 1;
@@ -473,6 +474,18 @@
             letter-spacing: -0.02em;
         }
         .review-author { color: rgba(240,238,255,0.6); font-size: 0.9rem; }
+        .review-photo-inner.review-multi {
+            display: flex; gap: 20px; max-width: 960px; padding: 0 48px 44px; width: 100%;
+        }
+        .review-item {
+            flex: 1; padding: 16px 16px; border-radius: 14px;
+            background: rgba(12, 16, 32, 0.40);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+        .review-item .review-stars { font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 6px; }
+        .review-item .review-quote { font-size: clamp(0.78rem, 1.3vw, 0.88rem); font-weight: 500; margin-bottom: 6px; line-height: 1.45; }
+        .review-item .review-author { font-size: 0.72rem; }
 
         @media (max-width: 900px) {
             .review-photo-inner { padding: 0 24px 40px; }
@@ -505,11 +518,31 @@
         .faq-q::after { content: "+"; font-size: 1.3rem; color: var(--teal); flex-shrink: 0; transition: transform 0.2s; }
         .faq-item.open .faq-q::after { transform: rotate(45deg); }
         .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-        .faq-item.open .faq-a { max-height: 200px; }
+        .faq-item.open .faq-a { max-height: 300px; }
         .faq-a p { padding-top: 10px; color: rgba(240,238,255,0.80); font-size: 0.9rem; line-height: 1.6; }
         .faq-item { border-bottom: 1px solid rgba(255,255,255,0.12); }
 
-        /* ── CTA BLOCK ── */
+        /* ── BOTTOM CTA (clean) ── */
+        .bottom-cta {
+            text-align: center; padding: 80px 24px 72px;
+            background: linear-gradient(180deg, var(--bg) 0%, rgba(20, 16, 48, 0.95) 100%);
+        }
+        .bottom-cta h2 {
+            color: #fff; font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            margin-bottom: 12px; letter-spacing: -0.02em;
+        }
+        .bottom-cta > p {
+            color: rgba(240,238,255,0.65); font-size: 1.05rem;
+            line-height: 1.65; margin-bottom: 32px; max-width: 440px; margin-left: auto; margin-right: auto;
+        }
+        .bottom-cta .hero-btn { margin-bottom: 20px; }
+        .bottom-cta-trust {
+            display: flex; align-items: center; gap: 8px; justify-content: center;
+            color: rgba(240,238,255,0.45); font-size: 0.82rem;
+        }
+        .bottom-cta-trust svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+        /* ── CTA BLOCK (hiw page) ── */
         .cta-block {
             overflow: hidden;
             background: linear-gradient(160deg, rgba(30, 24, 80, 0.96), rgba(55, 40, 150, 0.94) 50%, rgba(80, 50, 200, 0.90));
@@ -521,18 +554,6 @@
             pointer-events: none;
         }
         .cta-block > * { position: relative; z-index: 1; }
-        .cta-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; max-width: 960px; margin: 0 auto; }
-        .cta-copy { text-align: left; }
-        .cta-copy h2 { color: #fff; font-size: clamp(1.6rem, 3vw, 2.2rem); margin-bottom: 10px; }
-        .cta-copy > p { color: rgba(240,238,255,0.82); margin-bottom: 28px; font-size: 0.95rem; line-height: 1.65; }
-        .cta-trust-line { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
-        .cta-trust-line .check-icon {
-            width: 20px; height: 20px; border-radius: 50%;
-            background: var(--teal); display: inline-flex;
-            align-items: center; justify-content: center; flex-shrink: 0;
-        }
-        .cta-trust-line .check-icon svg { width: 12px; height: 12px; }
-        .cta-trust-line span { font-size: 0.88rem; font-weight: 700; color: rgba(240,238,255,0.88); }
         .store-row-black { display: flex; flex-wrap: wrap; gap: 12px; }
         .store-badge-black {
             display: inline-flex; align-items: center; gap: 10px;
@@ -597,34 +618,86 @@
         /* ── DOWNLOAD PAGE ── */
         .dl-hero {
             min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            text-align: center; padding: 120px 24px 60px;
-            background: linear-gradient(170deg, #0c1020 0%, #151d3a 50%, #0c1020 100%);
+            text-align: center; padding: 120px 24px 80px;
+            background: linear-gradient(170deg, #0c1020 0%, #111832 40%, #0c1020 100%);
+            position: relative; overflow: hidden;
         }
-        .dl-hero-inner { max-width: 560px; }
+        .dl-hero::before {
+            content: ""; position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+            width: 700px; height: 700px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(108, 92, 231, 0.15) 0%, rgba(108, 92, 231, 0.06) 35%, transparent 65%);
+            pointer-events: none;
+        }
+        .dl-hero-inner { max-width: 640px; position: relative; z-index: 2; }
         .dl-hero h1 {
-            font-size: clamp(2rem, 4vw, 3rem); color: #fff;
-            margin-bottom: 14px; letter-spacing: -0.03em;
+            font-size: clamp(2.2rem, 4.5vw, 3.2rem); color: #fff;
+            margin-bottom: 16px; letter-spacing: -0.03em; font-weight: 800;
         }
         .dl-hero p {
-            color: rgba(240,238,255,0.72); font-size: 1.05rem;
-            line-height: 1.65; margin-bottom: 36px;
+            color: rgba(240,238,255,0.68); font-size: 1.1rem;
+            line-height: 1.7; margin-bottom: 48px; max-width: 440px; margin-left: auto; margin-right: auto;
         }
         .dl-phones {
-            display: flex; justify-content: center; gap: 18px;
-            margin-bottom: 40px;
+            display: flex; justify-content: center; align-items: center; gap: 0;
+            margin-bottom: 52px; position: relative;
+        }
+        .dl-phones::after {
+            content: ""; position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+            width: 70%; height: 60px; border-radius: 50%;
+            background: radial-gradient(ellipse, rgba(0,0,0,0.35) 0%, transparent 70%);
+            pointer-events: none;
         }
         .dl-phone {
-            width: 160px; border-radius: 22px; overflow: hidden;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            width: 230px; border-radius: 30px; overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.55), 0 10px 28px rgba(0,0,0,0.3);
+            position: relative; z-index: 3; flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.10);
         }
         .dl-phone img { width: 100%; display: block; }
-        .dl-phone-back { transform: translateY(24px) scale(0.92); opacity: 0.7; }
-        .dl-stores { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+        .dl-phone-side {
+            width: 170px; border-radius: 24px; z-index: 2;
+            box-shadow: 0 18px 52px rgba(0,0,0,0.45), 0 6px 20px rgba(0,0,0,0.25);
+            opacity: 0.78; border: 1px solid rgba(255,255,255,0.06);
+        }
+        .dl-phone-left { transform: translateX(28px) translateY(16px) scale(0.90) rotate(-4deg); }
+        .dl-phone-right { transform: translateX(-28px) translateY(16px) scale(0.90) rotate(4deg); }
+        .dl-stores { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .dl-stores .store-badge-black {
+            padding: 12px 24px; border-radius: 14px;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+            transition: all 0.25s ease;
+        }
+        .dl-stores .store-badge-black:hover {
+            background: rgba(255,255,255,0.12); transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+        }
         .dl-trust {
             display: flex; align-items: center; gap: 8px; justify-content: center;
-            color: rgba(240,238,255,0.55); font-size: 0.85rem; margin-top: 10px;
+            color: rgba(240,238,255,0.50); font-size: 0.85rem; margin-top: 14px;
         }
         .dl-trust svg { width: 16px; height: 16px; flex-shrink: 0; }
+        /* download page phone entrance animation */
+        @keyframes dlPhoneUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dlSideLeft {
+            from { opacity: 0; transform: translateX(28px) translateY(56px) scale(0.90) rotate(-4deg); }
+            to { opacity: 0.78; transform: translateX(28px) translateY(16px) scale(0.90) rotate(-4deg); }
+        }
+        @keyframes dlSideRight {
+            from { opacity: 0; transform: translateX(-28px) translateY(56px) scale(0.90) rotate(4deg); }
+            to { opacity: 0.78; transform: translateX(-28px) translateY(16px) scale(0.90) rotate(4deg); }
+        }
+        .dl-page.active .dl-phone:not(.dl-phone-side) {
+            animation: dlPhoneUp 0.7s ease-out both;
+        }
+        .dl-page.active .dl-phone-left {
+            animation: dlSideLeft 0.7s ease-out 0.15s both;
+        }
+        .dl-page.active .dl-phone-right {
+            animation: dlSideRight 0.7s ease-out 0.15s both;
+        }
         .home-page { display: block; }
         .home-page.hidden { display: none; }
 
@@ -832,6 +905,17 @@
                     rgba(12, 16, 32, 0.75) 70%,
                     rgba(12, 16, 32, 0.90) 100%);
             }
+            /* reviews mobile */
+            .review-multi { flex-direction: column; gap: 10px; padding: 0 20px 32px; }
+            .review-item { padding: 14px 14px; }
+            /* download page mobile */
+            .dl-hero { padding: 100px 20px 60px; }
+            .dl-hero::before { width: 400px; height: 400px; }
+            .dl-phone { width: 160px; border-radius: 22px; }
+            .dl-phone-side { width: 120px; border-radius: 18px; }
+            .dl-phone-left { transform: translateX(18px) scale(0.88) rotate(-3deg); }
+            .dl-phone-right { transform: translateX(-18px) scale(0.88) rotate(3deg); }
+            .dl-stores .store-badge-black { padding: 10px 18px; }
         }
         @media (max-width: 480px) {
             .hero-inner { padding: 60px 18px 40px; }
@@ -841,6 +925,21 @@
             .section-spacer-sm { padding: 48px 16px; }
             .cta-block { padding: 48px 18px 40px; }
         }
+
+        /* ── BACK TO TOP ── */
+        .back-to-top {
+            position: fixed; bottom: 28px; right: 28px; z-index: 900;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s, background 0.2s;
+            transform: translateY(10px);
+        }
+        .back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        .back-to-top:hover { background: rgba(255,255,255,0.18); transform: translateY(-2px); }
+        .back-to-top svg { width: 18px; height: 18px; }
 
         /* ── REDUCED MOTION ── */
         @media (prefers-reduced-motion: reduce) {
@@ -859,6 +958,11 @@
         {% set app_store_external = app_store_url and app_store_url.startswith('http') %}
         {% set google_play_external = google_play_url and google_play_url.startswith('http') %}
         {% set android_early_external = android_early_access_url and android_early_access_url.startswith('http') %}
+
+        <!-- BACK TO TOP -->
+        <button class="back-to-top" id="backToTop" aria-label="Tilbake til toppen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
 
         <!-- NAV -->
         <div class="nav-wrap">
@@ -1043,12 +1147,24 @@
                 </div>
             </section>
 
-            <!-- REVIEW — big photo -->
+            <!-- REVIEWS — big photo with multiple quotes -->
             <section class="review-photo reveal" id="testimonials" style="background-image: url('{{ url_for('static', filename='site/images/sunset-hilltop-rest.png') }}');">
-                <div class="review-photo-inner">
-                    <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <p class="review-quote">&laquo;Endelig en app som faktisk hjelper meg holde riktig tempo.&raquo;</p>
-                    <span class="review-author">&mdash; Kristine M., Oslo</span>
+                <div class="review-photo-inner review-multi">
+                    <div class="review-item">
+                        <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                        <p class="review-quote" data-i18n="review_1_text">Endelig en app som faktisk hjelper meg holde riktig tempo.</p>
+                        <span class="review-author" data-i18n="review_1_author">Kristine M., Oslo</span>
+                    </div>
+                    <div class="review-item">
+                        <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                        <p class="review-quote" data-i18n="review_2_text">Coach Score etter hver &oslash;kt motiverer meg enormt. Elsker at den snakker norsk.</p>
+                        <span class="review-author" data-i18n="review_2_author">Jonas H., Bergen</span>
+                    </div>
+                    <div class="review-item">
+                        <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                        <p class="review-quote" data-i18n="review_3_text">Bruker den p&aring; alle l&oslash;peturene mine n&aring;. Pulssonene gj&oslash;r at jeg ikke overtrer.</p>
+                        <span class="review-author" data-i18n="review_3_author">Erik S., Trondheim</span>
+                    </div>
                 </div>
             </section>
 
@@ -1076,49 +1192,31 @@
                             <button class="faq-q" data-i18n="faq_4_q">Hva koster det?</button>
                             <div class="faq-a"><p data-i18n="faq_4_a">Gratis mens vi forbedrer coachen. Betalte planer kan komme senere.</p></div>
                         </div>
+                        <div class="faq-item">
+                            <button class="faq-q" data-i18n="faq_5_q">Hvilke treningsformer st&oslash;ttes?</button>
+                            <div class="faq-a"><p data-i18n="faq_5_a">L&oslash;ping ute og p&aring; m&oslash;lle. Vi jobber med st&oslash;tte for flere treningsformer.</p></div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-q" data-i18n="faq_6_q">Hvordan fungerer Coach Score?</button>
+                            <div class="faq-a"><p data-i18n="faq_6_a">Scoren baseres p&aring; hvor mye tid du bruker i riktig pulssone. Jo bedre du f&oslash;lger coachens r&aring;d, jo h&oslash;yere score.</p></div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-q" data-i18n="faq_7_q">Fungerer det uten internett?</button>
+                            <div class="faq-a"><p data-i18n="faq_7_a">Du trenger internett for AI-coaching i sanntid. Uten nett f&aring;r du grunnleggende stemmeveiledning.</p></div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <!-- CTA BLOCK -->
-            <section class="cta-block reveal" id="download">
-                <div class="cta-inner">
-                    <div class="cta-copy">
-                        <h2 data-i18n="cta_title">Klar for en smartere l&oslash;petur?</h2>
-                        <p data-i18n="cta_body">Last ned Coachi og l&oslash;p med en coach som tilpasser seg deg.</p>
-                        <div class="cta-trust-line">
-                            <span class="check-icon"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                            <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
-                        </div>
-                        <div class="store-row-black">
-                            <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                                <span class="badge-icon">&#63743;</span>
-                                <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">App Store</span></span>
-                            </a>
-                            <a class="store-badge-black" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                                <span class="badge-icon">&#9654;</span>
-                                <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
-                            </a>
-                        </div>
-                        <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
-                    </div>
-                    <div class="cta-phones">
-                        <div class="cta-phone cta-phone-back">
-                            <img src="{{ url_for('static', filename='site/images/app-coach-score.jpg') }}" alt="" loading="lazy">
-                        </div>
-                        <div class="cta-phone cta-phone-front">
-                            <img src="{{ url_for('static', filename='site/images/app-home-screen.png') }}" alt="Coachi app" data-i18n-alt="cta_phone_alt" loading="lazy">
-                        </div>
-                    </div>
+            <!-- BOTTOM CTA — clean "Kom i gang" -->
+            <section class="bottom-cta reveal" id="download">
+                <h2 data-i18n="cta_title">Klar for en smartere l&oslash;petur?</h2>
+                <p data-i18n="cta_body">Last ned Coachi og l&oslash;p med en coach som tilpasser seg deg.</p>
+                <a class="hero-btn" href="#download" data-nav-page="download" data-landing-event="bottom_cta_click" data-i18n="hero_cta">Kom i gang</a>
+                <div class="bottom-cta-trust">
+                    <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
                 </div>
-                <form class="wait-form" id="waitForm">
-                    <p style="color: rgba(240,238,255,0.6); font-size: 0.8rem; margin-bottom: 8px;" data-i18n="wait_or">Ikke klar enn&aring;? F&aring; beskjed n&aring;r vi lanserer:</p>
-                    <div class="wait-row">
-                        <input id="waitEmail" type="email" placeholder="deg@epost.no" required data-i18n-placeholder="wait_placeholder">
-                        <button class="wait-btn" type="submit" data-i18n="wait_cta">Bli med</button>
-                    </div>
-                    <p class="wait-msg" id="waitMsg" data-i18n="wait_default">Ingen spam. En melding n&aring;r vi &aring;pner.</p>
-                </form>
             </section>
 
         </div><!-- /home-page -->
@@ -1161,20 +1259,13 @@
             </div>
 
             <!-- CTA on How it Works page -->
-            <section class="cta-block reveal" id="hiwDownload">
-                <div style="max-width: 600px; margin: 0 auto; text-align: center;">
-                    <h2 style="color: #fff; font-size: clamp(1.6rem, 3vw, 2.2rem); margin-bottom: 10px;" data-i18n="cta_title">Klar for en smartere l&oslash;petur?</h2>
-                    <p style="color: rgba(240,238,255,0.82); margin-bottom: 28px; font-size: 0.95rem; line-height: 1.65;" data-i18n="cta_body">Last ned Coachi og l&oslash;p med en coach som tilpasser seg deg.</p>
-                    <div class="store-row-black" style="justify-content: center;">
-                        <a class="store-badge-black" href="{{ app_store_url }}" data-landing-event="app_store_click"{% if app_store_external %} target="_blank" rel="noopener"{% endif %}>
-                            <span class="badge-icon">&#63743;</span>
-                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">App Store</span></span>
-                        </a>
-                        <a class="store-badge-black" href="{{ google_play_url }}" data-landing-event="google_play_click"{% if google_play_external %} target="_blank" rel="noopener"{% endif %}>
-                            <span class="badge-icon">&#9654;</span>
-                            <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
-                        </a>
-                    </div>
+            <section class="bottom-cta reveal" id="hiwDownload">
+                <h2 data-i18n="cta_title">Klar for en smartere l&oslash;petur?</h2>
+                <p data-i18n="cta_body">Last ned Coachi og l&oslash;p med en coach som tilpasser seg deg.</p>
+                <a class="hero-btn" href="#download" data-nav-page="download" data-landing-event="hiw_cta_click" data-i18n="hero_cta">Kom i gang</a>
+                <div class="bottom-cta-trust">
+                    <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
                 </div>
             </section>
         </div><!-- /hiw-page -->
@@ -1188,11 +1279,14 @@
                     <h1 data-i18n="dl_title">Last ned Coachi</h1>
                     <p data-i18n="dl_body">Kom i gang p&aring; under 2 minutter. Velg treningsform, f&aring; veiledning, og l&oslash;p smartere fra f&oslash;rste &oslash;kt.</p>
                     <div class="dl-phones">
-                        <div class="dl-phone dl-phone-back">
+                        <div class="dl-phone dl-phone-side dl-phone-left">
                             <img src="{{ url_for('static', filename='site/images/app-coach-score.jpg') }}" alt="" loading="lazy">
                         </div>
                         <div class="dl-phone">
                             <img src="{{ url_for('static', filename='site/images/app-home-screen.png') }}" alt="Coachi app" loading="lazy">
+                        </div>
+                        <div class="dl-phone dl-phone-side dl-phone-right">
+                            <img src="{{ url_for('static', filename='site/images/app-workout-active.png') }}" alt="" loading="lazy">
                         </div>
                     </div>
                     <div class="dl-stores">
@@ -1205,6 +1299,7 @@
                             <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
                         </a>
                     </div>
+                    <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
                     <div class="dl-trust">
                         <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <span data-i18n="cta_trust">Gratis mens vi er i beta</span>
@@ -1241,6 +1336,7 @@
                             <span class="badge-text"><span class="prefix" data-i18n="store_prefix">Last ned p&aring;</span><span class="name">Google Play</span></span>
                         </a>
                     </div>
+                    <a class="android-early-link" href="{{ android_early_access_url }}" data-landing-event="android_early_access_click" data-i18n="android_early_access"{% if android_early_external %} target="_blank" rel="noopener"{% endif %}>Android tidlig tilgang</a>
                     <div class="social-icons">
                         <a class="social-icon" href="https://instagram.com/coachi.app" target="_blank" rel="noopener" aria-label="Instagram">
                             <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
@@ -1346,11 +1442,18 @@
                 faq_3_a: "Last ned, velg \u00f8kt, og l\u00f8p. Under 2 minutter fra installasjon til f\u00f8rste r\u00e5d.",
                 faq_4_q: "Hva koster det?",
                 faq_4_a: "Gratis mens vi forbedrer coachen. Betalte planer kan komme senere.",
-                testimonials_eyebrow: "Brukere",
-                testimonials_title: "Det l\u00f8pere sier",
-                testimonial_1_text: "Endelig en app som faktisk hjelper meg holde riktig tempo. Stemmecoachen f\u00f8les som \u00e5 l\u00f8pe med en personlig trener.",
-                testimonial_2_text: "Bruker den p\u00e5 alle l\u00f8peturene mine n\u00e5. Pulssonene og de korte r\u00e5dene gj\u00f8r at jeg ikke overtrer lenger.",
-                testimonial_3_text: "Coach Score etter hver \u00f8kt motiverer meg enormt. Elsker at den snakker norsk uten kl\u00f8nete oversettelser.",
+                faq_5_q: "Hvilke treningsformer st\u00f8ttes?",
+                faq_5_a: "L\u00f8ping ute og p\u00e5 m\u00f8lle. Vi jobber med st\u00f8tte for flere treningsformer.",
+                faq_6_q: "Hvordan fungerer Coach Score?",
+                faq_6_a: "Scoren baseres p\u00e5 hvor mye tid du bruker i riktig pulssone. Jo bedre du f\u00f8lger coachens r\u00e5d, jo h\u00f8yere score.",
+                faq_7_q: "Fungerer det uten internett?",
+                faq_7_a: "Du trenger internett for AI-coaching i sanntid. Uten nett f\u00e5r du grunnleggende stemmeveiledning.",
+                review_1_text: "Endelig en app som faktisk hjelper meg holde riktig tempo.",
+                review_1_author: "Kristine M., Oslo",
+                review_2_text: "Coach Score etter hver \u00f8kt motiverer meg enormt. Elsker at den snakker norsk.",
+                review_2_author: "Jonas H., Bergen",
+                review_3_text: "Bruker den p\u00e5 alle l\u00f8peturene mine n\u00e5. Pulssonene gj\u00f8r at jeg ikke overtrer.",
+                review_3_author: "Erik S., Trondheim",
                 cta_title: "Klar for en smartere l\u00f8petur?",
                 cta_body: "Last ned Coachi og l\u00f8p med en coach som tilpasser seg deg.",
                 cta_trust: "Gratis mens vi er i beta",
@@ -1438,11 +1541,18 @@
                 faq_3_a: "Download, pick a run, and go. Under 2 minutes from install to your first coach cue.",
                 faq_4_q: "What does it cost?",
                 faq_4_a: "Free while we keep improving the coach. Paid plans may come later.",
-                testimonials_eyebrow: "Users",
-                testimonials_title: "What runners say",
-                testimonial_1_text: "Finally an app that actually helps me keep the right pace. The voice coach feels like running with a personal trainer.",
-                testimonial_2_text: "I use it on every run now. The heart rate zones and short cues keep me from overtraining.",
-                testimonial_3_text: "Coach Score after each session motivates me so much. Love that it speaks Norwegian without clunky translations.",
+                faq_5_q: "What workout types are supported?",
+                faq_5_a: "Outdoor running and treadmill. We're working on support for more workout types.",
+                faq_6_q: "How does Coach Score work?",
+                faq_6_a: "Your score is based on how much time you spend in the right heart rate zone. The better you follow the coach's cues, the higher your score.",
+                faq_7_q: "Does it work without internet?",
+                faq_7_a: "You need internet for real-time AI coaching. Without it, you get basic voice guidance.",
+                review_1_text: "Finally an app that actually helps me keep the right pace.",
+                review_1_author: "Kristine M., Oslo",
+                review_2_text: "Coach Score after each session motivates me so much. Love that it speaks Norwegian.",
+                review_2_author: "Jonas H., Bergen",
+                review_3_text: "I use it on every run now. The heart rate zones keep me from overtraining.",
+                review_3_author: "Erik S., Trondheim",
                 cta_title: "Ready for a smarter run?",
                 cta_body: "Download Coachi and run with a coach that adapts to you.",
                 cta_trust: "Free while in beta",
@@ -1670,6 +1780,17 @@
         window.addEventListener("scroll", () => {
             navWrap.classList.toggle("scrolled", window.scrollY > 40);
         }, { passive: true });
+
+        /* ── BACK TO TOP ── */
+        const bttBtn = document.getElementById("backToTop");
+        if (bttBtn) {
+            window.addEventListener("scroll", () => {
+                bttBtn.classList.toggle("visible", window.scrollY > 600);
+            }, { passive: true });
+            bttBtn.addEventListener("click", () => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+        }
 
         /* ── COACHSCORE COUNTER (0 → 79) ── */
         const scoreEl = document.getElementById("scoreNum");

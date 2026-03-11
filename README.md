@@ -207,9 +207,6 @@ open TreningsCoach/TreningsCoach.xcodeproj
 # Health check
 curl http://localhost:5001/health
 
-# Test welcome
-curl "http://localhost:5001/welcome?language=en&persona=personal_trainer"
-
 # Check brain status
 curl http://localhost:5001/brain/health
 ```
@@ -256,18 +253,17 @@ Cloudflare deploy source of truth is now versioned in git:
 | 3 | GET | `/preview/<variant>` | Direct web variant preview |
 | 4 | GET | `/health` | Health check + version |
 | 5 | GET | `/tts/cache/stats` | TTS cache observability |
-| 6 | GET | `/welcome` | Welcome message + TTS audio |
-| 7 | POST | `/analyze` | Analyze breath audio |
-| 8 | POST | `/coach/continuous` | **Main endpoint** — deterministic continuous workout coaching |
-| 9 | POST | `/coach/talk` | Talk to coach (wake word/chat) |
-| 10 | POST | `/coach/persona` | Switch persona mid-workout |
-| 11 | GET | `/download/<path:filename>` | Download audio files |
-| 12 | GET | `/brain/health` | Brain status + per-brain stats |
-| 13 | POST | `/brain/switch` | Hot-swap AI brain |
-| 14 | POST | `/chat/start` | Create chat session |
-| 15 | POST | `/chat/stream` | Streaming chat (SSE) |
-| 16 | POST | `/chat/message` | Non-streaming chat |
-| 17 | GET | `/chat/sessions` | List sessions |
+| 6 | POST | `/analyze` | Analyze breath audio |
+| 7 | POST | `/coach/continuous` | **Main endpoint** — deterministic continuous workout coaching |
+| 8 | POST | `/coach/talk` | Talk to coach (wake word/chat) |
+| 9 | POST | `/coach/persona` | Switch persona mid-workout |
+| 10 | GET | `/download/<path:filename>` | Download audio files |
+| 11 | GET | `/brain/health` | Brain status + per-brain stats |
+| 12 | POST | `/brain/switch` | Hot-swap AI brain |
+| 13 | POST | `/chat/start` | Create chat session |
+| 14 | POST | `/chat/stream` | Streaming chat (SSE) |
+| 15 | POST | `/chat/message` | Non-streaming chat |
+| 16 | GET | `/chat/sessions` | List sessions |
 | 18 | DELETE | `/chat/sessions/<session_id>` | Delete session |
 | 19 | GET | `/chat/personas` | List personas |
 | 20 | POST | `/workouts` | Save workout record |

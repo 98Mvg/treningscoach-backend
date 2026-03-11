@@ -51,7 +51,6 @@ CORE_BUNDLE_CATEGORIES = [
     "breath.interrupt.cant_breathe",
     "breath.interrupt.slow_down",
     "breath.interrupt.dizzy",
-    "welcome.standard",
     "wake_ack.en",
     "wake_ack.no",
     "zone.silence.work",

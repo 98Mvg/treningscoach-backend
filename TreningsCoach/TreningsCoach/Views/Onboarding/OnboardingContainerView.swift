@@ -204,12 +204,11 @@ struct OnboardingContainerView: View {
                 switch currentStep {
                 case .welcome:
                     FeaturesPageView(
-                        onRegister: {
-                            move(to: .auth)
-                        },
-                        onExistingUser: {
-                            move(to: .auth)
-                        }
+                        mode: .intro,
+                        onPrimary: { move(to: .auth) },
+                        primaryTitle: L10n.register,
+                        onSecondary: { move(to: .auth) },
+                        secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"
                     )
                     .transition(stepTransition)
 
@@ -223,8 +222,11 @@ struct OnboardingContainerView: View {
 
                 case .features:
                     FeaturesPageView(
-                        onRegister: { move(to: .auth) },
-                        onExistingUser: { move(to: .auth) }
+                        mode: .postAuthExplainer(displayName: formState.displayName),
+                        onPrimary: { move(to: .birthAndGender) },
+                        primaryTitle: L10n.continueButton,
+                        onSecondary: { move(to: .dataPurpose) },
+                        secondaryTitle: L10n.current == .no ? "Tilbake" : "Back"
                     )
                     .transition(stepTransition)
 
@@ -239,14 +241,15 @@ struct OnboardingContainerView: View {
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
                         onBack: { move(to: .auth) },
-                        onContinue: { move(to: .birthAndGender) }
+                        onContinue: { move(to: .dataPurpose) }
                     )
                     .transition(stepTransition)
 
                 case .dataPurpose:
                     DataPurposeStepView(
-                        onBack: { move(to: .auth) },
-                        onContinue: { move(to: .identity) }
+                        firstName: formState.firstName,
+                        onBack: { move(to: .identity) },
+                        onContinue: { move(to: .features) }
                     )
                     .transition(stepTransition)
 
@@ -254,7 +257,7 @@ struct OnboardingContainerView: View {
                     BirthGenderStepView(
                         birthDate: $formState.birthDate,
                         gender: $formState.gender,
-                        onBack: { move(to: .identity) },
+                        onBack: { move(to: .features) },
                         onContinue: {
                             if formState.hrMax == 192 {
                                 formState.hrMax = formState.calculatedHRMaxFromAge
@@ -424,6 +427,8 @@ struct OnboardingContainerView: View {
     private var guidedOnboardingSteps: [OnboardingStep] {
         [
             .identity,
+            .dataPurpose,
+            .features,
             .birthAndGender,
             .bodyMetrics,
             .maxHeartRate,
@@ -579,95 +584,201 @@ private struct OnboardingAtmosphereView: View {
 }
 
 private struct IdentityStepView: View {
+    private enum Field: Hashable {
+        case firstName
+        case lastName
+    }
+
     @Binding var firstName: String
     @Binding var lastName: String
     let onBack: () -> Void
     let onContinue: () -> Void
 
+    @FocusState private var focusedField: Field?
+
     private var canContinue: Bool {
         !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
         OnboardingScaffold(
-            title: L10n.aboutYou,
+            title: L10n.firstNameLabel,
             subtitle: L10n.current == .no
-                ? "Dette bruker vi for å tilpasse coachingen, og du kan endre alt senere."
-                : "We use this to tailor the coaching, and you can change everything later.",
+                ? "Hva er etternavnet ditt?"
+                : "What is your last name?",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: canContinue,
             onPrimary: onContinue
         ) {
             VStack(spacing: 16) {
-                OnboardingInputField(
+                identityInputField(
                     label: L10n.firstNameLabel,
                     placeholder: L10n.firstNamePlaceholder,
                     text: $firstName,
+                    focused: .firstName,
                     contentType: .givenName,
-                    keyboardType: .default
-                )
+                    submitLabel: .next
+                ) {
+                    focusedField = .lastName
+                }
 
-                OnboardingInputField(
+                identityInputField(
                     label: L10n.lastNameLabel,
                     placeholder: L10n.lastNamePlaceholder,
                     text: $lastName,
+                    focused: .lastName,
                     contentType: .familyName,
-                    keyboardType: .default
-                )
+                    submitLabel: .done
+                ) {
+                    if canContinue {
+                        onContinue()
+                    }
+                }
             }
+        }
+        .onAppear {
+            focusedField = .firstName
+        }
+    }
+
+    private func identityInputField(
+        label: String,
+        placeholder: String,
+        text: Binding<String>,
+        focused: Field,
+        contentType: UITextContentType?,
+        submitLabel: SubmitLabel,
+        onSubmit: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            TextField("", text: text, prompt: Text(placeholder).foregroundColor(CoachiTheme.textTertiary))
+                .font(.body.weight(.medium))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .textContentType(contentType)
+                .submitLabel(submitLabel)
+                .focused($focusedField, equals: focused)
+                .onSubmit(onSubmit)
+                .padding(.horizontal, 14)
+                .frame(height: 50)
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                )
         }
     }
 }
 
 private struct DataPurposeStepView: View {
+    let firstName: String
     let onBack: () -> Void
     let onContinue: () -> Void
 
     var body: some View {
-        OnboardingScaffold(
-            title: L10n.current == .no ? "Slik bruker vi profilen din" : "How we use your profile",
-            subtitle: L10n.current == .no
-                ? "Vi bruker dette for å gi deg roligere start, riktigere intensitet og tydeligere coaching."
-                : "We use this to give you a calmer start, better intensity targets, and clearer coaching.",
-            onBack: onBack,
-            primaryTitle: L10n.continueButton,
-            canContinue: true,
-            onPrimary: onContinue
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(
-                    L10n.current == .no
-                        ? "Du kan endre alt senere i profilen. Dette er bare startpunktet ditt."
-                        : "You can change everything later in Profile. This is just your starting point."
-                )
-                .font(.body.weight(.semibold))
-                .foregroundColor(CoachiTheme.textPrimary)
+        GeometryReader { geo in
+            let renderWidth = geo.size.width
+            let deviceWidth = UIScreen.main.bounds.width
+            let layoutWidth = min(min(renderWidth, deviceWidth), 500)
+            let sidePadding = layoutWidth < 390 ? 18.0 : 24.0
+            let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
+            let topInset = max(geo.size.height * 0.18, geo.safeAreaInsets.top + 42.0)
 
-                DataCoachScorePreviewCard()
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer()
+                    .frame(height: topInset)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    bullet(
-                        text: L10n.current == .no
-                            ? "Riktigere pulsrammer fra første økt."
-                            : "Better heart-rate ranges from your first workout."
-                    )
-                    bullet(
-                        text: L10n.current == .no
-                            ? "Tydeligere coaching underveis."
-                            : "Clearer guidance during the workout."
-                    )
-                    bullet(
-                        text: L10n.current == .no
-                            ? "Bedre oppsummering og framgang over tid."
-                            : "Better summaries and progress over time."
-                    )
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(greetingTitle)
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(greetingBody)
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 320, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        helloBullet(
+                            text: L10n.current == .no
+                                ? "Tilpasse intensitet, oppsummering og coaching til deg."
+                                : "Tailor intensity, summaries, and coaching to you."
+                        )
+                        helloBullet(
+                            text: L10n.current == .no
+                                ? "Gjore deg klar for fire korte steg om hvordan Coachi hjelper."
+                                : "Get you ready for four short steps on how Coachi helps."
+                        )
+                    }
+                    .padding(.top, 6)
                 }
+                .frame(width: contentWidth, alignment: .leading)
+                .padding(.horizontal, sidePadding)
+
+                Spacer(minLength: 0)
             }
+            .frame(width: layoutWidth, height: geo.size.height, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                HStack(spacing: 16) {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.title3.weight(.bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                            .frame(width: 54, height: 54)
+                            .background(CoachiTheme.surface.opacity(0.96))
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                            )
+                    }
+
+                    Spacer()
+
+                    Button(action: onContinue) {
+                        Text(L10n.continueButton)
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .frame(height: 56)
+                            .background(CoachiTheme.primaryGradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    }
+                }
+                .padding(.horizontal, sidePadding)
+                .padding(.top, 12)
+                .padding(.bottom, max(18.0, geo.safeAreaInsets.bottom + 8.0))
+            }
+        }
+        .onTapGesture {
+            hideKeyboard()
         }
     }
 
-    private func bullet(text: String) -> some View {
+    private var greetingTitle: String {
+        let sanitized = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallback = L10n.current == .no ? "der" : "there"
+        let displayName = sanitized.isEmpty ? fallback : sanitized
+
+        return "Hello! \(displayName)"
+    }
+
+    private var greetingBody: String {
+        "Let me first explain what we can do for you."
+    }
+
+    private func helloBullet(text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
                 .fill(CoachiTheme.primary)
@@ -679,40 +790,9 @@ private struct DataPurposeStepView: View {
             Spacer()
         }
     }
-}
 
-private struct DataCoachScorePreviewCard: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            GamifiedCoachScoreRingView(
-                score: 82,
-                label: L10n.current == .no ? "Score" : "Score",
-                size: 116,
-                lineWidth: 10
-            )
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.current == .no ? "Coach score: 82 - Solid jobb." : "Coach score: 82 - Solid work.")
-                    .font(.body.weight(.bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-
-                Text(L10n.current == .no ? "Effort Score 86 (Strong)" : "Effort Score 86 (Strong)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(CoachiTheme.textSecondary)
-
-                RoundedRectangle(cornerRadius: 999, style: .continuous)
-                    .fill(LinearGradient(colors: [CoachiTheme.secondary, Color(hex: "FF7A59")], startPoint: .leading, endPoint: .trailing))
-                    .frame(height: 8)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CoachiTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
-        )
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 
@@ -1460,32 +1540,31 @@ private struct OnboardingScaffold<Content: View>: View {
             let layoutWidth = min(min(renderWidth, deviceWidth), 500)
             let sidePadding = layoutWidth < 390 ? 16.0 : 22.0
             let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
-            // Cap bottom inset so keyboard safe-area growth does not push form content off-screen.
             let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))
             let contentTopInset = max(renderHeight * 0.08, 24.0)
 
-            VStack(spacing: 0) {
-                HStack {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3.weight(.bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                            .frame(width: 40, height: 40)
-                            .background(CoachiTheme.surface)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
-                            )
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    HStack {
+                        Button(action: onBack) {
+                            Image(systemName: "chevron.left")
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .frame(width: 40, height: 40)
+                                .background(CoachiTheme.surface)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                                )
+                        }
+
+                        Spacer()
                     }
+                    .frame(width: contentWidth, alignment: .leading)
+                    .frame(width: layoutWidth, alignment: .center)
+                    .padding(.top, max(12.0, geo.safeAreaInsets.top + 6.0))
 
-                    Spacer()
-                }
-                .frame(width: contentWidth, alignment: .leading)
-                .padding(.top, max(12.0, geo.safeAreaInsets.top + 6.0))
-                .frame(width: layoutWidth, alignment: .center)
-
-                ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
                         Text(title)
                             .font(.largeTitle.weight(.bold))
@@ -1506,9 +1585,9 @@ private struct OnboardingScaffold<Content: View>: View {
                     .padding(.bottom, 18)
                     .frame(width: layoutWidth, alignment: .center)
                 }
-                .scrollBounceBehavior(.basedOnSize, axes: .vertical)
                 .frame(width: layoutWidth, alignment: .center)
-
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 10) {
                     Button(action: onPrimary) {
                         Text(primaryTitle)
@@ -1543,9 +1622,13 @@ private struct OnboardingScaffold<Content: View>: View {
                         .frame(width: contentWidth, alignment: .center)
                     }
                 }
+                .padding(.top, 10)
                 .padding(.bottom, bottomInset)
                 .frame(width: layoutWidth, alignment: .center)
+                .background(.ultraThinMaterial)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+            .scrollDismissesKeyboard(.interactively)
             .frame(width: layoutWidth, height: renderHeight, alignment: .top)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .clipped()

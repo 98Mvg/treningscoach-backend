@@ -1105,7 +1105,7 @@ private struct ContactSupportView: View {
     }
 }
 
-private struct PrivacyPolicyView: View {
+struct PrivacyPolicyView: View {
     private var isNorwegian: Bool { L10n.current == .no }
 
     var body: some View {
@@ -1149,8 +1149,8 @@ private struct PrivacyPolicyView: View {
                 SupportCard(
                     title: isNorwegian ? "Databehandlere" : "Processors",
                     copyText: isNorwegian
-                        ? "Hosting og drift: Render\nLydlagring og synk: Cloudflare R2\nTale og lydgenerering: ElevenLabs\nAI-funksjoner: xAI, Google, OpenAI og Anthropic når disse er aktivert\nAnalyse og feilovervåking: PostHog og Sentry når disse er aktivert\nE-post: Resend eller konfigurert SMTP-leverandør når e-post er aktivert\nDistribusjon og innlogging: Apple"
-                        : "Hosting and operations: Render\nAudio storage and sync: Cloudflare R2\nSpeech and audio generation: ElevenLabs\nAI features: xAI, Google, OpenAI, and Anthropic when enabled\nAnalytics and error monitoring: PostHog and Sentry when enabled\nEmail delivery: Resend or a configured SMTP provider when email is enabled\nDistribution and sign-in: Apple"
+                        ? "Hosting og drift: Render\nLydlagring og synk: Cloudflare R2\nTale og lydgenerering: konfigurert stemmetjeneste\nAI-funksjoner: aktiverte coach-tjenester\nAnalyse og feilovervåking: PostHog og Sentry når disse er aktivert\nE-post: Resend eller konfigurert SMTP-leverandør når e-post er aktivert\nDistribusjon og innlogging: Apple"
+                        : "Hosting and operations: Render\nAudio storage and sync: Cloudflare R2\nSpeech and audio generation: configured voice service\nAI features: enabled coach services\nAnalytics and error monitoring: PostHog and Sentry when enabled\nEmail delivery: Resend or a configured SMTP provider when email is enabled\nDistribution and sign-in: Apple"
                 )
 
                 SupportCard(
@@ -1179,7 +1179,7 @@ private struct PrivacyPolicyView: View {
     }
 }
 
-private struct TermsOfUseView: View {
+struct TermsOfUseView: View {
     private var isNorwegian: Bool { L10n.current == .no }
 
     var body: some View {
@@ -1305,7 +1305,7 @@ private struct DeleteAccountInfoView: View {
     }
 }
 
-private struct SupportCard: View {
+struct SupportCard: View {
     let title: String
     let copyText: String
 
@@ -1369,7 +1369,7 @@ private struct SettingsCardRow: View {
     }
 }
 
-private struct SettingsActionRow: View {
+struct SettingsActionRow: View {
     let icon: String
     let title: String
     let tint: Color

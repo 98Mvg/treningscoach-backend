@@ -38,9 +38,9 @@ def test_core_bundle_categories_are_capped_to_max_variants() -> None:
 def test_core_bundle_has_full_five_for_dense_categories() -> None:
     ids = _build_core_bundle_ids()
     dense_categories = [
-        "welcome.standard",
         "cont.warmup",
         "cont.cooldown",
+        "zone.structure.steady",
     ]
     catalog_ids = [entry["id"] for entry in PHRASE_CATALOG]
     for prefix in dense_categories:
@@ -87,6 +87,11 @@ def test_core_bundle_keeps_default_wake_ack_ids() -> None:
     ids = _build_core_bundle_ids()
     assert "wake_ack.en.default" in ids
     assert "wake_ack.no.default" in ids
+
+
+def test_core_bundle_excludes_retired_welcome_family() -> None:
+    ids = _build_core_bundle_ids()
+    assert all(not pid.startswith("welcome.standard.") for pid in ids)
 
 
 def test_v2_bundle_ids_come_from_manifest(tmp_path: Path) -> None:

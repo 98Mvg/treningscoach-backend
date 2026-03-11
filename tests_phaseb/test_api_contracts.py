@@ -5,7 +5,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
-from tts_phrase_catalog import get_phrase_text
 
 
 def _mock_breath_analysis(_path: str):
@@ -60,49 +59,12 @@ def test_health_contract(monkeypatch, tmp_path):
 
 def test_welcome_contract(monkeypatch, tmp_path):
     client = _build_client(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        main.config,
-        "WELCOME_ROTATION_STATE_PATH",
-        str(tmp_path / "welcome_rotation_state.json"),
-        raising=False,
-    )
     response = client.get("/welcome?language=en&persona=personal_trainer")
 
-    assert response.status_code == 200
+    assert response.status_code == 410
     payload = response.get_json()
-    utterance_id = payload.get("utterance_id")
-    assert isinstance(utterance_id, str)
-    assert utterance_id.startswith("welcome.")
-    assert isinstance(payload.get("text"), str)
-    assert payload.get("text")
-    assert payload.get("text") == get_phrase_text(utterance_id, "en")
-    assert payload.get("lang") == "en"
-    if payload.get("audio_url") is not None:
-        assert isinstance(payload.get("audio_url"), str)
-    assert isinstance(payload.get("category"), str)
-
-
-def test_welcome_rotation_avoids_immediate_repeat(monkeypatch, tmp_path):
-    client = _build_client(monkeypatch, tmp_path)
-    monkeypatch.setattr(
-        main.config,
-        "WELCOME_ROTATION_STATE_PATH",
-        str(tmp_path / "welcome_rotation_state.json"),
-        raising=False,
-    )
-    monkeypatch.setattr(main.config, "WELCOME_ROTATION_RECENT_K", 2, raising=False)
-    monkeypatch.setattr(main.config, "WELCOME_ROTATION_AVOID_HOURS", 24, raising=False)
-
-    first = client.get("/welcome?language=no&persona=personal_trainer")
-    second = client.get("/welcome?language=no&persona=personal_trainer")
-
-    assert first.status_code == 200
-    assert second.status_code == 200
-    first_id = first.get_json().get("utterance_id")
-    second_id = second.get_json().get("utterance_id")
-    assert first_id
-    assert second_id
-    assert first_id != second_id
+    assert payload["error"] == "welcome_removed"
+    assert "retired" in payload["message"].lower()
 
 
 def test_brain_health_contract(monkeypatch, tmp_path):

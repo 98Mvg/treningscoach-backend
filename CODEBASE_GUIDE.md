@@ -127,7 +127,7 @@ flowchart LR
     TTS["ElevenLabs TTS\n+ audio file serving"]
     WEB["web_routes.py + templates\nlanding / waitlist / analytics"]
 
-    IOS -->|"/coach/continuous\n/coach/talk\n/workouts\n/welcome\n/auth"| BACKEND
+    IOS -->|"/coach/continuous\n/coach/talk\n/workouts\n/auth"| BACKEND
     IOS <-->|"WatchConnectivity"| WATCH
     IOS -->|"BLE / HealthKit"| IOS
     BACKEND --> ZONE
@@ -185,7 +185,6 @@ flowchart LR
 | `/coach/talk` | `POST` | `coach_talk` |
 | `/download/<path:filename>` | `GET` | `download` |
 | `/profile/upsert` | `POST` | `profile_upsert` |
-| `/welcome` | `GET` | `welcome` |
 | `/workouts` | `POST` | `save_workout` |
 | `/workouts` | `GET` | `get_workouts` |
 
@@ -233,6 +232,7 @@ flowchart LR
 | `/voice/session` | `POST` | `create_voice_session` |
 | `/voice/telemetry` | `POST` | `voice_telemetry` |
 | `/waitlist` | `POST` | `web_routes.waitlist_signup` |
+| `/welcome` | `GET` | `welcome` |
 
 ## 6. Watch Communication Flow
 
@@ -425,10 +425,15 @@ Main integrations:
 
 ## 13. Recent Session Learnings
 
+### [2026-03-11 — Onboarding Refresh And Welcome Retirement](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-11-session-learnings-onboarding-refresh-and-welcome-retirement.md)
+- The intro onboarding carousel now uses tighter footer copy, larger dots, a watch-support/no-watch final page, and a required-account CTA that matches product truth.
+- The auth step stays on the existing Apple + passwordless email path, shows Google as disabled, and gates continue actions behind a terms/privacy checkbox.
+- Dedicated workout welcome audio is removed from the phrase catalog, manifests, bundle, web/demo references, and startup flow; workouts now begin directly on the normal coaching/event path.
+
 ### [2026-03-11 — Onboarding Auth And Live Voice Runtime Hardening](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-11-session-learnings-onboarding-auth-and-live-voice-hardening.md)
 - Onboarding now requires Apple Sign-In or passwordless email verification on the existing auth path.
 - The app now signs out stale sessions automatically when `/auth/me` returns `404` instead of leaving summary/live-voice gating in a broken half-authenticated state.
-- Post-workout live voice now has startup-timeout protection, non-blocking close/failure cleanup, mixer-safe playback, and no welcome utterance IDs in iOS app logs.
+- Post-workout live voice now has startup-timeout protection, non-blocking close/failure cleanup, and mixer-safe playback on the single existing summary path.
 
 ### [2026-03-10 — Watch Surface, Live Voice Scope, And Wake-Word Handoff](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-10-session-learnings-watch-surface-live-voice-and-wakeword-hardening.md)
 - The watch app now has watch-specific icon assets and a real running dashboard with BPM primary and remaining/elapsed time secondary.
@@ -448,14 +453,14 @@ Main integrations:
 ### [2026-03-07 — V2 Voice Unification And Full Bundle](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-07-session-learnings-v2-voice-unification-and-bundle.md)
 - V2 audio generation now forces one EN voice and one NO voice for the approved active set.
 - The iOS bundle is rebuilt from the V2 manifest instead of the old curated subset.
-- Infrastructure IDs like `wake_ack.*` and `welcome.standard.1-5` remain required bundle content.
+- Infrastructure IDs like `wake_ack.*` remain required bundle content after welcome-audio retirement.
 
 ## 14. Current Operational Status
 
 - Deterministic workout ownership still belongs to `zone_event_motor.py` and must remain there.
 - Root Flask runtime at the repository root remains the active backend source of truth; `backend/` stays as compatibility wrappers only.
 - V2 phrase review, promotion, pack generation, R2 sync, and full bundle rebuild exist as the active audio workflow.
-- Onboarding now requires either Apple Sign-In or passwordless email verification; there is no guest continue path in the active app flow.
+- Onboarding now requires either Apple Sign-In or passwordless email verification; there is no guest continue path in the active app flow, and the intro carousel/footer copy now matches that requirement.
 - Apple Sign-In is enabled in the iPhone app target, and passwordless email auth now exists on the same `/auth/*` path as the real secondary launch-safe mobile provider.
 - The app now signs out stale sessions when `/auth/me` returns `404`, which prevents summary/live-voice gating from silently disappearing behind broken auth state.
 - Watch capability gating, companion embedding/signing, request-id correlation, and local fallback semantics are implemented on the existing WatchConnectivity path.
@@ -465,7 +470,7 @@ Main integrations:
 - Wake-word workout talk now suspends speech recognition more gracefully before capture to reduce `kAFAssistantErrorDomain Code=1101` churn on device.
 - Post-workout xAI live voice with Rex is enabled by default, tier-limited, isolated from the continuous workout runtime, and hardened with startup timeout plus non-blocking close/failure cleanup.
 - `Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), still falls back to the existing `/coach/talk` path, and no longer uses a mixer-unsafe playback format.
-- Welcome runtime logs on iOS no longer expose `welcome.standard.*` utterance IDs in the app log output.
+- Dedicated workout welcome audio has been retired end-to-end; workouts now start directly on the normal coaching/event path, and stale welcome MP3s are pruned from bundle/manifests instead of lingering as hidden artifacts.
 - Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.
 
 ## 15. Phase 1-4 Status Snapshot

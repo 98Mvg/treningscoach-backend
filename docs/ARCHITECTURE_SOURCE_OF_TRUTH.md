@@ -131,7 +131,7 @@ High-level architecture:
 1. `GET /` serves configured web variant.
 2. Waitlist form posts to `POST /waitlist`.
 3. Client analytics beacon posts to `POST /analytics/event`.
-4. Live demo path uses `/welcome`, `/coach/continuous`, `/coach/talk`.
+4. Live demo path uses `/coach/continuous` and `/coach/talk`.
 
 ### D) Auth and profile path
 
@@ -151,7 +151,6 @@ Main app routes (`main.py`):
 - `GET /preview/<variant>`
 - `GET /health`
 - `GET /tts/cache/stats`
-- `GET /welcome`
 - `POST /analyze`
 - `POST /coach/continuous`
 - `GET /download/<path:filename>`
@@ -249,7 +248,6 @@ Core route smoke checks:
 
 ```bash
 curl -s http://localhost:5001/health
-curl -s "http://localhost:5001/welcome?language=en&persona=personal_trainer"
 curl -s http://localhost:5001/brain/health
 ```
 
