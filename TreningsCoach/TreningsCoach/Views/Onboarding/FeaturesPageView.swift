@@ -236,26 +236,6 @@ struct FeaturesPageView: View {
             }
             .frame(width: layoutWidth, height: renderHeight, alignment: .top)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .contentShape(Rectangle())
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 24).onEnded { value in
-                    let horizontal = value.translation.width
-                    let vertical = value.translation.height
-                    guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
-
-                    if horizontal < 0 {
-                        guard currentPage < pages.count - 1 else { return }
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            currentPage += 1
-                        }
-                    } else {
-                        guard currentPage > 0 else { return }
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            currentPage -= 1
-                        }
-                    }
-                }
-            )
         }
         .ignoresSafeArea(edges: [.top, .bottom])
         .onAppear {
@@ -450,6 +430,26 @@ struct FeaturesPageView: View {
             .padding(.horizontal, ctaSideInset)
             .padding(.bottom, bottomInset)
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 24).onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
+
+                if horizontal < 0 {
+                    guard currentPage < pages.count - 1 else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        currentPage += 1
+                    }
+                } else {
+                    guard currentPage > 0 else { return }
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        currentPage -= 1
+                    }
+                }
+            }
+        )
     }
 
     private func showcaseContent(
@@ -461,7 +461,9 @@ struct FeaturesPageView: View {
         topSpacing: CGFloat,
         bottomInset: CGFloat
     ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let showcaseTextWidth = max(0.0, min(textWidth, isNarrow ? 288.0 : 328.0))
+
+        return VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: max(topSpacing - 16, 120))
 
             VStack(alignment: .leading, spacing: 22) {
@@ -470,13 +472,13 @@ struct FeaturesPageView: View {
                     .foregroundColor(.white)
                     .lineSpacing(3)
                     .multilineTextAlignment(.leading)
-                    .frame(maxWidth: min(textWidth, 340), alignment: .leading)
+                    .frame(width: showcaseTextWidth, alignment: .leading)
 
                 if !activePage.body(for: L10n.current).isEmpty {
                     Text(activePage.body(for: L10n.current))
                         .font(.body.weight(.medium))
                         .foregroundColor(.white.opacity(0.9))
-                        .frame(maxWidth: min(textWidth, 320), alignment: .leading)
+                        .frame(width: showcaseTextWidth, alignment: .leading)
                 }
 
                 showcasePreviewCard(width: min(cardWidth, isNarrow ? 320 : 360))

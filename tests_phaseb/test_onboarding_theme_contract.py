@@ -221,6 +221,10 @@ def test_intro_swipe_gestures_not_blocked_by_nested_scrollview() -> None:
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
     assert "DragGesture(minimumDistance: 24)" in text
     assert ".simultaneousGesture(" in text
+    intro_start = text.index("private func introContent(")
+    intro_slice = text[intro_start:]
+    assert ".contentShape(Rectangle())" in intro_slice
+    assert ".simultaneousGesture(" in intro_slice
 
 
 def test_intro_only_ignores_vertical_safe_areas() -> None:
@@ -244,6 +248,8 @@ def test_post_auth_explainer_uses_showcase_navigation() -> None:
     assert 'return L10n.current == .no ? "Neste" : "Next"' in text
     assert "private func showcasePrimaryAction()" in text
     assert "private func showcaseSecondaryAction()" in text
+    assert "let showcaseTextWidth = max(0.0, min(textWidth, isNarrow ? 288.0 : 328.0))" in text
+    assert ".frame(width: showcaseTextWidth, alignment: .leading)" in text
     assert '.frame(width: 74, height: 74)' in text
     assert '.clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))' in text
 
