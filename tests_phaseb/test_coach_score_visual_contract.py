@@ -54,16 +54,18 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text
-    assert ".confirmationDialog(shareChooserTitle, isPresented: $showShareOptions" in text
-    assert 'Button("Instagram Story")' in text
-    assert 'Button(L10n.current == .no ? "Del til Snapchat" : "Share to Snapchat")' in text
-    assert 'Button(L10n.current == .no ? "Del til TikTok" : "Share to TikTok")' in text
-    assert 'Button(L10n.current == .no ? "Kopier lenke" : "Copy Link")' in text
+    assert "WorkoutShareDestinationsSheet(" in text
+    assert ".presentationDetents([.height(330)])" in text
+    assert 'performShareSelection { openGenericShareSheet(destination: "x") }' in text
+    assert 'shareButton(label: "Instagram"' in text
+    assert 'shareButton(label: "Snapchat"' in text
+    assert 'shareButton(label: "TikTok"' in text
+    assert 'shareButton(label: "X"' in text
+    assert 'shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
     assert "WorkoutSummaryShareCardView(" in text
 
 
 def test_onboarding_data_and_result_use_gamified_ring() -> None:
     text = ONBOARDING_VIEW.read_text(encoding="utf-8")
     assert "GamifiedCoachScoreRingView(" in text
-    assert "score: 82" in text
     assert "score: score" in text

@@ -77,7 +77,9 @@ class User(db.Model):
 
     def to_dict(self):
         subscription_tier = "free"
-        if self.subscription is not None:
+        if config.user_has_premium_override(user_id=self.id, email=self.email):
+            subscription_tier = "premium"
+        elif self.subscription is not None:
             raw_tier = str(getattr(self.subscription, "tier", "") or "").strip().lower()
             if raw_tier == "premium":
                 subscription_tier = "premium"

@@ -489,20 +489,24 @@ struct PostWorkoutTextCoachView: View {
     @State private var sessionQuestionsUsed = 0
     @State private var showPaywall = false
 
+    private var hasPremiumAccess: Bool {
+        subscriptionManager.isPremium || authManager.currentUser?.subscriptionTier.isPremium == true
+    }
+
     private var isFreeUsageLimitReached: Bool {
         guard authManager.productFlags.billingEnabled else { return false }
         return !TalkUsageTracker.shared.canAsk(
             sessionUsed: sessionQuestionsUsed,
-            isPremium: subscriptionManager.isPremium
+            isPremium: hasPremiumAccess
         )
     }
 
     private var remainingToday: Int {
-        usageTracker.remainingToday(isPremium: subscriptionManager.isPremium) ?? Int.max
+        usageTracker.remainingToday(isPremium: hasPremiumAccess) ?? Int.max
     }
 
     private var showRemainingHint: Bool {
-        guard authManager.productFlags.billingEnabled, !subscriptionManager.isPremium else { return false }
+        guard authManager.productFlags.billingEnabled, !hasPremiumAccess else { return false }
         guard !isFreeUsageLimitReached else { return false }
         return remainingToday <= 2
     }
@@ -726,6 +730,7 @@ private struct PostWorkoutInsightShareSection: View {
                     instagramButton
                     snapchatButton
                     tiktokButton
+                    xButton
                     copyLinkButton
                 }
 
@@ -736,6 +741,7 @@ private struct PostWorkoutInsightShareSection: View {
                         tiktokButton
                     }
                     HStack(spacing: 10) {
+                        xButton
                         copyLinkButton
                     }
                 }
@@ -763,28 +769,51 @@ private struct PostWorkoutInsightShareSection: View {
     }
 
     private var instagramButton: some View {
-        Button("Instagram Story") {
+        ShareDestinationPillButton(
+            label: "Instagram",
+            accent: Color(hex: "E1306C"),
+            icon: .camera
+        ) {
             shareToInstagramStory()
         }
-        .buttonStyle(LiveVoicePrimaryButtonStyle())
     }
 
     private var snapchatButton: some View {
-        Button("Snapchat") {
+        ShareDestinationPillButton(
+            label: "Snapchat",
+            accent: Color(hex: "FFFC00"),
+            icon: .snapchat
+        ) {
             openGenericShareSheet(for: "snapchat")
         }
-        .buttonStyle(LiveVoiceSecondaryButtonStyle())
     }
 
     private var tiktokButton: some View {
-        Button("TikTok") {
+        ShareDestinationPillButton(
+            label: "TikTok",
+            accent: Color.black,
+            icon: .tiktok
+        ) {
             openGenericShareSheet(for: "tiktok")
         }
-        .buttonStyle(LiveVoiceSecondaryButtonStyle())
+    }
+
+    private var xButton: some View {
+        ShareDestinationPillButton(
+            label: "X",
+            accent: Color.black,
+            icon: .x
+        ) {
+            openGenericShareSheet(for: "x")
+        }
     }
 
     private var copyLinkButton: some View {
-        Button(languageCode == "no" ? "Kopier lenke" : "Copy Link") {
+        ShareDestinationPillButton(
+            label: languageCode == "no" ? "Kopier lenke" : "Copy Link",
+            accent: Color(hex: "4F46E5"),
+            icon: .link
+        ) {
             UIPasteboard.general.url = shareURL
             withAnimation(.easeOut(duration: 0.2)) {
                 copiedLink = true
@@ -798,7 +827,6 @@ private struct PostWorkoutInsightShareSection: View {
                 }
             }
         }
-        .buttonStyle(LiveVoiceSecondaryButtonStyle())
     }
 
     private func shareToInstagramStory() {
@@ -855,6 +883,70 @@ private struct PostWorkoutInsightShareSection: View {
         renderer.scale = 1
         return renderer.uiImage
     }
+}
+
+private struct ShareDestinationPillButton: View {
+    let label: String
+    let accent: Color
+    let icon: ShareDestinationPillIcon
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(accent.opacity(icon == .snapchat ? 0.92 : 1))
+                        .frame(width: 58, height: 58)
+                    iconView
+                }
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch icon {
+        case .camera:
+            Image(systemName: "camera.fill")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color.white)
+        case .snapchat:
+            Text("S")
+                .font(.system(size: 24, weight: .black, design: .rounded))
+                .foregroundStyle(Color.black)
+        case .tiktok:
+            Image(systemName: "music.note")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color.white)
+        case .x:
+            Text("X")
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(Color.white)
+        case .link:
+            Image(systemName: "link")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color.white)
+        }
+    }
+}
+
+private enum ShareDestinationPillIcon: Equatable {
+    case camera
+    case snapchat
+    case tiktok
+    case x
+    case link
 }
 
 private struct PostWorkoutInsightStoryCardView: View {

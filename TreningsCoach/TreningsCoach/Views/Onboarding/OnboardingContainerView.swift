@@ -696,6 +696,7 @@ private struct DataPurposeStepView: View {
             let textWidth = max(0.0, min(contentWidth, layoutWidth < 390 ? 288.0 : 328.0))
             let topInset = max(renderHeight * 0.18, geo.safeAreaInsets.top + 42.0)
             let bottomInset = max(20.0, geo.safeAreaInsets.bottom + 10.0)
+            let controlsHeight = 74.0 + bottomInset + 24.0
 
             ZStack {
                 Image("OnboardingBgOutdoor")
@@ -733,49 +734,52 @@ private struct DataPurposeStepView: View {
                     }
                     .frame(width: contentWidth, alignment: .leading)
                     .padding(.horizontal, sidePadding)
+                    .padding(.bottom, controlsHeight)
 
                     Spacer(minLength: 0)
+                }
+
+                VStack {
+                    Spacer(minLength: 0)
+
+                    HStack(spacing: 16) {
+                        Button(action: onBack) {
+                            Image(systemName: "chevron.left")
+                                .font(.title2.weight(.bold))
+                                .foregroundColor(CoachiTheme.primary)
+                                .frame(width: 74, height: 74)
+                                .background(Color.white.opacity(0.97))
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(CoachiTheme.primary.opacity(0.85), lineWidth: 2)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Button(action: onContinue) {
+                            HStack(spacing: 14) {
+                                Text(L10n.current == .no ? "Neste" : "Next")
+                                Image(systemName: "chevron.right")
+                                    .font(.title3.weight(.bold))
+                            }
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 32)
+                                .frame(height: 74)
+                                .background(CoachiTheme.primaryGradient.opacity(0.96))
+                                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, sidePadding)
+                    .padding(.bottom, bottomInset)
                 }
             }
             .frame(width: layoutWidth, height: renderHeight, alignment: .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                HStack(spacing: 16) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(CoachiTheme.primary)
-                            .frame(width: 74, height: 74)
-                            .background(Color.white.opacity(0.97))
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(CoachiTheme.primary.opacity(0.85), lineWidth: 2)
-                            )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-
-                    Button(action: onContinue) {
-                        HStack(spacing: 14) {
-                            Text(L10n.current == .no ? "Neste" : "Next")
-                            Image(systemName: "chevron.right")
-                                .font(.title3.weight(.bold))
-                        }
-                            .font(.title3.weight(.bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 32)
-                            .frame(height: 74)
-                            .background(CoachiTheme.primaryGradient.opacity(0.96))
-                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, sidePadding)
-                .padding(.top, 12)
-                .padding(.bottom, bottomInset)
-            }
         }
         .onTapGesture {
             hideKeyboard()

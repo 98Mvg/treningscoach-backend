@@ -144,59 +144,16 @@ struct WorkoutLaunchView: View {
                             }
                         }
 
-                        launchSection(title: "Step B", subtitle: L10n.inputSources) {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(viewModel.watchConnected ? CoachiTheme.success : CoachiTheme.textTertiary)
-                                    .frame(width: 8, height: 8)
-                                Text("Apple Watch")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(CoachiTheme.textSecondary)
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 2) {
-                                    if viewModel.watchConnected {
-                                        Text(L10n.current == .no ? "Tilkoblet" : "Connected")
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(CoachiTheme.success)
-                                    } else {
-                                        Text(L10n.notConnected)
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(CoachiTheme.textTertiary)
-                                    }
-
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "heart.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(viewModel.watchConnected ? .green : .red)
-
-                                        Text(viewModel.watchBPMDisplayText)
-                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                        .foregroundColor(CoachiTheme.textPrimary)
-                                    }
-                                }
-                            }
+                        launchSection(title: "", subtitle: "") {
+                            intensitySelectionSection
                         }
+
+                        watchStatusSection
 
                         DisclosureGroup(
                             isExpanded: $showAdvancedOptions,
                             content: {
                                 VStack(spacing: 14) {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(L10n.workoutIntensityTitle)
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundColor(CoachiTheme.textTertiary)
-                                            .tracking(1)
-                                        Text(L10n.workoutIntensityDescription)
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundColor(CoachiTheme.textSecondary)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                        HStack(spacing: 8) {
-                                            styleChip(.easy)
-                                            styleChip(.medium)
-                                            styleChip(.hard)
-                                        }
-                                    }
-
                                     Toggle(isOn: $viewModel.useBreathingMicCues) {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(L10n.breathAnalysisTitle)
@@ -339,6 +296,69 @@ struct WorkoutLaunchView: View {
     }
 
     @ViewBuilder
+    private var intensitySelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.workoutIntensityPrompt)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            VStack(spacing: 10) {
+                intensityOptionCard(
+                    style: .easy,
+                    title: L10n.workoutIntensityEasyDetail
+                )
+                intensityOptionCard(
+                    style: .medium,
+                    title: L10n.workoutIntensityModerateDetail
+                )
+                intensityOptionCard(
+                    style: .hard,
+                    title: L10n.workoutIntensityHardDetail
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var watchStatusSection: some View {
+        let connected = viewModel.watchCapabilityState == .watchReady
+        let statusColor = connected ? Color.green : CoachiTheme.warning
+        let statusTitle = connected
+            ? (L10n.current == .no ? "Tilkoblet" : "Connected")
+            : (L10n.current == .no ? "Ikke tilkoblet" : "Not connected")
+        let statusDetail = watchStatusDetailText(connected: connected)
+
+        launchSection(title: "", subtitle: "") {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(statusColor.opacity(0.14))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "applewatch.side.right")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(statusColor)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(statusTitle)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                    Text(statusDetail)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 12, height: 12)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func launchSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if !title.isEmpty || !subtitle.isEmpty {
@@ -410,6 +430,51 @@ struct WorkoutLaunchView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func intensityOptionCard(style: CoachingStyle, title: String) -> some View {
+        let selected = viewModel.coachingStyle == style
+        Button {
+            viewModel.coachingStyle = style
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(selected ? .white : CoachiTheme.textTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(CoachiTheme.primaryGradient)
+                } else {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(CoachiTheme.surface)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func watchStatusDetailText(connected: Bool) -> String {
+        guard connected else {
+            return L10n.current == .no ? "Live puls ikke tilgjengelig" : "Live heart rate unavailable"
+        }
+
+        if viewModel.watchBPMDisplayText != "0 BPM" {
+            return viewModel.watchBPMDisplayText
+        }
+
+        return L10n.current == .no ? "Venter på puls" : "Awaiting heart rate"
     }
 
     private var stepASubtitle: String {
@@ -719,25 +784,6 @@ struct WorkoutLaunchView: View {
             easyRunConfigured = true
             intervalsConfigured = true
         }
-    }
-
-    @ViewBuilder
-    private func styleChip(_ style: CoachingStyle) -> some View {
-        let selected = viewModel.coachingStyle == style
-        Button {
-            viewModel.coachingStyle = style
-        } label: {
-            Text(style.displayName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? .white : CoachiTheme.textPrimary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(selected ? CoachiTheme.primary : CoachiTheme.surface)
-                )
-        }
-        .buttonStyle(.plain)
     }
 
     private var easyRunModeToggle: some View {

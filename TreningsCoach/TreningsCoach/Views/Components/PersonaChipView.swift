@@ -17,6 +17,17 @@ struct PersonaChipView: View {
             HStack(spacing: 8) {
                 Image(systemName: persona.icon).font(.system(size: 14, weight: .semibold))
                 Text(persona.displayName).font(.system(size: 14, weight: .semibold))
+                if persona == .toxicMode {
+                    Text("PRO")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(isSelected ? CoachiTheme.primary : CoachiTheme.primary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(isSelected ? Color.white : CoachiTheme.primary.opacity(0.14))
+                        )
+                }
             }
             .foregroundColor(isSelected ? .white : CoachiTheme.textSecondary)
             .padding(.horizontal, 16).padding(.vertical, 10)

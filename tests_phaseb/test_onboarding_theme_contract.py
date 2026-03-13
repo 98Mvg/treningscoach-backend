@@ -158,12 +158,11 @@ def test_intro_value_carousel_contract() -> None:
     assert "@State private var autoAdvanceTask: Task<Void, Never>?" in text
     assert "Task.sleep(nanoseconds: 5_000_000_000)" in text
     assert "if case .intro = mode {" in text
-    assert "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls." in text
-    assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." in text
-    assert "Kobles enkelt til pulsklokka di" in text
-    assert "Ingen pulsklokke?" in text
-    assert "Alt i orden! Du kan bli coachet pa pustanalyse." in text
-    assert 'deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"]' in text
+    assert "Jeg guider deg live med pulssoner" in text
+    assert "Jeg motiverer og tilpasser økten dynamisk" in text
+    assert "Du får en CoachScore etter hver økt" in text
+    assert "Etter økten kan vi snakke live" in text
+    assert "Snakk om prestasjonen din og hvordan du kan bli bedre til neste gang" in text
     assert "presentationStyle: .showcase" in text
     assert "FitnessAgePromptCard()" in text
     assert "FitnessAgeExampleCard()" in text
@@ -199,7 +198,6 @@ def test_intro_layout_reserves_width_for_card_padding() -> None:
     assert ".padding(.horizontal, cardContentInset)" in text
     assert ".frame(width: cardWidth, alignment: .leading)" in text
     assert ".frame(width: textWidth, alignment: .leading)" in text
-    assert ".frame(width: layoutWidth, height: renderHeight)" in text
     assert ".frame(maxWidth: .infinity, alignment: .top)" in text
     assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in text
     assert ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)" in text

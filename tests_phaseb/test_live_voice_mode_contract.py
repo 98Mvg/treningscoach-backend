@@ -28,7 +28,7 @@ INFO_PLIST = (
 PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbxproj"
 
 
-def test_summary_screen_exposes_live_voice_cta_behind_flag_and_premium_gate() -> None:
+def test_summary_screen_exposes_live_voice_cta_for_authenticated_users_without_live_voice_paywall() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
     assert "@EnvironmentObject var authManager: AuthManager" in text
     assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }' in text
@@ -40,6 +40,8 @@ def test_summary_screen_exposes_live_voice_cta_behind_flag_and_premium_gate() ->
     assert 'Image(systemName: "mic.fill")' in text
     assert ".frame(height: 64)" in text
     assert "RoundedRectangle(cornerRadius: 22, style: .continuous)" in text
+    assert "showPaywall" not in text
+    assert "PaywallView(context: .liveVoice)" not in text
 
 
 def test_auth_manager_fetches_runtime_flags_for_live_voice_policy() -> None:
@@ -67,6 +69,8 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert 'event: "voice_fallback_text_opened"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Lukk" : "Close")' in text
     assert "dismiss()" in text
+    assert "private var hasPremiumAccess: Bool" in text
+    assert "authManager.currentUser?.subscriptionTier.isPremium == true" in text
 
 
 def test_live_voice_view_generates_shareable_insight_card_after_conversation() -> None:
@@ -74,10 +78,13 @@ def test_live_voice_view_generates_shareable_insight_card_after_conversation() -
     assert "PostWorkoutInsightShareSection(" in text
     assert "viewModel.latestShareInsight" in text
     assert "viewModel.isConversationEnded" in text
-    assert 'Button("Instagram Story")' in text
-    assert 'Button("Snapchat")' in text
-    assert 'Button("TikTok")' in text
-    assert 'Button(languageCode == "no" ? "Kopier lenke" : "Copy Link")' in text
+    assert "ShareDestinationPillButton(" in text
+    assert 'label: "Instagram"' in text
+    assert 'label: "Snapchat"' in text
+    assert 'label: "TikTok"' in text
+    assert 'label: "X"' in text
+    assert 'label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
+    assert 'openGenericShareSheet(for: "x")' in text
     assert "ImageRenderer(" in text
     assert "UIActivityViewController(activityItems:" in text
     assert 'AppConfig.Share.instagramStoriesScheme' in text

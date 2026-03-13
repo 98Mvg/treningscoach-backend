@@ -20,6 +20,9 @@ private enum StoryPreviewKind {
     case fitnessAgeExample
     case activityQuotient
     case deviceSupport
+    case watchBPM
+    case intensityBar
+    case talkToCoach
 }
 
 private struct IntroStoryPage {
@@ -84,11 +87,11 @@ struct FeaturesPageView: View {
     private let introPages: [IntroStoryPage] = [
         IntroStoryPage(
             imageName: "IntroStory1",
-            icon: "bolt.fill",
-            titleNo: "Rolig coaching fra foerste oekt",
-            titleEn: "Calm coaching from your first workout",
-            bodyNo: "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls.",
-            bodyEn: "Coachi guides intervals and easy runs, with or without heart rate.",
+            icon: "applewatch.side.right",
+            titleNo: "Jeg guider deg live med pulssoner",
+            titleEn: "I guide you live using heart rate zones",
+            bodyNo: "Pulssoner holder økten på riktig intensitet — du får tydelig coaching i sanntid.",
+            bodyEn: "Heart rate zones keep your workout at the right intensity — clear coaching in real time.",
             supplementalTitleNo: nil,
             supplementalTitleEn: nil,
             supplementalBodyNo: nil,
@@ -96,15 +99,31 @@ struct FeaturesPageView: View {
             deviceTags: [],
             showsCoachScoreCard: false,
             presentationStyle: .intro,
-            previewKind: .none
+            previewKind: .watchBPM
         ),
         IntroStoryPage(
             imageName: "IntroStory2",
+            icon: "heart.fill",
+            titleNo: "Jeg motiverer og tilpasser økten dynamisk",
+            titleEn: "I motivate you and adjust the workout dynamically",
+            bodyNo: "Økten tilpasses basert på dine preferanser. Jeg vet når du kan gi mer.",
+            bodyEn: "The workout adjusts based on your preferences. I know when you can give more.",
+            supplementalTitleNo: nil,
+            supplementalTitleEn: nil,
+            supplementalBodyNo: nil,
+            supplementalBodyEn: nil,
+            deviceTags: [],
+            showsCoachScoreCard: false,
+            presentationStyle: .intro,
+            previewKind: .intensityBar
+        ),
+        IntroStoryPage(
+            imageName: "IntroStory3",
             icon: "chart.line.uptrend.xyaxis",
-            titleNo: "Se framgang etter hver økt",
-            titleEn: "See progress after every workout",
-            bodyNo: "CoachScore gir deg et enkelt tall på kontroll, flyt og gjennomføring.",
-            bodyEn: "CoachScore gives you one simple score for control, flow, and execution.",
+            titleNo: "Du får en CoachScore etter hver økt",
+            titleEn: "You get a CoachScore after each workout",
+            bodyNo: "CoachScore viser hvor godt økten traff treningsmålet ditt.",
+            bodyEn: "CoachScore shows how well your workout matched your training goal.",
             supplementalTitleNo: nil,
             supplementalTitleEn: nil,
             supplementalBodyNo: nil,
@@ -115,12 +134,12 @@ struct FeaturesPageView: View {
             previewKind: .none
         ),
         IntroStoryPage(
-            imageName: "IntroStory3",
-            icon: "music.note",
-            titleNo: "Korte cues. Mindre støy.",
-            titleEn: "Short cues. Less noise.",
-            bodyNo: "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe.",
-            bodyEn: "You get clear cues when they matter, and quiet when you should just run.",
+            imageName: "IntroStory4",
+            icon: "bubble.left.and.bubble.right.fill",
+            titleNo: "Etter økten kan vi snakke live",
+            titleEn: "After the workout we can talk live",
+            bodyNo: "Snakk om prestasjonen din og hvordan du kan bli bedre til neste gang.",
+            bodyEn: "Talk about your performance and how to improve next time.",
             supplementalTitleNo: nil,
             supplementalTitleEn: nil,
             supplementalBodyNo: nil,
@@ -128,23 +147,7 @@ struct FeaturesPageView: View {
             deviceTags: [],
             showsCoachScoreCard: false,
             presentationStyle: .intro,
-            previewKind: .none
-        ),
-        IntroStoryPage(
-            imageName: "IntroStory4",
-            icon: "applewatch.side.right",
-            titleNo: "Kobles enkelt til pulsklokka di",
-            titleEn: "Connect easily to your watch",
-            bodyNo: "Apple Watch, Garmin, Polar og Bluetooth-pulsmålere gir mer presis live coaching.",
-            bodyEn: "Apple Watch, Garmin, Polar, and Bluetooth heart-rate sensors give more precise live coaching.",
-            supplementalTitleNo: "Ingen pulsklokke?",
-            supplementalTitleEn: "No watch?",
-            supplementalBodyNo: "Alt i orden! Du kan bli coachet pa pustanalyse.",
-            supplementalBodyEn: "That is okay. Coachi can still guide you with breath analysis.",
-            deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
-            showsCoachScoreCard: false,
-            presentationStyle: .intro,
-            previewKind: .none
+            previewKind: .talkToCoach
         ),
     ]
 
@@ -172,10 +175,11 @@ struct FeaturesPageView: View {
             let needsVerticalScroll = renderHeight < 730 || dynamicTypeSize.isAccessibilitySize
 
             ZStack {
+                // Background image: full screen, no clipping
                 Image(activePage.imageName)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: layoutWidth, height: renderHeight)
+                    .frame(width: renderWidth, height: renderHeight)
                     .clipped()
                     .overlay(
                         LinearGradient(
@@ -234,7 +238,7 @@ struct FeaturesPageView: View {
                     .frame(width: layoutWidth, height: renderHeight, alignment: .top)
                 }
             }
-            .frame(width: layoutWidth, height: renderHeight, alignment: .top)
+            .frame(width: renderWidth, height: renderHeight, alignment: .top)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .ignoresSafeArea(edges: [.top, .bottom])
@@ -359,10 +363,8 @@ struct FeaturesPageView: View {
                     )
                 }
 
-                if activePage.showsCoachScoreCard {
-                    CoachScorePreviewCard()
-                        .padding(.top, 2)
-                }
+                introPreviewCard()
+                    .padding(.top, 2)
             }
             .dynamicTypeSize(.small ... .xxxLarge)
             .padding(.horizontal, cardContentInset)
@@ -656,6 +658,24 @@ struct FeaturesPageView: View {
         case .deviceSupport:
             DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)
                 .frame(width: width)
+        case .watchBPM, .intensityBar, .talkToCoach:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func introPreviewCard() -> some View {
+        switch activePage.previewKind {
+        case .watchBPM:
+            WatchBPMPreviewCard()
+        case .intensityBar:
+            IntensityBarPreviewCard()
+        case .talkToCoach:
+            TalkToCoachPreviewCard()
+        default:
+            if activePage.showsCoachScoreCard {
+                CoachScorePreviewCard()
+            }
         }
     }
 
@@ -951,6 +971,215 @@ private struct CoachScorePreviewCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Page 1: Apple Watch BPM Preview
+
+private struct WatchBPMPreviewCard: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            // Watch face
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.black.opacity(0.85))
+                    .frame(width: 80, height: 96)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 2)
+                    )
+
+                VStack(spacing: 2) {
+                    Text("BPM")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.6))
+
+                    Text("142")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(hex: "FF3B5C"))
+
+                    HStack(spacing: 3) {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(Color(hex: "FF3B5C"))
+                        Text("Live Heart Rate")
+                            .font(.system(size: 7, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+            }
+
+            // Zone info
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color(hex: "FF3B5C"))
+                        .frame(width: 8, height: 8)
+                    Text(L10n.current == .no ? "Sone 4 — Hardt" : "Zone 4 — Hard")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(.white)
+                }
+
+                Text(L10n.current == .no ? "Hold intensiteten!" : "Hold the intensity!")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.white.opacity(0.8))
+
+                // Mini zone bar
+                HStack(spacing: 2) {
+                    ForEach(0 ..< 5, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(zoneColor(i))
+                            .frame(height: 6)
+                            .opacity(i == 3 ? 1.0 : 0.4)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    private func zoneColor(_ index: Int) -> Color {
+        switch index {
+        case 0: return Color(hex: "7BC8F6")
+        case 1: return Color(hex: "4ADE80")
+        case 2: return Color(hex: "FACC15")
+        case 3: return Color(hex: "FF7A59")
+        case 4: return Color(hex: "FF3B5C")
+        default: return .white
+        }
+    }
+}
+
+// MARK: - Page 2: Intensity Bar Preview
+
+private struct IntensityBarPreviewCard: View {
+    private let labels = ["Rolig", "Moderat", "Hardt", "Maks"]
+    private let labelsEn = ["Easy", "Moderate", "Hard", "Max"]
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("152")
+                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .foregroundColor(CoachiTheme.secondary)
+                Text("bpm")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(CoachiTheme.secondary.opacity(0.8))
+            }
+
+            // Intensity bar
+            ZStack(alignment: .leading) {
+                GeometryReader { geo in
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(hex: "7BC8F6"),
+                                    Color(hex: "4ADE80"),
+                                    Color(hex: "FACC15"),
+                                    Color(hex: "FF7A59"),
+                                    Color(hex: "FF3B5C"),
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 10)
+
+                    // Needle indicator at ~75%
+                    Image(systemName: "triangle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(CoachiTheme.secondary)
+                        .rotationEffect(.degrees(180))
+                        .offset(x: geo.size.width * 0.72 - 5, y: -10)
+                }
+                .frame(height: 10)
+            }
+            .padding(.top, 4)
+
+            // Labels
+            HStack {
+                ForEach(0 ..< 4, id: \.self) { i in
+                    Text(L10n.current == .no ? labels[i] : labelsEn[i])
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(i == 2 ? 1.0 : 0.55))
+                    if i < 3 { Spacer() }
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Page 4: Talk to Coach Preview
+
+private struct TalkToCoachPreviewCard: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            // Simulated chat bubbles
+            HStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    Text(L10n.current == .no ? "Hvordan var økten min?" : "How was my workout?")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(CoachiTheme.primary.opacity(0.7))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(CoachiTheme.secondary)
+                    Text(L10n.current == .no ? "Du holdt sonene godt i dag..." : "You held your zones well today...")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                Spacer()
+            }
+
+            // Talk button
+            HStack(spacing: 10) {
+                Image(systemName: "mic.fill")
+                    .font(.body.weight(.bold))
+                    .foregroundColor(.white)
+                Text(L10n.current == .no ? "Snakk med Coachi" : "Talk to Coachi")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(CoachiTheme.primaryGradient.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
     }

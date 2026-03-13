@@ -163,6 +163,20 @@ def test_xai_voice_agent_env_override(monkeypatch):
     assert config.XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT == 18
 
 
+def test_premium_override_envs_are_resolved(monkeypatch):
+    monkeypatch.setenv("PREMIUM_TIER_OVERRIDE_USER_IDS", "user_a,user_b")
+    monkeypatch.setenv("PREMIUM_TIER_OVERRIDE_EMAILS", "premium@example.com, second@example.com ")
+
+    importlib.reload(config)
+
+    assert config.PREMIUM_TIER_OVERRIDE_USER_IDS == ["user_a", "user_b"]
+    assert config.PREMIUM_TIER_OVERRIDE_EMAILS == ["premium@example.com", "second@example.com"]
+    assert config.user_has_premium_override(user_id="user_b") is True
+    assert config.user_has_premium_override(email="premium@example.com") is True
+    assert config.user_has_premium_override(email="PREMIUM@EXAMPLE.COM") is True
+    assert config.user_has_premium_override(user_id="missing", email="missing@example.com") is False
+
+
 def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("JWT_ACCESS_TOKEN_MAX_DAYS", "5")
     monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")

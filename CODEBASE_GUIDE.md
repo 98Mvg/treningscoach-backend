@@ -5,7 +5,7 @@
 > Regenerate with: `python3 scripts/generate_codebase_guide.py`
 > Verify sync with: `pytest -q tests_phaseb/test_codebase_guide_sync.py`
 
-Last generated: 2026-03-13
+Last generated: 2026-03-14
 Repository: `/Users/mariusgaarder/Documents/treningscoach`
 
 ## Agent Quickstart
@@ -426,6 +426,16 @@ Main integrations:
 
 ## 13. Recent Session Learnings
 
+### [2026-03-14 - Onboarding Controls, Share Surfaces, And Free Live Voice](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-14-session-learnings-onboarding-controls-share-surfaces-and-free-live-voice.md)
+- Full-screen onboarding hero pages now need explicit in-view navigation controls instead of depending on `safeAreaInset` or broad drag gestures.
+- Summary sharing and post-coach insight sharing now work better as visible destination buttons, and the same app-style share surface should be reused across both paths.
+- Signed-in free users can now access `Talk to Coach Live`, while settings/logout/premium affordances need to stay one-press and adaptive in both light and dark mode.
+
+### [2026-03-13 - App Store Connect Pack And Billing Smoke Matrix](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-13-session-learnings-app-store-connect-pack-and-billing-smoke-matrix.md)
+- The missing subscription-launch work was mostly operational packaging, not more StoreKit architecture.
+- A launch-ready submission pack now needs three concrete artifacts: an App Store Connect fill-in worksheet, a Sandbox/TestFlight test matrix, and a paste-ready App Review notes template.
+- Product IDs should be copied directly from `TreningsCoach/TreningsCoach/Config.swift` into launch docs so App Store Connect setup cannot drift from runtime truth.
+
 ### [2026-03-13 - Subscription Reviewer Package And Launch Docs](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-13-session-learnings-subscription-reviewer-package-and-launch-docs.md)
 - Reviewer-visible `Restore Purchases` and `Manage Subscription` actions now exist on the same settings/paywall path as the StoreKit runtime.
 - Settings, FAQ, and terms copy must describe Coachi as free to download with optional monthly/yearly Premium subscriptions once billing surfaces exist in the app.
@@ -484,6 +494,7 @@ Main integrations:
 - StoreKit subscriptions, talk usage tracking, and paywall surfaces now exist in the main iOS runtime, while the app remains free to download and use in a free core mode.
 - Paywall and settings now expose reviewer-visible `Restore Purchases` and `Manage Subscription` actions on the same StoreKit path, which makes the premium flow easier to verify before App Store submission.
 - Settings now expose a real in-app delete-account flow on top of the existing `DELETE /auth/me` backend route, and sign-out returns the user to guest mode rather than forcing onboarding.
+- Launch docs now include an App Store Connect fill-in worksheet plus a Sandbox/TestFlight billing matrix, so the remaining paid-launch work is mainly external execution rather than missing repo guidance.
 - Dedicated workout welcome audio has been retired end-to-end; workouts now start directly on the normal coaching/event path, and stale welcome MP3s are pruned from bundle/manifests instead of lingering as hidden artifacts.
 - Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.
 
@@ -505,7 +516,7 @@ Main integrations:
 | Phase 1 | Onboarding keyboard/device polish | Validate the identity-step first-name / last-name experience on physical devices and remove any remaining keyboard lag or CTA overlap. |
 | Phase 1 | Launch ops smoke | Run `scripts/release_check.sh`, live voice smoke, and final landing/mail smoke once Render and production envs are confirmed live. |
 | Phase 2 | Targeted dead-code cleanup | Delete only verified dormant paths that reduce launch risk without introducing a second runtime architecture. |
-| Phase 2 | App Store Connect + billing validation | Complete App Store Connect subscription setup, review notes, Sandbox/TestFlight purchase validation, and final paid-app submission prep. |
+| Phase 2 | App Store Connect + billing validation | Fill in the new App Store Connect worksheet, run the Sandbox/TestFlight billing matrix on device, and submit the first subscriptions together with the app version. |
 | Phase 3 | Watch soak testing | Continue paired-device testing for `watchReady` <-> `watchInstalledNotReachable` transitions, delayed ACK behavior, and longer workout sessions. |
 | Phase 3 | Wake-word device validation | Repeat wake-word talk capture on physical devices and confirm the local speech-service churn stays suppressed after the suspend handoff change. |
 | Phase 4 | xAI live rollout validation | Validate deployed xAI live voice sessions, free/premium limits, fallback behavior, and session-duration policy with real accounts. |

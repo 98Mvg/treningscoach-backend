@@ -20,6 +20,10 @@ struct ProfileView: View {
     @State private var showingSignOutConfirmation = false
     @State private var showPaywall = false
 
+    private var isGuestMode: Bool {
+        appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -48,14 +52,18 @@ struct ProfileView: View {
             titleVisibility: .visible
         ) {
             Button(L10n.signOut, role: .destructive) {
-                authManager.signOut()
+                exitCurrentMode()
             }
             Button(L10n.current == .no ? "Avbryt" : "Cancel", role: .cancel) {}
         } message: {
             Text(
-                L10n.current == .no
-                    ? "Du kan logge inn igjen senere."
-                    : "You can sign in again later."
+                isGuestMode
+                    ? (L10n.current == .no
+                        ? "Du går tilbake til registrering eller innlogging."
+                        : "You will return to registration or sign-in.")
+                    : (L10n.current == .no
+                        ? "Du kan logge inn igjen senere."
+                        : "You can sign in again later.")
             )
         }
     }
@@ -271,24 +279,24 @@ struct ProfileView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L10n.current == .no ? "Oppgrader til Pro" : "Upgrade to Pro")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.92))
+                                .foregroundColor(CoachiTheme.textPrimary)
                             Text(L10n.current == .no ? "Ubegrenset coaching og analyse" : "Unlimited coaching & insights")
                                 .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Color.white.opacity(0.55))
+                                .foregroundColor(CoachiTheme.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.30))
+                            .foregroundColor(CoachiTheme.textTertiary)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
+                            .fill(CoachiTheme.surfaceElevated)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color(hex: "A5F3EC").opacity(0.20), lineWidth: 1)
+                                    .stroke(CoachiTheme.primary.opacity(0.18), lineWidth: 1)
                             )
                     )
                     .padding(.horizontal, 16)
@@ -336,7 +344,11 @@ struct ProfileView: View {
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color(hex: "A5F3EC").opacity(0.06))
+                            .fill(CoachiTheme.surfaceElevated)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color(hex: "A5F3EC").opacity(0.18), lineWidth: 1)
+                            )
                     )
 
                     HStack(spacing: 12) {
@@ -388,7 +400,7 @@ struct ProfileView: View {
 
     private var signOutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if authManager.isAuthenticated {
+            if authManager.isAuthenticated || isGuestMode {
                 Button {
                     showingSignOutConfirmation = true
                 } label: {
@@ -418,6 +430,14 @@ struct ProfileView: View {
                 .padding(.horizontal, 24)
         }
         .padding(.top, 28)
+    }
+
+    private func exitCurrentMode() {
+        let shouldResetOnboarding = isGuestMode
+        authManager.signOut()
+        if shouldResetOnboarding {
+            appViewModel.resetOnboarding()
+        }
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -588,6 +608,10 @@ private struct PersonalProfileSettingsView: View {
     @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
     @State private var showingSignOutConfirmation = false
 
+    private var isGuestMode: Bool {
+        appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
@@ -706,6 +730,13 @@ private struct PersonalProfileSettingsView: View {
                     .buttonStyle(.plain)
 
                     settingsDivider
+                }
+
+                if authManager.isAuthenticated || isGuestMode {
+                    if !authManager.isAuthenticated {
+                        sectionHeader(L10n.account)
+                        settingsDivider
+                    }
 
                     Button {
                         showingSignOutConfirmation = true
@@ -735,6 +766,19 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if authManager.isAuthenticated || isGuestMode {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSignOutConfirmation = true
+                    } label: {
+                        Text(L10n.signOut)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(CoachiTheme.danger)
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingBirthDateEditor) {
             BirthDateEditorSheet(
                 selectedDate: draftBirthDate,
@@ -751,14 +795,18 @@ private struct PersonalProfileSettingsView: View {
             titleVisibility: .visible
         ) {
             Button(L10n.signOut, role: .destructive) {
-                authManager.signOut()
+                exitCurrentMode()
             }
             Button(L10n.current == .no ? "Avbryt" : "Cancel", role: .cancel) {}
         } message: {
             Text(
-                L10n.current == .no
-                    ? "Du kan logge inn igjen senere."
-                    : "You can sign in again later."
+                isGuestMode
+                    ? (L10n.current == .no
+                        ? "Du går tilbake til registrering eller innlogging."
+                        : "You will return to registration or sign-in.")
+                    : (L10n.current == .no
+                        ? "Du kan logge inn igjen senere."
+                        : "You can sign in again later.")
             )
         }
     }
@@ -814,6 +862,14 @@ private struct PersonalProfileSettingsView: View {
         let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
         let age = max(14, min(95, years))
         UserDefaults.standard.set(age, forKey: "user_age")
+    }
+
+    private func exitCurrentMode() {
+        let shouldResetOnboarding = isGuestMode
+        authManager.signOut()
+        if shouldResetOnboarding {
+            appViewModel.resetOnboarding()
+        }
     }
 }
 

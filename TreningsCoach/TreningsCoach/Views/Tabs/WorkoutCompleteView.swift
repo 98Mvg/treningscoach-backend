@@ -21,7 +21,6 @@ struct WorkoutCompleteView: View {
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
     @State private var showLiveCoachVoice = false
-    @State private var showPaywall = false
     @State private var showShareOptions = false
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
@@ -64,6 +63,11 @@ struct WorkoutCompleteView: View {
     private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
     private var shareChooserTitle: String { L10n.current == .no ? "Del økten" : "Share workout" }
+    private var shareChooserSubtitle: String {
+        L10n.current == .no
+            ? "Velg hvor du vil dele kortet ditt."
+            : "Choose where you want to share your card."
+    }
     private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
@@ -203,23 +207,29 @@ struct WorkoutCompleteView: View {
                 userName: liveVoiceUserName
             )
         }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(context: .liveVoice)
-        }
-        .confirmationDialog(shareChooserTitle, isPresented: $showShareOptions, titleVisibility: .visible) {
-            Button("Instagram Story") {
-                shareToInstagramStory()
-            }
-            Button(L10n.current == .no ? "Del til Snapchat" : "Share to Snapchat") {
-                openGenericShareSheet(destination: "snapchat")
-            }
-            Button(L10n.current == .no ? "Del til TikTok" : "Share to TikTok") {
-                openGenericShareSheet(destination: "tiktok")
-            }
-            Button(L10n.current == .no ? "Kopier lenke" : "Copy Link") {
-                copyWorkoutLink()
-            }
-            Button(L10n.cancel, role: .cancel) {}
+        .sheet(isPresented: $showShareOptions) {
+            WorkoutShareDestinationsSheet(
+                title: shareChooserTitle,
+                subtitle: shareChooserSubtitle,
+                languageCode: L10n.current.rawValue,
+                onInstagram: {
+                    performShareSelection { shareToInstagramStory() }
+                },
+                onSnapchat: {
+                    performShareSelection { openGenericShareSheet(destination: "snapchat") }
+                },
+                onTikTok: {
+                    performShareSelection { openGenericShareSheet(destination: "tiktok") }
+                },
+                onX: {
+                    performShareSelection { openGenericShareSheet(destination: "x") }
+                },
+                onCopyLink: {
+                    performShareSelection { copyWorkoutLink() }
+                }
+            )
+            .presentationDetents([.height(330)])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showShareSheet) {
             WorkoutSummaryActivityShareSheet(activityItems: shareSheetItems)
@@ -246,11 +256,7 @@ struct WorkoutCompleteView: View {
                     metadata: metadata
                 )
             }
-            if subscriptionManager.isPremium {
-                showLiveCoachVoice = true
-            } else {
-                showPaywall = true
-            }
+            showLiveCoachVoice = true
         } label: {
             HStack(spacing: 9) {
                 Image(systemName: "mic.fill")
@@ -435,6 +441,13 @@ struct WorkoutCompleteView: View {
         }
     }
 
+    private func performShareSelection(_ action: @escaping () -> Void) {
+        showShareOptions = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            action()
+        }
+    }
+
     private func shareToInstagramStory() {
         guard let storyURL = URL(string: AppConfig.Share.instagramStoriesScheme),
               UIApplication.shared.canOpenURL(storyURL),
@@ -485,6 +498,127 @@ struct WorkoutCompleteView: View {
         renderer.scale = 1
         return renderer.uiImage
     }
+}
+
+private struct WorkoutShareDestinationsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let title: String
+    let subtitle: String
+    let languageCode: String
+    let onInstagram: () -> Void
+    let onSnapchat: () -> Void
+    let onTikTok: () -> Void
+    let onX: () -> Void
+    let onCopyLink: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Capsule()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 44, height: 5)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+
+            Text(title)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(CoachiTheme.textPrimary)
+
+            Text(subtitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(CoachiTheme.textSecondary)
+
+            HStack(spacing: 12) {
+                shareButton(label: "Instagram", accent: Color(hex: "E1306C"), icon: .camera) {
+                    onInstagram()
+                }
+                shareButton(label: "Snapchat", accent: Color(hex: "FFFC00"), icon: .snapchat) {
+                    onSnapchat()
+                }
+                shareButton(label: "TikTok", accent: Color.black, icon: .tiktok) {
+                    onTikTok()
+                }
+            }
+
+            HStack(spacing: 12) {
+                shareButton(label: "X", accent: Color.black, icon: .x) {
+                    onX()
+                }
+                shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link", accent: Color(hex: "4F46E5"), icon: .link) {
+                    onCopyLink()
+                }
+            }
+
+            Button(languageCode == "no" ? "Lukk" : "Close") {
+                dismiss()
+            }
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(CoachiTheme.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 4)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        .background(CoachiTheme.background)
+    }
+
+    @ViewBuilder
+    private func shareButton(label: String, accent: Color, icon: ShareDestinationIcon, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(accent.opacity(icon == .snapchat ? 0.92 : 1))
+                        .frame(width: 64, height: 64)
+                    shareIcon(for: icon)
+                }
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(CoachiTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func shareIcon(for icon: ShareDestinationIcon) -> some View {
+        switch icon {
+        case .camera:
+            Image(systemName: "camera.fill")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(Color.white)
+        case .snapchat:
+            Text("S")
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(Color.black)
+        case .tiktok:
+            Image(systemName: "music.note")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(Color.white)
+        case .x:
+            Text("X")
+                .font(.system(size: 24, weight: .black, design: .rounded))
+                .foregroundStyle(Color.white)
+        case .link:
+            Image(systemName: "link")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(Color.white)
+        }
+    }
+}
+
+private enum ShareDestinationIcon: Equatable {
+    case camera
+    case snapchat
+    case tiktok
+    case x
+    case link
 }
 
 private struct WorkoutSummaryShareCardView: View {

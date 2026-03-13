@@ -169,22 +169,42 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
     assert "dialSize: 124" not in text
 
 
-def test_workout_launch_moves_style_to_advanced_options() -> None:
+def test_workout_launch_surfaces_intensity_before_advanced_options() -> None:
     text = _workout_launch_view_text()
-    assert "launchSection(title: \"Step C\"" not in text
-    assert "Text(L10n.workoutIntensityTitle)" in text
-    assert "styleChip(.easy)" in text
-    assert "styleChip(.medium)" in text
-    assert "styleChip(.hard)" in text
+    assert 'launchSection(title: "Step B"' not in text
+    assert "Text(L10n.workoutIntensityPrompt)" in text
+    assert "intensityOptionCard(" in text
+    assert "title: L10n.workoutIntensityEasyDetail" in text
+    assert "title: L10n.workoutIntensityModerateDetail" in text
+    assert "title: L10n.workoutIntensityHardDetail" in text
     assert "Text(L10n.breathAnalysisTitle)" in text
-    assert "Use breathing mic cues" not in text
     assert "DisclosureGroup(" in text
 
 
-def test_workout_launch_shows_explicit_bpm_readout_when_watch_disconnected() -> None:
+def test_workout_launch_omits_step_b_input_sources_section() -> None:
     text = _workout_launch_view_text()
-    assert "Text(L10n.notConnected)" in text
-    assert "Text(viewModel.watchBPMDisplayText)" in text
+    assert "L10n.inputSources" not in text
+    assert 'Text("Apple Watch")' not in text
+    assert 'Image(systemName: "applewatch.side.right")' in text
+    assert 'let statusColor = connected ? Color.green : CoachiTheme.warning' in text
+    assert 'let statusTitle = connected' in text
+    assert 'return L10n.current == .no ? "Live puls ikke tilgjengelig" : "Live heart rate unavailable"' in text
+    assert 'return L10n.current == .no ? "Venter på puls" : "Awaiting heart rate"' in text
+    assert "return viewModel.watchBPMDisplayText" in text
+
+
+def test_performance_mode_chip_is_marked_pro() -> None:
+    text = _workout_launch_view_text()
+    chip_text = (
+        REPO_ROOT
+        / "TreningsCoach"
+        / "TreningsCoach"
+        / "Views"
+        / "Components"
+        / "PersonaChipView.swift"
+    ).read_text(encoding="utf-8")
+    assert "CoachPersonality.allCases" in text
+    assert 'Text("PRO")' in chip_text
 
 
 def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:

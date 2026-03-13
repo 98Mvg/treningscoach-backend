@@ -109,6 +109,26 @@ PREMIUM_SURFACES_ENABLED = _env_bool("PREMIUM_SURFACES_ENABLED", False)
 if APP_FREE_MODE:
     BILLING_ENABLED = False
     PREMIUM_SURFACES_ENABLED = False
+PREMIUM_TIER_OVERRIDE_USER_IDS = _env_csv_set(
+    "PREMIUM_TIER_OVERRIDE_USER_IDS",
+    ["734e8955-e4c0-4613-b72e-6b923a2a3f07"],
+)
+PREMIUM_TIER_OVERRIDE_EMAILS = [
+    email.strip().lower()
+    for email in _env_csv_set("PREMIUM_TIER_OVERRIDE_EMAILS", ["AI.Coachi@hotmail.com"])
+]
+
+
+def user_has_premium_override(*, user_id: str | None = None, email: str | None = None) -> bool:
+    normalized_user_id = str(user_id or "").strip()
+    if normalized_user_id and normalized_user_id in PREMIUM_TIER_OVERRIDE_USER_IDS:
+        return True
+
+    normalized_email = str(email or "").strip().lower()
+    if normalized_email and normalized_email in PREMIUM_TIER_OVERRIDE_EMAILS:
+        return True
+
+    return False
 
 # Launch integrations
 POSTHOG_ENABLED = _env_bool("POSTHOG_ENABLED", False)

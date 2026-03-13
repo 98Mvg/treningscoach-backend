@@ -2,6 +2,20 @@
 
 Use this as the starting point for the App Review notes field in App Store Connect.
 
+Replace the bracketed placeholders before submission:
+
+- `[APP_VERSION]`
+- `[BUILD_NUMBER]`
+- `[PREMIUM_GROUP_NAME]`
+
+## Suggested review note
+
+Coachi `[APP_VERSION]` (`[BUILD_NUMBER]`) is free to download and includes a free core workout experience. Premium is optional and is sold through one App Store subscription group (`[PREMIUM_GROUP_NAME]`) with monthly and yearly plans. No paywall interrupts an active workout.
+
+Reviewers can test the free experience without buying anything by completing onboarding and starting a workout as a free or guest user. Reviewers can test Premium by opening the visible paywall from profile/settings or the post-workout summary, and can use the in-app `Restore Purchases` and `Manage Subscription` actions if needed.
+
+If you want to test account-linked actions, Apple Sign-In and passwordless email are both supported. In-app account deletion is available from settings via `Delete account`.
+
 ## What reviewers should know
 
 - Coachi is free to download and has a free core workout experience.

@@ -6,7 +6,9 @@ Companion checklist:
 
 - `docs/checklists/phase1-security-review.md` for the 30-rule launch security review.
 - `docs/checklists/app-store-submission-checklist.md` for the App Store Connect and subscription submission checklist.
+- `docs/checklists/app-store-connect-fill-in-template.md` for the values you still need to enter manually in App Store Connect.
 - `docs/checklists/app-review-notes-template.md` for the reviewer instructions text.
+- `docs/checklists/subscription-sandbox-test-matrix.md` for the real-device Sandbox/TestFlight matrix.
 
 ## Required Production Environment
 

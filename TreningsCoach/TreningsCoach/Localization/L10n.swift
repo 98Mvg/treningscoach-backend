@@ -294,12 +294,17 @@ struct L10n {
 
     // MARK: - Workout Setup
     static var warmupTime: String { current == .no ? "Oppvarmingstid" : "Warm-up Time" }
-    static var inputSources: String { current == .no ? "Datakilder" : "Input sources" }
-    static var workoutIntensityTitle: String { current == .no ? "Treningsintensitet" : "Workout intensity" }
-    static var workoutIntensityDescription: String {
-        current == .no
-            ? "Du velger pulssonen og Coachen hjelper deg å holde riktig sone."
-            : "You choose the target zone and Coachi helps you stay in it."
+    static var workoutIntensityPrompt: String {
+        current == .no ? "Velg treningsintensitet" : "Choose your workout intensity"
+    }
+    static var workoutIntensityEasyDetail: String {
+        current == .no ? "Lett — avslappet tempo" : "Easy — relaxed pace"
+    }
+    static var workoutIntensityModerateDetail: String {
+        current == .no ? "Moderat — jevn innsats" : "Moderate — steady effort"
+    }
+    static var workoutIntensityHardDetail: String {
+        current == .no ? "Hard — press deg selv" : "Hard — push yourself"
     }
     static var breathAnalysisTitle: String { current == .no ? "Pusteanalyse" : "Breath analysis" }
     static var breathAnalysisSubtitle: String {
@@ -313,7 +318,7 @@ struct L10n {
     static var noWarmup: String { current == .no ? "Ingen" : "None" }
     static var skipWarmup: String { current == .no ? "HOPP OVER" : "SKIP" }
     static var intensityEasy: String { current == .no ? "Lett" : "Easy" }
-    static var intensityMedium: String { current == .no ? "Middels" : "Medium" }
+    static var intensityMedium: String { current == .no ? "Moderat" : "Moderate" }
     static var intensityHard: String { current == .no ? "Hard" : "Hard" }
     static var warmupEasyBPMCue: String {
         current == .no

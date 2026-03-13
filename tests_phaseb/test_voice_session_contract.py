@@ -435,6 +435,28 @@ def test_auth_me_includes_subscription_tier(monkeypatch):
             _delete_user(user_id)
 
 
+def test_auth_me_uses_configured_premium_override(monkeypatch):
+    monkeypatch.setattr(main.config, "AUTH_ME_RATE_LIMIT_PER_MINUTE", 60, raising=False)
+    monkeypatch.setattr(main.config, "PREMIUM_TIER_OVERRIDE_EMAILS", ["override@example.com"], raising=False)
+    client = main.app.test_client()
+
+    with main.app.app_context():
+        user = _create_user("override-tier", tier="free")
+        user_id = user.id
+        user.email = "override@example.com"
+        db.session.commit()
+        token = auth.create_jwt(user.id, user.email)
+
+    try:
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["user"]["subscription_tier"] == "premium"
+    finally:
+        with main.app.app_context():
+            _delete_user(user_id)
+
+
 def test_voice_telemetry_accepts_allowed_events(monkeypatch):
     monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
     calls = []

@@ -60,6 +60,9 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "subtitle: L10n.audioMaintenance" in text
     assert "confirmationDialog(" in text
     assert 'Text("\\(L10n.appVersionLabel) \\(AppConfig.version)")' in text
+    assert "private var isGuestMode: Bool" in text
+    assert "if authManager.isAuthenticated || isGuestMode" in text
+    assert "appViewModel.resetOnboarding()" in text
 
 
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
@@ -115,6 +118,13 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "Audio storage and sync: Cloudflare R2" in text
     assert "Coachi is free to download and includes a free version." in text
     assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
+    assert 'ToolbarItem(placement: .topBarTrailing)' in text
+    assert 'Text(L10n.signOut)' in text
+    assert 'Text(L10n.current == .no ? "Oppgrader til Pro" : "Upgrade to Pro")' in text
+    assert '.foregroundColor(CoachiTheme.textPrimary)' in text
+    assert '.foregroundColor(CoachiTheme.textSecondary)' in text
+    assert '.fill(CoachiTheme.surfaceElevated)' in text
+    assert 'Text(\n                isGuestMode' in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
