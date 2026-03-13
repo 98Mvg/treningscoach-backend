@@ -164,6 +164,15 @@ RISKS = [
 
 RECENT_SESSION_LEARNINGS = [
     (
+        "2026-03-13 - Subscription Reviewer Package And Launch Docs",
+        "docs/plans/2026-03-13-session-learnings-subscription-reviewer-package-and-launch-docs.md",
+        [
+            "Reviewer-visible `Restore Purchases` and `Manage Subscription` actions now exist on the same settings/paywall path as the StoreKit runtime.",
+            "Settings, FAQ, and terms copy must describe Coachi as free to download with optional monthly/yearly Premium subscriptions once billing surfaces exist in the app.",
+            "Launch docs now need an App Store Connect checklist and reusable App Review notes template, not just runtime env guidance.",
+        ],
+    ),
+    (
         "2026-03-13 - App Review Hardening And Subscription Truth",
         "docs/plans/2026-03-13-session-learnings-app-review-hardening-and-subscription-truth.md",
         [
@@ -243,6 +252,7 @@ CURRENT_STATUS = [
     "Post-workout xAI live voice with Rex is enabled by default, tier-limited, isolated from the continuous workout runtime, and hardened with startup timeout plus non-blocking close/failure cleanup.",
     "`Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), still falls back to the existing `/coach/talk` path, and no longer uses a mixer-unsafe playback format.",
     "StoreKit subscriptions, talk usage tracking, and paywall surfaces now exist in the main iOS runtime, while the app remains free to download and use in a free core mode.",
+    "Paywall and settings now expose reviewer-visible `Restore Purchases` and `Manage Subscription` actions on the same StoreKit path, which makes the premium flow easier to verify before App Store submission.",
     "Settings now expose a real in-app delete-account flow on top of the existing `DELETE /auth/me` backend route, and sign-out returns the user to guest mode rather than forcing onboarding.",
     "Dedicated workout welcome audio has been retired end-to-end; workouts now start directly on the normal coaching/event path, and stale welcome MP3s are pruned from bundle/manifests instead of lingering as hidden artifacts.",
     "Launch-ready Coachi settings, FAQ, support, privacy-policy, and terms surfaces are now live in SwiftUI and aligned with the docs under `docs/settings` and `docs/legal`.",
@@ -285,7 +295,7 @@ KNOWN_REMAINING_STEPS = [
     ("Phase 1", "Onboarding keyboard/device polish", "Validate the identity-step first-name / last-name experience on physical devices and remove any remaining keyboard lag or CTA overlap."),
     ("Phase 1", "Launch ops smoke", "Run `scripts/release_check.sh`, live voice smoke, and final landing/mail smoke once Render and production envs are confirmed live."),
     ("Phase 2", "Targeted dead-code cleanup", "Delete only verified dormant paths that reduce launch risk without introducing a second runtime architecture."),
-    ("Phase 2", "Subscription review hardening", "Finish App Store review-safe subscription work: guest-core access, in-app deletion, truthful settings/legal copy, restore/manage-subscription checks, and reviewer notes."),
+    ("Phase 2", "App Store Connect + billing validation", "Complete App Store Connect subscription setup, review notes, Sandbox/TestFlight purchase validation, and final paid-app submission prep."),
     ("Phase 3", "Watch soak testing", "Continue paired-device testing for `watchReady` <-> `watchInstalledNotReachable` transitions, delayed ACK behavior, and longer workout sessions."),
     ("Phase 3", "Wake-word device validation", "Repeat wake-word talk capture on physical devices and confirm the local speech-service churn stays suppressed after the suspend handoff change."),
     ("Phase 4", "xAI live rollout validation", "Validate deployed xAI live voice sessions, free/premium limits, fallback behavior, and session-duration policy with real accounts."),

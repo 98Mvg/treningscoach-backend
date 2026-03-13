@@ -23,13 +23,13 @@ Gratisversjonen gir deg en fullverdig grunnopplevelse med:
 - begrenset bruk av Talk to Coach
 
 ### Hva er inkludert i Premium?
-Coachi lanseres uten aktiv Premium-betaling. Hvis betalte funksjoner kommer senere, forklares de tydelig i appen før kjøp.
+Premium gir mer Coachi-verdi uten at gratisversjonen forsvinner. Når Premium er tilgjengelig i appen, kan det inkludere mer bruk av Talk to Coach, live voice, mer historikk, dypere innsikt og andre Premium-merkede funksjoner.
 
 ### Hvordan avslutter jeg abonnementet?
-Coachi har ingen aktiv abonnementsflyt i appen ved launch. Hvis betalte abonnement kommer senere via Apple, administreres de i App Store.
+Hvis du kjøper Premium gjennom Apple, administreres eller avsluttes abonnementet i App Store. I Coachi finner du også `Administrer abonnement` og `Gjenopprett kjøp` i innstillingene.
 
 ### Hvordan sletter jeg kontoen min?
-Åpne **Din profil > Konto > Slett konto** for veiledning og kontakt support på AI.Coachi@hotmail.com hvis du vil ha hjelp med sletting.
+Åpne **Din profil > Konto > Slett konto** for å slette kontoen din direkte i appen. Hvis du trenger hjelp, kan du fortsatt kontakte support på AI.Coachi@hotmail.com.
 
 ### Hvordan kontakter jeg support?
 Du kan kontakte oss på AI.Coachi@hotmail.com. Hvis du rapporterer et problem, hjelper det om du beskriver hva som skjedde, hvilken enhet du bruker, og gjerne legger ved skjermbilder.

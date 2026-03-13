@@ -5,6 +5,8 @@ Purpose: keep launch-critical environment setup and current product audit truth 
 Companion checklist:
 
 - `docs/checklists/phase1-security-review.md` for the 30-rule launch security review.
+- `docs/checklists/app-store-submission-checklist.md` for the App Store Connect and subscription submission checklist.
+- `docs/checklists/app-review-notes-template.md` for the reviewer instructions text.
 
 ## Required Production Environment
 
@@ -36,7 +38,11 @@ Before deploying to Render or any production-like environment:
    - `EMAIL_PROVIDER` (`auto`, `resend`, or `smtp`)
    - `EMAIL_FROM`
    - `RESEND_API_KEY` for Resend, or SMTP credentials for SMTP
-8. Keep `APP_FREE_MODE=true` and `BILLING_ENABLED=false` until premium boundaries are explicitly launched.
+8. For a free-core + optional Premium launch:
+   - set `APP_FREE_MODE=false`
+   - set `BILLING_ENABLED=true`
+   - set `PREMIUM_SURFACES_ENABLED=true`
+   - keep the free workout path reachable without purchase
 
 ## Live Voice Rollout Checklist
 
@@ -91,6 +97,27 @@ Important:
 
 - `CHECK_DAILY_LIMITS=true` consumes real daily live-voice quota for both tokens.
 - Use separate test accounts for free and premium smoke checks.
+
+## App Store + Premium Submission Checklist
+
+Use this when Coachi is submitted as a free app with optional monthly/yearly Premium.
+
+1. In App Store Connect, complete:
+   - Paid Apps Agreement
+   - tax information
+   - banking information
+2. Create one subscription group for Coachi Premium with:
+   - monthly plan
+   - yearly plan
+3. Confirm the app remains free to download and that the free core workout path is still usable without payment.
+4. Confirm premium surfaces are reviewer-visible in the app:
+   - `Upgrade to Premium`
+   - `Restore Purchases`
+   - `Manage Subscription`
+5. Confirm in-app account deletion works from settings on the existing `DELETE /auth/me` backend path.
+6. Test monthly and yearly purchases in Sandbox and TestFlight before submission.
+7. Submit the first subscriptions together with the app version.
+8. Paste the current reviewer instructions from `docs/checklists/app-review-notes-template.md` into the App Review notes field.
 
 ## Phrase Rotation Audit Truth
 

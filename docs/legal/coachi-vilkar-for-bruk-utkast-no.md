@@ -22,7 +22,7 @@ Noen deler av Coachi kan brukes uten konto. Andre funksjoner kan kreve innloggin
 Du er ansvarlig for at opplysningene du gir er riktige, og for å beskytte enheten og innloggingsinformasjonen din.
 
 ## 3. Abonnement og betaling
-Coachi lanseres i gratis modus. Hvis betalte abonnement blir introdusert senere, vises pris, vilkar, fornyelse og oppsigelse tydelig i appen for brukeren før kjøp.
+Coachi er gratis å laste ned og har en gratisversjon. Hvis Premium er aktiv i appen, kan den tilbys som månedlig eller årlig abonnement via Apple. Pris, vilkår, fornyelse og oppsigelse skal vises tydelig i appen før kjøp.
 
 Hvis kjøp skjer via App Store, håndteres betaling og oppsigelse i henhold til Apples systemer og vilkår.
 

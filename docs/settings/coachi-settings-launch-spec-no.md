@@ -9,6 +9,7 @@ Dette dokumentet beskriver en launch-klar settingsstruktur for Coachi. Det er sk
 - Premium skal presenteres som mer verdi, ikke som blokkering.
 - Juridiske sider skal være tilgjengelige og tydelige.
 - Teknisk vedlikehold av lydpakker skal ikke dominere hovedinnstillingene.
+- Abonnement, gjenopprett kjøp og administrer abonnement skal være tilgjengelig med ett trykk når Premium er aktiv.
 
 ## Anbefalt informasjonsarkitektur
 
@@ -52,6 +53,9 @@ Disse bør være synlige før launch:
 - Innlogging og konto
 - Logg ut
 - Slett konto
+- Abonnement
+- Administrer abonnement
+- Gjenopprett kjøp
 - Puls og sensorer
 - Coaching
 - Språk
@@ -65,9 +69,6 @@ Disse bør være synlige før launch:
 - Appversjon
 
 ## Sider som kan komme senere
-- Coachi Premium
-- Administrer abonnement
-- Gjenopprett kjøp
 - Stemmer
 - Eksporter data
 - Slett treningsdata som egen side
@@ -108,7 +109,7 @@ Disse bør være synlige før launch:
 
 #### Abonnement
 **Formål:** Presentere gratis vs Premium og kjøpsrelaterte handlinger.  
-**Synlighet:** Senere hvis Premium ikke er aktiv ved launch  
+**Synlighet:** Launch når Premium er aktiv i appen  
 **Backend:** Ja  
 **Tittel:** `Abonnement`  
 **Intro:** `Se hva som er inkludert i Coachi Premium, og administrer kjøp og abonnement.`
@@ -151,7 +152,7 @@ Disse bør være synlige før launch:
   - Hjelpetekst: `Coachi fortsetter med strukturert coaching selv uten puls.`
 
 #### Talk to Coach
-**Formål:** Forklare taleinteraksjon og fremtidig Premium-verdi.  
+**Formål:** Forklare taleinteraksjon og Premium-verdi når funksjonen er tilgjengelig.  
 **Synlighet:** Senere hvis funksjonen ikke er stabil nok  
 **Backend:** Ja  
 **Tittel:** `Talk to Coach`  
@@ -162,7 +163,7 @@ Disse bør være synlige før launch:
 - `Tilgjengelighet`
 - `Begrensninger`
 - `Premium`
-  - Hjelpetekst: `Mer bruk og flere funksjoner kan bli en del av Premium.`
+  - Hjelpetekst: `Mer bruk og flere funksjoner er en del av Premium når abonnement er aktivt.`
 
 ### Lyd og stemmer
 

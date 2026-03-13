@@ -11,6 +11,7 @@
 
 import Foundation
 import StoreKit
+import UIKit
 
 // MARK: - Subscription Status
 
@@ -37,6 +38,25 @@ final class SubscriptionManager: ObservableObject {
 
     var isPremium: Bool {
         status == .premium || status == .trial
+    }
+
+    var hasLoadedProducts: Bool {
+        !products.isEmpty
+    }
+
+    var currentPlanLabel: String {
+        switch status {
+        case .unknown:
+            return "Checking"
+        case .free:
+            return "Free"
+        case .trial:
+            return "Free Trial"
+        case .premium:
+            return "Premium"
+        case .expired:
+            return "Expired"
+        }
     }
 
     // MARK: - Private State
@@ -124,6 +144,13 @@ final class SubscriptionManager: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func manageSubscription() {
+        guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else {
+            return
+        }
+        UIApplication.shared.open(url)
     }
 
     // MARK: - Entitlement Verification

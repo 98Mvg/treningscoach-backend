@@ -1,6 +1,6 @@
 # Phase 1 Security Review Checklist
 
-Purpose: keep a concrete, launch-grade security checklist for the current iPhone-first product while premium, subscriptions, and broader platform support are still deferred.
+Purpose: keep a concrete, launch-grade security checklist for the current iPhone-first product while Premium, watch polish, and broader platform support continue to evolve.
 
 ## Authentication And Session
 

@@ -277,6 +277,10 @@ struct PaywallView: View {
 
     private var pricingSection: some View {
         VStack(spacing: 12) {
+            if subscriptionManager.isPremium {
+                currentPlanCard
+            }
+
             // Yearly (recommended)
             yearlyButton
             // Monthly
@@ -290,6 +294,35 @@ struct PaywallView: View {
             }
         }
         .padding(.bottom, 16)
+    }
+
+    private var currentPlanCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color(hex: "A5F3EC"))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(isNorwegian ? "Planen din er aktiv" : "Your plan is active")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                Text(subscriptionManager.currentPlanLabel)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.62))
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color(hex: "A5F3EC").opacity(0.20), lineWidth: 1)
+                )
+        )
     }
 
     private var hasIntroOffer: Bool {
@@ -411,14 +444,32 @@ struct PaywallView: View {
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(Color.white.opacity(0.55))
 
+            Button(isNorwegian ? "Administrer abonnement" : "Manage Subscription") {
+                trackPaywallEvent("paywall_manage_subscription_tapped", context: contextKey)
+                subscriptionManager.manageSubscription()
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Color.white.opacity(0.55))
+
             Text(
                 isNorwegian
-                    ? "Abonnementet fornyes automatisk. Avslutt når som helst i Innstillinger."
-                    : "Subscription renews automatically. Cancel anytime in Settings."
+                    ? "Abonnementet fornyes automatisk. Administrer eller avslutt når som helst i App Store."
+                    : "Subscription renews automatically. Manage or cancel anytime in the App Store."
             )
             .font(.system(size: 12, weight: .regular))
             .foregroundStyle(Color.white.opacity(0.38))
             .multilineTextAlignment(.center)
+
+            if !subscriptionManager.hasLoadedProducts {
+                Text(
+                    isNorwegian
+                        ? "Hvis prisene ikke vises ennå, prøv igjen eller bruk Gjenopprett kjøp når App Store er klar."
+                        : "If prices are not visible yet, try again or use Restore Purchases once the App Store is ready."
+                )
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.48))
+                .multilineTextAlignment(.center)
+            }
         }
         .padding(.top, 8)
     }

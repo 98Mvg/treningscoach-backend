@@ -256,7 +256,7 @@ struct ProfileView: View {
     }
 
     private var premiumSection: some View {
-        Group {
+        VStack(spacing: 12) {
             if !subscriptionManager.isPremium {
                 Button { showPaywall = true } label: {
                     HStack(spacing: 14) {
@@ -294,31 +294,96 @@ struct ProfileView: View {
                     .padding(.horizontal, 16)
                 }
                 .buttonStyle(.plain)
-            } else {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(hex: "A5F3EC").opacity(0.14))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Color(hex: "A5F3EC"))
+
+                HStack(spacing: 12) {
+                    premiumUtilityButton(
+                        title: L10n.current == .no ? "Gjenopprett kjøp" : "Restore Purchases",
+                        icon: "arrow.clockwise"
+                    ) {
+                        Task { await subscriptionManager.restorePurchases() }
                     }
-                    Text(L10n.current == .no ? "Coachi Pro aktiv" : "Coachi Pro Active")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(hex: "A5F3EC"))
-                    Spacer()
+
+                    premiumUtilityButton(
+                        title: L10n.current == .no ? "Administrer abonnement" : "Manage Subscription",
+                        icon: "creditcard"
+                    ) {
+                        subscriptionManager.manageSubscription()
+                    }
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(hex: "A5F3EC").opacity(0.06))
-                )
+                .padding(.horizontal, 16)
+            } else {
+                VStack(spacing: 12) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(hex: "A5F3EC").opacity(0.14))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(hex: "A5F3EC"))
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.current == .no ? "Coachi Pro aktiv" : "Coachi Pro Active")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color(hex: "A5F3EC"))
+                            Text(subscriptionManager.currentPlanLabel)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(hex: "A5F3EC").opacity(0.06))
+                    )
+
+                    HStack(spacing: 12) {
+                        premiumUtilityButton(
+                            title: L10n.current == .no ? "Administrer abonnement" : "Manage Subscription",
+                            icon: "creditcard"
+                        ) {
+                            subscriptionManager.manageSubscription()
+                        }
+
+                        premiumUtilityButton(
+                            title: L10n.current == .no ? "Gjenopprett kjøp" : "Restore Purchases",
+                            icon: "arrow.clockwise"
+                        ) {
+                            Task { await subscriptionManager.restorePurchases() }
+                        }
+                    }
+                }
                 .padding(.horizontal, 16)
             }
         }
         .padding(.top, 20)
+    }
+
+    private func premiumUtilityButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundColor(CoachiTheme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(CoachiTheme.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var signOutSection: some View {

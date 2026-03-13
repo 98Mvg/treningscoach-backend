@@ -55,5 +55,6 @@ def test_privacy_and_terms_docs_match_launch_safe_processors_and_billing_copy() 
     assert "lydlagring og innholdssynk: Cloudflare R2" in privacy
     assert "tekst-til-tale: ElevenLabs" in privacy
     assert "e-post og support: Resend eller konfigurert SMTP-leverandør" in privacy
-    assert "Coachi lanseres i gratis modus." in terms
+    assert "gratis å laste ned" in terms
+    assert "månedlig eller årlig abonnement" in terms
     assert "App Store" in terms
