@@ -13,6 +13,7 @@ import UIKit
 struct AuthView: View {
     @EnvironmentObject var authManager: AuthManager
     let onContinue: () -> Void
+    let onContinueWithoutAccount: () -> Void
 
     @FocusState private var focusedField: Field?
 
@@ -51,6 +52,10 @@ struct AuthView: View {
             && acceptedTerms
             && verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count == 6
             && !authManager.isLoading
+    }
+
+    private var canContinueWithoutAccount: Bool {
+        acceptedTerms && !authManager.isLoading
     }
 
     var body: some View {
@@ -168,8 +173,8 @@ struct AuthView: View {
 
             Text(
                 L10n.current == .no
-                    ? "Logg inn med Apple eller e-post for å fortsette"
-                    : "Sign in with Apple or email to continue"
+                    ? "Logg inn med Apple eller e-post for å lagre fremgangen din og låse opp Premium"
+                    : "Sign in with Apple or email to save your progress and unlock Premium"
             )
             .font(.body.weight(.medium))
             .foregroundColor(CoachiTheme.textSecondary)
@@ -317,6 +322,25 @@ struct AuthView: View {
                     }
                 }
             }
+
+            secondaryActionButton(
+                title: L10n.continueWithoutAccount,
+                disabled: !canContinueWithoutAccount
+            ) {
+                guard acceptedTerms else {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showTermsValidationError = true
+                    }
+                    return
+                }
+                hideKeyboard()
+                onContinueWithoutAccount()
+            }
+
+            Text(L10n.signInLaterHint)
+                .font(.footnote.weight(.medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(22)
         .frame(width: contentWidth, alignment: .leading)
@@ -455,6 +479,26 @@ struct AuthView: View {
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(disabled ? AnyShapeStyle(CoachiTheme.textTertiary.opacity(0.55)) : AnyShapeStyle(CoachiTheme.primaryGradient))
+        }
+        .disabled(disabled)
+    }
+
+    private func secondaryActionButton(title: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Spacer()
+                Text(title)
+                    .font(.headline.weight(.bold))
+                    .foregroundColor(disabled ? CoachiTheme.textSecondary : CoachiTheme.textPrimary)
+                Spacer()
+            }
+            .frame(height: 54)
+            .background(CoachiTheme.surfaceElevated.opacity(disabled ? 0.7 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
+            )
         }
         .disabled(disabled)
     }

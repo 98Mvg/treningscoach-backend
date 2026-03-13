@@ -265,8 +265,8 @@ def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
 def test_auth_view_matches_required_account_register_flow() -> None:
     text = AUTH_VIEW.read_text(encoding="utf-8")
     assert 'Text(L10n.current == .no ? "Velkommen" : "Welcome")' in text
-    assert "Sign in with Apple or email to continue" in text
-    assert "Logg inn med Apple eller e-post for å fortsette" in text
+    assert "Sign in with Apple or email to save your progress and unlock Premium" in text
+    assert "Logg inn med Apple eller e-post for å lagre fremgangen din og låse opp Premium" in text
     assert "L10n.registerWithApple" in text
     assert "L10n.registerWithGoogle" in text
     assert 'badge: L10n.current == .no ? "Kommer snart" : "Coming soon"' in text
@@ -276,6 +276,9 @@ def test_auth_view_matches_required_account_register_flow() -> None:
     assert "emailCodeRequested" in text
     assert "requestEmailSignInCode" in text
     assert "signInWithEmail(" in text
+    assert "secondaryActionButton(" in text
+    assert "L10n.continueWithoutAccount" in text
+    assert "Text(L10n.signInLaterHint)" in text
     assert "Password" not in text
     assert "Gjenta passordet" not in text
     assert "showPrivacySheet = true" in text

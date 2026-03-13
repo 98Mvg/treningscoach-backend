@@ -41,15 +41,21 @@ def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     assert "KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)" in text
     assert "let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()" in text
     assert "await BackendAPIService.shared.logout(refreshToken: refreshToken)" in text
+    assert "func deleteAccount() async -> String?" in text
+    assert "transitionToGuestMode()" in text
     assert 'httpResponse.statusCode == 404' in text
     assert 'AUTH_PROFILE stale_session=true status=404 action=sign_out' in text
     assert 'AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out' in text
     assert "signOut()" in text
+    assert 'UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")' not in text
 
 
 def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
     text = API.read_text(encoding="utf-8")
     assert "func refreshAuthTokenIfNeeded() async -> Bool" in text
+    assert "func deleteCurrentAccount() async throws" in text
+    assert '"\\(baseURL)/auth/me"' in text
+    assert 'request.httpMethod = "DELETE"' in text
     assert '"\\(baseURL)/auth/refresh"' in text
     assert "private func dataWithAuthRetry(for request: URLRequest)" in text
     assert "let refreshed = await refreshAuthTokenIfNeeded()" in text
@@ -65,12 +71,14 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "static var emailSignInEnabled: Bool" in config_text
     # AuthView now gates Google button behind the feature flag
     assert "if AppConfig.Auth.googleSignInEnabled {" in view_text
-    assert "Text(L10n.continueWithoutAccount)" not in view_text
-    assert "Text(L10n.signInLaterHint)" not in view_text
+    assert "secondaryActionButton(" in view_text
+    assert "title: L10n.continueWithoutAccount" in view_text
+    assert "Text(L10n.signInLaterHint)" in view_text
     assert "Text(L10n.accountRequiredHint)" in view_text
     assert "authBenefitRow(icon: \"chart.line.uptrend.xyaxis\", text: L10n.authBenefitSaveHistory)" in view_text
     assert "authBenefitRow(icon: \"person.crop.circle.badge.checkmark\", text: L10n.authBenefitSyncProfile)" in view_text
     assert "authBenefitRow(icon: \"envelope.badge\", text: L10n.authBenefitAppleOrEmail)" in view_text
+    assert "onContinueWithoutAccount()" in view_text
     assert "title: L10n.emailAddress" in view_text
     assert "title: L10n.emailCodeLabel" in view_text
     assert "await authManager.requestEmailSignInCode(email: normalizedEmail)" in view_text

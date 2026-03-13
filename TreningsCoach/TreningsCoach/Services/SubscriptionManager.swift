@@ -138,7 +138,7 @@ final class SubscriptionManager: ObservableObject {
             if let expirationDate = transaction.expirationDate {
                 if expirationDate > Date() {
                     // Active subscription — check if it is still in the trial period
-                    if let offerType = transaction.offerType, offerType == .introductoryOffer {
+                    if let offerType = transaction.offerType, offerType == .introductory {
                         newStatus = .trial
                     } else {
                         newStatus = .premium

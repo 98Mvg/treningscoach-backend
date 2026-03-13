@@ -1070,17 +1070,17 @@ private struct FAQView: View {
                 FAQItem(
                     id: "premium",
                     question: "Hva er inkludert i Premium?",
-                    answer: "Coachi lanseres uten aktiv Premium-betaling. Hvis betalte funksjoner kommer senere, forklares de tydelig i appen før kjøp."
+                    answer: "Premium låser opp mer av Coachi, som live voice, høyere grenser og andre abonnementsbaserte funksjoner. Når Premium er tilgjengelig i appen, kan du velge månedlig eller årlig abonnement."
                 ),
                 FAQItem(
                     id: "subscription",
                     question: "Hvordan avslutter jeg abonnementet?",
-                    answer: "Coachi har ingen aktiv abonnementsflyt i appen ved launch. Hvis betalte abonnement kommer senere via Apple, administreres de i App Store."
+                    answer: "Hvis du abonnerer gjennom Apple, administrerer eller avslutter du abonnementet i App Store-abonnementene dine. Gjenoppretting av kjøp gjøres i Coachi."
                 ),
                 FAQItem(
                     id: "delete",
                     question: "Hvordan sletter jeg kontoen min?",
-                    answer: "Åpne Slett konto i innstillinger for veiledning og kontakt support på \(coachiSupportEmail) hvis du vil ha hjelp med sletting."
+                    answer: "Åpne Slett konto i innstillinger for å slette kontoen direkte i appen. Kontakt \(coachiSupportEmail) hvis du trenger hjelp."
                 ),
                 FAQItem(
                     id: "support",
@@ -1114,17 +1114,17 @@ private struct FAQView: View {
             FAQItem(
                 id: "premium",
                 question: "What is included in Premium?",
-                answer: "Coachi launches without active Premium billing. If paid features arrive later, the app will explain them clearly before any purchase."
+                answer: "Premium unlocks deeper Coachi features like live voice, higher limits, and other subscription-linked features. When Premium is available in the app, you can choose a monthly or yearly subscription."
             ),
             FAQItem(
                 id: "subscription",
                 question: "How do I cancel my subscription?",
-                answer: "Coachi does not have an active in-app subscription flow at launch. If paid subscriptions arrive later through Apple, you will manage them in the App Store."
+                answer: "If you subscribe through Apple, you manage or cancel your subscription in your App Store subscriptions. Restore Purchases is available inside Coachi."
             ),
             FAQItem(
                 id: "delete",
                 question: "How do I delete my account?",
-                answer: "Open Delete account in settings for guidance, or contact support at \(coachiSupportEmail) if you need deletion help."
+                answer: "Open Delete account in settings to delete your account directly in the app. Contact \(coachiSupportEmail) if you need help."
             ),
             FAQItem(
                 id: "support",
@@ -1317,8 +1317,8 @@ struct TermsOfUseView: View {
                 SupportCard(
                     title: isNorwegian ? "Abonnement og betaling" : "Subscriptions and payment",
                     copyText: isNorwegian
-                        ? "Coachi lanseres i gratis modus. Hvis betalte abonnement blir introdusert senere, vises pris og vilkår tydelig i appen før kjøp, og Apple håndterer kjøp og oppsigelse."
-                        : "Coachi launches in free mode. If paid subscriptions are introduced later, pricing and terms will be shown clearly in the app before purchase, and Apple will handle purchase and cancellation."
+                        ? "Coachi er gratis å laste ned og bruke i en gratisversjon. Hvis Premium er tilgjengelig, kjøpes månedlig eller årlig abonnement gjennom Apple, og oppsigelse håndteres i App Store."
+                        : "Coachi is free to download and includes a free version. If Premium is available, monthly or yearly subscriptions are purchased through Apple, and cancellation is handled in the App Store."
                 )
 
                 SupportCard(
@@ -1376,8 +1376,12 @@ struct TermsOfUseView: View {
 }
 
 private struct DeleteAccountInfoView: View {
+    @EnvironmentObject var authManager: AuthManager
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     private var isNorwegian: Bool { L10n.current == .no }
+    @State private var showDeleteConfirmation = false
+    @State private var deleteErrorMessage: String?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1385,12 +1389,38 @@ private struct DeleteAccountInfoView: View {
                 SupportCard(
                     title: isNorwegian ? "Slett konto" : "Delete account",
                     copyText: isNorwegian
-                        ? "Hvis du vil slette Coachi-kontoen din, kan du bruke denne siden som veiviser og kontakte support for hjelp med sletting."
-                        : "If you want to delete your Coachi account, use this page for guidance and contact support if you want help with deletion."
+                        ? "Du kan slette Coachi-kontoen din direkte i appen. Dette sletter kontoen din og fjerner tilgangen til kontoavhengige funksjoner."
+                        : "You can delete your Coachi account directly in the app. This deletes your account and removes access to account-linked features."
                 )
 
                 SupportCard(
-                    title: isNorwegian ? "Support" : "Support",
+                    title: isNorwegian ? "Viktig å vite" : "Important to know",
+                    copyText: isNorwegian
+                        ? "Sletting av konto kan påvirke treningshistorikk, abonnementstilgang, lydinnstillinger og andre data som er knyttet til profilen din. Eventuelle Apple-abonnement må fortsatt administreres i App Store."
+                        : "Deleting your account can affect workout history, subscription access, audio settings, and other data connected to your profile. Any Apple subscriptions must still be managed in the App Store."
+                )
+
+                Button {
+                    showDeleteConfirmation = true
+                } label: {
+                    SettingsActionRow(
+                        icon: "trash",
+                        title: isNorwegian ? "Slett konto nå" : "Delete account now",
+                        tint: CoachiTheme.danger
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(authManager.isLoading)
+
+                if let deleteErrorMessage, !deleteErrorMessage.isEmpty {
+                    Text(deleteErrorMessage)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(CoachiTheme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                SupportCard(
+                    title: isNorwegian ? "Trenger du hjelp?" : "Need help?",
                     copyText: coachiSupportEmail
                 )
 
@@ -1399,18 +1429,11 @@ private struct DeleteAccountInfoView: View {
                 } label: {
                     SettingsActionRow(
                         icon: "envelope.badge",
-                        title: isNorwegian ? "Kontakt support om sletting" : "Contact support about deletion",
+                        title: isNorwegian ? "Kontakt support" : "Contact support",
                         tint: CoachiTheme.primary
                     )
                 }
                 .buttonStyle(.plain)
-
-                SupportCard(
-                    title: isNorwegian ? "Viktig å vite" : "Important to know",
-                    copyText: isNorwegian
-                        ? "Sletting av konto kan påvirke treningshistorikk, abonnement, lydinnstillinger og andre data som er knyttet til profilen din."
-                        : "Deleting your account can affect workout history, subscription access, audio settings, and other data connected to your profile."
-                )
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -1419,6 +1442,27 @@ private struct DeleteAccountInfoView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(isNorwegian ? "Slett konto" : "Delete account")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            isNorwegian ? "Slette kontoen din?" : "Delete your account?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(isNorwegian ? "Slett konto" : "Delete account", role: .destructive) {
+                Task {
+                    deleteErrorMessage = await authManager.deleteAccount()
+                    if deleteErrorMessage == nil {
+                        dismiss()
+                    }
+                }
+            }
+            Button(isNorwegian ? "Avbryt" : "Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                isNorwegian
+                    ? "Dette sletter Coachi-kontoen din. Eventuelle Apple-abonnement må fortsatt avsluttes i App Store."
+                    : "This deletes your Coachi account. Any Apple subscriptions must still be cancelled in the App Store."
+            )
+        }
     }
 
     private func openSupportEmail() {

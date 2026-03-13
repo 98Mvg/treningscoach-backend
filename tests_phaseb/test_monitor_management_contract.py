@@ -103,7 +103,8 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'URL(string: "mailto:\\(coachiSupportEmail)")' in text
     assert 'title: isNorwegian ? "Kontakt support" : "Contact support"' in text
     assert 'title: isNorwegian ? "Send e-post til support" : "Email support"' in text
-    assert 'title: isNorwegian ? "Kontakt support om sletting" : "Contact support about deletion"' in text
+    assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
+    assert "await authManager.deleteAccount()" in text
     assert "[SUPPORT_EMAIL]" not in text
     assert "[COMPANY_NAME]" not in text
     assert "[SUBSCRIPTION_DETAILS]" not in text
@@ -112,7 +113,7 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "Coachi\\nE-post: \\(coachiSupportEmail)\\nNettside: \\(coachiWebsiteURL)" in text
     assert "Hosting og drift: Render" in text
     assert "Audio storage and sync: Cloudflare R2" in text
-    assert "Coachi launches in free mode." in text
+    assert "Coachi is free to download and includes a free version." in text
     assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
 
 

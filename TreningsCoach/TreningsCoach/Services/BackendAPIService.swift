@@ -258,6 +258,23 @@ class BackendAPIService {
         }
     }
 
+    func deleteCurrentAccount() async throws {
+        let url = URL(string: "\(baseURL)/auth/me")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        addAuthHeader(to: &request)
+
+        let (data, response) = try await dataWithAuthRetry(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let errorResponse = try? jsonDecoder.decode(ErrorResponse.self, from: data)
+            throw APIError.serverError(message: errorResponse?.error ?? "Failed to delete account.")
+        }
+    }
+
     private func dataWithAuthRetry(for request: URLRequest) async throws -> (Data, URLResponse) {
         let (data, response) = try await session.data(for: request)
 

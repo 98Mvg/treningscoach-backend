@@ -13,6 +13,8 @@
 		AA0005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0004 /* Assets.xcassets */; };
 		AA0010 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0009 /* Models.swift */; };
 		AA0014 /* BackendAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0013 /* BackendAPIService.swift */; };
+		CC3001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3000 /* SubscriptionManager.swift */; };
+		CC3003 /* TalkUsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3002 /* TalkUsageTracker.swift */; };
 		CC2001 /* XAIRealtimeVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2000 /* XAIRealtimeVoiceService.swift */; };
 		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
 		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
@@ -66,6 +68,7 @@
 		BB0043 /* WorkoutCompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0042 /* WorkoutCompleteView.swift */; };
 		BB0045 /* WorkoutLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0044 /* WorkoutLaunchView.swift */; };
 		BB0047 /* LiveCoachConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0046 /* LiveCoachConversationView.swift */; };
+		BB0049 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0048 /* PaywallView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +103,8 @@
 		AA0004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		AA0013 /* BackendAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIService.swift; sourceTree = "<group>"; };
+		CC3000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		CC3002 /* TalkUsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkUsageTracker.swift; sourceTree = "<group>"; };
 		CC2000 /* XAIRealtimeVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAIRealtimeVoiceService.swift; sourceTree = "<group>"; };
 		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
 		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
@@ -157,6 +162,7 @@
 		BB0042 /* WorkoutCompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCompleteView.swift; sourceTree = "<group>"; };
 		BB0044 /* WorkoutLaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLaunchView.swift; sourceTree = "<group>"; };
 		BB0046 /* LiveCoachConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCoachConversationView.swift; sourceTree = "<group>"; };
+		BB0048 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -255,6 +261,8 @@
 			isa = PBXGroup;
 			children = (
 				AA0013 /* BackendAPIService.swift */,
+				CC3000 /* SubscriptionManager.swift */,
+				CC3002 /* TalkUsageTracker.swift */,
 				CC2000 /* XAIRealtimeVoiceService.swift */,
 				CC1000 /* PhoneWCManager.swift */,
 				AA0021 /* ContinuousRecordingManager.swift */,
@@ -307,6 +315,7 @@
 				BB0042 /* WorkoutCompleteView.swift */,
 				BB0044 /* WorkoutLaunchView.swift */,
 				BB0046 /* LiveCoachConversationView.swift */,
+				BB0048 /* PaywallView.swift */,
 			);
 			path = Tabs;
 			sourceTree = "<group>";
@@ -503,6 +512,8 @@
 				AA0001 /* TreningsCoachApp.swift in Sources */,
 				AA0010 /* Models.swift in Sources */,
 				AA0014 /* BackendAPIService.swift in Sources */,
+				CC3001 /* SubscriptionManager.swift in Sources */,
+				CC3003 /* TalkUsageTracker.swift in Sources */,
 				CC2001 /* XAIRealtimeVoiceService.swift in Sources */,
 				CC1001 /* PhoneWCManager.swift in Sources */,
 				CC1003 /* WCKeys.swift in Sources */,
@@ -549,6 +560,7 @@
 				BB0043 /* WorkoutCompleteView.swift in Sources */,
 				BB0045 /* WorkoutLaunchView.swift in Sources */,
 				BB0047 /* LiveCoachConversationView.swift in Sources */,
+				BB0049 /* PaywallView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

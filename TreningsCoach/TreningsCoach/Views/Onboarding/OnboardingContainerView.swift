@@ -3,7 +3,7 @@
 //  TreningsCoach
 //
 //  Full onboarding flow:
-//  Welcome -> Language -> Features -> Auth -> Profile -> HR setup -> Habits -> Summary -> Result
+//  Welcome -> Auth -> Profile -> explainer -> HR setup -> Habits -> Summary -> Result
 //  -> Sensor connect/no sensor -> Notifications -> Main app
 //
 
@@ -232,6 +232,8 @@ struct OnboardingContainerView: View {
 
                 case .auth:
                     AuthView {
+                        move(to: .identity)
+                    } onContinueWithoutAccount: {
                         move(to: .identity)
                     }
                     .transition(stepTransition)

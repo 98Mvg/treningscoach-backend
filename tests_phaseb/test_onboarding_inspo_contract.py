@@ -60,6 +60,7 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "primaryTitle: L10n.register" in text
     assert 'secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"' in text
     assert "move(to: .identity)" in text
+    assert "} onContinueWithoutAccount: {" in text
     assert "onBack: { move(to: .auth) }" in text
     assert "onContinue: { move(to: .dataPurpose) }" in text
     assert "onContinue: { move(to: .features) }" in text

@@ -149,8 +149,8 @@ struct L10n {
     }
     static var accountRequiredHint: String {
         current == .no
-            ? "Du trenger en konto for å fortsette i onboarding."
-            : "You need an account to continue onboarding."
+            ? "Du kan starte gratis uten konto og koble til senere for historikk og Premium."
+            : "You can start free without an account and connect later for history and Premium."
     }
     static var emailAddressInvalid: String {
         current == .no ? "Skriv inn en gyldig e-postadresse." : "Enter a valid email address."
@@ -205,8 +205,8 @@ struct L10n {
     static var continueWithoutAccount: String { current == .no ? "Fortsett uten konto" : "Continue without account" }
     static var signInLaterHint: String {
         current == .no
-            ? "Du kan starte gratis nå og koble til konto senere."
-            : "You can start free now and connect an account later."
+            ? "Gratisversjonen virker uten konto. Logg inn senere for historikk, gjenoppretting og Premium."
+            : "The free version works without an account. Sign in later for history, restore, and Premium."
     }
     static var startFreeBadge: String { current == .no ? "Start gratis" : "Start free" }
     static var accountRequiredBadge: String { current == .no ? "Konto kreves" : "Account required" }
@@ -218,7 +218,7 @@ struct L10n {
         current == .no ? "Synk profil og språk" : "Sync profile and language"
     }
     static var authBenefitAppleOrEmail: String {
-        current == .no ? "Fortsett med Apple eller e-post" : "Continue with Apple or email"
+        current == .no ? "Logg inn med Apple eller e-post når du vil lagre fremgangen din" : "Sign in with Apple or email when you want to save your progress"
     }
 
     // MARK: - Intensity

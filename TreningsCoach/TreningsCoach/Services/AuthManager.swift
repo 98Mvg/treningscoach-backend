@@ -146,7 +146,7 @@ class AuthManager: ObservableObject {
 
         guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
-            throw APIError.serverError("No authorization code received from Google.")
+            throw APIError.serverError(message: "No authorization code received from Google.")
         }
 
         // Exchange code for tokens via Google token endpoint
@@ -164,7 +164,7 @@ class AuthManager: ObservableObject {
         let (data, _) = try await URLSession.shared.data(for: tokenRequest)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let idToken = json["id_token"] as? String else {
-            throw APIError.serverError("Failed to exchange Google auth code for id_token.")
+            throw APIError.serverError(message: "Failed to exchange Google auth code for id_token.")
         }
 
         return idToken
@@ -288,15 +288,36 @@ class AuthManager: ObservableObject {
 
     func signOut() {
         let refreshToken = currentRefreshToken()
-        clearStoredTokens()
-        isAuthenticated = false
-        currentUser = nil
-        UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")
+        transitionToGuestMode()
         print("Signed out")
 
         guard let refreshToken, !refreshToken.isEmpty else { return }
         Task {
             await BackendAPIService.shared.logout(refreshToken: refreshToken)
+        }
+    }
+
+    func deleteAccount() async -> String? {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            try await BackendAPIService.shared.deleteCurrentAccount()
+            transitionToGuestMode()
+            print("AUTH_DELETE success=true action=guest_mode")
+            return nil
+        } catch {
+            let message: String
+            if let apiError = error as? APIError,
+               case .serverError(let backendMessage) = apiError {
+                message = backendMessage
+            } else {
+                message = "Could not delete account. Please try again."
+            }
+            errorMessage = message
+            print("AUTH_DELETE success=false reason=\(message)")
+            return message
         }
     }
 
@@ -644,6 +665,13 @@ class AuthManager: ObservableObject {
         KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
         KeychainHelper.delete(key: KeychainHelper.accessTokenExpiresAtKey)
         KeychainHelper.delete(key: KeychainHelper.refreshTokenExpiresAtKey)
+    }
+
+    private func transitionToGuestMode() {
+        clearStoredTokens()
+        isAuthenticated = false
+        currentUser = nil
+        errorMessage = nil
     }
 
     private func expiryTimestamp(for key: String) -> TimeInterval? {
