@@ -41,8 +41,11 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "sectionHeader(L10n.account)" in text
     assert "sectionHeader(L10n.coaching)" in text
     assert "sectionHeader(L10n.helpAndLegal)" in text
-    assert "title: L10n.helpAndSupport" in text
-    assert "SupportCenterView()" in text
+    assert "title: L10n.faqTitle" in text
+    assert "title: L10n.contactSupport" in text
+    assert "title: L10n.privacyPolicy" in text
+    assert "title: L10n.termsOfUse" in text
+    assert "SupportCenterView()" not in text
     assert "title: L10n.howCoachiWorks" in text
     assert "CoachingSettingsView()" in text
     assert "title: L10n.audioAndVoices" in text
@@ -82,11 +85,15 @@ def test_profile_faq_covers_launch_critical_questions() -> None:
 
 def test_profile_support_center_exposes_launch_critical_support_and_legal_surfaces() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
-    assert "private struct SupportCenterView: View" in text
+    assert "private struct SupportCenterView: View" not in text
     assert "private struct AboutCoachiView: View" in text
     assert "private struct CoachingSettingsView: View" in text
     assert "private struct AudioAndVoicesView: View" in text
     assert "private struct HistoryAndDataView: View" in text
+    assert 'icon: "questionmark.circle"' in text
+    assert 'icon: "headphones"' in text
+    assert 'icon: "hand.raised"' in text
+    assert 'icon: "doc.text"' in text
     assert "ContactSupportView()" in text
     assert "PrivacyPolicyView()" in text
     assert "TermsOfUseView()" in text
@@ -119,7 +126,18 @@ def test_manage_monitors_screen_matches_provider_list_contract() -> None:
     assert 'case withings = "Withings"' in text
     assert "navigationTitle(L10n.manageHeartRateMonitors)" in text
     assert "L10n.notConnected" in text
-    assert "if brand == .appleWatch" in text
+    assert 'title: L10n.current == .no ? "Gi Coachi tilgang til pulsdata" : "Give Coachi access to your heart-rate data"' in text
+    assert 'title: L10n.current == .no ? "Den er grei!" : "Sounds good!"' in text
+    assert "if isActionableMonitor(brand)" in text
+    assert "monitorRowContent(for: brand, showsChevron: false)" in text
+
+
+def test_health_profile_is_a_dedicated_surface_not_a_wrapper() -> None:
+    text = PROFILE_VIEW.read_text(encoding="utf-8")
+    assert "private struct HealthProfileView: View" in text
+    assert "PersonalProfileSettingsView()" not in text[text.index("private struct HealthProfileView: View"):text.index("private struct PersonalProfileSettingsView: View")]
+    assert 'title: L10n.healthProfile' in text
+    assert 'title: "\\(L10n.dateOfBirth): \\(birthDateDisplayLine)"' in text
 
 
 def test_localization_contains_monitor_and_coach_score_strings() -> None:

@@ -89,7 +89,85 @@ class AuthManager: ObservableObject {
     // MARK: - Google Sign-In
 
     func signInWithGoogle() async {
-        markUnsupportedProvider(label: L10n.registerWithGoogle)
+        guard AppConfig.Auth.googleSignInEnabled else {
+            markUnsupportedProvider(label: L10n.registerWithGoogle)
+            return
+        }
+        guard let clientID = AppConfig.Auth.googleClientID, !clientID.isEmpty else {
+            errorMessage = "Google Sign-In is not configured."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let idToken = try await performGoogleWebAuth(clientID: clientID)
+            let response = try await sendAuthRequest(provider: "google", body: ["id_token": idToken])
+            handleAuthSuccess(response)
+        } catch {
+            if !(error is CancellationError) {
+                errorMessage = localizedAuthError(provider: "google", error: error)
+            }
+        }
+        isLoading = false
+    }
+
+    /// Opens a Google OAuth consent screen via ASWebAuthenticationSession,
+    /// exchanges the auth code for tokens, and returns the id_token.
+    private func performGoogleWebAuth(clientID: String) async throws -> String {
+        let redirectURI = "com.googleusercontent.apps.\(clientID.components(separatedBy: ".").first ?? clientID):/oauthredirect"
+        let nonce = UUID().uuidString
+
+        var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "scope", value: "openid email profile"),
+            URLQueryItem(name: "nonce", value: nonce),
+        ]
+
+        guard let authURL = components.url else {
+            throw APIError.invalidURL
+        }
+
+        let callbackScheme = redirectURI.components(separatedBy: ":").first ?? ""
+        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+            let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: callbackScheme) { url, error in
+                if let error { continuation.resume(throwing: error); return }
+                guard let url else { continuation.resume(throwing: APIError.invalidResponse); return }
+                continuation.resume(returning: url)
+            }
+            session.prefersEphemeralWebBrowserSession = false
+            session.presentationContextProvider = GoogleAuthPresentationContext.shared
+            DispatchQueue.main.async { session.start() }
+        }
+
+        guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "code" })?.value else {
+            throw APIError.serverError("No authorization code received from Google.")
+        }
+
+        // Exchange code for tokens via Google token endpoint
+        var tokenRequest = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+        tokenRequest.httpMethod = "POST"
+        tokenRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let body = [
+            "code=\(code)",
+            "client_id=\(clientID)",
+            "redirect_uri=\(redirectURI)",
+            "grant_type=authorization_code",
+        ].joined(separator: "&")
+        tokenRequest.httpBody = body.data(using: .utf8)
+
+        let (data, _) = try await URLSession.shared.data(for: tokenRequest)
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let idToken = json["id_token"] as? String else {
+            throw APIError.serverError("Failed to exchange Google auth code for id_token.")
+        }
+
+        return idToken
     }
 
     // MARK: - Email Sign-In
@@ -687,5 +765,19 @@ private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerD
     ) {
         continuation?.resume(throwing: error)
         continuation = nil
+    }
+}
+
+// MARK: - Google Auth Presentation Context
+
+private final class GoogleAuthPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = GoogleAuthPresentationContext()
+
+    func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first(where: \.isKeyWindow) ?? scene.windows.first else {
+            return ASPresentationAnchor()
+        }
+        return window
     }
 }

@@ -48,6 +48,10 @@ def test_data_purpose_step_becomes_personalized_hello_page() -> None:
     text = _onboarding_text()
     assert 'return "Hello! \\(displayName)"' in text
     assert '"Let me first explain what we can do for you."' in text
+    assert 'Image("OnboardingBgOutdoor")' in text
+    assert 'let textWidth = max(0.0, min(contentWidth, layoutWidth < 390 ? 288.0 : 328.0))' in text
+    assert '.frame(width: textWidth, alignment: .leading)' in text
+    assert 'Text(L10n.current == .no ? "Neste" : "Next")' in text
     assert 'mode: .postAuthExplainer(displayName: formState.displayName)' in text
 
 

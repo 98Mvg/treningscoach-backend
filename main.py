@@ -4788,6 +4788,28 @@ def coach_talk():
 # ============================================
 # ERROR HANDLERS
 # ============================================
+# SUBSCRIPTION VALIDATION
+# ============================================
+
+@app.route('/subscription/validate', methods=['POST'])
+@require_mobile_auth
+def subscription_validate():
+    """Server-side subscription tier check.
+
+    Called by the iOS app after a StoreKit purchase to cross-validate,
+    and periodically to confirm entitlement state.
+
+    Returns: { "tier": "premium" | "free" }
+    """
+    user_id = getattr(g, "user_id", None)
+    if not user_id:
+        return jsonify({"tier": "free"}), 200
+
+    tier = resolve_user_subscription_tier(user_id)
+    return jsonify({"tier": tier}), 200
+
+
+# ============================================
 
 @app.errorhandler(404)
 def not_found(error):

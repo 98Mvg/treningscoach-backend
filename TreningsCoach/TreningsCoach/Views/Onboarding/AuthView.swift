@@ -21,6 +21,7 @@ struct AuthView: View {
     @State private var verificationCode = ""
     @State private var emailCodeRequested = false
     @State private var acceptedTerms = false
+    @State private var showTermsValidationError = false
     @State private var showTermsSheet = false
     @State private var showPrivacySheet = false
 
@@ -129,16 +130,22 @@ struct AuthView: View {
                 }
             }
         }
-        .onTapGesture {
-            hideKeyboard()
-        }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                hideKeyboard()
+            }
+        )
         .onAppear {
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
-            focusedField = .email
         }
         .onChange(of: normalizedEmail) { _, _ in
             verificationCode = ""
             emailCodeRequested = false
+        }
+        .onChange(of: acceptedTerms) { _, isAccepted in
+            if isAccepted {
+                showTermsValidationError = false
+            }
         }
         .sheet(isPresented: $showTermsSheet) {
             NavigationStack {
@@ -169,6 +176,26 @@ struct AuthView: View {
             .multilineTextAlignment(.center)
             .frame(width: contentWidth, alignment: .center)
             .fixedSize(horizontal: false, vertical: true)
+
+            Text(L10n.accountRequiredHint)
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(CoachiTheme.primary)
+                .multilineTextAlignment(.center)
+                .frame(width: contentWidth, alignment: .center)
+
+            VStack(alignment: .leading, spacing: 12) {
+                authBenefitRow(icon: "chart.line.uptrend.xyaxis", text: L10n.authBenefitSaveHistory)
+                authBenefitRow(icon: "person.crop.circle.badge.checkmark", text: L10n.authBenefitSyncProfile)
+                authBenefitRow(icon: "envelope.badge", text: L10n.authBenefitAppleOrEmail)
+            }
+            .padding(18)
+            .background(CoachiTheme.surface.opacity(0.96))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
+            )
+            .frame(width: contentWidth, alignment: .center)
         }
     }
 
@@ -176,8 +203,14 @@ struct AuthView: View {
         socialButton(
             title: L10n.registerWithApple,
             icon: .system("applelogo"),
-            disabled: !acceptedTerms || authManager.isLoading
+            disabled: authManager.isLoading
         ) {
+            guard acceptedTerms else {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showTermsValidationError = true
+                }
+                return
+            }
             Task {
                 let signedIn = await authManager.signInWithApple()
                 if signedIn {
@@ -188,12 +221,24 @@ struct AuthView: View {
     }
 
     private var googleButton: some View {
-        socialButton(
-            title: L10n.registerWithGoogle,
-            icon: .text("G"),
-            disabled: true,
-            badge: L10n.current == .no ? "Kommer snart" : "Coming soon"
-        ) {}
+        Group {
+            if AppConfig.Auth.googleSignInEnabled {
+                socialButton(
+                    title: L10n.registerWithGoogle,
+                    icon: .text("G"),
+                    disabled: authManager.isLoading
+                ) {
+                    Task { await authManager.signInWithGoogle() }
+                }
+            } else {
+                socialButton(
+                    title: L10n.registerWithGoogle,
+                    icon: .text("G"),
+                    disabled: true,
+                    badge: L10n.current == .no ? "Kommer snart" : "Coming soon"
+                ) {}
+            }
+        }
     }
 
     private func divider(contentWidth: CGFloat) -> some View {
@@ -319,6 +364,17 @@ struct AuthView: View {
                 .font(.footnote.weight(.bold))
                 .foregroundColor(CoachiTheme.primary)
             }
+
+            if showTermsValidationError {
+                Text(
+                    L10n.current == .no
+                        ? "Du maa godta vilkaarene foer du kan fortsette."
+                        : "You must accept the terms before you can continue."
+                )
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(CoachiTheme.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -413,6 +469,7 @@ struct AuthView: View {
         TextField(title, text: text)
             .font(.body.weight(.semibold))
             .foregroundColor(CoachiTheme.textPrimary)
+            .tint(CoachiTheme.textPrimary)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(keyboard)
@@ -436,6 +493,22 @@ struct AuthView: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
             )
+    }
+
+    private func authBenefitRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(CoachiTheme.primary)
+                .frame(width: 20)
+
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
     }
 
     private func hideKeyboard() {

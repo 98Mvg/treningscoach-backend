@@ -15,14 +15,17 @@ private let coachiPrivacyUpdatedEn = "March 10, 2026"
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     @Binding var selectedTab: TabItem
     @State private var showingSignOutConfirmation = false
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     profileSection
+                    premiumSection
                     signOutSection
                 }
                 .padding(.top, 12)
@@ -36,6 +39,9 @@ struct ProfileView: View {
             .navigationBarHidden(true)
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .general)
+        }
         .confirmationDialog(
             L10n.signOut,
             isPresented: $showingSignOutConfirmation,
@@ -198,16 +204,121 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
-                SupportCenterView()
+                FAQView()
             } label: {
                 SettingsListRow(
                     icon: "questionmark.circle",
-                    title: L10n.helpAndSupport,
-                    subtitle: L10n.current == .no ? "FAQ, support og juridisk" : "FAQ, support, and legal"
+                    title: L10n.faqTitle,
+                    subtitle: L10n.current == .no ? "Svar på de vanligste spørsmålene" : "Answers to the most common questions"
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider
+
+            NavigationLink {
+                ContactSupportView()
+            } label: {
+                SettingsListRow(
+                    icon: "headphones",
+                    title: L10n.contactSupport,
+                    subtitle: L10n.current == .no ? "Få hjelp direkte fra Coachi" : "Get help directly from Coachi"
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider
+
+            NavigationLink {
+                PrivacyPolicyView()
+            } label: {
+                SettingsListRow(
+                    icon: "hand.raised",
+                    title: L10n.privacyPolicy,
+                    subtitle: L10n.current == .no ? "Se hvordan data behandles" : "See how your data is handled"
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider
+
+            NavigationLink {
+                TermsOfUseView()
+            } label: {
+                SettingsListRow(
+                    icon: "doc.text",
+                    title: L10n.termsOfUse,
+                    subtitle: L10n.current == .no ? "Les vilkårene for bruk" : "Read the terms of use"
                 )
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private var premiumSection: some View {
+        Group {
+            if !subscriptionManager.isPremium {
+                Button { showPaywall = true } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(hex: "A5F3EC").opacity(0.14))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(hex: "A5F3EC"))
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.current == .no ? "Oppgrader til Pro" : "Upgrade to Pro")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.92))
+                            Text(L10n.current == .no ? "Ubegrenset coaching og analyse" : "Unlimited coaching & insights")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(Color.white.opacity(0.55))
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.30))
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.white.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color(hex: "A5F3EC").opacity(0.20), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 16)
+                }
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(hex: "A5F3EC").opacity(0.14))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color(hex: "A5F3EC"))
+                    }
+                    Text(L10n.current == .no ? "Coachi Pro aktiv" : "Coachi Pro Active")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(hex: "A5F3EC"))
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(hex: "A5F3EC").opacity(0.06))
+                )
+                .padding(.horizontal, 16)
+            }
+        }
+        .padding(.top, 20)
     }
 
     private var signOutSection: some View {
@@ -309,14 +420,96 @@ private struct SettingsListRow: View {
 
 private struct HealthProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var authManager: AuthManager
+    @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
+    @State private var showingBirthDateEditor = false
+    @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
 
     var body: some View {
-        PersonalProfileSettingsView()
-            .environmentObject(appViewModel)
-            .environmentObject(authManager)
-            .navigationTitle(L10n.healthProfile)
-            .navigationBarTitleDisplayMode(.inline)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: L10n.healthProfile,
+                    copyText: L10n.current == .no
+                        ? "Her ser du bare helseopplysninger Coachi bruker for a gi deg bedre coaching, uten unødvendige mellomsteg."
+                        : "This view shows only the health details Coachi uses for better coaching, without extra navigation."
+                )
+
+                VStack(spacing: 0) {
+                    Button {
+                        draftBirthDate = storedBirthDate
+                        showingBirthDateEditor = true
+                    } label: {
+                        SettingsListRow(
+                            icon: "calendar",
+                            title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    divider
+
+                    SettingsListRow(
+                        icon: "chart.bar.fill",
+                        title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
+                        trailingIcon: nil
+                    )
+                }
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.healthProfile)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingBirthDateEditor) {
+            BirthDateEditorSheet(
+                selectedDate: draftBirthDate,
+                minDate: minimumBirthDate,
+                maxDate: Date(),
+                onSave: persistBirthDate
+            )
+        }
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(CoachiTheme.borderSubtle.opacity(0.8))
+            .frame(height: 1)
+    }
+
+    private var minimumBirthDate: Date {
+        Calendar.current.date(byAdding: .year, value: -95, to: Date()) ?? Date()
+    }
+
+    private var fallbackBirthDate: Date {
+        Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
+    }
+
+    private var storedBirthDate: Date {
+        guard birthdateTimestamp > 0 else { return fallbackBirthDate }
+        return Date(timeIntervalSince1970: birthdateTimestamp)
+    }
+
+    private var birthDateDisplayLine: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateStyle = .medium
+        return formatter.string(from: storedBirthDate)
+    }
+
+    private func persistBirthDate(_ value: Date) {
+        let bounded = min(max(value, minimumBirthDate), Date())
+        birthdateTimestamp = bounded.timeIntervalSince1970
+        let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
+        let age = max(14, min(95, years))
+        UserDefaults.standard.set(age, forKey: "user_age")
     }
 }
 
@@ -556,62 +749,6 @@ private struct PersonalProfileSettingsView: View {
         let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
         let age = max(14, min(95, years))
         UserDefaults.standard.set(age, forKey: "user_age")
-    }
-}
-
-private struct SupportCenterView: View {
-    private var isNorwegian: Bool { L10n.current == .no }
-
-    var body: some View {
-        List {
-            Section {
-                Text(
-                    isNorwegian
-                        ? "Finn svar på vanlige spørsmål, kontakt support og les juridisk informasjon for Coachi."
-                        : "Find answers to common questions, contact support, and read Coachi's legal information."
-                )
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .padding(.vertical, 4)
-                .listRowBackground(CoachiTheme.bg)
-            }
-
-            Section {
-                NavigationLink {
-                    FAQView()
-                } label: {
-                    Label(L10n.faqTitle, systemImage: "questionmark.circle")
-                }
-
-                NavigationLink {
-                    ContactSupportView()
-                } label: {
-                    Label(L10n.contactSupport, systemImage: "envelope")
-                }
-            } header: {
-                Text(L10n.helpAndSupport)
-            }
-
-            Section {
-                NavigationLink {
-                    PrivacyPolicyView()
-                } label: {
-                    Label(L10n.privacyPolicy, systemImage: "hand.raised")
-                }
-
-                NavigationLink {
-                    TermsOfUseView()
-                } label: {
-                    Label(L10n.termsOfUse, systemImage: "doc.text")
-                }
-            } header: {
-                Text(L10n.legal)
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(CoachiTheme.bg.ignoresSafeArea())
-        .navigationTitle(L10n.helpAndSupport)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -883,27 +1020,12 @@ private struct HistoryAndDataView: View {
                         : "Coachi uses data to deliver coaching, store workouts, keep the service stable, and give you insight into your training. Company details will be filled in later."
                 )
 
-                NavigationLink {
-                    PrivacyPolicyView()
-                } label: {
-                    SettingsCardRow(
-                        icon: "hand.raised",
-                        title: L10n.privacyPolicy,
-                        subtitle: isNorwegian ? "Les hvordan data behandles i Coachi" : "Read how data is handled in Coachi"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    TermsOfUseView()
-                } label: {
-                    SettingsCardRow(
-                        icon: "doc.text",
-                        title: L10n.termsOfUse,
-                        subtitle: isNorwegian ? "Les vilkårene som gjelder for bruk av appen" : "Read the terms that apply when you use the app"
-                    )
-                }
-                .buttonStyle(.plain)
+                SupportCard(
+                    title: L10n.current == .no ? "Juridisk og personvern" : "Legal and privacy",
+                    copyText: isNorwegian
+                        ? "Personvern og vilkår er tilgjengelig direkte fra hovedinnstillingene, slik at du slipper ekstra trykk her."
+                        : "Privacy policy and terms are available directly from the main settings screen, so you do not need extra taps here."
+                )
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -1459,6 +1581,26 @@ struct HeartRateMonitorsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    SupportCard(
+                        title: L10n.current == .no ? "Gi Coachi tilgang til pulsdata" : "Give Coachi access to your heart-rate data",
+                        copyText: L10n.current == .no
+                            ? "Trykk én gang for å oppdatere Apple Health og sensorer. Coachi bruker dette for live coaching når puls er tilgjengelig."
+                            : "Tap once to refresh Apple Health and sensor access. Coachi uses this for live coaching when heart rate is available."
+                    )
+
+                    Button {
+                        workoutViewModel.refreshHealthSensors()
+                    } label: {
+                        SettingsActionRow(
+                            icon: "heart.fill",
+                            title: L10n.current == .no ? "Den er grei!" : "Sounds good!",
+                            tint: CoachiTheme.primary
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 Text(L10n.liveCoachingSourceHint)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(CoachiTheme.textPrimary)
@@ -1503,37 +1645,16 @@ struct HeartRateMonitorsView: View {
     private func monitorRows(for brands: [MonitorBrand]) -> some View {
         VStack(spacing: 0) {
             ForEach(brands) { brand in
-                Button {
-                    if brand == .appleWatch || brand == .bluetoothSensor {
+                if isActionableMonitor(brand) {
+                    Button {
                         workoutViewModel.refreshHealthSensors()
+                    } label: {
+                        monitorRowContent(for: brand, showsChevron: true)
                     }
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(brand.rawValue)
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textPrimary)
-
-                            Text(brand.capability)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Text(statusText(for: brand))
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                } else {
+                    monitorRowContent(for: brand, showsChevron: false)
                 }
-                .buttonStyle(.plain)
 
                 if brand != brands.last {
                     Rectangle()
@@ -1545,6 +1666,40 @@ struct HeartRateMonitorsView: View {
         }
         .background(CoachiTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func monitorRowContent(for brand: MonitorBrand, showsChevron: Bool) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(brand.rawValue)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                Text(brand.capability)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            Spacer()
+
+            Text(statusText(for: brand))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+    }
+
+    private func isActionableMonitor(_ brand: MonitorBrand) -> Bool {
+        brand == .appleWatch || brand == .bluetoothSensor
     }
 
     private func statusText(for brand: MonitorBrand) -> String {

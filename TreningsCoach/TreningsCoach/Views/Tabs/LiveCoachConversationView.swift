@@ -474,6 +474,9 @@ private struct TextCoachMessage: Identifiable {
 
 struct PostWorkoutTextCoachView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var authManager: AuthManager
+    @ObservedObject private var usageTracker = TalkUsageTracker.shared
 
     let summaryContext: PostWorkoutSummaryContext
     let languageCode: String
@@ -483,6 +486,56 @@ struct PostWorkoutTextCoachView: View {
     @State private var isSending = false
     @State private var errorMessage: String?
     @State private var messages: [TextCoachMessage] = []
+    @State private var sessionQuestionsUsed = 0
+    @State private var showPaywall = false
+
+    private var isFreeUsageLimitReached: Bool {
+        guard authManager.productFlags.billingEnabled else { return false }
+        return !TalkUsageTracker.shared.canAsk(
+            sessionUsed: sessionQuestionsUsed,
+            isPremium: subscriptionManager.isPremium
+        )
+    }
+
+    private var remainingToday: Int {
+        usageTracker.remainingToday(isPremium: subscriptionManager.isPremium) ?? Int.max
+    }
+
+    private var showRemainingHint: Bool {
+        guard authManager.productFlags.billingEnabled, !subscriptionManager.isPremium else { return false }
+        guard !isFreeUsageLimitReached else { return false }
+        return remainingToday <= 2
+    }
+
+    @ViewBuilder
+    private var remainingHintBanner: some View {
+        if showRemainingHint {
+            let isLast = remainingToday == 1
+            HStack(spacing: 8) {
+                Image(systemName: isLast ? "exclamationmark.circle.fill" : "info.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isLast ? Color.orange.opacity(0.90) : Color(hex: "A5F3EC").opacity(0.80))
+                Text(remainingHintText)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isLast ? Color.orange.opacity(0.90) : Color.white.opacity(0.62))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
+    }
+
+    private var remainingHintText: String {
+        let n = remainingToday
+        if languageCode == "no" {
+            return n == 1
+                ? "Coach-spørsmål igjen i dag: 1"
+                : "Coach-spørsmål igjen i dag: \(n)"
+        } else {
+            return n == 1
+                ? "Coach questions remaining today: 1"
+                : "Coach questions remaining today: \(n)"
+        }
+    }
 
     private var latestShareInsight: String? {
         let assistantText = messages.reversed().first(where: { $0.role == .assistant })?.text
@@ -530,26 +583,33 @@ struct PostWorkoutTextCoachView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    TextField(
-                        languageCode == "no" ? "Still et oppfolgingssporsmal" : "Ask a follow-up question",
-                        text: $draft,
-                        axis: .vertical
-                    )
-                    .textFieldStyle(.plain)
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color.white.opacity(0.08))
-                    )
-
-                    Button(isSending ? "..." : (languageCode == "no" ? "Send" : "Send")) {
-                        Task {
-                            await sendQuestion()
-                        }
+                if isFreeUsageLimitReached {
+                    LockedCoachCard(languageCode: languageCode) {
+                        showPaywall = true
                     }
-                    .buttonStyle(LiveVoicePrimaryButtonStyle())
-                    .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                } else {
+                    remainingHintBanner
+                    HStack(alignment: .bottom, spacing: 10) {
+                        TextField(
+                            languageCode == "no" ? "Still et oppfolgingssporsmal" : "Ask a follow-up question",
+                            text: $draft,
+                            axis: .vertical
+                        )
+                        .textFieldStyle(.plain)
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
+                        Button(isSending ? "..." : (languageCode == "no" ? "Send" : "Send")) {
+                            Task {
+                                await sendQuestion()
+                            }
+                        }
+                        .buttonStyle(LiveVoicePrimaryButtonStyle())
+                        .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                 }
             }
             .padding(20)
@@ -563,6 +623,10 @@ struct PostWorkoutTextCoachView: View {
                     }
                     .foregroundStyle(Color.white.opacity(0.92))
                 }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(context: .talkLimit)
+                    .environmentObject(subscriptionManager)
             }
         }
     }
@@ -607,6 +671,8 @@ struct PostWorkoutTextCoachView: View {
                 triggerSource: "button"
             )
             messages.append(TextCoachMessage(role: .assistant, text: response.text))
+            TalkUsageTracker.shared.recordQuestion()
+            sessionQuestionsUsed += 1
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -9,6 +9,19 @@
 import SwiftUI
 import UIKit
 
+private enum StoryPresentationStyle {
+    case intro
+    case showcase
+}
+
+private enum StoryPreviewKind {
+    case none
+    case fitnessAgePrompt
+    case fitnessAgeExample
+    case activityQuotient
+    case deviceSupport
+}
+
 private struct IntroStoryPage {
     let imageName: String
     let icon: String
@@ -22,6 +35,8 @@ private struct IntroStoryPage {
     let supplementalBodyEn: String?
     let deviceTags: [String]
     let showsCoachScoreCard: Bool
+    let presentationStyle: StoryPresentationStyle
+    let previewKind: StoryPreviewKind
 
     func title(for language: AppLanguage) -> String {
         language == .no ? titleNo : titleEn
@@ -79,7 +94,9 @@ struct FeaturesPageView: View {
             supplementalBodyNo: nil,
             supplementalBodyEn: nil,
             deviceTags: [],
-            showsCoachScoreCard: false
+            showsCoachScoreCard: false,
+            presentationStyle: .intro,
+            previewKind: .none
         ),
         IntroStoryPage(
             imageName: "IntroStory2",
@@ -93,7 +110,9 @@ struct FeaturesPageView: View {
             supplementalBodyNo: nil,
             supplementalBodyEn: nil,
             deviceTags: [],
-            showsCoachScoreCard: true
+            showsCoachScoreCard: true,
+            presentationStyle: .intro,
+            previewKind: .none
         ),
         IntroStoryPage(
             imageName: "IntroStory3",
@@ -107,7 +126,9 @@ struct FeaturesPageView: View {
             supplementalBodyNo: nil,
             supplementalBodyEn: nil,
             deviceTags: [],
-            showsCoachScoreCard: false
+            showsCoachScoreCard: false,
+            presentationStyle: .intro,
+            previewKind: .none
         ),
         IntroStoryPage(
             imageName: "IntroStory4",
@@ -121,7 +142,9 @@ struct FeaturesPageView: View {
             supplementalBodyNo: "Alt i orden! Du kan bli coachet pa pustanalyse.",
             supplementalBodyEn: "That is okay. Coachi can still guide you with breath analysis.",
             deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
-            showsCoachScoreCard: false
+            showsCoachScoreCard: false,
+            presentationStyle: .intro,
+            previewKind: .none
         ),
     ]
 
@@ -147,7 +170,6 @@ struct FeaturesPageView: View {
             let topSpacing: CGFloat = max(renderHeight * 0.22, safeAreaInsets.top + 28)
             let bottomInset: CGFloat = max(22, safeAreaInsets.bottom + 8)
             let needsVerticalScroll = renderHeight < 730 || dynamicTypeSize.isAccessibilitySize
-            let introCardTopSpacing: CGFloat = topSpacing
 
             ZStack {
                 Image(activePage.imageName)
@@ -191,7 +213,7 @@ struct FeaturesPageView: View {
                             cardSideInset: cardSideInset,
                             cardContentInset: cardContentInset,
                             ctaSideInset: ctaSideInset,
-                            topSpacing: introCardTopSpacing,
+                            topSpacing: topSpacing,
                             bottomInset: bottomInset
                         )
                         .frame(maxWidth: .infinity, alignment: .top)
@@ -206,7 +228,7 @@ struct FeaturesPageView: View {
                         cardSideInset: cardSideInset,
                         cardContentInset: cardContentInset,
                         ctaSideInset: ctaSideInset,
-                        topSpacing: introCardTopSpacing,
+                        topSpacing: topSpacing,
                         bottomInset: bottomInset
                     )
                     .frame(width: layoutWidth, height: renderHeight, alignment: .top)
@@ -215,11 +237,11 @@ struct FeaturesPageView: View {
             .frame(width: layoutWidth, height: renderHeight, alignment: .top)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .contentShape(Rectangle())
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 24).onEnded { value in
                     let horizontal = value.translation.width
                     let vertical = value.translation.height
-                        guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
+                    guard abs(horizontal) > abs(vertical), abs(horizontal) > 44 else { return }
 
                     if horizontal < 0 {
                         guard currentPage < pages.count - 1 else { return }
@@ -237,7 +259,12 @@ struct FeaturesPageView: View {
         }
         .ignoresSafeArea(edges: [.top, .bottom])
         .onAppear {
-            startAutoAdvance()
+            if case .intro = mode {
+                startAutoAdvance()
+            } else {
+                autoAdvanceTask?.cancel()
+                autoAdvanceTask = nil
+            }
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
@@ -249,6 +276,40 @@ struct FeaturesPageView: View {
         cardWidth: CGFloat,
         textWidth: CGFloat,
         isNarrow: Bool,
+        cardSideInset: CGFloat,
+        cardContentInset: CGFloat,
+        ctaSideInset: CGFloat,
+        topSpacing: CGFloat,
+        bottomInset: CGFloat
+    ) -> some View {
+        Group {
+            if activePage.presentationStyle == .intro {
+                introContent(
+                    cardWidth: cardWidth,
+                    textWidth: textWidth,
+                    cardSideInset: cardSideInset,
+                    cardContentInset: cardContentInset,
+                    ctaSideInset: ctaSideInset,
+                    topSpacing: topSpacing,
+                    bottomInset: bottomInset
+                )
+            } else {
+                showcaseContent(
+                    cardWidth: cardWidth,
+                    textWidth: textWidth,
+                    isNarrow: isNarrow,
+                    cardSideInset: cardSideInset,
+                    ctaSideInset: ctaSideInset,
+                    topSpacing: topSpacing,
+                    bottomInset: bottomInset
+                )
+            }
+        }
+    }
+
+    private func introContent(
+        cardWidth: CGFloat,
+        textWidth: CGFloat,
         cardSideInset: CGFloat,
         cardContentInset: CGFloat,
         ctaSideInset: CGFloat,
@@ -272,7 +333,7 @@ struct FeaturesPageView: View {
                 .clipShape(Capsule())
 
                 Text(activePage.title(for: L10n.current))
-                    .font(.system(size: isNarrow ? 30 : 32, weight: .bold, design: .default))
+                    .font(.system(size: 32, weight: .bold, design: .default))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.leading)
                     .lineLimit(nil)
@@ -281,7 +342,7 @@ struct FeaturesPageView: View {
                     .layoutPriority(1)
 
                 Text(activePage.body(for: L10n.current))
-                    .font(.system(size: isNarrow ? 15 : 16, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white.opacity(0.92))
                     .lineSpacing(2.5)
                     .multilineTextAlignment(.leading)
@@ -391,6 +452,79 @@ struct FeaturesPageView: View {
         }
     }
 
+    private func showcaseContent(
+        cardWidth: CGFloat,
+        textWidth: CGFloat,
+        isNarrow: Bool,
+        cardSideInset: CGFloat,
+        ctaSideInset: CGFloat,
+        topSpacing: CGFloat,
+        bottomInset: CGFloat
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: max(topSpacing - 16, 120))
+
+            VStack(alignment: .leading, spacing: 22) {
+                Text(activePage.title(for: L10n.current))
+                    .font(.system(size: isNarrow ? 31 : 34, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineSpacing(3)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: min(textWidth, 340), alignment: .leading)
+
+                if !activePage.body(for: L10n.current).isEmpty {
+                    Text(activePage.body(for: L10n.current))
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.white.opacity(0.9))
+                        .frame(maxWidth: min(textWidth, 320), alignment: .leading)
+                }
+
+                showcasePreviewCard(width: min(cardWidth, isNarrow ? 320 : 360))
+                    .padding(.top, 6)
+            }
+            .padding(.horizontal, cardSideInset)
+
+            Spacer(minLength: 16)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 18) {
+                Button(action: showcaseSecondaryAction) {
+                    Image(systemName: "chevron.left")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(CoachiTheme.primary)
+                        .frame(width: 74, height: 74)
+                        .background(Color.white.opacity(0.97))
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(CoachiTheme.primary.opacity(0.85), lineWidth: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 12)
+
+                Button(action: showcasePrimaryAction) {
+                    HStack(spacing: 14) {
+                        Text(showcasePrimaryTitle)
+                            .font(.title3.weight(.bold))
+                        Image(systemName: "chevron.right")
+                            .font(.title3.weight(.bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .frame(height: 74)
+                    .background(CoachiTheme.primaryGradient.opacity(0.96))
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, ctaSideInset)
+            .padding(.top, 10)
+            .padding(.bottom, bottomInset)
+        }
+    }
+
     private func startAutoAdvance() {
         autoAdvanceTask?.cancel()
         autoAdvanceTask = Task {
@@ -406,69 +540,121 @@ struct FeaturesPageView: View {
         }
     }
 
-    private func postAuthPages(displayName: String) -> [IntroStoryPage] {
-        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? (L10n.current == .no ? "deg" : "you")
-            : displayName
-
-        return [
+    private func postAuthPages(displayName _: String) -> [IntroStoryPage] {
+        [
             IntroStoryPage(
-                imageName: "IntroStory1",
+                imageName: "OnboardingBgOutdoor",
                 icon: "figure.run",
-                titleNo: "Vi guider \(name) gjennom oekten",
-                titleEn: "We guide \(name) through the workout",
-                bodyNo: "Coachi hjelper deg med intervaller, rolige turer og tydelige overganger uten at du trenger aa stirre paa skjermen.",
-                bodyEn: "Coachi helps with intervals, easy runs, and clear transitions without making you stare at the screen.",
+                titleNo: "La oss starte med å bli litt bedre kjent med deg og regne ut kondisjonsalderen din.",
+                titleEn: "Let's start by getting to know you a little better and estimate your fitness age.",
+                bodyNo: "",
+                bodyEn: "",
                 supplementalTitleNo: nil,
                 supplementalTitleEn: nil,
                 supplementalBodyNo: nil,
                 supplementalBodyEn: nil,
                 deviceTags: [],
-                showsCoachScoreCard: false
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .fitnessAgePrompt
             ),
             IntroStoryPage(
-                imageName: "IntroStory2",
+                imageName: "OnboardingBgOutdoor",
                 icon: "chart.line.uptrend.xyaxis",
-                titleNo: "Etter hver oekt ser du fremgang",
-                titleEn: "After every workout you see progress",
-                bodyNo: "CoachScore oppsummerer kontroll, flyt og gjennomfoering i ett enkelt tall du kan bygge videre paa.",
-                bodyEn: "CoachScore summarizes control, flow, and execution in one simple score you can build on.",
+                titleNo: "Vi kan finne ut hvor gammel kroppen din faktisk er.",
+                titleEn: "We can estimate how old your body really feels.",
+                bodyNo: "",
+                bodyEn: "",
                 supplementalTitleNo: nil,
                 supplementalTitleEn: nil,
                 supplementalBodyNo: nil,
                 supplementalBodyEn: nil,
                 deviceTags: [],
-                showsCoachScoreCard: true
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .fitnessAgeExample
             ),
             IntroStoryPage(
-                imageName: "IntroStory3",
+                imageName: "OnboardingBgOutdoor",
                 icon: "waveform",
-                titleNo: "Coachen sier bare det som betyr noe",
-                titleEn: "The coach only says what matters",
-                bodyNo: "Korte lydsignaler og tydelige cues hjelper deg aa holde fokus, tempo og pust uten unodig stoy.",
-                bodyEn: "Short audio cues help you hold focus, pacing, and breathing without unnecessary noise.",
+                titleNo: "Vi kan hjelpe deg med å forstå om du er aktiv nok til å holde deg sunn og frisk.",
+                titleEn: "We can help you understand whether you are active enough to stay healthy and fit.",
+                bodyNo: "",
+                bodyEn: "",
                 supplementalTitleNo: nil,
                 supplementalTitleEn: nil,
                 supplementalBodyNo: nil,
                 supplementalBodyEn: nil,
                 deviceTags: [],
-                showsCoachScoreCard: false
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .activityQuotient
             ),
             IntroStoryPage(
-                imageName: "IntroStory4",
+                imageName: "OnboardingBgOutdoor",
                 icon: "applewatch.side.right",
-                titleNo: "Med eller uten pulsklokke fortsetter coaching",
-                titleEn: "Coaching keeps going with or without a watch",
-                bodyNo: "Apple Watch og pulssensorer gir mer presis live coaching. Hvis puls mangler, fortsetter Coachi paa struktur og pust.",
-                bodyEn: "Apple Watch and heart-rate sensors make live coaching more precise. If heart rate is missing, Coachi keeps guiding from structure and breathing.",
-                supplementalTitleNo: "Klar til aa sette opp profilen?",
-                supplementalTitleEn: "Ready to set up your profile?",
-                supplementalBodyNo: "Vi bruker svarene dine for aa treffe bedre paa intensitet, oppsummering og stemmecoaching fra foerste oekt.",
-                supplementalBodyEn: "We use your answers to calibrate intensity, summaries, and voice coaching from your first workout.",
+                titleNo: "Coachi tilpasser coachingen med pulsklokke eller pustanalyse fra første økt.",
+                titleEn: "Coachi adapts your coaching with a watch or breath analysis from your very first workout.",
+                bodyNo: "",
+                bodyEn: "",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
                 deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
-                showsCoachScoreCard: false
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .deviceSupport
             ),
         ]
+    }
+
+    private var showcasePrimaryTitle: String {
+        if currentPage == pages.count - 1 {
+            return primaryTitle
+        }
+
+        return L10n.current == .no ? "Neste" : "Next"
+    }
+
+    private func showcasePrimaryAction() {
+        if currentPage < pages.count - 1 {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                currentPage += 1
+            }
+        } else {
+            onPrimary()
+        }
+    }
+
+    private func showcaseSecondaryAction() {
+        if currentPage > 0 {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                currentPage -= 1
+            }
+        } else if let onSecondary {
+            onSecondary()
+        }
+    }
+
+    @ViewBuilder
+    private func showcasePreviewCard(width: CGFloat) -> some View {
+        switch activePage.previewKind {
+        case .none:
+            EmptyView()
+        case .fitnessAgePrompt:
+            FitnessAgePromptCard()
+                .frame(width: width)
+        case .fitnessAgeExample:
+            FitnessAgeExampleCard()
+                .frame(width: width)
+        case .activityQuotient:
+            ActivityQuotientPreviewCard()
+                .frame(width: width)
+        case .deviceSupport:
+            DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)
+                .frame(width: width)
+        }
     }
 
     private func deviceTagWrap(_ tags: [String]) -> some View {
@@ -506,6 +692,218 @@ struct FeaturesPageView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(Color.white.opacity(0.14))
+        .clipShape(Capsule())
+    }
+}
+
+private struct FitnessAgePromptCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Din kondisjonsalder")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            VStack(spacing: 10) {
+                Text("?")
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                    .foregroundColor(CoachiTheme.primary)
+
+                Image(systemName: "triangle.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundColor(CoachiTheme.primary)
+                    .offset(y: -10)
+
+                FitnessAgeScaleView()
+            }
+
+            Text("Faktisk alder")
+                .font(.title3.weight(.semibold))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(22)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+}
+
+private struct FitnessAgeExampleCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Din kondisjonsalder")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            VStack(spacing: 10) {
+                Text("48")
+                    .font(.system(size: 62, weight: .bold, design: .rounded))
+                    .foregroundColor(CoachiTheme.primary)
+
+                Image(systemName: "triangle.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundColor(CoachiTheme.primary)
+                    .offset(y: -12)
+
+                FitnessAgeScaleView()
+            }
+
+            Text("Eksempel på kondisjonsalder")
+                .font(.title3.weight(.semibold))
+                .foregroundColor(CoachiTheme.textSecondary)
+        }
+        .padding(22)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+}
+
+private struct FitnessAgeScaleView: View {
+    var body: some View {
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "6F56D9"), Color(hex: "9D8AF2"), Color(hex: "B9AEFF")],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 22)
+
+            HStack {
+                Spacer()
+                    .frame(width: 96)
+                Rectangle().fill(Color.white.opacity(0.75)).frame(width: 2, height: 32)
+                Spacer()
+                Rectangle().fill(Color.white.opacity(0.75)).frame(width: 2, height: 32)
+                Spacer()
+                    .frame(width: 96)
+            }
+
+            HStack {
+                Text("40")
+                Spacer()
+                Text("50")
+            }
+            .font(.title3.weight(.medium))
+            .foregroundColor(CoachiTheme.textSecondary)
+            .padding(.horizontal, 28)
+            .offset(y: -28)
+        }
+    }
+}
+
+private struct ActivityQuotientPreviewCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Din AQ")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            HStack {
+                Spacer()
+                ZStack {
+                    Circle()
+                        .stroke(Color(hex: "E3E1E8"), lineWidth: 16)
+                        .frame(width: 150, height: 150)
+
+                    Circle()
+                        .trim(from: 0.1, to: 0.72)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color(hex: "D8C9FF"), Color(hex: "79D1C9")],
+                                startPoint: .topTrailing,
+                                endPoint: .bottomLeading
+                            ),
+                            style: StrokeStyle(lineWidth: 16, lineCap: .round)
+                        )
+                        .frame(width: 150, height: 150)
+                        .rotationEffect(.degrees(-90))
+
+                    VStack(spacing: 2) {
+                        Text("52")
+                            .font(.system(size: 50, weight: .bold, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(hex: "D8C9FF"), Color(hex: "79D1C9")],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        Text("Totalt")
+                            .font(.title3.weight(.semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                    }
+                }
+                Spacer()
+            }
+        }
+        .padding(22)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+}
+
+private struct DeviceSupportPreviewCard: View {
+    let deviceTags: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Kobles til")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    ForEach(deviceTags.prefix(2), id: \.self) { tag in
+                        supportTag(tag)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    ForEach(deviceTags.dropFirst(2), id: \.self) { tag in
+                        supportTag(tag)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Ingen pulsklokke?")
+                    .font(.body.weight(.bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                Text("Alt i orden! Coachi kan fortsatt coache deg på pustanalyse.")
+                    .font(.body.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(22)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private func supportTag(_ label: String) -> some View {
+        HStack(spacing: 7) {
+            if label == "Apple Watch" {
+                Image(systemName: "applewatch.side.right")
+                    .font(.caption.weight(.bold))
+            } else if label == "Bluetooth HR" {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.caption.weight(.bold))
+            } else {
+                Circle()
+                    .fill(CoachiTheme.primary.opacity(0.85))
+                    .frame(width: 7, height: 7)
+            }
+
+            Text(label)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundColor(CoachiTheme.textPrimary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color(hex: "F1EDFF"))
         .clipShape(Capsule())
     }
 }

@@ -157,12 +157,22 @@ def test_intro_value_carousel_contract() -> None:
     assert "currentPage -= 1" in text
     assert "@State private var autoAdvanceTask: Task<Void, Never>?" in text
     assert "Task.sleep(nanoseconds: 5_000_000_000)" in text
+    assert "if case .intro = mode {" in text
     assert "Coachi guider deg gjennom intervaller og rolige turer, med eller uten puls." in text
     assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." in text
     assert "Kobles enkelt til pulsklokka di" in text
     assert "Ingen pulsklokke?" in text
     assert "Alt i orden! Du kan bli coachet pa pustanalyse." in text
     assert 'deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"]' in text
+    assert "presentationStyle: .showcase" in text
+    assert "FitnessAgePromptCard()" in text
+    assert "FitnessAgeExampleCard()" in text
+    assert "ActivityQuotientPreviewCard()" in text
+    assert "DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)" in text
+    assert "La oss starte med å bli litt bedre kjent med deg og regne ut kondisjonsalderen din." in text
+    assert "Vi kan finne ut hvor gammel kroppen din faktisk er." in text
+    assert "Vi kan hjelpe deg med å forstå om du er aktiv nok til å holde deg sunn og frisk." in text
+    assert "Coachi tilpasser coachingen med pulsklokke eller pustanalyse fra første økt." in text
     assert "introTrustBadge(" not in text
     assert 'Logg inn med Apple eller e-post for å fortsette.' not in text
     assert "score: 100" in text
@@ -210,6 +220,7 @@ def test_intro_swipe_gestures_not_blocked_by_nested_scrollview() -> None:
     assert "if needsVerticalScroll {" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
     assert "DragGesture(minimumDistance: 24)" in text
+    assert ".simultaneousGesture(" in text
 
 
 def test_intro_only_ignores_vertical_safe_areas() -> None:
@@ -224,6 +235,17 @@ def test_intro_layout_places_indicator_above_register_cta() -> None:
     register_idx = text.index("Button(action: onPrimary)")
     assert dots_idx < register_idx
     assert ".padding(.top, max(14, geo.safeAreaInsets.top + 8))" not in text
+
+
+def test_post_auth_explainer_uses_showcase_navigation() -> None:
+    text = INTRO_VIEW.read_text(encoding="utf-8")
+    assert "private func showcaseContent(" in text
+    assert "private var showcasePrimaryTitle: String {" in text
+    assert 'return L10n.current == .no ? "Neste" : "Next"' in text
+    assert "private func showcasePrimaryAction()" in text
+    assert "private func showcaseSecondaryAction()" in text
+    assert '.frame(width: 74, height: 74)' in text
+    assert '.clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))' in text
 
 
 def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
@@ -248,7 +270,9 @@ def test_auth_view_matches_required_account_register_flow() -> None:
     assert "L10n.registerWithApple" in text
     assert "L10n.registerWithGoogle" in text
     assert 'badge: L10n.current == .no ? "Kommer snart" : "Coming soon"' in text
-    assert "!acceptedTerms || authManager.isLoading" in text
+    assert "disabled: authManager.isLoading" in text
+    assert "guard acceptedTerms else {" in text
+    assert "showTermsValidationError = true" in text
     assert "emailCodeRequested" in text
     assert "requestEmailSignInCode" in text
     assert "signInWithEmail(" in text
@@ -257,6 +281,8 @@ def test_auth_view_matches_required_account_register_flow() -> None:
     assert "showPrivacySheet = true" in text
     assert "showTermsSheet = true" in text
     assert "acceptedTerms.toggle()" in text
+    assert ".tint(CoachiTheme.textPrimary)" in text
+    assert "focusedField = .email" not in text
 
 
 def test_onboarding_birth_date_picker_is_scrollable_wheel() -> None:

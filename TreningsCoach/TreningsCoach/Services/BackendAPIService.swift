@@ -712,6 +712,28 @@ class BackendAPIService {
         }
     }
 
+    /// Server-side subscription tier check. Returns "premium" or "free". Best-effort (no throw).
+    func validateSubscription(transactionID: String? = nil) async -> String? {
+        guard let url = URL(string: "\(baseURL)/subscription/validate") else { return nil }
+        do {
+            var request = URLRequest(url: url, timeoutInterval: 10)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            addAuthHeader(to: &request)
+            var body: [String: Any] = ["platform": "ios"]
+            if let txID = transactionID, !txID.isEmpty { body["transaction_id"] = txID }
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, _) = try await dataWithAuthRetry(for: request)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let tier = json["tier"] as? String {
+                return tier
+            }
+        } catch {
+            // Best-effort — subscription state is StoreKit-authoritative on iOS
+        }
+        return nil
+    }
+
     // MARK: - Helper Methods
 
     private func createMultipartRequest(url: URL, audioURL: URL, phase: WorkoutPhase?) throws -> URLRequest {

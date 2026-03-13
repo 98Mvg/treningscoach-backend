@@ -60,9 +60,11 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     view_text = AUTH_VIEW.read_text(encoding="utf-8")
     assert "static var googleSignInEnabled: Bool" in config_text
-    assert "false" in config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
+    # Google sign-in flag now reads from build config (googleSignInFeatureEnabled)
+    assert "googleSignInFeatureEnabled" in config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
     assert "static var emailSignInEnabled: Bool" in config_text
-    assert "if AppConfig.Auth.googleSignInEnabled {" not in view_text
+    # AuthView now gates Google button behind the feature flag
+    assert "if AppConfig.Auth.googleSignInEnabled {" in view_text
     assert "Text(L10n.continueWithoutAccount)" not in view_text
     assert "Text(L10n.signInLaterHint)" not in view_text
     assert "Text(L10n.accountRequiredHint)" in view_text

@@ -686,79 +686,93 @@ private struct DataPurposeStepView: View {
     var body: some View {
         GeometryReader { geo in
             let renderWidth = geo.size.width
+            let renderHeight = geo.size.height
             let deviceWidth = UIScreen.main.bounds.width
             let layoutWidth = min(min(renderWidth, deviceWidth), 500)
             let sidePadding = layoutWidth < 390 ? 18.0 : 24.0
             let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
-            let topInset = max(geo.size.height * 0.18, geo.safeAreaInsets.top + 42.0)
+            let textWidth = max(0.0, min(contentWidth, layoutWidth < 390 ? 288.0 : 328.0))
+            let topInset = max(renderHeight * 0.18, geo.safeAreaInsets.top + 42.0)
+            let bottomInset = max(20.0, geo.safeAreaInsets.bottom + 10.0)
 
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer()
-                    .frame(height: topInset)
-
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(greetingTitle)
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundColor(CoachiTheme.textPrimary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(greetingBody)
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: 320, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        helloBullet(
-                            text: L10n.current == .no
-                                ? "Tilpasse intensitet, oppsummering og coaching til deg."
-                                : "Tailor intensity, summaries, and coaching to you."
+            ZStack {
+                Image("OnboardingBgOutdoor")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: layoutWidth, height: renderHeight)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.34), CoachiTheme.primary.opacity(0.14), Color.black.opacity(0.56)],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
-                        helloBullet(
-                            text: L10n.current == .no
-                                ? "Gjore deg klar for fire korte steg om hvordan Coachi hjelper."
-                                : "Get you ready for four short steps on how Coachi helps."
-                        )
+                    )
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer()
+                        .frame(height: topInset)
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(greetingTitle)
+                            .font(.system(size: 38, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(width: textWidth, alignment: .leading)
+
+                        Text(greetingBody)
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.96))
+                            .lineSpacing(3)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(width: textWidth, alignment: .leading)
                     }
-                    .padding(.top, 6)
-                }
-                .frame(width: contentWidth, alignment: .leading)
-                .padding(.horizontal, sidePadding)
+                    .frame(width: contentWidth, alignment: .leading)
+                    .padding(.horizontal, sidePadding)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
+                }
             }
-            .frame(width: layoutWidth, height: geo.size.height, alignment: .topLeading)
+            .frame(width: layoutWidth, height: renderHeight, alignment: .topLeading)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 HStack(spacing: 16) {
                     Button(action: onBack) {
                         Image(systemName: "chevron.left")
-                            .font(.title3.weight(.bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                            .frame(width: 54, height: 54)
-                            .background(CoachiTheme.surface.opacity(0.96))
+                            .font(.title2.weight(.bold))
+                            .foregroundColor(CoachiTheme.primary)
+                            .frame(width: 74, height: 74)
+                            .background(Color.white.opacity(0.97))
                             .clipShape(Circle())
                             .overlay(
                                 Circle()
-                                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                                    .stroke(CoachiTheme.primary.opacity(0.85), lineWidth: 2)
                             )
                     }
+                    .buttonStyle(.plain)
 
                     Spacer()
 
                     Button(action: onContinue) {
-                        Text(L10n.continueButton)
-                            .font(.headline.weight(.bold))
+                        HStack(spacing: 14) {
+                            Text(L10n.current == .no ? "Neste" : "Next")
+                            Image(systemName: "chevron.right")
+                                .font(.title3.weight(.bold))
+                        }
+                            .font(.title3.weight(.bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 30)
-                            .frame(height: 56)
-                            .background(CoachiTheme.primaryGradient)
-                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .padding(.horizontal, 32)
+                            .frame(height: 74)
+                            .background(CoachiTheme.primaryGradient.opacity(0.96))
+                            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, sidePadding)
                 .padding(.top, 12)
-                .padding(.bottom, max(18.0, geo.safeAreaInsets.bottom + 8.0))
+                .padding(.bottom, bottomInset)
             }
         }
         .onTapGesture {
@@ -776,19 +790,6 @@ private struct DataPurposeStepView: View {
 
     private var greetingBody: String {
         "Let me first explain what we can do for you."
-    }
-
-    private func helloBullet(text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(CoachiTheme.primary)
-                .frame(width: 7, height: 7)
-                .padding(.top, 7)
-            Text(text)
-                .font(.body.weight(.medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-            Spacer()
-        }
     }
 
     private func hideKeyboard() {

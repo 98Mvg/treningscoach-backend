@@ -10,6 +10,7 @@ import UIKit
 
 struct WorkoutCompleteView: View {
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var checkmarkScale: CGFloat = 0.65
     @State private var contentVisible = false
@@ -20,6 +21,7 @@ struct WorkoutCompleteView: View {
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
     @State private var showLiveCoachVoice = false
+    @State private var showPaywall = false
     @State private var showShareOptions = false
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
@@ -201,6 +203,9 @@ struct WorkoutCompleteView: View {
                 userName: liveVoiceUserName
             )
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .liveVoice)
+        }
         .confirmationDialog(shareChooserTitle, isPresented: $showShareOptions, titleVisibility: .visible) {
             Button("Instagram Story") {
                 shareToInstagramStory()
@@ -241,7 +246,11 @@ struct WorkoutCompleteView: View {
                     metadata: metadata
                 )
             }
-            showLiveCoachVoice = true
+            if subscriptionManager.isPremium {
+                showLiveCoachVoice = true
+            } else {
+                showPaywall = true
+            }
         } label: {
             HStack(spacing: 9) {
                 Image(systemName: "mic.fill")

@@ -97,9 +97,12 @@ struct AppConfig {
         }
 
         static var googleSignInEnabled: Bool {
-            // Phase 1 launch scope keeps Apple as the only exposed provider.
-            // Google returns in Phase 2 when the real flow is complete.
-            false
+            googleSignInFeatureEnabled
+        }
+
+        /// Google OAuth client ID — set GOOGLE_CLIENT_ID in Info.plist to enable.
+        static var googleClientID: String? {
+            Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_ID") as? String
         }
 
         static var facebookSignInEnabled: Bool {
@@ -216,6 +219,33 @@ struct AppConfig {
     // MARK: - Motion Signals
     struct Motion {
         static let staleThresholdSeconds: TimeInterval = 8.0
+    }
+
+    // MARK: - Subscription (Phase 4 Monetization)
+    struct Subscription {
+        /// Monthly auto-renewing subscription product ID — set this in App Store Connect.
+        static let monthlyProductID = "app.coachi.premium.monthly"
+        /// Yearly auto-renewing subscription product ID — set this in App Store Connect.
+        static let yearlyProductID = "app.coachi.premium.yearly"
+
+        static let allProductIDs: [String] = [monthlyProductID, yearlyProductID]
+
+        /// Free trial duration in days (shown in paywall UI only — StoreKit manages the actual trial).
+        static let trialDurationDays = 14
+
+        /// Monthly price shown in paywall before StoreKit price is loaded.
+        static let fallbackMonthlyPrice = "$9.99"
+        /// Yearly price shown in paywall before StoreKit price is loaded.
+        static let fallbackYearlyPrice = "$79"
+
+        // MARK: - Usage Limits (free tier)
+
+        /// Max Talk-to-Coach questions per workout session for free users.
+        static let freeTalkQuestionsPerWorkout = 1
+        /// Max Talk-to-Coach questions per day for free users.
+        static let freeTalkQuestionsPerDay = 3
+        /// Max Talk-to-Coach questions per workout session for premium users.
+        static let premiumTalkQuestionsPerWorkout = 10
     }
 
     // MARK: - Experience Progression
