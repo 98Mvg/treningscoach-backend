@@ -8,8 +8,12 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @StateObject private var workoutViewModel = WorkoutViewModel()
     @State private var selectedTab: TabItem = .home
+    @State private var didTrackAppOpen = false
+    @State private var deepLinkPaywallContext: PaywallContext?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -38,11 +42,28 @@ struct MainTabView: View {
         .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.workoutState)
         .animation(AppConfig.Anim.transitionSpring, value: workoutViewModel.showComplete)
         .onAppear {
+            if !didTrackAppOpen {
+                didTrackAppOpen = true
+                Task {
+                    _ = await BackendAPIService.shared.trackAnalyticsEvent(event: "app_opened")
+                }
+            }
+            if let pendingDeepLink = appViewModel.pendingDeepLink {
+                handleDeepLink(pendingDeepLink)
+            }
             workoutViewModel.presentSpotifyPromptIfNeeded()
             workoutViewModel.triggerAudioPackSync()
         }
+        .onChange(of: appViewModel.pendingDeepLink) { _, deepLink in
+            guard let deepLink else { return }
+            handleDeepLink(deepLink)
+        }
         .fullScreenCover(isPresented: $workoutViewModel.showSpotifyConnectSheet) {
             SpotifyConnectView(viewModel: workoutViewModel)
+        }
+        .sheet(item: $deepLinkPaywallContext) { context in
+            PaywallView(context: context)
+                .environmentObject(subscriptionManager)
         }
     }
 
@@ -61,5 +82,30 @@ struct MainTabView: View {
             WorkoutCompleteView(viewModel: workoutViewModel)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
         }
+    }
+
+    private func handleDeepLink(_ deepLink: AppDeepLinkDestination) {
+        switch deepLink {
+        case .home:
+            selectedTab = .home
+        case .workout:
+            selectedTab = .workout
+        case .profile:
+            selectedTab = .profile
+        case let .paywall(context):
+            deepLinkPaywallContext = PaywallContext.fromDeepLinkValue(context)
+        case .manageSubscription:
+            subscriptionManager.manageSubscription()
+        case .restorePurchases:
+            Task { await subscriptionManager.restorePurchases() }
+        }
+
+        Task {
+            _ = await BackendAPIService.shared.trackAnalyticsEvent(
+                event: "deep_link_opened",
+                metadata: ["destination": deepLink.analyticsContext]
+            )
+        }
+        appViewModel.consumePendingDeepLink()
     }
 }

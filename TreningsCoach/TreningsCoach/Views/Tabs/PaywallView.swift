@@ -20,13 +20,13 @@ private func trackPaywallEvent(_ event: String, context: String, metadata: [Stri
     var meta = metadata
     meta["context"] = context
     Task {
-        _ = await BackendAPIService.shared.trackVoiceTelemetry(event: event, metadata: meta)
+        _ = await BackendAPIService.shared.trackAnalyticsEvent(event: event, metadata: meta)
     }
 }
 
 // MARK: - Context
 
-enum PaywallContext {
+enum PaywallContext: Identifiable {
     case liveVoice
     case talkLimit
     case general
@@ -62,17 +62,40 @@ enum PaywallContext {
         case .general:   return nil
         }
     }
+
+    var id: String {
+        switch self {
+        case .liveVoice: return "live_voice"
+        case .talkLimit: return "talk_limit"
+        case .general: return "general"
+        }
+    }
+
+    static func fromDeepLinkValue(_ value: String) -> PaywallContext {
+        switch value {
+        case "live_voice":
+            return .liveVoice
+        case "talk_limit":
+            return .talkLimit
+        default:
+            return .general
+        }
+    }
 }
 
 // MARK: - View
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     let context: PaywallContext
 
     private var isNorwegian: Bool { L10n.current == .no }
+    private var hasPremiumAccess: Bool {
+        subscriptionManager.hasPremiumAccess
+    }
 
     // MARK: - Body
 
@@ -277,7 +300,7 @@ struct PaywallView: View {
 
     private var pricingSection: some View {
         VStack(spacing: 12) {
-            if subscriptionManager.isPremium {
+            if hasPremiumAccess {
                 currentPlanCard
             }
 
@@ -306,9 +329,9 @@ struct PaywallView: View {
                 Text(isNorwegian ? "Planen din er aktiv" : "Your plan is active")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.92))
-                Text(subscriptionManager.currentPlanLabel)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.62))
+                Text(subscriptionManager.resolvedPlanLabel)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.72))
             }
 
             Spacer()
@@ -439,6 +462,7 @@ struct PaywallView: View {
     private var footerSection: some View {
         VStack(spacing: 10) {
             Button(isNorwegian ? "Gjenopprett kjøp" : "Restore Purchases") {
+                trackPaywallEvent("paywall_restore_tapped", context: contextKey)
                 Task { await subscriptionManager.restorePurchases() }
             }
             .font(.system(size: 14, weight: .medium))

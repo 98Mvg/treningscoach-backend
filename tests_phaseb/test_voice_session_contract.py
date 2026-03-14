@@ -298,6 +298,20 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
         assert captured["history_context"]["workouts_last_7_days"] == 2
         assert captured["history_context"]["workouts_last_30_days"] == 2
         assert captured["history_context"]["recent_workouts"][0]["duration_minutes"] == 30
+        assert set(captured["history_context"].keys()) == {
+            "total_workouts",
+            "total_duration_minutes",
+            "workouts_last_7_days",
+            "workouts_last_30_days",
+            "recent_workouts",
+        }
+        assert set(captured["history_context"]["recent_workouts"][0].keys()) == {
+            "date",
+            "duration_minutes",
+            "final_phase",
+            "avg_intensity",
+            "language",
+        }
         assert captured["max_duration_seconds"] == 420
     finally:
         with main.app.app_context():

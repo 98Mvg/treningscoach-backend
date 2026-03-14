@@ -87,11 +87,11 @@ struct FeaturesPageView: View {
     private let introPages: [IntroStoryPage] = [
         IntroStoryPage(
             imageName: "IntroStory1",
-            icon: "applewatch.side.right",
-            titleNo: "Jeg guider deg live med pulssoner",
-            titleEn: "I guide you live using heart rate zones",
-            bodyNo: "Pulssoner holder økten på riktig intensitet — du får tydelig coaching i sanntid.",
-            bodyEn: "Heart rate zones keep your workout at the right intensity — clear coaching in real time.",
+            icon: "bolt.fill",
+            titleNo: "Få veiledning av en coach live på øret",
+            titleEn: "Get live guidance from a coach in your ear",
+            bodyNo: "",
+            bodyEn: "",
             supplementalTitleNo: nil,
             supplementalTitleEn: nil,
             supplementalBodyNo: nil,
@@ -99,31 +99,31 @@ struct FeaturesPageView: View {
             deviceTags: [],
             showsCoachScoreCard: false,
             presentationStyle: .intro,
-            previewKind: .watchBPM
-        ),
-        IntroStoryPage(
-            imageName: "IntroStory2",
-            icon: "heart.fill",
-            titleNo: "Jeg motiverer og tilpasser økten dynamisk",
-            titleEn: "I motivate you and adjust the workout dynamically",
-            bodyNo: "Økten tilpasses basert på dine preferanser. Jeg vet når du kan gi mer.",
-            bodyEn: "The workout adjusts based on your preferences. I know when you can give more.",
-            supplementalTitleNo: nil,
-            supplementalTitleEn: nil,
-            supplementalBodyNo: nil,
-            supplementalBodyEn: nil,
-            deviceTags: [],
-            showsCoachScoreCard: false,
-            presentationStyle: .intro,
-            previewKind: .intensityBar
+            previewKind: .none
         ),
         IntroStoryPage(
             imageName: "IntroStory3",
+            icon: "music.note",
+            titleNo: "Coachen holder fokus på det viktige i økten",
+            titleEn: "Your coach keeps focus on what matters in the workout",
+            bodyNo: "",
+            bodyEn: "",
+            supplementalTitleNo: nil,
+            supplementalTitleEn: nil,
+            supplementalBodyNo: nil,
+            supplementalBodyEn: nil,
+            deviceTags: [],
+            showsCoachScoreCard: false,
+            presentationStyle: .intro,
+            previewKind: .none
+        ),
+        IntroStoryPage(
+            imageName: "IntroStory2",
             icon: "chart.line.uptrend.xyaxis",
-            titleNo: "Du får en CoachScore etter hver økt",
-            titleEn: "You get a CoachScore after each workout",
-            bodyNo: "CoachScore viser hvor godt økten traff treningsmålet ditt.",
-            bodyEn: "CoachScore shows how well your workout matched your training goal.",
+            titleNo: "Få en score av Coachen etter hver økt",
+            titleEn: "Get a coach score after every workout",
+            bodyNo: "",
+            bodyEn: "",
             supplementalTitleNo: nil,
             supplementalTitleEn: nil,
             supplementalBodyNo: nil,
@@ -135,24 +135,44 @@ struct FeaturesPageView: View {
         ),
         IntroStoryPage(
             imageName: "IntroStory4",
-            icon: "bubble.left.and.bubble.right.fill",
-            titleNo: "Etter økten kan vi snakke live",
-            titleEn: "After the workout we can talk live",
-            bodyNo: "Snakk om prestasjonen din og hvordan du kan bli bedre til neste gang.",
-            bodyEn: "Talk about your performance and how to improve next time.",
-            supplementalTitleNo: nil,
-            supplementalTitleEn: nil,
-            supplementalBodyNo: nil,
-            supplementalBodyEn: nil,
-            deviceTags: [],
+            icon: "applewatch.side.right",
+            titleNo: "Coachi kobles enkelt til pulsklokka di",
+            titleEn: "Connect easily to your watch",
+            bodyNo: "",
+            bodyEn: "",
+            supplementalTitleNo: "Ingen pulsklokke?",
+            supplementalTitleEn: "No watch?",
+            supplementalBodyNo: "Alt i orden! Du kan fortsatt bli coachet pa pustanalyse.",
+            supplementalBodyEn: "That is okay. You can still be coached with breath analysis.",
+            deviceTags: ["Apple Watch", "Garmin", "Fitbit", "Polar", "Withings", "Suunto"],
             showsCoachScoreCard: false,
             presentationStyle: .intro,
-            previewKind: .talkToCoach
+            previewKind: .none
         ),
     ]
 
     private var activePage: IntroStoryPage {
         pages[max(0, min(pages.count - 1, currentPage))]
+    }
+
+    private var backgroundGradientColors: [Color] {
+        if activePage.presentationStyle == .showcase {
+            return colorScheme == .dark
+                ? [Color.clear, Color.clear, Color.black.opacity(0.44)]
+                : [Color.clear, Color.clear, Color.black.opacity(0.34)]
+        }
+
+        return colorScheme == .dark
+            ? [Color.black.opacity(0.48), CoachiTheme.primary.opacity(0.08), Color.black.opacity(0.62)]
+            : [Color.black.opacity(0.3), CoachiTheme.primary.opacity(0.06), Color.black.opacity(0.56)]
+    }
+
+    private var backgroundDimOpacity: Double {
+        if activePage.presentationStyle == .showcase {
+            return 0.0
+        }
+
+        return colorScheme == .dark ? 0.08 : 0.06
     }
 
     var body: some View {
@@ -183,15 +203,13 @@ struct FeaturesPageView: View {
                     .clipped()
                     .overlay(
                         LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [Color.black.opacity(0.48), CoachiTheme.primary.opacity(0.08), Color.black.opacity(0.62)]
-                                : [Color.black.opacity(0.3), CoachiTheme.primary.opacity(0.06), Color.black.opacity(0.56)],
+                            colors: backgroundGradientColors,
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                     .overlay(
-                        Color.black.opacity(colorScheme == .dark ? 0.08 : 0.06)
+                        Color.black.opacity(backgroundDimOpacity)
                     )
 
                 Color.clear
@@ -213,6 +231,7 @@ struct FeaturesPageView: View {
                         content(
                             cardWidth: cardWidth,
                             textWidth: textWidth,
+                            renderHeight: renderHeight,
                             isNarrow: isNarrow,
                             cardSideInset: cardSideInset,
                             cardContentInset: cardContentInset,
@@ -228,6 +247,7 @@ struct FeaturesPageView: View {
                     content(
                         cardWidth: cardWidth,
                         textWidth: textWidth,
+                        renderHeight: renderHeight,
                         isNarrow: isNarrow,
                         cardSideInset: cardSideInset,
                         cardContentInset: cardContentInset,
@@ -244,7 +264,7 @@ struct FeaturesPageView: View {
         .ignoresSafeArea(edges: [.top, .bottom])
         .onAppear {
             if case .intro = mode {
-                startAutoAdvance()
+                startAutoAdvance(intervalSeconds: 6)
             } else {
                 autoAdvanceTask?.cancel()
                 autoAdvanceTask = nil
@@ -259,6 +279,7 @@ struct FeaturesPageView: View {
     private func content(
         cardWidth: CGFloat,
         textWidth: CGFloat,
+        renderHeight: CGFloat,
         isNarrow: Bool,
         cardSideInset: CGFloat,
         cardContentInset: CGFloat,
@@ -281,6 +302,7 @@ struct FeaturesPageView: View {
                 showcaseContent(
                     cardWidth: cardWidth,
                     textWidth: textWidth,
+                    renderHeight: renderHeight,
                     isNarrow: isNarrow,
                     cardSideInset: cardSideInset,
                     ctaSideInset: ctaSideInset,
@@ -304,36 +326,34 @@ struct FeaturesPageView: View {
             Color.clear.frame(height: topSpacing)
 
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: activePage.icon)
-                        .font(.caption.weight(.bold))
-                    Text("Coachi")
-                        .font(.caption.weight(.bold))
-                }
-                .foregroundColor(.white.opacity(0.96))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(Color.white.opacity(0.16))
-                .clipShape(Capsule())
-
                 Text(activePage.title(for: L10n.current))
                     .font(.system(size: 32, weight: .bold, design: .default))
                     .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 6)
                     .multilineTextAlignment(.leading)
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(width: textWidth, alignment: .leading)
                     .layoutPriority(1)
 
-                Text(activePage.body(for: L10n.current))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.92))
-                    .lineSpacing(2.5)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: textWidth, alignment: .leading)
-                    .layoutPriority(1)
+                if !activePage.body(for: L10n.current).isEmpty {
+                    Text(activePage.body(for: L10n.current))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.92))
+                        .shadow(color: Color.black.opacity(0.28), radius: 12, x: 0, y: 4)
+                        .lineSpacing(2.5)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: textWidth, alignment: .leading)
+                        .layoutPriority(1)
+                }
+
+                if !activePage.deviceTags.isEmpty {
+                    deviceLogoGrid(activePage.deviceTags)
+                        .frame(width: textWidth, alignment: .leading)
+                        .padding(.top, 6)
+                }
 
                 if let supplementalTitle = activePage.supplementalTitle(for: L10n.current),
                    let supplementalBody = activePage.supplementalBody(for: L10n.current) {
@@ -341,26 +361,17 @@ struct FeaturesPageView: View {
                         Text(supplementalTitle)
                             .font(.subheadline.weight(.bold))
                             .foregroundColor(.white)
+                            .shadow(color: Color.black.opacity(0.28), radius: 10, x: 0, y: 3)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(supplementalBody)
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.white.opacity(0.88))
+                            .shadow(color: Color.black.opacity(0.24), radius: 8, x: 0, y: 3)
                             .fixedSize(horizontal: false, vertical: true)
-
-                        if !activePage.deviceTags.isEmpty {
-                            deviceTagWrap(activePage.deviceTags)
-                                .padding(.top, 4)
-                        }
                     }
-                    .padding(14)
+                    .padding(.top, 4)
                     .frame(width: textWidth, alignment: .leading)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                    )
                 }
 
                 introPreviewCard()
@@ -370,14 +381,6 @@ struct FeaturesPageView: View {
             .padding(.horizontal, cardContentInset)
             .padding(.vertical, 18)
             .frame(width: cardWidth, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color.black.opacity(0.28))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                    )
-            )
             .padding(.horizontal, cardSideInset)
 
             Spacer(minLength: 18)
@@ -457,6 +460,7 @@ struct FeaturesPageView: View {
     private func showcaseContent(
         cardWidth: CGFloat,
         textWidth: CGFloat,
+        renderHeight: CGFloat,
         isNarrow: Bool,
         cardSideInset: CGFloat,
         ctaSideInset: CGFloat,
@@ -464,14 +468,18 @@ struct FeaturesPageView: View {
         bottomInset: CGFloat
     ) -> some View {
         let showcaseTextWidth = max(0.0, min(textWidth, isNarrow ? 288.0 : 328.0))
+        let showcaseTopSpacing = activePage.body(for: L10n.current).isEmpty
+            ? max(renderHeight * 0.25, topSpacing + 24)
+            : max(topSpacing - 16, 120)
 
         return VStack(alignment: .leading, spacing: 0) {
-            Color.clear.frame(height: max(topSpacing - 16, 120))
+            Color.clear.frame(height: showcaseTopSpacing)
 
             VStack(alignment: .leading, spacing: 22) {
                 Text(activePage.title(for: L10n.current))
                     .font(.system(size: isNarrow ? 31 : 34, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 6)
                     .lineSpacing(3)
                     .multilineTextAlignment(.leading)
                     .frame(width: showcaseTextWidth, alignment: .leading)
@@ -480,6 +488,7 @@ struct FeaturesPageView: View {
                     Text(activePage.body(for: L10n.current))
                         .font(.body.weight(.medium))
                         .foregroundColor(.white.opacity(0.9))
+                        .shadow(color: Color.black.opacity(0.28), radius: 12, x: 0, y: 4)
                         .frame(width: showcaseTextWidth, alignment: .leading)
                 }
 
@@ -529,11 +538,11 @@ struct FeaturesPageView: View {
         }
     }
 
-    private func startAutoAdvance() {
+    private func startAutoAdvance(intervalSeconds: UInt64 = 5) {
         autoAdvanceTask?.cancel()
         autoAdvanceTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
                 if Task.isCancelled { return }
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.28)) {
@@ -544,15 +553,18 @@ struct FeaturesPageView: View {
         }
     }
 
-    private func postAuthPages(displayName _: String) -> [IntroStoryPage] {
-        [
+    private func postAuthPages(displayName: String) -> [IntroStoryPage] {
+        let greeting = displayName.isEmpty
+            ? (L10n.current == .no ? "Hei!" : "Hi!")
+            : (L10n.current == .no ? "Hei, \(displayName)!" : "Hi, \(displayName)!")
+        return [
             IntroStoryPage(
-                imageName: "OnboardingBgOutdoor",
-                icon: "figure.run",
-                titleNo: "La oss starte med å bli litt bedre kjent med deg og regne ut kondisjonsalderen din.",
-                titleEn: "Let's start by getting to know you a little better and estimate your fitness age.",
-                bodyNo: "",
-                bodyEn: "",
+                imageName: "IntroStory1",
+                icon: "hand.wave.fill",
+                titleNo: greeting,
+                titleEn: greeting,
+                bodyNo: "La meg først forklare hvordan vi kan hjelpe deg.",
+                bodyEn: "Let me first explain how we can help you.",
                 supplementalTitleNo: nil,
                 supplementalTitleEn: nil,
                 supplementalBodyNo: nil,
@@ -560,55 +572,71 @@ struct FeaturesPageView: View {
                 deviceTags: [],
                 showsCoachScoreCard: false,
                 presentationStyle: .showcase,
-                previewKind: .fitnessAgePrompt
+                previewKind: .none
             ),
             IntroStoryPage(
-                imageName: "OnboardingBgOutdoor",
-                icon: "chart.line.uptrend.xyaxis",
-                titleNo: "Vi kan finne ut hvor gammel kroppen din faktisk er.",
-                titleEn: "We can estimate how old your body really feels.",
-                bodyNo: "",
-                bodyEn: "",
-                supplementalTitleNo: nil,
-                supplementalTitleEn: nil,
-                supplementalBodyNo: nil,
-                supplementalBodyEn: nil,
-                deviceTags: [],
-                showsCoachScoreCard: false,
-                presentationStyle: .showcase,
-                previewKind: .fitnessAgeExample
-            ),
-            IntroStoryPage(
-                imageName: "OnboardingBgOutdoor",
-                icon: "waveform",
-                titleNo: "Vi kan hjelpe deg med å forstå om du er aktiv nok til å holde deg sunn og frisk.",
-                titleEn: "We can help you understand whether you are active enough to stay healthy and fit.",
-                bodyNo: "",
-                bodyEn: "",
-                supplementalTitleNo: nil,
-                supplementalTitleEn: nil,
-                supplementalBodyNo: nil,
-                supplementalBodyEn: nil,
-                deviceTags: [],
-                showsCoachScoreCard: false,
-                presentationStyle: .showcase,
-                previewKind: .activityQuotient
-            ),
-            IntroStoryPage(
-                imageName: "OnboardingBgOutdoor",
+                imageName: "IntroStory1",
                 icon: "applewatch.side.right",
-                titleNo: "Coachi tilpasser coachingen med pulsklokke eller pustanalyse fra første økt.",
-                titleEn: "Coachi adapts your coaching with a watch or breath analysis from your very first workout.",
+                titleNo: "Jeg guider deg live med pulssoner",
+                titleEn: "I guide you live using heart rate zones",
                 bodyNo: "",
                 bodyEn: "",
                 supplementalTitleNo: nil,
                 supplementalTitleEn: nil,
                 supplementalBodyNo: nil,
                 supplementalBodyEn: nil,
-                deviceTags: ["Apple Watch", "Garmin", "Polar", "Bluetooth HR"],
+                deviceTags: [],
                 showsCoachScoreCard: false,
                 presentationStyle: .showcase,
-                previewKind: .deviceSupport
+                previewKind: .watchBPM
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory2",
+                icon: "heart.fill",
+                titleNo: "Jeg motiverer og tilpasser økten dynamisk",
+                titleEn: "I motivate you and adjust the workout dynamically",
+                bodyNo: "",
+                bodyEn: "",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .intensityBar
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory3",
+                icon: "chart.line.uptrend.xyaxis",
+                titleNo: "Du får en CoachScore etter hver økt",
+                titleEn: "You get a CoachScore after each workout",
+                bodyNo: "",
+                bodyEn: "",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: true,
+                presentationStyle: .showcase,
+                previewKind: .none
+            ),
+            IntroStoryPage(
+                imageName: "IntroStory4",
+                icon: "bubble.left.and.bubble.right.fill",
+                titleNo: "Etter økten kan vi snakke live",
+                titleEn: "After the workout we can talk live",
+                bodyNo: "",
+                bodyEn: "",
+                supplementalTitleNo: nil,
+                supplementalTitleEn: nil,
+                supplementalBodyNo: nil,
+                supplementalBodyEn: nil,
+                deviceTags: [],
+                showsCoachScoreCard: false,
+                presentationStyle: .showcase,
+                previewKind: .talkToCoach
             ),
         ]
     }
@@ -645,7 +673,12 @@ struct FeaturesPageView: View {
     private func showcasePreviewCard(width: CGFloat) -> some View {
         switch activePage.previewKind {
         case .none:
-            EmptyView()
+            if activePage.showsCoachScoreCard {
+                CoachScorePreviewCard()
+                    .frame(width: width)
+            } else {
+                EmptyView()
+            }
         case .fitnessAgePrompt:
             FitnessAgePromptCard()
                 .frame(width: width)
@@ -658,8 +691,15 @@ struct FeaturesPageView: View {
         case .deviceSupport:
             DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)
                 .frame(width: width)
-        case .watchBPM, .intensityBar, .talkToCoach:
-            EmptyView()
+        case .watchBPM:
+            WatchBPMPreviewCard()
+                .frame(width: width)
+        case .intensityBar:
+            IntensityBarPreviewCard()
+                .frame(width: width)
+        case .talkToCoach:
+            TalkToCoachPreviewCard()
+                .frame(width: width)
         }
     }
 
@@ -679,42 +719,87 @@ struct FeaturesPageView: View {
         }
     }
 
-    private func deviceTagWrap(_ tags: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                ForEach(tags.prefix(2), id: \.self) { tag in
-                    deviceTag(tag)
-                }
-            }
+    private func deviceLogoGrid(_ tags: [String]) -> some View {
+        let columns = [
+            GridItem(.flexible(), spacing: 18, alignment: .leading),
+            GridItem(.flexible(), spacing: 18, alignment: .leading),
+        ]
 
-            if tags.count > 2 {
-                HStack(spacing: 8) {
-                    ForEach(tags.dropFirst(2), id: \.self) { tag in
-                        deviceTag(tag)
-                    }
-                }
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+            ForEach(tags, id: \.self) { tag in
+                deviceLogoWordmark(tag)
             }
         }
     }
 
-    private func deviceTag(_ label: String) -> some View {
-        HStack(spacing: 6) {
-            if label == "Apple Watch" {
-                Image(systemName: "applewatch.side.right")
-                    .font(.caption.weight(.bold))
-            } else if label == "Bluetooth HR" {
-                Image(systemName: "dot.radiowaves.left.and.right")
-                    .font(.caption.weight(.bold))
+    private func deviceLogoWordmark(_ label: String) -> some View {
+        HStack(spacing: 8) {
+            switch label {
+            case "Apple Watch":
+                Image(systemName: "apple.logo")
+                    .font(.title3.weight(.bold))
+                Text("WATCH")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .tracking(0.6)
+            case "Garmin":
+                HStack(spacing: 4) {
+                    Text("GARMIN")
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .tracking(0.8)
+                    Image(systemName: "triangle.fill")
+                        .font(.caption.weight(.bold))
+                        .offset(y: -8)
+                }
+            case "Fitbit":
+                HStack(spacing: 8) {
+                    fitbitDots
+                    Text("fitbit")
+                        .font(.system(size: 20, weight: .medium, design: .rounded))
+                }
+            case "Polar":
+                Text("POLAR")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .italic()
+                    .tracking(0.5)
+            case "Withings":
+                Text("WITHINGS")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .tracking(1.2)
+            case "Suunto":
+                VStack(alignment: .leading, spacing: 2) {
+                    Image(systemName: "triangle.fill")
+                        .font(.caption2.weight(.bold))
+                    Text("SUUNTO")
+                        .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        .tracking(1.0)
+                }
+            default:
+                Text(label.uppercased())
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .tracking(0.8)
             }
-
-            Text(label)
-                .font(.caption.weight(.bold))
         }
-        .foregroundColor(.white.opacity(0.95))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.14))
-        .clipShape(Capsule())
+        .foregroundColor(.white.opacity(0.96))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var fitbitDots: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 3) {
+                Circle().frame(width: 4, height: 4)
+                Circle().frame(width: 4, height: 4)
+            }
+            HStack(spacing: 3) {
+                Circle().frame(width: 4, height: 4)
+                Circle().frame(width: 4, height: 4)
+                Circle().frame(width: 4, height: 4)
+            }
+            HStack(spacing: 3) {
+                Circle().frame(width: 4, height: 4)
+                Circle().frame(width: 4, height: 4)
+            }
+        }
+        .foregroundColor(.white.opacity(0.96))
     }
 }
 
@@ -967,12 +1052,6 @@ private struct CoachScorePreviewCard: View {
             }
         }
         .padding(10)
-        .background(Color.white.opacity(0.13))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
     }
 }
 
@@ -1038,12 +1117,6 @@ private struct WatchBPMPreviewCard: View {
             }
         }
         .padding(12)
-        .background(Color.white.opacity(0.13))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
     }
 
     private func zoneColor(_ index: Int) -> Color {
@@ -1116,12 +1189,6 @@ private struct IntensityBarPreviewCard: View {
             }
         }
         .padding(14)
-        .background(Color.white.opacity(0.13))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
     }
 }
 
@@ -1176,11 +1243,5 @@ private struct TalkToCoachPreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .padding(14)
-        .background(Color.white.opacity(0.13))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
     }
 }

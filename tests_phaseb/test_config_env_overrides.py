@@ -177,6 +177,20 @@ def test_premium_override_envs_are_resolved(monkeypatch):
     assert config.user_has_premium_override(user_id="missing", email="missing@example.com") is False
 
 
+def test_app_store_webhook_env_overrides(monkeypatch):
+    monkeypatch.setenv("APP_STORE_BUNDLE_IDS", "com.coachi.app,com.coachi.app.beta")
+    monkeypatch.setenv("APP_STORE_TRUSTED_ROOT_SHA256S", "root_a,root_b")
+    monkeypatch.setenv("APP_STORE_SERVER_NOTIFICATIONS_ENABLED", "true")
+    monkeypatch.setenv("APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE", "false")
+
+    importlib.reload(config)
+
+    assert config.APP_STORE_BUNDLE_IDS == ["com.coachi.app", "com.coachi.app.beta"]
+    assert config.APP_STORE_TRUSTED_ROOT_SHA256S == ["root_a", "root_b"]
+    assert config.APP_STORE_SERVER_NOTIFICATIONS_ENABLED is True
+    assert config.APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE is False
+
+
 def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("JWT_ACCESS_TOKEN_MAX_DAYS", "5")
     monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")

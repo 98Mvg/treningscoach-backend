@@ -30,7 +30,18 @@ from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
 from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
-from database import init_db, db, WaitlistSignup, User, UserProfile, WorkoutHistory  # Import database initialization + models
+from database import (
+    AppStoreServerNotification,
+    AppStoreSubscriptionState,
+    UserSubscription,
+    init_db,
+    db,
+    WaitlistSignup,
+    User,
+    UserProfile,
+    WorkoutHistory,
+    user_has_active_app_store_subscription,
+)  # Import database initialization + models
 from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from auth import (
@@ -61,6 +72,13 @@ from workout_contracts import (
     profile_validation_errors,
 )
 from launch_integrations import capture_posthog_event, init_sentry
+from app_store_runtime import (
+    AppStorePayloadError,
+    ACTIVE_APP_STORE_STATUSES,
+    decode_app_store_signed_payload,
+    extract_transaction_fields,
+    tier_from_status,
+)
 from xai_voice import bootstrap_post_workout_voice_session, sanitize_post_workout_summary_context
 
 # Configure logging
@@ -261,6 +279,205 @@ def _capture_voice_event(event: str, *, user_id: str, metadata: dict | None = No
         distinct_id=f"user:{user_id}",
         logger=logger,
     )
+
+
+_MOBILE_ANALYTICS_ALLOWED_EVENTS = {
+    "app_opened",
+    "deep_link_opened",
+    "onboarding_completed",
+    "paywall_cta_tapped",
+    "paywall_dismissed",
+    "paywall_manage_subscription_tapped",
+    "paywall_restore_tapped",
+    "paywall_shown",
+    "subscription_sync_failed",
+    "subscription_sync_succeeded",
+    "voice_cta_tapped",
+    "voice_fallback_text_opened",
+    "voice_session_ended",
+    "voice_session_failed",
+    "voice_session_requested",
+    "voice_session_started",
+    "workout_completed",
+    "workout_started",
+}
+
+
+def _sanitize_analytics_metadata(metadata: object) -> dict:
+    if not isinstance(metadata, dict):
+        return {}
+    sanitized: dict[str, object] = {}
+    for key, value in metadata.items():
+        normalized_key = str(key or "").strip()[:64]
+        if not normalized_key:
+            continue
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            sanitized[normalized_key] = value
+        elif isinstance(value, list):
+            sanitized[normalized_key] = [
+                item for item in value if isinstance(item, (str, int, float, bool))
+            ][:20]
+    return sanitized
+
+
+def _normalize_mobile_analytics_anonymous_id(value: object) -> str | None:
+    candidate = re.sub(r"[^a-zA-Z0-9_-]", "", str(value or "").strip())
+    if len(candidate) < 8:
+        return None
+    return candidate[:64]
+
+
+def _capture_mobile_analytics_event(
+    event: str,
+    *,
+    user_id: str | None,
+    anonymous_id: str | None,
+    metadata: dict | None = None,
+) -> None:
+    resolved_user_id = str(user_id or "").strip() or None
+    resolved_anonymous_id = _normalize_mobile_analytics_anonymous_id(anonymous_id)
+    if resolved_user_id:
+        distinct_id = f"user:{resolved_user_id}"
+        access_tier = resolve_user_subscription_tier(resolved_user_id)
+    elif resolved_anonymous_id:
+        distinct_id = f"mobile:{resolved_anonymous_id}"
+        access_tier = "guest"
+    else:
+        return
+
+    event_metadata = _sanitize_analytics_metadata(metadata)
+    event_metadata.setdefault("subscription_tier", access_tier)
+    event_metadata.setdefault("source", "ios")
+    capture_posthog_event(
+        event,
+        metadata=event_metadata,
+        distinct_id=distinct_id,
+        logger=logger,
+    )
+
+
+def _normalize_app_store_bundle_id(value: object) -> str | None:
+    bundle_id = str(value or "").strip()
+    return bundle_id or None
+
+
+def _update_user_subscription_tier_record(*, user_id: str | None, status: str | None) -> str:
+    normalized_user_id = str(user_id or "").strip()
+    resolved_tier = tier_from_status(status)
+    if not normalized_user_id:
+        return resolved_tier
+    if db.session.get(User, normalized_user_id) is None:
+        return resolved_tier
+
+    subscription = UserSubscription.query.filter_by(user_id=normalized_user_id).first()
+    if user_has_active_app_store_subscription(normalized_user_id):
+        resolved_tier = "premium"
+    elif resolved_tier != "premium":
+        resolved_tier = "free"
+    if subscription is None:
+        subscription = UserSubscription(user_id=normalized_user_id, tier=resolved_tier)
+        db.session.add(subscription)
+    else:
+        subscription.tier = resolved_tier
+    return resolved_tier
+
+
+def _upsert_app_store_subscription_state(
+    *,
+    user_id: str | None,
+    transaction_fields: dict[str, object],
+    source: str,
+    notification_uuid: str | None = None,
+    notification_signed_at: datetime | None = None,
+) -> AppStoreSubscriptionState:
+    original_transaction_id = str(transaction_fields.get("original_transaction_id") or "").strip()
+    if not original_transaction_id:
+        raise AppStorePayloadError("missing_original_transaction_id")
+
+    state = db.session.get(AppStoreSubscriptionState, original_transaction_id)
+    if state is None:
+        state = AppStoreSubscriptionState(original_transaction_id=original_transaction_id)
+        db.session.add(state)
+
+    resolved_user_id = str(user_id or "").strip() or None
+    if resolved_user_id and db.session.get(User, resolved_user_id) is not None:
+        state.user_id = resolved_user_id
+    if not state.user_id:
+        candidate_token = str(transaction_fields.get("app_account_token") or "").strip()
+        if candidate_token and db.session.get(User, candidate_token) is not None:
+            state.user_id = candidate_token
+
+    state.transaction_id = str(transaction_fields.get("transaction_id") or "").strip() or state.transaction_id
+    state.product_id = transaction_fields.get("product_id")
+    state.bundle_id = transaction_fields.get("bundle_id")
+    state.environment = transaction_fields.get("environment")
+    state.status = str(transaction_fields.get("status") or "unknown").strip().lower() or "unknown"
+    state.ownership_type = transaction_fields.get("ownership_type")
+    state.notification_type = transaction_fields.get("notification_type")
+    state.notification_subtype = transaction_fields.get("notification_subtype")
+    state.app_account_token = transaction_fields.get("app_account_token")
+    state.purchase_date = transaction_fields.get("purchase_date")
+    state.expires_at = transaction_fields.get("expires_at")
+    state.revocation_date = transaction_fields.get("revocation_date")
+    state.last_transaction_signed_at = transaction_fields.get("signed_at")
+    state.source = source
+    if notification_uuid:
+        state.last_notification_uuid = notification_uuid
+    if notification_signed_at is not None:
+        state.last_notification_signed_at = notification_signed_at
+
+    _update_user_subscription_tier_record(user_id=state.user_id, status=state.status)
+    return state
+
+
+def _resolve_user_id_from_transaction_fields(transaction_fields: dict[str, object]) -> str | None:
+    app_account_token = str(transaction_fields.get("app_account_token") or "").strip()
+    if app_account_token:
+        return app_account_token
+
+    original_transaction_id = str(transaction_fields.get("original_transaction_id") or "").strip()
+    if not original_transaction_id:
+        return None
+
+    state = db.session.get(AppStoreSubscriptionState, original_transaction_id)
+    if state is None:
+        return None
+    return str(state.user_id or "").strip() or None
+
+
+def _process_signed_app_store_transaction(
+    *,
+    signed_transaction_info: str,
+    user_id: str | None,
+    source: str,
+    notification_type: str | None = None,
+    notification_subtype: str | None = None,
+    notification_uuid: str | None = None,
+    notification_signed_at: datetime | None = None,
+) -> tuple[AppStoreSubscriptionState, dict[str, object]]:
+    transaction_payload = decode_app_store_signed_payload(
+        signed_transaction_info,
+        verify_signature=bool(getattr(config, "APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE", True)),
+        trusted_root_sha256s=set(getattr(config, "APP_STORE_TRUSTED_ROOT_SHA256S", []) or []),
+    )
+    transaction_fields = extract_transaction_fields(
+        transaction_payload,
+        notification_type=notification_type,
+        notification_subtype=notification_subtype,
+    )
+    bundle_id = _normalize_app_store_bundle_id(transaction_fields.get("bundle_id"))
+    allowed_bundle_ids = set(getattr(config, "APP_STORE_BUNDLE_IDS", []) or [])
+    if bundle_id and allowed_bundle_ids and bundle_id not in allowed_bundle_ids:
+        raise AppStorePayloadError("bundle_id_mismatch")
+
+    state = _upsert_app_store_subscription_state(
+        user_id=user_id,
+        transaction_fields=transaction_fields,
+        source=source,
+        notification_uuid=notification_uuid,
+        notification_signed_at=notification_signed_at,
+    )
+    return state, transaction_fields
 
 
 def _live_voice_session_policy(subscription_tier: str) -> dict[str, int | str]:
@@ -4336,7 +4553,6 @@ def voice_telemetry():
         )
 
     event = str(payload.get("event") or "").strip()
-    metadata = payload.get("metadata")
     allowed_events = {
         "voice_cta_tapped",
         "voice_session_requested",
@@ -4352,9 +4568,51 @@ def voice_telemetry():
             error_code="invalid_voice_event",
         )
 
-    event_metadata = dict(metadata) if isinstance(metadata, dict) else {}
+    event_metadata = _sanitize_analytics_metadata(payload.get("metadata"))
     event_metadata["subscription_tier"] = resolve_user_subscription_tier(user_id)
     _capture_voice_event(event, user_id=user_id, metadata=event_metadata)
+    return jsonify({"success": True}), 200
+
+
+@app.route('/analytics/mobile', methods=['POST'])
+@rate_limit(
+    limit=getattr(config, "API_RATE_LIMIT_PER_HOUR", 100),
+    window_seconds=3600,
+    key_prefix="api.mobile.analytics",
+)
+def mobile_analytics():
+    """Best-effort app analytics for onboarding, workout, paywall, and deep links."""
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return _voice_error(
+            "Invalid request body",
+            status=400,
+            error_code="invalid_request_body",
+        )
+
+    event = str(payload.get("event") or "").strip()
+    if event not in _MOBILE_ANALYTICS_ALLOWED_EVENTS:
+        return _voice_error(
+            "Invalid analytics event",
+            status=400,
+            error_code="invalid_analytics_event",
+        )
+
+    user_id = get_request_auth_user_id()
+    anonymous_id = payload.get("anonymous_id")
+    if not user_id and _normalize_mobile_analytics_anonymous_id(anonymous_id) is None:
+        return _voice_error(
+            "Anonymous mobile analytics id required",
+            status=400,
+            error_code="anonymous_id_required",
+        )
+
+    _capture_mobile_analytics_event(
+        event,
+        user_id=user_id,
+        anonymous_id=anonymous_id,
+        metadata=payload.get("metadata"),
+    )
     return jsonify({"success": True}), 200
 
 
@@ -4791,6 +5049,112 @@ def coach_talk():
 # SUBSCRIPTION VALIDATION
 # ============================================
 
+@app.route('/webhooks/app-store', methods=['POST'])
+def app_store_server_notifications():
+    """Handle App Store Server Notifications V2 for subscription lifecycle sync."""
+    if not bool(getattr(config, "APP_STORE_SERVER_NOTIFICATIONS_ENABLED", False)):
+        return jsonify({"error": "app_store_notifications_disabled"}), 503
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_request_body"}), 400
+
+    signed_payload = str(payload.get("signedPayload") or "").strip()
+    if not signed_payload:
+        return jsonify({"error": "missing_signed_payload"}), 400
+
+    try:
+        notification_payload = decode_app_store_signed_payload(
+            signed_payload,
+            verify_signature=bool(getattr(config, "APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE", True)),
+            trusted_root_sha256s=set(getattr(config, "APP_STORE_TRUSTED_ROOT_SHA256S", []) or []),
+        )
+    except AppStorePayloadError as exc:
+        logger.warning("APP_STORE_WEBHOOK_REJECTED reason=%s", exc)
+        return jsonify({"error": str(exc)}), 400
+
+    notification_uuid = str(notification_payload.get("notificationUUID") or "").strip()
+    notification_type = str(notification_payload.get("notificationType") or "").strip()
+    notification_subtype = str(notification_payload.get("subtype") or "").strip()
+    signed_at_ms = notification_payload.get("signedDate")
+    signed_at = None
+    if signed_at_ms not in (None, "", 0):
+        try:
+            signed_at = datetime.fromtimestamp(int(signed_at_ms) / 1000.0, tz=timezone.utc).replace(tzinfo=None)
+        except (TypeError, ValueError):
+            signed_at = None
+
+    if notification_uuid:
+        existing = db.session.get(AppStoreServerNotification, notification_uuid)
+        if existing is not None:
+            return jsonify({"success": True, "deduped": True}), 200
+
+    data = notification_payload.get("data") if isinstance(notification_payload.get("data"), dict) else {}
+    signed_transaction_info = str(data.get("signedTransactionInfo") or "").strip()
+    if not signed_transaction_info:
+        logger.info(
+            "APP_STORE_WEBHOOK_SKIPPED notification_uuid=%s type=%s reason=no_transaction_info",
+            notification_uuid or "unknown",
+            notification_type or "unknown",
+        )
+        return jsonify({"success": True, "deduped": False, "processed": False}), 200
+
+    try:
+        state, transaction_fields = _process_signed_app_store_transaction(
+            signed_transaction_info=signed_transaction_info,
+            user_id=None,
+            source="app_store_webhook",
+            notification_type=notification_type,
+            notification_subtype=notification_subtype,
+            notification_uuid=notification_uuid or None,
+            notification_signed_at=signed_at,
+        )
+    except AppStorePayloadError as exc:
+        db.session.rollback()
+        logger.warning(
+            "APP_STORE_WEBHOOK_TRANSACTION_REJECTED notification_uuid=%s reason=%s",
+            notification_uuid or "unknown",
+            exc,
+        )
+        return jsonify({"error": str(exc)}), 400
+
+    if notification_uuid:
+        db.session.add(
+            AppStoreServerNotification(
+                notification_uuid=notification_uuid,
+                user_id=state.user_id,
+                original_transaction_id=state.original_transaction_id,
+                transaction_id=state.transaction_id,
+                notification_type=notification_type or None,
+                notification_subtype=notification_subtype or None,
+                environment=str(transaction_fields.get("environment") or "").strip() or None,
+                signed_at=signed_at,
+            )
+        )
+
+    db.session.commit()
+    _capture_mobile_analytics_event(
+        "subscription_sync_succeeded",
+        user_id=state.user_id,
+        anonymous_id=None,
+        metadata={
+            "source": "app_store_webhook",
+            "notification_type": notification_type,
+            "notification_subtype": notification_subtype,
+            "status": state.status,
+            "product_id": state.product_id,
+        },
+    )
+    return jsonify(
+        {
+            "success": True,
+            "deduped": False,
+            "processed": True,
+            "status": state.status,
+            "tier": tier_from_status(state.status),
+        }
+    ), 200
+
 @app.route('/subscription/validate', methods=['POST'])
 @require_mobile_auth
 def subscription_validate():
@@ -4801,12 +5165,65 @@ def subscription_validate():
 
     Returns: { "tier": "premium" | "free" }
     """
-    user_id = getattr(g, "user_id", None)
+    user_id = get_request_auth_user_id()
     if not user_id:
         return jsonify({"tier": "free"}), 200
 
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    signed_transaction_info = str(payload.get("signed_transaction_info") or "").strip()
+    transaction_id = str(payload.get("transaction_id") or "").strip() or None
+
+    if signed_transaction_info:
+        try:
+            state, transaction_fields = _process_signed_app_store_transaction(
+                signed_transaction_info=signed_transaction_info,
+                user_id=user_id,
+                source="subscription_validate",
+            )
+        except AppStorePayloadError as exc:
+            db.session.rollback()
+            _capture_mobile_analytics_event(
+                "subscription_sync_failed",
+                user_id=user_id,
+                anonymous_id=None,
+                metadata={
+                    "reason": str(exc),
+                    "transaction_id": transaction_id,
+                },
+            )
+            return jsonify({"error": str(exc), "tier": resolve_user_subscription_tier(user_id)}), 400
+
+        claimed_account_token = str(transaction_fields.get("app_account_token") or "").strip()
+        if claimed_account_token and claimed_account_token != user_id:
+            db.session.rollback()
+            return jsonify({"error": "app_account_token_mismatch", "tier": resolve_user_subscription_tier(user_id)}), 403
+
+        db.session.commit()
+        tier = resolve_user_subscription_tier(user_id)
+        _capture_mobile_analytics_event(
+            "subscription_sync_succeeded",
+            user_id=user_id,
+            anonymous_id=None,
+            metadata={
+                "source": "subscription_validate",
+                "product_id": state.product_id,
+                "status": state.status,
+                "transaction_id": state.transaction_id or transaction_id,
+            },
+        )
+        return jsonify(
+            {
+                "tier": tier,
+                "status": state.status,
+                "transaction_id": state.transaction_id or transaction_id,
+            }
+        ), 200
+
     tier = resolve_user_subscription_tier(user_id)
-    return jsonify({"tier": tier}), 200
+    return jsonify({"tier": tier, "transaction_id": transaction_id}), 200
 
 
 # ============================================

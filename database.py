@@ -11,11 +11,42 @@ from flask_sqlalchemy import SQLAlchemy
 import config
 
 db = SQLAlchemy()
+ACTIVE_APP_STORE_STATUSES = {"active", "trial", "grace_period"}
 
 
 def _utcnow_naive() -> datetime:
     """Return UTC as naive datetime for existing DB columns."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalized_user_id(value: str | None) -> str | None:
+    normalized = str(value or "").strip()
+    return normalized or None
+
+
+def user_has_active_app_store_subscription(user_id: str | None) -> bool:
+    normalized_user_id = _normalized_user_id(user_id)
+    if not normalized_user_id:
+        return False
+
+    now = _utcnow_naive()
+    active_state = (
+        AppStoreSubscriptionState.query.filter(
+            AppStoreSubscriptionState.user_id == normalized_user_id,
+            AppStoreSubscriptionState.status.in_(tuple(ACTIVE_APP_STORE_STATUSES)),
+            db.or_(
+                AppStoreSubscriptionState.expires_at.is_(None),
+                AppStoreSubscriptionState.expires_at > now,
+            ),
+            AppStoreSubscriptionState.revocation_date.is_(None),
+        )
+        .order_by(
+            AppStoreSubscriptionState.expires_at.desc().nullslast(),
+            AppStoreSubscriptionState.updated_at.desc(),
+        )
+        .first()
+    )
+    return active_state is not None
 
 
 def get_database_url():
@@ -83,6 +114,8 @@ class User(db.Model):
             raw_tier = str(getattr(self.subscription, "tier", "") or "").strip().lower()
             if raw_tier == "premium":
                 subscription_tier = "premium"
+        elif user_has_active_app_store_subscription(self.id):
+            subscription_tier = "premium"
         return {
             "id": self.id,
             "email": self.email,
@@ -244,6 +277,49 @@ class UserSubscription(db.Model):
     tier = db.Column(db.String(20), nullable=False, default="free")
     created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
     updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
+
+
+# ============================================
+# APP STORE SUBSCRIPTION STATE
+# ============================================
+
+class AppStoreSubscriptionState(db.Model):
+    __tablename__ = "app_store_subscription_states"
+
+    original_transaction_id = db.Column(db.String(128), primary_key=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+    transaction_id = db.Column(db.String(128), nullable=True, unique=True, index=True)
+    product_id = db.Column(db.String(255), nullable=True)
+    bundle_id = db.Column(db.String(255), nullable=True)
+    environment = db.Column(db.String(32), nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="unknown", index=True)
+    ownership_type = db.Column(db.String(64), nullable=True)
+    notification_type = db.Column(db.String(64), nullable=True)
+    notification_subtype = db.Column(db.String(64), nullable=True)
+    app_account_token = db.Column(db.String(64), nullable=True)
+    purchase_date = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    revocation_date = db.Column(db.DateTime, nullable=True, index=True)
+    last_transaction_signed_at = db.Column(db.DateTime, nullable=True)
+    last_notification_signed_at = db.Column(db.DateTime, nullable=True)
+    last_notification_uuid = db.Column(db.String(64), nullable=True)
+    source = db.Column(db.String(32), nullable=False, default="unknown")
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive)
+
+
+class AppStoreServerNotification(db.Model):
+    __tablename__ = "app_store_server_notifications"
+
+    notification_uuid = db.Column(db.String(64), primary_key=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+    original_transaction_id = db.Column(db.String(128), nullable=True, index=True)
+    transaction_id = db.Column(db.String(128), nullable=True, index=True)
+    notification_type = db.Column(db.String(64), nullable=True)
+    notification_subtype = db.Column(db.String(64), nullable=True)
+    environment = db.Column(db.String(32), nullable=True)
+    signed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, index=True)
 
 
 # ============================================

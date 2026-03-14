@@ -405,7 +405,7 @@ def resolve_user_subscription_tier(user_id: str | None) -> str:
     if not normalized_user_id:
         return "free"
 
-    from database import db, User, UserSubscription
+    from database import db, User, UserSubscription, user_has_active_app_store_subscription
 
     if config.user_has_premium_override(user_id=normalized_user_id):
         return "premium"
@@ -417,6 +417,9 @@ def resolve_user_subscription_tier(user_id: str | None) -> str:
     subscription = UserSubscription.query.filter_by(user_id=normalized_user_id).first()
     raw_tier = str(getattr(subscription, "tier", "") or "").strip().lower()
     if raw_tier == "premium":
+        return "premium"
+
+    if user_has_active_app_store_subscription(normalized_user_id):
         return "premium"
     return "free"
 

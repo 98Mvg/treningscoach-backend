@@ -10,8 +10,14 @@
 import SwiftUI
 import UIKit
 
+enum AuthFlowMode {
+    case register
+    case login
+}
+
 struct AuthView: View {
     @EnvironmentObject var authManager: AuthManager
+    let mode: AuthFlowMode
     let onContinue: () -> Void
     let onContinueWithoutAccount: () -> Void
 
@@ -41,9 +47,17 @@ struct AuthView: View {
         emailAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
+    private var requiresAcceptedTerms: Bool {
+        mode == .register
+    }
+
+    private var hasAcceptedRequiredTerms: Bool {
+        !requiresAcceptedTerms || acceptedTerms
+    }
+
     private var canRequestEmailCode: Bool {
         AppConfig.Auth.emailSignInEnabled
-            && acceptedTerms
+            && hasAcceptedRequiredTerms
             && normalizedEmail.contains("@")
             && normalizedEmail.contains(".")
             && !authManager.isLoading
@@ -51,13 +65,37 @@ struct AuthView: View {
 
     private var canVerifyEmailCode: Bool {
         emailCodeRequested
-            && acceptedTerms
+            && hasAcceptedRequiredTerms
             && verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).count == 6
             && !authManager.isLoading
     }
 
     private var canContinueWithoutAccount: Bool {
-        acceptedTerms && !authManager.isLoading
+        hasAcceptedRequiredTerms && !authManager.isLoading
+    }
+
+    private var appleButtonTitle: String {
+        mode == .login ? L10n.loginWithApple : L10n.registerWithApple
+    }
+
+    private var googleButtonTitle: String {
+        mode == .login ? L10n.loginWithGoogle : L10n.registerWithGoogle
+    }
+
+    private var emailTitle: String {
+        if emailCodeRequested {
+            return L10n.current == .no ? "Bekreft koden fra e-posten din" : "Verify the code from your email"
+        }
+        return mode == .login
+            ? L10n.loginWithEmail
+            : (L10n.current == .no ? "Registrer deg med e-postadressen din" : "Register with your email address")
+    }
+
+    private var emailPrimaryButtonTitle: String {
+        if emailCodeRequested {
+            return L10n.current == .no ? "Bekreft kode" : "Verify code"
+        }
+        return mode == .login ? L10n.loginWithEmail : L10n.register
     }
 
     var body: some View {
@@ -74,14 +112,11 @@ struct AuthView: View {
                 VStack(spacing: 0) {
                     Spacer().frame(height: max(renderHeight * 0.12, geo.safeAreaInsets.top + 18.0))
 
-                    header(contentWidth: contentWidth)
-
                     VStack(spacing: 14) {
                         appleButton
                         googleButton
                     }
                     .frame(width: contentWidth, alignment: .center)
-                    .padding(.top, 26)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 14)
 
@@ -166,53 +201,13 @@ struct AuthView: View {
         }
     }
 
-    private func header(contentWidth: CGFloat) -> some View {
-        VStack(spacing: 14) {
-            Text(L10n.current == .no ? "Velkommen" : "Welcome")
-                .font(.largeTitle.weight(.bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .frame(width: contentWidth, alignment: .center)
-
-            Text(
-                L10n.current == .no
-                    ? "Logg inn med Apple eller e-post for å lagre fremgangen din og låse opp Premium"
-                    : "Sign in with Apple or email to save your progress and unlock Premium"
-            )
-            .font(.body.weight(.medium))
-            .foregroundColor(CoachiTheme.textSecondary)
-            .multilineTextAlignment(.center)
-            .frame(width: contentWidth, alignment: .center)
-            .fixedSize(horizontal: false, vertical: true)
-
-            Text(L10n.accountRequiredHint)
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(CoachiTheme.primary)
-                .multilineTextAlignment(.center)
-                .frame(width: contentWidth, alignment: .center)
-
-            VStack(alignment: .leading, spacing: 12) {
-                authBenefitRow(icon: "chart.line.uptrend.xyaxis", text: L10n.authBenefitSaveHistory)
-                authBenefitRow(icon: "person.crop.circle.badge.checkmark", text: L10n.authBenefitSyncProfile)
-                authBenefitRow(icon: "envelope.badge", text: L10n.authBenefitAppleOrEmail)
-            }
-            .padding(18)
-            .background(CoachiTheme.surface.opacity(0.96))
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
-            )
-            .frame(width: contentWidth, alignment: .center)
-        }
-    }
-
     private var appleButton: some View {
         socialButton(
-            title: L10n.registerWithApple,
+            title: appleButtonTitle,
             icon: .system("applelogo"),
             disabled: authManager.isLoading
         ) {
-            guard acceptedTerms else {
+            guard hasAcceptedRequiredTerms else {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showTermsValidationError = true
                 }
@@ -231,11 +226,11 @@ struct AuthView: View {
         Group {
             if AppConfig.Auth.googleSignInFeatureEnabled {
                 socialButton(
-                    title: L10n.registerWithGoogle,
+                    title: googleButtonTitle,
                     icon: .text("G"),
                     disabled: authManager.isLoading
                 ) {
-                    guard acceptedTerms else {
+                    guard hasAcceptedRequiredTerms else {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showTermsValidationError = true
                         }
@@ -250,7 +245,7 @@ struct AuthView: View {
                 }
             } else {
                 socialButton(
-                    title: L10n.registerWithGoogle,
+                    title: googleButtonTitle,
                     icon: .text("G"),
                     disabled: true,
                     badge: L10n.current == .no ? "Kommer snart" : "Coming soon"
@@ -278,11 +273,7 @@ struct AuthView: View {
 
     private func emailCard(contentWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(
-                emailCodeRequested
-                    ? (L10n.current == .no ? "Bekreft koden fra e-posten din" : "Verify the code from your email")
-                    : (L10n.current == .no ? "Registrer deg med e-postadressen din" : "Register with your email address")
-            )
+            Text(emailTitle)
             .font(.title3.weight(.bold))
             .foregroundColor(CoachiTheme.textPrimary)
 
@@ -309,12 +300,12 @@ struct AuthView: View {
                 )
             }
 
-            termsSection
+            if mode == .register {
+                termsSection
+            }
 
             primaryActionButton(
-                title: emailCodeRequested
-                    ? (L10n.current == .no ? "Bekreft kode" : "Verify code")
-                    : L10n.register,
+                title: emailPrimaryButtonTitle,
                 disabled: emailCodeRequested ? !canVerifyEmailCode : !canRequestEmailCode
             ) {
                 Task {
@@ -336,24 +327,26 @@ struct AuthView: View {
                 }
             }
 
-            secondaryActionButton(
-                title: L10n.continueWithoutAccount,
-                disabled: !canContinueWithoutAccount
-            ) {
-                guard acceptedTerms else {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showTermsValidationError = true
+            if mode == .register {
+                secondaryActionButton(
+                    title: L10n.continueWithoutAccount,
+                    disabled: !canContinueWithoutAccount
+                ) {
+                    guard hasAcceptedRequiredTerms else {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showTermsValidationError = true
+                        }
+                        return
                     }
-                    return
+                    hideKeyboard()
+                    onContinueWithoutAccount()
                 }
-                hideKeyboard()
-                onContinueWithoutAccount()
-            }
 
-            Text(L10n.signInLaterHint)
-                .font(.footnote.weight(.medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(L10n.signInLaterHint)
+                    .font(.footnote.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(22)
         .frame(width: contentWidth, alignment: .leading)
@@ -550,22 +543,6 @@ struct AuthView: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
             )
-    }
-
-    private func authBenefitRow(icon: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(CoachiTheme.primary)
-                .frame(width: 20)
-
-            Text(text)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
-        }
     }
 
     private func hideKeyboard() {

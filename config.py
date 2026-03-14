@@ -134,6 +134,13 @@ def user_has_premium_override(*, user_id: str | None = None, email: str | None =
 POSTHOG_ENABLED = _env_bool("POSTHOG_ENABLED", False)
 POSTHOG_API_KEY = (os.getenv("POSTHOG_API_KEY", "") or "").strip()
 POSTHOG_HOST = (os.getenv("POSTHOG_HOST", "https://us.i.posthog.com") or "https://us.i.posthog.com").strip()
+APP_STORE_BUNDLE_IDS = _env_csv_set("APP_STORE_BUNDLE_IDS", ["com.coachi.app"])
+APP_STORE_TRUSTED_ROOT_SHA256S = _env_csv_set("APP_STORE_TRUSTED_ROOT_SHA256S", [])
+APP_STORE_SERVER_NOTIFICATIONS_ENABLED = _env_bool("APP_STORE_SERVER_NOTIFICATIONS_ENABLED", False)
+APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE = _env_bool(
+    "APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE",
+    True,
+)
 SENTRY_ENABLED = _env_bool("SENTRY_ENABLED", False)
 SENTRY_DSN = (os.getenv("SENTRY_DSN", "") or "").strip()
 SENTRY_ENVIRONMENT = (

@@ -59,6 +59,20 @@ final class SubscriptionManager: ObservableObject {
         }
     }
 
+    var hasPremiumAccess: Bool {
+        isPremium || AuthManager.shared.currentUser?.subscriptionTier.isPremium == true
+    }
+
+    var resolvedPlanLabel: String {
+        if isPremium {
+            return currentPlanLabel
+        }
+        if AuthManager.shared.currentUser?.subscriptionTier.isPremium == true {
+            return "Premium"
+        }
+        return currentPlanLabel
+    }
+
     // MARK: - Private State
 
     private var products: [Product] = []
@@ -80,6 +94,7 @@ final class SubscriptionManager: ObservableObject {
     func initialize() async {
         await refreshStatus()
         await loadProducts()
+        await syncLatestEntitlementWithBackend()
     }
 
     // MARK: - Product Loading
@@ -110,16 +125,26 @@ final class SubscriptionManager: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let result = try await product.purchase()
+            let purchaseOptions = appAccountTokenOption()
+            let result: Product.PurchaseResult
+            if purchaseOptions.isEmpty {
+                result = try await product.purchase()
+            } else {
+                result = try await product.purchase(options: purchaseOptions)
+            }
             switch result {
             case .success(let verification):
+                let signedTransactionInfo = verification.jwsRepresentation
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
                 await refreshStatus()
                 // Cross-check with server (best-effort, non-blocking)
                 let txID = String(transaction.id)
                 Task {
-                    _ = await BackendAPIService.shared.validateSubscription(transactionID: txID)
+                    _ = await BackendAPIService.shared.validateSubscription(
+                        transactionID: txID,
+                        signedTransactionInfo: signedTransactionInfo
+                    )
                 }
             case .pending:
                 break   // Transaction awaiting approval (e.g., Ask to Buy)
@@ -141,6 +166,7 @@ final class SubscriptionManager: ObservableObject {
         do {
             try await AppStore.sync()
             await refreshStatus()
+            await syncLatestEntitlementWithBackend()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -188,14 +214,52 @@ final class SubscriptionManager: ObservableObject {
         Task.detached {
             for await result in Transaction.updates {
                 do {
+                    let signedTransactionInfo = result.jwsRepresentation
                     let transaction = try await self.checkVerified(result)
                     await transaction.finish()
                     await self.refreshStatus()
+                    _ = await BackendAPIService.shared.validateSubscription(
+                        transactionID: String(transaction.id),
+                        signedTransactionInfo: signedTransactionInfo
+                    )
                 } catch {
                     // Ignore unverified transactions
                 }
             }
         }
+    }
+
+    private func appAccountTokenOption() -> Set<Product.PurchaseOption> {
+        guard let currentUserID = AuthManager.shared.currentUser?.id,
+              let uuid = UUID(uuidString: currentUserID) else {
+            return []
+        }
+        return [.appAccountToken(uuid)]
+    }
+
+    private func syncLatestEntitlementWithBackend() async {
+        var latestTransactionID: String?
+        var latestSignedTransactionInfo: String?
+        var latestSignedDate: Date?
+
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            guard AppConfig.Subscription.allProductIDs.contains(transaction.productID) else { continue }
+
+            let candidateDate = transaction.revocationDate ?? transaction.expirationDate ?? transaction.purchaseDate
+            if let latestSignedDate, candidateDate <= latestSignedDate {
+                continue
+            }
+
+            latestSignedDate = candidateDate
+            latestTransactionID = String(transaction.id)
+            latestSignedTransactionInfo = result.jwsRepresentation
+        }
+
+        _ = await BackendAPIService.shared.validateSubscription(
+            transactionID: latestTransactionID,
+            signedTransactionInfo: latestSignedTransactionInfo
+        )
     }
 
     // MARK: - Verification Helper

@@ -24,6 +24,10 @@ struct ProfileView: View {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
     }
 
+    private var hasPremiumAccess: Bool {
+        subscriptionManager.hasPremiumAccess
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -265,7 +269,7 @@ struct ProfileView: View {
 
     private var premiumSection: some View {
         VStack(spacing: 12) {
-            if !subscriptionManager.isPremium {
+            if !hasPremiumAccess {
                 Button { showPaywall = true } label: {
                     HStack(spacing: 14) {
                         ZStack {
@@ -334,7 +338,7 @@ struct ProfileView: View {
                             Text(L10n.current == .no ? "Coachi Pro aktiv" : "Coachi Pro Active")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(Color(hex: "A5F3EC"))
-                            Text(subscriptionManager.currentPlanLabel)
+                            Text(subscriptionManager.resolvedPlanLabel)
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(CoachiTheme.textSecondary)
                         }

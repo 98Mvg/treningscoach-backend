@@ -136,6 +136,9 @@ def test_onboarding_background_assets_exist() -> None:
 
 def test_intro_value_carousel_contract() -> None:
     text = INTRO_VIEW.read_text(encoding="utf-8")
+    intro_block = text.split("private let introPages: [IntroStoryPage] = [", 1)[1].split("private var activePage", 1)[0]
+    post_auth_block = text.split("private func postAuthPages(displayName: String) -> [IntroStoryPage] {", 1)[1].split("private var showcasePrimaryTitle", 1)[0]
+
     assert 'imageName: "IntroStory1"' in text
     assert 'imageName: "IntroStory2"' in text
     assert 'imageName: "IntroStory3"' in text
@@ -156,25 +159,47 @@ def test_intro_value_carousel_contract() -> None:
     assert "currentPage += 1" in text
     assert "currentPage -= 1" in text
     assert "@State private var autoAdvanceTask: Task<Void, Never>?" in text
-    assert "Task.sleep(nanoseconds: 5_000_000_000)" in text
+    assert "Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)" in text
     assert "if case .intro = mode {" in text
-    assert "Jeg guider deg live med pulssoner" in text
-    assert "Jeg motiverer og tilpasser økten dynamisk" in text
-    assert "Du får en CoachScore etter hver økt" in text
-    assert "Etter økten kan vi snakke live" in text
-    assert "Snakk om prestasjonen din og hvordan du kan bli bedre til neste gang" in text
-    assert "presentationStyle: .showcase" in text
-    assert "FitnessAgePromptCard()" in text
-    assert "FitnessAgeExampleCard()" in text
-    assert "ActivityQuotientPreviewCard()" in text
-    assert "DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)" in text
-    assert "La oss starte med å bli litt bedre kjent med deg og regne ut kondisjonsalderen din." in text
-    assert "Vi kan finne ut hvor gammel kroppen din faktisk er." in text
-    assert "Vi kan hjelpe deg med å forstå om du er aktiv nok til å holde deg sunn og frisk." in text
-    assert "Coachi tilpasser coachingen med pulsklokke eller pustanalyse fra første økt." in text
+    assert intro_block.count("IntroStoryPage(") == 4
+    assert "Få veiledning av en coach live på øret" in intro_block
+    assert "Coachen holder fokus på det viktige i økten" in intro_block
+    assert "Få en score av Coachen etter hver økt" in intro_block
+    assert "Coachi kobles enkelt til pulsklokka di" in intro_block
+    assert 'imageName: "IntroStory3"' in intro_block
+    assert 'imageName: "IntroStory2"' in intro_block
+    assert intro_block.count('bodyNo: ""') >= 3
+    assert "Du får tydelige beskjeder når det betyr noe, og ro når du bare skal løpe." not in intro_block
+    assert "CoachScore gir deg et enkelt tall på kontroll, flyt og gjennomføring." not in intro_block
+    assert "Alt i orden! Du kan fortsatt bli coachet pa pustanalyse." in intro_block
+    assert 'deviceTags: ["Apple Watch", "Garmin", "Fitbit", "Polar", "Withings", "Suunto"]' in intro_block
+    assert "Bluetooth HR" not in intro_block
+    assert "Samsung" not in intro_block
+    assert "Jeg guider deg live med pulssoner" not in intro_block
+    assert "Etter økten kan vi snakke live" not in intro_block
+    assert post_auth_block.count("IntroStoryPage(") == 5
+    assert 'bodyNo: "La meg først forklare hvordan vi kan hjelpe deg."' in post_auth_block
+    assert post_auth_block.count('bodyNo: ""') == 4
+    assert post_auth_block.count('bodyEn: ""') == 4
+    assert 'titleNo: "Jeg guider deg live med pulssoner"' in post_auth_block
+    assert 'titleNo: "Jeg motiverer og tilpasser økten dynamisk"' in post_auth_block
+    assert 'titleNo: "Du får en CoachScore etter hver økt"' in post_auth_block
+    assert 'titleNo: "Etter økten kan vi snakke live"' in post_auth_block
+    assert "WatchBPMPreviewCard()" in text
+    assert "IntensityBarPreviewCard()" in text
+    assert "TalkToCoachPreviewCard()" in text
+    assert "if activePage.showsCoachScoreCard {" in text
     assert "introTrustBadge(" not in text
     assert 'Logg inn med Apple eller e-post for å fortsette.' not in text
     assert "score: 100" in text
+    assert "private func deviceLogoGrid(_ tags: [String]) -> some View {" in text
+    assert "LazyVGrid(columns: columns, alignment: .leading, spacing: 18)" in text
+    assert 'Text("WATCH")' in text
+    assert 'Text("GARMIN")' in text
+    assert 'Text("fitbit")' in text
+    assert 'Text("POLAR")' in text
+    assert 'Text("WITHINGS")' in text
+    assert 'Text("SUUNTO")' in text
 
 
 def test_onboarding_uses_valid_sf_symbols_for_gender_choices() -> None:
@@ -225,6 +250,14 @@ def test_intro_swipe_gestures_not_blocked_by_nested_scrollview() -> None:
     assert ".simultaneousGesture(" in intro_slice
 
 
+def test_intro_pages_do_not_wrap_content_in_transparent_outer_card() -> None:
+    text = INTRO_VIEW.read_text(encoding="utf-8")
+    intro_slice = text.split("private func introContent(", 1)[1].split("private func showcaseContent(", 1)[0]
+    assert "RoundedRectangle(cornerRadius: 24, style: .continuous)" not in intro_slice
+    assert ".background(Color.white.opacity(0.12))" not in intro_slice
+    assert 'Text("Coachi")' not in intro_slice
+
+
 def test_intro_only_ignores_vertical_safe_areas() -> None:
     text = INTRO_VIEW.read_text(encoding="utf-8")
     assert ".ignoresSafeArea(edges: [.top, .bottom])" in text
@@ -241,15 +274,43 @@ def test_intro_layout_places_indicator_above_register_cta() -> None:
 
 def test_post_auth_explainer_uses_showcase_navigation() -> None:
     text = INTRO_VIEW.read_text(encoding="utf-8")
+    post_auth_block = text.split("private func postAuthPages(displayName: String) -> [IntroStoryPage] {", 1)[1].split("private var showcasePrimaryTitle", 1)[0]
     assert "private func showcaseContent(" in text
     assert "private var showcasePrimaryTitle: String {" in text
     assert 'return L10n.current == .no ? "Neste" : "Next"' in text
     assert "private func showcasePrimaryAction()" in text
     assert "private func showcaseSecondaryAction()" in text
+    assert "if currentPage < pages.count - 1 {" in text
+    assert "else if let onSecondary {" in text
     assert "let showcaseTextWidth = max(0.0, min(textWidth, isNarrow ? 288.0 : 328.0))" in text
+    assert "let showcaseTopSpacing = activePage.body(for: L10n.current).isEmpty" in text
+    assert "? max(renderHeight * 0.25, topSpacing + 24)" in text
     assert ".frame(width: showcaseTextWidth, alignment: .leading)" in text
     assert '.frame(width: 74, height: 74)' in text
     assert '.clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))' in text
+    assert 'bodyNo: "La meg først forklare hvordan vi kan hjelpe deg."' in post_auth_block
+    assert post_auth_block.count('bodyNo: ""') == 4
+    assert 'previewKind: .watchBPM' in post_auth_block
+    assert 'previewKind: .intensityBar' in post_auth_block
+    assert 'previewKind: .talkToCoach' in post_auth_block
+    assert ".shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 6)" in text
+
+
+def test_post_auth_explainer_background_does_not_dim_top_edge() -> None:
+    text = INTRO_VIEW.read_text(encoding="utf-8")
+    assert "private var backgroundGradientColors: [Color] {" in text
+    assert "private var backgroundDimOpacity: Double {" in text
+    assert "if activePage.presentationStyle == .showcase {" in text
+    assert "? [Color.clear, Color.clear, Color.black.opacity(0.44)]" in text
+    assert ': [Color.clear, Color.clear, Color.black.opacity(0.34)]' in text
+    assert "return 0.0" in text
+
+
+def test_post_auth_preview_cards_do_not_use_translucent_outer_chrome() -> None:
+    text = INTRO_VIEW.read_text(encoding="utf-8")
+    preview_slice = text.split("private struct CoachScorePreviewCard: View {", 1)[1]
+    assert preview_slice.count(".background(Color.white.opacity(0.13))") == 0
+    assert preview_slice.count(".stroke(Color.white.opacity(0.2), lineWidth: 1)") == 0
 
 
 def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
@@ -266,20 +327,33 @@ def test_auth_layout_clamps_width_for_all_iphone_sizes() -> None:
     assert ".clipped()" in text
 
 
-def test_auth_view_matches_required_account_register_flow() -> None:
+def test_auth_view_supports_register_and_login_modes() -> None:
     text = AUTH_VIEW.read_text(encoding="utf-8")
-    assert 'Text(L10n.current == .no ? "Velkommen" : "Welcome")' in text
-    assert "Sign in with Apple or email to save your progress and unlock Premium" in text
-    assert "Logg inn med Apple eller e-post for å lagre fremgangen din og låse opp Premium" in text
+    assert "enum AuthFlowMode {" in text
+    assert "case register" in text
+    assert "case login" in text
+    assert "let mode: AuthFlowMode" in text
     assert "L10n.registerWithApple" in text
+    assert "L10n.loginWithApple" in text
     assert "L10n.registerWithGoogle" in text
+    assert "L10n.loginWithGoogle" in text
+    assert "L10n.loginWithEmail" in text
     assert 'badge: L10n.current == .no ? "Kommer snart" : "Coming soon"' in text
     assert "disabled: authManager.isLoading" in text
-    assert "guard acceptedTerms else {" in text
+    assert "header(contentWidth: contentWidth)" not in text
+    assert "authBenefitRow(" not in text
+    assert "Sign in with Apple or email to save your progress and unlock Premium" not in text
+    assert "Logg inn med Apple eller e-post for å lagre fremgangen din og låse opp Premium" not in text
+    assert "private var requiresAcceptedTerms: Bool {" in text
+    assert "mode == .register" in text
+    assert "private var hasAcceptedRequiredTerms: Bool {" in text
+    assert "!requiresAcceptedTerms || acceptedTerms" in text
     assert "showTermsValidationError = true" in text
     assert "emailCodeRequested" in text
     assert "requestEmailSignInCode" in text
     assert "signInWithEmail(" in text
+    assert "if mode == .register {" in text
+    assert "termsSection" in text
     assert "secondaryActionButton(" in text
     assert "L10n.continueWithoutAccount" in text
     assert "Text(L10n.signInLaterHint)" in text

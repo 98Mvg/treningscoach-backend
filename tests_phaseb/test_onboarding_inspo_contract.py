@@ -10,6 +10,14 @@ ONBOARDING_VIEW = (
     / "Onboarding"
     / "OnboardingContainerView.swift"
 )
+INTRO_VIEW = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Views"
+    / "Onboarding"
+    / "FeaturesPageView.swift"
+)
 APP_VIEW_MODEL = (
     REPO_ROOT
     / "TreningsCoach"
@@ -23,14 +31,18 @@ def _onboarding_text() -> str:
     return ONBOARDING_VIEW.read_text(encoding="utf-8")
 
 
+def _intro_text() -> str:
+    return INTRO_VIEW.read_text(encoding="utf-8")
+
+
 def _app_viewmodel_text() -> str:
     return APP_VIEW_MODEL.read_text(encoding="utf-8")
 
 
 def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     text = _onboarding_text()
+    guided_block = text.split("private var guidedOnboardingSteps: [OnboardingStep] {", 1)[1].split("private var showsGuidedProgress", 1)[0]
     assert "case birthAndGender" in text
-    assert "case dataPurpose" in text
     assert "case bodyMetrics" in text
     assert "case maxHeartRate" in text
     assert "case restingHeartRate" in text
@@ -42,37 +54,51 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert "case notificationPermission" in text
     assert "OnboardingFlowProgressView(" in text
     assert "Step \\(current) of \\(total)" in text
+    assert ".identity," not in guided_block
+    assert ".features," not in guided_block
+    assert ".birthAndGender," in guided_block
+    assert ".notificationPermission," in guided_block
+    assert ".dataPurpose," not in guided_block
 
 
-def test_data_purpose_step_becomes_personalized_hello_page() -> None:
-    text = _onboarding_text()
-    assert 'return "Hello! \\(displayName)"' in text
-    assert '"Let me first explain what we can do for you."' in text
-    assert 'Image("OnboardingBgOutdoor")' in text
-    assert 'let textWidth = max(0.0, min(contentWidth, layoutWidth < 390 ? 288.0 : 328.0))' in text
-    assert 'let controlsHeight = 74.0 + bottomInset + 24.0' in text
-    assert '.frame(width: textWidth, alignment: .leading)' in text
-    assert '.padding(.bottom, controlsHeight)' in text
-    assert 'VStack {' in text
-    assert 'Button(action: onContinue)' in text
-    assert '.padding(.bottom, bottomInset)' in text
-    assert 'Text(L10n.current == .no ? "Neste" : "Next")' in text
-    assert 'mode: .postAuthExplainer(displayName: formState.displayName)' in text
+def test_post_auth_explainer_starts_with_personalized_hello_page() -> None:
+    text = _intro_text()
+    post_auth_block = text.split("private func postAuthPages(displayName: String) -> [IntroStoryPage] {", 1)[1].split("private var showcasePrimaryTitle", 1)[0]
+    assert "let greeting = displayName.isEmpty" in text
+    assert 'titleNo: greeting' in post_auth_block
+    assert 'bodyNo: "La meg først forklare hvordan vi kan hjelpe deg."' in post_auth_block
+    assert post_auth_block.count('bodyNo: ""') == 4
+    assert 'imageName: "IntroStory1"' in post_auth_block
+    assert post_auth_block.count("IntroStoryPage(") == 5
+    assert 'titleNo: "Jeg guider deg live med pulssoner"' in post_auth_block
+    assert 'titleNo: "Jeg motiverer og tilpasser økten dynamisk"' in post_auth_block
+    assert 'titleNo: "Du får en CoachScore etter hver økt"' in post_auth_block
+    assert 'titleNo: "Etter økten kan vi snakke live"' in post_auth_block
+    # Welcome uses .intro (bg-image carousel, 6s auto-advance)
+    welcome_block = _onboarding_text().split("case .welcome:", 1)[1].split("case .language:", 1)[0]
+    assert "mode: .intro" in welcome_block
+    # Features uses .postAuthExplainer after identity
+    assert 'case postAuthExplainer(displayName: String)' in text
 
 
 def test_onboarding_routes_to_profile_completion_path() -> None:
     text = _onboarding_text()
+    assert "@State private var authMode: AuthFlowMode = .register" in text
     assert "primaryTitle: L10n.register" in text
     assert 'secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"' in text
+    assert "authMode = .register" in text
+    assert "authMode = .login" in text
+    assert "AuthView(mode: authMode)" in text
     assert "move(to: .identity)" in text
     assert "} onContinueWithoutAccount: {" in text
     assert "onBack: { move(to: .auth) }" in text
-    assert "onContinue: { move(to: .dataPurpose) }" in text
     assert "onContinue: { move(to: .features) }" in text
+    assert "onSecondary: { move(to: .identity) }" in text
     assert "onPrimary: { move(to: .birthAndGender) }" in text
     assert "onBack: { move(to: .features) }" in text
     assert "onContinue: { move(to: .sensorConnect) }" in text
     assert "move(to: .notificationPermission)" in text
+    assert "case .dataPurpose:" not in text
     assert "let profileDraft = formState.toDraft(" in text
     assert "appViewModel.completeOnboarding(profile: profileDraft)" in text
 

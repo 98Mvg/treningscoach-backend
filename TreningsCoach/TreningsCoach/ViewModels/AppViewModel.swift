@@ -15,6 +15,32 @@ struct LocalProfile {
     var weeklyGoal: Int
 }
 
+enum AppDeepLinkDestination: Equatable {
+    case home
+    case workout
+    case profile
+    case paywall(context: String)
+    case manageSubscription
+    case restorePurchases
+
+    var analyticsContext: String {
+        switch self {
+        case .home:
+            return "home"
+        case .workout:
+            return "workout"
+        case .profile:
+            return "profile"
+        case let .paywall(context):
+            return "paywall:\(context)"
+        case .manageSubscription:
+            return "subscription_manage"
+        case .restorePurchases:
+            return "subscription_restore"
+        }
+    }
+}
+
 extension AppViewModel {
     struct OnboardingProfileDraft {
         var firstName: String
@@ -56,6 +82,7 @@ class AppViewModel: ObservableObject {
     @AppStorage("app_language") var languageCode: String = "en"
     @AppStorage("spotify_prompt_pending") private var spotifyPromptPending: Bool = false
     @AppStorage("spotify_prompt_seen") private var spotifyPromptSeen: Bool = false
+    @Published var pendingDeepLink: AppDeepLinkDestination?
 
     var userProfile: LocalProfile {
         LocalProfile(
@@ -168,6 +195,15 @@ class AppViewModel: ObservableObject {
 
         Task {
             await syncProfileToBackend(reason: "onboarding")
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "onboarding_completed",
+                metadata: [
+                    "language": profile.languageCode,
+                    "training_level": profile.trainingLevel,
+                    "notifications_opt_in": profile.notificationsOptIn,
+                    "signed_in": authManager.hasUsableSession(),
+                ]
+            )
         }
     }
 
@@ -217,5 +253,52 @@ class AppViewModel: ObservableObject {
         } catch {
             print("⚠️ Profile upsert failed reason=\(reason) error=\(error.localizedDescription)")
         }
+    }
+
+    func handleIncomingURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased() else { return }
+        let normalizedHost = (url.host ?? "").lowercased()
+        let acceptsScheme = scheme == "coachi"
+        let acceptsUniversalLink = scheme == "https" && ["coachi.app", "www.coachi.app"].contains(normalizedHost)
+        guard acceptsScheme || acceptsUniversalLink else { return }
+
+        let host = acceptsUniversalLink ? url.pathComponents.dropFirst().first?.lowercased() ?? "" : normalizedHost
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        let routeComponents = acceptsUniversalLink ? Array(pathComponents.dropFirst()) : pathComponents
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let queryValue: (String) -> String? = { name in
+            queryItems.first(where: { $0.name == name })?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        switch host {
+        case "tab":
+            switch routeComponents.first?.lowercased() {
+            case "home":
+                pendingDeepLink = .home
+            case "workout":
+                pendingDeepLink = .workout
+            case "profile":
+                pendingDeepLink = .profile
+            default:
+                pendingDeepLink = nil
+            }
+        case "paywall":
+            pendingDeepLink = .paywall(context: queryValue("context") ?? "general")
+        case "subscription":
+            switch routeComponents.first?.lowercased() {
+            case "manage":
+                pendingDeepLink = .manageSubscription
+            case "restore":
+                pendingDeepLink = .restorePurchases
+            default:
+                pendingDeepLink = nil
+            }
+        default:
+            pendingDeepLink = nil
+        }
+    }
+
+    func consumePendingDeepLink() {
+        pendingDeepLink = nil
     }
 }

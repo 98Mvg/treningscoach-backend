@@ -24,6 +24,9 @@ struct TreningsCoachApp: App {
                 .task {
                     await subscriptionManager.initialize()
                 }
+                .onOpenURL { url in
+                    appViewModel.handleIncomingURL(url)
+                }
         }
     }
 }

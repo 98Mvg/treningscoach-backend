@@ -192,6 +192,7 @@ struct OnboardingContainerView: View {
 
     @State private var currentStep: OnboardingStep = .welcome
     @State private var formState = OnboardingFormState()
+    @State private var authMode: AuthFlowMode = .register
     @State private var selectedLanguage: AppLanguage = L10n.current
     @State private var notificationBackStep: OnboardingStep = .sensorConnect
     @State private var finishingOnboarding = false
@@ -205,9 +206,15 @@ struct OnboardingContainerView: View {
                 case .welcome:
                     FeaturesPageView(
                         mode: .intro,
-                        onPrimary: { move(to: .auth) },
+                        onPrimary: {
+                            authMode = .register
+                            move(to: .auth)
+                        },
                         primaryTitle: L10n.register,
-                        onSecondary: { move(to: .auth) },
+                        onSecondary: {
+                            authMode = .login
+                            move(to: .auth)
+                        },
                         secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"
                     )
                     .transition(stepTransition)
@@ -216,6 +223,7 @@ struct OnboardingContainerView: View {
                     LanguageSelectionView { language in
                         selectedLanguage = language
                         L10n.set(language)
+                        authMode = .register
                         move(to: .auth)
                     }
                     .transition(stepTransition)
@@ -231,7 +239,7 @@ struct OnboardingContainerView: View {
                     .transition(stepTransition)
 
                 case .auth:
-                    AuthView {
+                    AuthView(mode: authMode) {
                         move(to: .identity)
                     } onContinueWithoutAccount: {
                         move(to: .identity)

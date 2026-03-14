@@ -138,7 +138,9 @@ struct L10n {
             : "Use Apple or email to continue setup and save your progress."
     }
     static var registerWithApple: String { current == .no ? "Registrer deg med Apple" : "Register with Apple" }
+    static var loginWithApple: String { current == .no ? "Logg inn med Apple" : "Login with Apple" }
     static var continueWithEmail: String { current == .no ? "Fortsett med e-post" : "Continue with email" }
+    static var loginWithEmail: String { current == .no ? "Logg inn med e-post" : "Login with email" }
     static var sendEmailCode: String { current == .no ? "Send kode" : "Send code" }
     static var verifyEmailCode: String { current == .no ? "Bekreft kode" : "Verify code" }
     static var emailCodeLabel: String { current == .no ? "Engangskode" : "One-time code" }
@@ -186,6 +188,7 @@ struct L10n {
     static var register: String { current == .no ? "Registrer deg" : "Register" }
     static var alreadyHaveUser: String { current == .no ? "Jeg har allerede en bruker" : "I already have an account" }
     static var signInWithGoogle: String { current == .no ? "Logg inn med Google" : "Sign in with Google" }
+    static var loginWithGoogle: String { current == .no ? "Logg inn med Google" : "Login with Google" }
     static var signInWithFacebook: String { current == .no ? "Logg inn med Facebook" : "Sign in with Facebook" }
     static var signInWithVipps: String { current == .no ? "Logg inn med Vipps" : "Sign in with Vipps" }
     static var appleSignInFailedTryAgain: String {

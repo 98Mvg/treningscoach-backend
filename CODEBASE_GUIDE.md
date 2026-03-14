@@ -223,6 +223,7 @@ flowchart LR
 |---|---|---|
 | `/` | `GET` | `web_routes.home` |
 | `/analytics/event` | `POST` | `web_routes.analytics_event` |
+| `/analytics/mobile` | `POST` | `mobile_analytics` |
 | `/app/runtime` | `GET` | `web_routes.app_runtime` |
 | `/download` | `GET` | `web_routes.download_page` |
 | `/health` | `GET` | `web_routes.health` |
@@ -233,6 +234,7 @@ flowchart LR
 | `/voice/session` | `POST` | `create_voice_session` |
 | `/voice/telemetry` | `POST` | `voice_telemetry` |
 | `/waitlist` | `POST` | `web_routes.waitlist_signup` |
+| `/webhooks/app-store` | `POST` | `app_store_server_notifications` |
 | `/welcome` | `GET` | `welcome` |
 
 ## 6. Watch Communication Flow
