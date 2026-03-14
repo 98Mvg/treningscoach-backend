@@ -734,7 +734,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coachi.app;
 				PRODUCT_NAME = TreningsCoach;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -774,7 +774,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coachi.app;
 				PRODUCT_NAME = TreningsCoach;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -793,10 +793,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TreningsCoachWatchApp/Info.plist;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read heart rate during workouts to coach you live.";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mariusgaarder.TreningsCoach;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.coachi.app;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach.watchapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coachi.app.watchapp;
 				PRODUCT_NAME = TreningsCoachWatch;
 				SDKROOT = watchos;
 				SWIFT_VERSION = 5.0;
@@ -815,10 +815,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TreningsCoachWatchApp/Info.plist;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "We read heart rate during workouts to coach you live.";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.mariusgaarder.TreningsCoach;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.coachi.app;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 3.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mariusgaarder.TreningsCoach.watchapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coachi.app.watchapp;
 				PRODUCT_NAME = TreningsCoachWatch;
 				SDKROOT = watchos;
 				SWIFT_VERSION = 5.0;

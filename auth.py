@@ -710,7 +710,7 @@ def _resolve_apple_client_ids() -> list[str]:
         if values:
             return values
     # Default to app bundle ID when env is not configured.
-    return ["com.mariusgaarder.TreningsCoach"]
+    return ["com.coachi.app"]
 
 
 def verify_apple_token(

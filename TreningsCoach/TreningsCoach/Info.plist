@@ -11,16 +11,16 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>YOUR_GOOGLE_REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.105138156703-sosj2hg80o7ebpcrij6j3ac20ho86ve0</string>
 			</array>
 		</dict>
 	</array>
 	<key>EMAIL_SIGN_IN_ENABLED</key>
 	<true/>
 	<key>GOOGLE_CLIENT_ID</key>
-	<string>YOUR_GOOGLE_IOS_CLIENT_ID</string>
+	<string>105138156703-sosj2hg80o7ebpcrij6j3ac20ho86ve0.apps.googleusercontent.com</string>
 	<key>GOOGLE_REVERSED_CLIENT_ID</key>
-	<string>YOUR_GOOGLE_REVERSED_CLIENT_ID</string>
+	<string>com.googleusercontent.apps.105138156703-sosj2hg80o7ebpcrij6j3ac20ho86ve0</string>
 	<key>GOOGLE_SIGN_IN_ENABLED</key>
 	<true/>
 	<key>LIVE_COACH_VOICE_ENABLED</key>

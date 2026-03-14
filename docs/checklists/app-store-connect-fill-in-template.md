@@ -5,7 +5,7 @@ Use this as the concrete worksheet before you start filling fields in App Store 
 ## App Record
 
 - App name: `Coachi`
-- Bundle ID: `com.mariusgaarder.TreningsCoach`
+- Bundle ID: `com.coachi.app`
 - SKU: `[FILL IN]`
 - Primary language: `[FILL IN]`
 - Support URL: `[FILL IN]`

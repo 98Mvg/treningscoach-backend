@@ -46,7 +46,7 @@ def test_launch_ops_checklist_references_app_store_submission_assets() -> None:
 
 def test_app_store_connect_fill_in_template_matches_repo_truth() -> None:
     content = _read_text("docs/checklists/app-store-connect-fill-in-template.md")
-    assert "com.mariusgaarder.TreningsCoach" in content
+    assert "com.coachi.app" in content
     assert "app.coachi.premium.monthly" in content
     assert "app.coachi.premium.yearly" in content
     assert "[FILL IN]" in content
