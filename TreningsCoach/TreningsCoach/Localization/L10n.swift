@@ -301,8 +301,11 @@ struct L10n {
     }
     static var watchNotInstalledDetail: String {
         current == .no
-            ? "Åpne Watch-appen på iPhone og installer Coachi for live puls."
-            : "Open the Watch app on your iPhone and install Coachi for live heart rate."
+            ? "Coachi-appen må installeres på klokken for live puls. Trykk \"Åpne Watch-appen\" under, finn Coachi og trykk Installer."
+            : "The Coachi app needs to be installed on your watch for live heart rate. Tap \"Open Watch app\" below, find Coachi, and tap Install."
+    }
+    static var watchOpenWatchApp: String {
+        current == .no ? "Åpne Watch-appen" : "Open Watch app"
     }
     static var watchNotDetectedDetail: String {
         current == .no

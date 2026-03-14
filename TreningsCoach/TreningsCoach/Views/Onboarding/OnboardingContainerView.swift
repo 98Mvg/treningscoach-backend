@@ -417,8 +417,6 @@ struct OnboardingContainerView: View {
 
     private var guidedOnboardingSteps: [OnboardingStep] {
         [
-            .identity,
-            .features,
             .birthAndGender,
             .bodyMetrics,
             .maxHeartRate,
@@ -1399,6 +1397,27 @@ struct SensorConnectOnboardingView: View {
         }
     }
 
+    private var secondaryButtonTitle: String? {
+        if isConnected { return nil }
+        if state == .watchNotInstalled { return L10n.watchOpenWatchApp }
+        return L10n.watchCheckAgain
+    }
+
+    private func secondaryAction() {
+        if state == .watchNotInstalled {
+            // Open the Watch app on iPhone — closest we can get to triggering install.
+            // Apple provides no API to programmatically install a watch app.
+            let schemes = ["itms-watchs://", "App-prefs:WATCH"]
+            for scheme in schemes {
+                if let url = URL(string: scheme), UIApplication.shared.canOpenURL(url) {
+                    UIApplication.shared.open(url)
+                    break
+                }
+            }
+        }
+        watchManager.refreshStateManually()
+    }
+
     var body: some View {
         OnboardingScaffold(
             title: L10n.sensorConnectTitle,
@@ -1406,8 +1425,8 @@ struct SensorConnectOnboardingView: View {
             primaryTitle: isConnected ? L10n.watchContinue : L10n.watchContinueWithout,
             canContinue: true,
             onPrimary: onContinue,
-            secondaryTitle: isConnected ? nil : L10n.watchCheckAgain,
-            onSecondary: isConnected ? nil : { watchManager.refreshStateManually() }
+            secondaryTitle: secondaryButtonTitle,
+            onSecondary: isConnected ? nil : { secondaryAction() }
         ) {
             VStack(spacing: 16) {
                 // State icon with color ring
