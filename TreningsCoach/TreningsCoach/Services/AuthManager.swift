@@ -384,14 +384,25 @@ class AuthManager: ObservableObject {
                       let refreshedToken = authToken,
                       !refreshedToken.isEmpty
                 else {
-                    signOut()
+                    // Only sign out if tokens were explicitly rejected (cleared by refresh).
+                    // Network failures leave tokens in Keychain — keep session alive
+                    // so the next app launch can retry when backend is reachable.
+                    if currentRefreshToken() == nil {
+                        signOut()
+                    } else {
+                        print("AUTH_PROFILE refresh_failed=network keeping_session=true")
+                    }
                     return
                 }
 
                 let (retryData, retryResponse) = try await performProfileRequest(token: refreshedToken)
                 guard let retryHTTP = retryResponse as? HTTPURLResponse,
                       retryHTTP.statusCode == 200 else {
-                    signOut()
+                    // Only sign out on definitive auth rejection, not transient server errors
+                    if let retryHTTP = retryResponse as? HTTPURLResponse,
+                       [401, 403, 404].contains(retryHTTP.statusCode) {
+                        signOut()
+                    }
                     return
                 }
                 try updateProfileFromResponseData(retryData)
@@ -410,7 +421,8 @@ class AuthManager: ObservableObject {
 
             try updateProfileFromResponseData(data)
         } catch {
-            print("Failed to fetch profile: \(error.localizedDescription)")
+            // Network timeout / connectivity — keep tokens, don't sign out
+            print("AUTH_PROFILE network_error=true reason=\(error.localizedDescription)")
         }
     }
 
@@ -432,7 +444,11 @@ class AuthManager: ObservableObject {
                       let refreshedToken = authToken,
                       !refreshedToken.isEmpty
                 else {
-                    signOut()
+                    if currentRefreshToken() == nil {
+                        signOut()
+                    } else {
+                        print("AUTH_PROFILE_UPDATE refresh_failed=network keeping_session=true")
+                    }
                     return
                 }
                 (data, response) = try await performProfileUpdateRequest(token: refreshedToken, payload: payload)

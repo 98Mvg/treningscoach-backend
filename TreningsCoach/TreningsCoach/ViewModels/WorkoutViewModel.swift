@@ -723,6 +723,7 @@ class WorkoutViewModel: ObservableObject {
 
     func startWorkout() {
         activeSessionPlan = buildSessionPlanFromSelections()
+        let selectedIntensity = coachingStyle.rawValue
         resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
@@ -773,6 +774,15 @@ class WorkoutViewModel: ObservableObject {
             )
             startContinuousWorkoutInternal()
         }
+        trackAnalyticsEvent(
+            "workout_started",
+            metadata: [
+                "workout_mode": selectedWorkoutMode.rawValue,
+                "coach_persona": activePersonality.rawValue,
+                "intensity": selectedIntensity,
+                "watch_capability": watchCapabilityState.rawValue,
+            ]
+        )
     }
 
     func pauseWorkout() {
@@ -798,6 +808,15 @@ class WorkoutViewModel: ObservableObject {
         stopContinuousWorkout()
         workoutState = .complete
         showComplete = true
+        trackAnalyticsEvent(
+            "workout_completed",
+            metadata: [
+                "duration_seconds": Int(elapsedTime.rounded()),
+                "coach_score": coachScore,
+                "workout_mode": selectedWorkoutMode.rawValue,
+                "coach_persona": activePersonality.rawValue,
+            ]
+        )
     }
 
     func resetWorkout() {
@@ -1170,7 +1189,7 @@ class WorkoutViewModel: ObservableObject {
     private var consecutiveBackendFailures: Int = 0
     private var lastAudioRecoveryAttempt: Date?
     private let motionCadenceService = MotionCadenceService()
-    private let phoneWCManager = PhoneWCManager()
+    private let phoneWCManager = PhoneWCManager.shared
     private let watchHRProvider = AppleWatchWCProvider()
     private let bleHeartRateProvider = BLEHeartRateProvider()
     private let hkFallbackProvider = HealthKitFallbackProvider()
@@ -2090,14 +2109,21 @@ class WorkoutViewModel: ObservableObject {
     // MARK: - Health Check
 
     func checkBackendHealth() async {
-        do {
-            let health = try await apiService.checkHealth()
-            // Backend responded — connection is good
-            print("✅ Backend connected: \(health.status), version: \(health.version ?? "unknown")")
-        } catch {
-            // Backend not reachable — log clearly so you can spot it in Xcode console
-            print("❌ Backend NOT reachable at \(AppConfig.backendURL) — \(error.localizedDescription)")
-            print("💡 Make sure your backend is running. Audio will not work without it.")
+        // Try up to 2 times — Render cold starts can take 30-60s,
+        // so the first attempt may timeout while the wake ping warms it.
+        for attempt in 1...2 {
+            do {
+                let health = try await apiService.checkHealth()
+                print("✅ Backend connected: \(health.status), version: \(health.version ?? "unknown")")
+                return
+            } catch {
+                if attempt == 1 {
+                    print("⏳ Backend not ready (attempt 1), retrying — \(error.localizedDescription)")
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                } else {
+                    print("❌ Backend NOT reachable at \(AppConfig.backendURL) — \(error.localizedDescription)")
+                }
+            }
         }
     }
 
@@ -2686,6 +2712,12 @@ class WorkoutViewModel: ObservableObject {
             } catch {
                 print("⚠️ WORKOUT_SAVE_FAILED error=\(error.localizedDescription)")
             }
+        }
+    }
+
+    private func trackAnalyticsEvent(_ event: String, metadata: [String: Any]) {
+        Task {
+            _ = await apiService.trackAnalyticsEvent(event: event, metadata: metadata)
         }
     }
 

@@ -220,12 +220,12 @@ struct OnboardingContainerView: View {
                     }
                     .transition(stepTransition)
 
-                case .features:
+                case .features, .dataPurpose:
                     FeaturesPageView(
                         mode: .postAuthExplainer(displayName: formState.displayName),
                         onPrimary: { move(to: .birthAndGender) },
                         primaryTitle: L10n.continueButton,
-                        onSecondary: { move(to: .dataPurpose) },
+                        onSecondary: { move(to: .identity) },
                         secondaryTitle: L10n.current == .no ? "Tilbake" : "Back"
                     )
                     .transition(stepTransition)
@@ -243,14 +243,6 @@ struct OnboardingContainerView: View {
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
                         onBack: { move(to: .auth) },
-                        onContinue: { move(to: .dataPurpose) }
-                    )
-                    .transition(stepTransition)
-
-                case .dataPurpose:
-                    DataPurposeStepView(
-                        firstName: formState.firstName,
-                        onBack: { move(to: .identity) },
                         onContinue: { move(to: .features) }
                     )
                     .transition(stepTransition)
@@ -336,15 +328,9 @@ struct OnboardingContainerView: View {
 
                 case .sensorConnect:
                     SensorConnectOnboardingView(
+                        watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .summary) },
-                        onConnectNow: {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
-                            notificationBackStep = .sensorConnect
-                            move(to: .notificationPermission)
-                        },
-                        onContinueWithoutSensor: {
+                        onContinue: {
                             notificationBackStep = .sensorConnect
                             move(to: .notificationPermission)
                         }
@@ -352,7 +338,10 @@ struct OnboardingContainerView: View {
                     .transition(stepTransition)
 
                 case .noSensorFallback:
-                    NoSensorFallbackStepView(
+                    // Unreachable — kept for enum exhaustiveness.
+                    // Sensor fallback content is now inline in SensorConnectOnboardingView.
+                    SensorConnectOnboardingView(
+                        watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .sensorConnect) },
                         onContinue: {
                             notificationBackStep = .noSensorFallback
@@ -429,7 +418,6 @@ struct OnboardingContainerView: View {
     private var guidedOnboardingSteps: [OnboardingStep] {
         [
             .identity,
-            .dataPurpose,
             .features,
             .birthAndGender,
             .bodyMetrics,
@@ -1366,35 +1354,88 @@ private struct OnboardingResultStepView: View {
 }
 
 struct SensorConnectOnboardingView: View {
+    @ObservedObject var watchManager: PhoneWCManager
     let onBack: () -> Void
-    let onConnectNow: () -> Void
-    let onContinueWithoutSensor: () -> Void
+    let onContinue: () -> Void
+
+    private var state: PhoneWCManager.WatchCapabilityState {
+        watchManager.watchCapabilityState
+    }
+
+    private var isConnected: Bool { state == .watchReady }
+
+    private var stateIcon: String {
+        switch state {
+        case .watchReady: return "applewatch.radiowaves.left.and.right"
+        case .watchInstalledNotReachable: return "applewatch"
+        case .watchNotInstalled: return "applewatch.slash"
+        case .noWatchSupport: return "applewatch.slash"
+        }
+    }
+
+    private var stateColor: Color {
+        switch state {
+        case .watchReady: return CoachiTheme.success
+        case .watchInstalledNotReachable, .watchNotInstalled: return CoachiTheme.warning
+        case .noWatchSupport: return CoachiTheme.textTertiary
+        }
+    }
+
+    private var stateTitle: String {
+        switch state {
+        case .watchReady: return L10n.watchConnected
+        case .watchInstalledNotReachable: return L10n.watchNotReachable
+        case .watchNotInstalled: return L10n.watchAppNotInstalled
+        case .noWatchSupport: return L10n.watchNotDetected
+        }
+    }
+
+    private var stateDetail: String {
+        switch state {
+        case .watchReady: return L10n.watchConnectedDetail
+        case .watchInstalledNotReachable: return L10n.watchNotReachableDetail
+        case .watchNotInstalled: return L10n.watchNotInstalledDetail
+        case .noWatchSupport: return L10n.watchNotDetectedDetail
+        }
+    }
 
     var body: some View {
         OnboardingScaffold(
             title: L10n.sensorConnectTitle,
-            subtitle: L10n.sensorConnectBody,
             onBack: onBack,
-            primaryTitle: L10n.sensorConnectPrimary,
+            primaryTitle: isConnected ? L10n.watchContinue : L10n.watchContinueWithout,
             canContinue: true,
-            onPrimary: onConnectNow,
-            secondaryTitle: L10n.sensorConnectSecondary,
-            onSecondary: onContinueWithoutSensor
+            onPrimary: onContinue,
+            secondaryTitle: isConnected ? nil : L10n.watchCheckAgain,
+            onSecondary: isConnected ? nil : { watchManager.refreshStateManually() }
         ) {
-            VStack(spacing: 14) {
-                Image(systemName: "applewatch.radiowaves.left.and.right")
-                    .font(.largeTitle.weight(.medium))
-                    .foregroundStyle(CoachiTheme.tealGradient)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            VStack(spacing: 16) {
+                // State icon with color ring
+                ZStack {
+                    Circle()
+                        .fill(stateColor.opacity(0.12))
+                        .frame(width: 72, height: 72)
+                    Image(systemName: stateIcon)
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundColor(stateColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
 
-                Text(
-                    L10n.current == .no
-                        ? "Klokke er best for live puls. Uten klokke får du fortsatt tydelig coaching."
-                        : "A watch is best for live heart rate. Without one, you still get clear coaching."
-                )
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .multilineTextAlignment(.center)
+                // State label
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(stateColor)
+                        .frame(width: 8, height: 8)
+                    Text(stateTitle)
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                }
+
+                // Detail text
+                Text(stateDetail)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .multilineTextAlignment(.center)
             }
             .padding(20)
             .frame(maxWidth: .infinity)
@@ -1402,68 +1443,17 @@ struct SensorConnectOnboardingView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
+                    .stroke(stateColor.opacity(0.3), lineWidth: 1)
             )
+            .animation(.easeInOut(duration: 0.3), value: state.rawValue)
+        }
+        .onAppear {
+            watchManager.activate()
         }
     }
 }
 
-private struct NoSensorFallbackStepView: View {
-    let onBack: () -> Void
-    let onContinue: () -> Void
-
-    var body: some View {
-        OnboardingScaffold(
-            title: L10n.current == .no ? "Ingen pulsklokke?" : "No watch?",
-            subtitle: L10n.current == .no
-                ? "Ingen fare. Du kan starte i dag, og vi coacher fortsatt tydelig på struktur og tid."
-                : "No problem. You can start today, and Coachi will still guide clearly by structure and timing.",
-            onBack: onBack,
-            primaryTitle: L10n.current == .no ? "Fortsett til appen" : "Continue to app",
-            canContinue: true,
-            onPrimary: onContinue
-        ) {
-            VStack(alignment: .leading, spacing: 10) {
-                bullet(
-                    text: L10n.current == .no
-                        ? "Du kan koble klokke senere fra Profil."
-                        : "You can connect a watch later from Profile."
-                )
-                bullet(
-                    text: L10n.current == .no
-                        ? "Med klokke blir pulscoaching mer presis."
-                        : "With a watch, heart-rate coaching becomes more precise."
-                )
-                bullet(
-                    text: L10n.current == .no
-                        ? "Uten klokke holder coachen språket kort og tydelig."
-                        : "Without a watch, the coach still stays short and clear."
-                )
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CoachiTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
-            )
-        }
-    }
-
-    private func bullet(text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(CoachiTheme.primary)
-                .frame(width: 7, height: 7)
-                .padding(.top, 6)
-            Text(text)
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-            Spacer()
-        }
-    }
-}
+// NoSensorFallbackStepView removed — content merged into SensorConnectOnboardingView
 
 private struct NotificationPermissionStepView: View {
     let isLoading: Bool

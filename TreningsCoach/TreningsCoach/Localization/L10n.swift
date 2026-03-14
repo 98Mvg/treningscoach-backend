@@ -271,18 +271,54 @@ struct L10n {
         current == .no ? "God kontroll i recovery" : "Good recovery control"
     }
     static var sensorConnectTitle: String {
-        current == .no ? "Koble til pulsklokke" : "Connect your watch"
+        current == .no ? "Apple Watch" : "Apple Watch"
     }
-    static var sensorConnectBody: String {
+
+    // Watch state titles
+    static var watchConnected: String {
+        current == .no ? "Apple Watch tilkoblet" : "Apple Watch connected"
+    }
+    static var watchNotReachable: String {
+        current == .no ? "Klokke paret, ikke tilgjengelig" : "Watch paired, not reachable"
+    }
+    static var watchAppNotInstalled: String {
+        current == .no ? "Installer Coachi på klokken" : "Install Coachi on your watch"
+    }
+    static var watchNotDetected: String {
+        current == .no ? "Ingen Apple Watch funnet" : "No Apple Watch detected"
+    }
+
+    // Watch state detail text
+    static var watchConnectedDetail: String {
         current == .no
-            ? "Med klokke blir pulscoaching mer presis. Uten klokke coacher vi fortsatt på struktur og tid."
-            : "With a watch, heart-rate coaching becomes more precise. Without one, Coachi still guides by structure and timing."
+            ? "Live puls blir tilgjengelig under trening."
+            : "Live heart rate will be available during workouts."
     }
-    static var sensorConnectPrimary: String {
-        current == .no ? "Koble til na" : "Connect now"
+    static var watchNotReachableDetail: String {
+        current == .no
+            ? "Klokken er paret, men ikke tilgjengelig akkurat nå. Prøv å vekke klokken."
+            : "Your watch is paired but not reachable right now. Try waking your watch."
     }
-    static var sensorConnectSecondary: String {
+    static var watchNotInstalledDetail: String {
+        current == .no
+            ? "Åpne Watch-appen på iPhone og installer Coachi for live puls."
+            : "Open the Watch app on your iPhone and install Coachi for live heart rate."
+    }
+    static var watchNotDetectedDetail: String {
+        current == .no
+            ? "Ingen fare — Coachi coacher fortsatt tydelig på struktur og tid. Du kan koble klokke senere."
+            : "No problem — Coachi still coaches clearly by structure and timing. You can connect a watch later."
+    }
+
+    // Watch step buttons
+    static var watchContinue: String {
+        current == .no ? "Fortsett" : "Continue"
+    }
+    static var watchContinueWithout: String {
         current == .no ? "Fortsett uten klokke" : "Continue without watch"
+    }
+    static var watchCheckAgain: String {
+        current == .no ? "Sjekk på nytt" : "Check again"
     }
     static var setupProfile: String { current == .no ? "Sett opp profilen din" : "Set up your profile" }
     static var whatToCallYou: String { current == .no ? "Hva skal vi kalle deg?" : "What should we call you?" }

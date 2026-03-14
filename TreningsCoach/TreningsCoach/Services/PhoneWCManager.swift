@@ -4,6 +4,7 @@ import WatchConnectivity
 
 @MainActor
 final class PhoneWCManager: NSObject, ObservableObject {
+    static let shared = PhoneWCManager()
     enum StartRequestOutcome {
         case liveRequestSent
         case deferredAwaitingReachability
@@ -54,7 +55,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
     private var lastCapabilitySnapshot: String?
     private var hasActivatedSession = false
 
-    override init() {
+    private override init() {
         super.init()
     }
 
@@ -168,6 +169,11 @@ final class PhoneWCManager: NSObject, ObservableObject {
         try? session.updateApplicationContext(payload)
     }
 
+    func refreshStateManually() {
+        guard WCSession.isSupported() else { return }
+        refreshState(from: WCSession.default)
+    }
+
     private func refreshState(from session: WCSession = .default) {
         isReachable = session.isReachable
         isPaired = session.isPaired
@@ -246,6 +252,12 @@ extension PhoneWCManager: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
+        Task { @MainActor in
+            self.refreshState(from: session)
+        }
+    }
+
+    nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
         Task { @MainActor in
             self.refreshState(from: session)
         }

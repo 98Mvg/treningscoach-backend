@@ -78,6 +78,7 @@ class BackendAPIService {
     // MARK: - Configuration
 
     static let shared = BackendAPIService()
+    private static let mobileAnalyticsAnonymousIDKey = "mobile_analytics_anonymous_id"
 
     private let baseURL = AppConfig.backendURL
     private let talkRequestTimeout: TimeInterval = 12
@@ -98,7 +99,7 @@ class BackendAPIService {
     /// Call early (app launch) so the backend is warm by the time real requests arrive.
     func wakeBackend() {
         guard let url = URL(string: "\(baseURL)/health") else { return }
-        let request = URLRequest(url: url, timeoutInterval: 10)
+        let request = URLRequest(url: url, timeoutInterval: 30)
         session.dataTask(with: request) { _, _, _ in }.resume()
     }
 
@@ -116,6 +117,18 @@ class BackendAPIService {
             return token
         }
         return nil
+    }
+
+    private func mobileAnalyticsAnonymousID() -> String {
+        let defaults = UserDefaults.standard
+        if let existing = defaults.string(forKey: Self.mobileAnalyticsAnonymousIDKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !existing.isEmpty {
+            return existing
+        }
+        let generated = UUID().uuidString.lowercased()
+        defaults.set(generated, forKey: Self.mobileAnalyticsAnonymousIDKey)
+        return generated
     }
 
     private func currentRefreshToken() -> String? {
@@ -304,7 +317,9 @@ class BackendAPIService {
     /// Check backend health
     func checkHealth() async throws -> HealthResponse {
         let url = URL(string: "\(baseURL)/health")!
-        let (data, _) = try await session.data(from: url)
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "GET"
+        let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(HealthResponse.self, from: data)
     }
 
@@ -590,6 +605,45 @@ class BackendAPIService {
     }
 
     @discardableResult
+    func trackAnalyticsEvent(
+        event: String,
+        metadata: [String: Any] = [:],
+        requiresAuth: Bool = false
+    ) async -> Bool {
+        if requiresAuth && currentAuthToken() == nil {
+            return false
+        }
+        guard let url = URL(string: "\(baseURL)/analytics/mobile") else {
+            return false
+        }
+
+        do {
+            var request = URLRequest(url: url, timeoutInterval: 10)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if currentAuthToken() != nil {
+                addAuthHeader(to: &request)
+            }
+            request.httpBody = try JSONSerialization.data(
+                withJSONObject: [
+                    "event": event,
+                    "metadata": metadata,
+                    "anonymous_id": mobileAnalyticsAnonymousID(),
+                ]
+            )
+
+            let (_, response) = try await dataWithAuthRetry(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return false
+            }
+            return httpResponse.statusCode == 200
+        } catch {
+            print("ANALYTICS_EVENT failed event=\(event) reason=\(error.localizedDescription)")
+            return false
+        }
+    }
+
+    @discardableResult
     func trackVoiceTelemetry(
         event: String,
         metadata: [String: Any] = [:]
@@ -608,6 +662,7 @@ class BackendAPIService {
                 withJSONObject: [
                     "event": event,
                     "metadata": metadata,
+                    "anonymous_id": mobileAnalyticsAnonymousID(),
                 ]
             )
 
@@ -730,7 +785,10 @@ class BackendAPIService {
     }
 
     /// Server-side subscription tier check. Returns "premium" or "free". Best-effort (no throw).
-    func validateSubscription(transactionID: String? = nil) async -> String? {
+    func validateSubscription(
+        transactionID: String? = nil,
+        signedTransactionInfo: String? = nil
+    ) async -> String? {
         guard let url = URL(string: "\(baseURL)/subscription/validate") else { return nil }
         do {
             var request = URLRequest(url: url, timeoutInterval: 10)
@@ -739,6 +797,9 @@ class BackendAPIService {
             addAuthHeader(to: &request)
             var body: [String: Any] = ["platform": "ios"]
             if let txID = transactionID, !txID.isEmpty { body["transaction_id"] = txID }
+            if let signedTransactionInfo, !signedTransactionInfo.isEmpty {
+                body["signed_transaction_info"] = signedTransactionInfo
+            }
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, _) = try await dataWithAuthRetry(for: request)
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
