@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import auth
+import auth_routes
 import main
 from database import (
     RateLimitCounter,
@@ -130,6 +131,9 @@ def _continuous_payload(*, session_id: str, user_id: str):
 
 def test_public_auth_rate_limit_is_per_ip(monkeypatch):
     _disable_rate_limit_bypass(monkeypatch)
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_IDS", raising=False)
+    monkeypatch.setattr(auth_routes.config, "GOOGLE_AUTH_CONFIGURED", False, raising=False)
     _clear_rate_limit_counters()
     client = main.app.test_client()
 

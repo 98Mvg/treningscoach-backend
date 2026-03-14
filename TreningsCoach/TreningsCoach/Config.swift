@@ -79,9 +79,40 @@ struct AppConfig {
             return defaultValue
         }
 
+        private static func stringInfoValue(_ key: String) -> String? {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else {
+                return nil
+            }
+            if let stringValue = raw as? String {
+                return normalizedConfigString(stringValue)
+            }
+            return nil
+        }
+
+        private static func normalizedConfigString(_ rawValue: String?) -> String? {
+            guard let rawValue else {
+                return nil
+            }
+
+            let candidate = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !candidate.isEmpty else {
+                return nil
+            }
+
+            let uppercase = candidate.uppercased()
+            if candidate.hasPrefix("$(") && candidate.hasSuffix(")") {
+                return nil
+            }
+            if uppercase.hasPrefix("YOUR_") || uppercase.contains("PLACEHOLDER") {
+                return nil
+            }
+
+            return candidate
+        }
+
         static let appleSignInFeatureEnabled: Bool = boolInfoValue("APPLE_SIGN_IN_ENABLED", default: false)
         static let emailSignInFeatureEnabled: Bool = boolInfoValue("EMAIL_SIGN_IN_ENABLED", default: true)
-        static let googleSignInFeatureEnabled: Bool = boolInfoValue("GOOGLE_SIGN_IN_ENABLED", default: false)
+        static let googleSignInFeatureEnabled: Bool = boolInfoValue("GOOGLE_SIGN_IN_ENABLED", default: true)
         static let facebookSignInFeatureEnabled: Bool = boolInfoValue("FACEBOOK_SIGN_IN_ENABLED", default: false)
         static let vippsSignInFeatureEnabled: Bool = boolInfoValue("VIPPS_SIGN_IN_ENABLED", default: false)
         static let requireSignInForWorkoutStart: Bool = boolInfoValue("REQUIRE_SIGN_IN_FOR_WORKOUT_START", default: false)
@@ -98,11 +129,26 @@ struct AppConfig {
 
         static var googleSignInEnabled: Bool {
             googleSignInFeatureEnabled
+                && googleClientID != nil
+                && googleRedirectScheme != nil
         }
 
-        /// Google OAuth client ID — set GOOGLE_CLIENT_ID in Info.plist to enable.
+        /// Google OAuth client ID — supports either GOOGLE_CLIENT_ID or GIDClientID in Info.plist.
         static var googleClientID: String? {
-            Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_ID") as? String
+            stringInfoValue("GOOGLE_CLIENT_ID") ?? stringInfoValue("GIDClientID")
+        }
+
+        /// Redirect scheme for ASWebAuthenticationSession callback.
+        /// Supports GOOGLE_REVERSED_CLIENT_ID or derives from the client ID.
+        static var googleRedirectScheme: String? {
+            if let explicit = stringInfoValue("GOOGLE_REVERSED_CLIENT_ID") {
+                return explicit
+            }
+            guard let clientID = googleClientID else {
+                return nil
+            }
+            let prefix = clientID.components(separatedBy: ".").first ?? clientID
+            return normalizedConfigString("com.googleusercontent.apps.\(prefix)")
         }
 
         static var facebookSignInEnabled: Bool {

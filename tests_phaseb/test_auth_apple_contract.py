@@ -84,7 +84,41 @@ def test_auth_apple_invalid_token_returns_401(monkeypatch):
     assert payload["error_code"] == "apple_token_invalid"
 
 
-def test_non_apple_auth_providers_are_disabled_for_launch_surface():
+def test_auth_google_success_when_configured(monkeypatch):
+    provider_id = f"google-{uuid.uuid4().hex[:12]}"
+    email = f"google-user-{uuid.uuid4().hex[:10]}@example.com"
+
+    def _fake_verify(id_token):
+        assert id_token == "fake-google-token"
+        return {
+            "provider_id": provider_id,
+            "email": email,
+            "display_name": "Marius",
+            "avatar_url": "",
+        }
+
+    monkeypatch.setattr(auth_routes, "verify_google_token", _fake_verify)
+    monkeypatch.setattr(auth_routes.config, "GOOGLE_AUTH_ENABLED", True, raising=False)
+    monkeypatch.setattr(auth_routes.config, "GOOGLE_AUTH_CONFIGURED", True, raising=False)
+    client = main.app.test_client()
+
+    response = client.post("/auth/google", json={"id_token": "fake-google-token"})
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload.get("token"), str) and payload["token"]
+    assert isinstance(payload.get("access_token"), str) and payload["access_token"]
+    assert isinstance(payload.get("refresh_token"), str) and payload["refresh_token"]
+    assert payload["user"]["auth_provider"] == "google"
+    assert payload["user"]["email"] == email
+
+    _cleanup_user_by_email(email)
+
+
+def test_unconfigured_non_apple_auth_providers_return_provider_unavailable(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_IDS", raising=False)
+    monkeypatch.setattr(auth_routes.config, "GOOGLE_AUTH_ENABLED", True, raising=False)
+    monkeypatch.setattr(auth_routes.config, "GOOGLE_AUTH_CONFIGURED", False, raising=False)
     client = main.app.test_client()
 
     cases = [

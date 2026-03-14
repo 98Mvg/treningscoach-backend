@@ -170,10 +170,15 @@ JWT_REFRESH_TOKEN_MAX_DAYS = _env_int("JWT_REFRESH_TOKEN_MAX_DAYS", 7)
 JWT_SECRET_MAX_AGE_DAYS = _env_int("JWT_SECRET_MAX_AGE_DAYS", 90)
 APPLE_AUTH_ENABLED = _env_bool("APPLE_AUTH_ENABLED", True)
 EMAIL_AUTH_ENABLED = _env_bool("EMAIL_AUTH_ENABLED", True)
-GOOGLE_AUTH_ENABLED = _env_bool("GOOGLE_AUTH_ENABLED", False)
+GOOGLE_AUTH_ENABLED = _env_bool("GOOGLE_AUTH_ENABLED", True)
 FACEBOOK_AUTH_ENABLED = _env_bool("FACEBOOK_AUTH_ENABLED", False)
 VIPPS_AUTH_ENABLED = _env_bool("VIPPS_AUTH_ENABLED", False)
 EMAIL_AUTH_CODE_TTL_MINUTES = _env_int("EMAIL_AUTH_CODE_TTL_MINUTES", 10)
+GOOGLE_CLIENT_IDS = _env_csv_set(
+    "GOOGLE_CLIENT_IDS",
+    _env_csv_set("GOOGLE_CLIENT_ID", []),
+)
+GOOGLE_AUTH_CONFIGURED = len(GOOGLE_CLIENT_IDS) > 0
 
 # Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).
 # Default is guest-friendly for the current pre-launch phase; set env true to re-enable strict auth.

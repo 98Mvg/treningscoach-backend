@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import AuthenticationServices
 import UIKit
+import CryptoKit
 
 @MainActor
 class AuthManager: ObservableObject {
@@ -88,36 +89,49 @@ class AuthManager: ObservableObject {
 
     // MARK: - Google Sign-In
 
-    func signInWithGoogle() async {
-        guard AppConfig.Auth.googleSignInEnabled else {
+    func signInWithGoogle() async -> Bool {
+        guard AppConfig.Auth.googleSignInFeatureEnabled else {
             markUnsupportedProvider(label: L10n.registerWithGoogle)
-            return
+            return false
         }
         guard let clientID = AppConfig.Auth.googleClientID, !clientID.isEmpty else {
             errorMessage = "Google Sign-In is not configured."
-            return
+            return false
+        }
+        guard AppConfig.Auth.googleRedirectScheme != nil else {
+            errorMessage = "Google Sign-In callback URL is not configured."
+            return false
         }
 
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
 
         do {
             let idToken = try await performGoogleWebAuth(clientID: clientID)
             let response = try await sendAuthRequest(provider: "google", body: ["id_token": idToken])
             handleAuthSuccess(response)
+            return true
         } catch {
             if !(error is CancellationError) {
                 errorMessage = localizedAuthError(provider: "google", error: error)
             }
+            return false
         }
-        isLoading = false
     }
 
     /// Opens a Google OAuth consent screen via ASWebAuthenticationSession,
     /// exchanges the auth code for tokens, and returns the id_token.
     private func performGoogleWebAuth(clientID: String) async throws -> String {
-        let redirectURI = "com.googleusercontent.apps.\(clientID.components(separatedBy: ".").first ?? clientID):/oauthredirect"
+        guard let callbackScheme = AppConfig.Auth.googleRedirectScheme else {
+            throw APIError.serverError(message: "Google redirect scheme is not configured.")
+        }
+
+        let redirectURI = "\(callbackScheme):/oauthredirect"
         let nonce = UUID().uuidString
+        let state = UUID().uuidString
+        let codeVerifier = randomURLSafeString(length: 64)
+        let codeChallenge = pkceCodeChallenge(for: codeVerifier)
 
         var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
         components.queryItems = [
@@ -126,13 +140,15 @@ class AuthManager: ObservableObject {
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: "openid email profile"),
             URLQueryItem(name: "nonce", value: nonce),
+            URLQueryItem(name: "state", value: state),
+            URLQueryItem(name: "code_challenge", value: codeChallenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
 
         guard let authURL = components.url else {
             throw APIError.invalidURL
         }
 
-        let callbackScheme = redirectURI.components(separatedBy: ":").first ?? ""
         let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: callbackScheme) { url, error in
                 if let error { continuation.resume(throwing: error); return }
@@ -144,7 +160,19 @@ class AuthManager: ObservableObject {
             DispatchQueue.main.async { session.start() }
         }
 
-        guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
+        let callbackComponents = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
+        if let callbackError = callbackComponents?
+            .queryItems?.first(where: { $0.name == "error" })?.value {
+            throw APIError.serverError(message: "Google sign-in failed: \(callbackError)")
+        }
+
+        let returnedState = callbackComponents?
+            .queryItems?.first(where: { $0.name == "state" })?.value
+        guard returnedState == state else {
+            throw APIError.serverError(message: "Google sign-in state mismatch.")
+        }
+
+        guard let code = callbackComponents?
             .queryItems?.first(where: { $0.name == "code" })?.value else {
             throw APIError.serverError(message: "No authorization code received from Google.")
         }
@@ -153,13 +181,13 @@ class AuthManager: ObservableObject {
         var tokenRequest = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
         tokenRequest.httpMethod = "POST"
         tokenRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let body = [
-            "code=\(code)",
-            "client_id=\(clientID)",
-            "redirect_uri=\(redirectURI)",
-            "grant_type=authorization_code",
-        ].joined(separator: "&")
-        tokenRequest.httpBody = body.data(using: .utf8)
+        tokenRequest.httpBody = formEncodedData([
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+            URLQueryItem(name: "grant_type", value: "authorization_code"),
+            URLQueryItem(name: "code_verifier", value: codeVerifier),
+        ])
 
         let (data, _) = try await URLSession.shared.data(for: tokenRequest)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -168,6 +196,27 @@ class AuthManager: ObservableObject {
         }
 
         return idToken
+    }
+
+    private func formEncodedData(_ items: [URLQueryItem]) -> Data? {
+        var components = URLComponents()
+        components.queryItems = items
+        let encoded = components.percentEncodedQuery ?? ""
+        return encoded.data(using: .utf8)
+    }
+
+    private func randomURLSafeString(length: Int) -> String {
+        let raw = UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        return String(raw.prefix(max(43, length)))
+    }
+
+    private func pkceCodeChallenge(for verifier: String) -> String {
+        let challenge = SHA256.hash(data: Data(verifier.utf8))
+        let encoded = Data(challenge).base64EncodedString()
+        return encoded
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 
     // MARK: - Email Sign-In

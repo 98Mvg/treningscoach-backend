@@ -249,6 +249,8 @@ def test_non_apple_auth_providers_default_to_disabled(monkeypatch):
     monkeypatch.delenv("APPLE_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("EMAIL_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("GOOGLE_AUTH_ENABLED", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_IDS", raising=False)
     monkeypatch.delenv("FACEBOOK_AUTH_ENABLED", raising=False)
     monkeypatch.delenv("VIPPS_AUTH_ENABLED", raising=False)
 
@@ -256,9 +258,20 @@ def test_non_apple_auth_providers_default_to_disabled(monkeypatch):
 
     assert config.APPLE_AUTH_ENABLED is True
     assert config.EMAIL_AUTH_ENABLED is True
-    assert config.GOOGLE_AUTH_ENABLED is False
+    assert config.GOOGLE_AUTH_ENABLED is True
+    assert config.GOOGLE_AUTH_CONFIGURED is False
+    assert config.GOOGLE_CLIENT_IDS == []
     assert config.FACEBOOK_AUTH_ENABLED is False
     assert config.VIPPS_AUTH_ENABLED is False
+
+
+def test_google_client_ids_env_override(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_IDS", "ios-client-id,web-client-id")
+
+    importlib.reload(config)
+
+    assert config.GOOGLE_CLIENT_IDS == ["ios-client-id", "web-client-id"]
+    assert config.GOOGLE_AUTH_CONFIGURED is True
 
 
 def test_storage_paths_default_to_absolute_runtime_dirs(monkeypatch):

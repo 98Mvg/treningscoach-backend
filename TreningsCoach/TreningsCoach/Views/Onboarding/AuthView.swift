@@ -32,7 +32,9 @@ struct AuthView: View {
     }
 
     private var hasEnabledProviders: Bool {
-        AppConfig.Auth.appleSignInEnabled || AppConfig.Auth.emailSignInEnabled
+        AppConfig.Auth.appleSignInEnabled
+            || AppConfig.Auth.googleSignInFeatureEnabled
+            || AppConfig.Auth.emailSignInEnabled
     }
 
     private var normalizedEmail: String {
@@ -227,13 +229,24 @@ struct AuthView: View {
 
     private var googleButton: some View {
         Group {
-            if AppConfig.Auth.googleSignInEnabled {
+            if AppConfig.Auth.googleSignInFeatureEnabled {
                 socialButton(
                     title: L10n.registerWithGoogle,
                     icon: .text("G"),
                     disabled: authManager.isLoading
                 ) {
-                    Task { await authManager.signInWithGoogle() }
+                    guard acceptedTerms else {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showTermsValidationError = true
+                        }
+                        return
+                    }
+                    Task {
+                        let signedIn = await authManager.signInWithGoogle()
+                        if signedIn {
+                            onContinue()
+                        }
+                    }
                 }
             } else {
                 socialButton(

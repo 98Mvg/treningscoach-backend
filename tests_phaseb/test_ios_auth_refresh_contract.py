@@ -66,11 +66,16 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     view_text = AUTH_VIEW.read_text(encoding="utf-8")
     assert "static var googleSignInEnabled: Bool" in config_text
-    # Google sign-in flag now reads from build config (googleSignInFeatureEnabled)
-    assert "googleSignInFeatureEnabled" in config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
+    google_enabled_block = config_text.split("static var googleSignInEnabled: Bool", 1)[1].split("}", 1)[0]
+    assert "googleSignInFeatureEnabled" in google_enabled_block
+    assert "googleClientID != nil" in google_enabled_block
+    assert "googleRedirectScheme != nil" in google_enabled_block
+    assert "static var googleRedirectScheme: String?" in config_text
+    assert 'stringInfoValue("GOOGLE_REVERSED_CLIENT_ID")' in config_text
+    assert 'stringInfoValue("GOOGLE_CLIENT_ID") ?? stringInfoValue("GIDClientID")' in config_text
     assert "static var emailSignInEnabled: Bool" in config_text
-    # AuthView now gates Google button behind the feature flag
-    assert "if AppConfig.Auth.googleSignInEnabled {" in view_text
+    # AuthView now surfaces Google when the build flag is on, while runtime config is validated on tap.
+    assert "if AppConfig.Auth.googleSignInFeatureEnabled {" in view_text
     assert "secondaryActionButton(" in view_text
     assert "title: L10n.continueWithoutAccount" in view_text
     assert "Text(L10n.signInLaterHint)" in view_text
@@ -79,6 +84,8 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "authBenefitRow(icon: \"person.crop.circle.badge.checkmark\", text: L10n.authBenefitSyncProfile)" in view_text
     assert "authBenefitRow(icon: \"envelope.badge\", text: L10n.authBenefitAppleOrEmail)" in view_text
     assert "onContinueWithoutAccount()" in view_text
+    assert "guard acceptedTerms else {" in view_text.split("private var googleButton: some View {", 1)[1]
+    assert "let signedIn = await authManager.signInWithGoogle()" in view_text
     assert "title: L10n.emailAddress" in view_text
     assert "title: L10n.emailCodeLabel" in view_text
     assert "await authManager.requestEmailSignInCode(email: normalizedEmail)" in view_text

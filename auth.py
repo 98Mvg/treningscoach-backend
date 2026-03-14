@@ -1,6 +1,6 @@
 """
 Authentication module for Treningscoach
-Phase 1 launch auth keeps Apple as the only enabled third-party provider by default.
+Phase 1 launch auth keeps Apple available by default and enables Google when configured.
 Issues JWT tokens for session management
 """
 
@@ -622,6 +622,18 @@ def rate_limit(
 # PROVIDER TOKEN VERIFICATION
 # ============================================
 
+def _resolve_google_client_ids() -> list[str]:
+    configured = list(getattr(config, "GOOGLE_CLIENT_IDS", []) or [])
+    normalized = [item.strip() for item in configured if str(item).strip()]
+    if normalized:
+        return normalized
+
+    fallback = (os.getenv("GOOGLE_CLIENT_IDS") or os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    if not fallback:
+        return []
+    return [item.strip() for item in fallback.split(",") if item.strip()]
+
+
 def verify_google_token(id_token: str) -> dict:
     """
     Verify Google ID token and extract user info.
@@ -639,16 +651,19 @@ def verify_google_token(id_token: str) -> dict:
         from google.oauth2 import id_token as google_id_token
         from google.auth.transport import requests as google_requests
 
-        # Verify the token with Google
-        google_client_id = os.getenv("GOOGLE_CLIENT_ID")
-        if not google_client_id:
-            raise ValueError("GOOGLE_CLIENT_ID not configured")
+        allowed_client_ids = _resolve_google_client_ids()
+        if not allowed_client_ids:
+            raise ValueError("GOOGLE_CLIENT_IDS not configured")
 
         idinfo = google_id_token.verify_oauth2_token(
             id_token,
             google_requests.Request(),
-            google_client_id
+            None
         )
+
+        token_audience = str(idinfo.get("aud") or "").strip()
+        if token_audience not in allowed_client_ids:
+            raise ValueError("Google token audience mismatch")
 
         return {
             "provider_id": idinfo["sub"],
@@ -658,6 +673,10 @@ def verify_google_token(id_token: str) -> dict:
         }
     except ImportError:
         # Fallback: verify via Google's tokeninfo endpoint
+        allowed_client_ids = _resolve_google_client_ids()
+        if not allowed_client_ids:
+            raise ValueError("GOOGLE_CLIENT_IDS not configured")
+
         response = requests.get(
             f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
             timeout=10
@@ -666,6 +685,10 @@ def verify_google_token(id_token: str) -> dict:
             raise ValueError(f"Google token verification failed: {response.text}")
 
         data = response.json()
+        token_audience = str(data.get("aud") or data.get("azp") or "").strip()
+        if token_audience not in allowed_client_ids:
+            raise ValueError("Google token audience mismatch")
+
         return {
             "provider_id": data["sub"],
             "email": data.get("email", ""),

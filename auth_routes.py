@@ -1,6 +1,6 @@
 """
 Auth API routes for Treningscoach
-Launch-safe auth keeps Apple available and leaves other providers disabled by default
+Launch-safe auth keeps Apple and email available, and enables Google when configured
 """
 
 import logging
@@ -81,7 +81,14 @@ def _provider_enabled(provider: str) -> bool:
     flag_name = _PROVIDER_FLAG_BY_NAME.get(provider, "")
     if not flag_name:
         return False
-    return bool(getattr(config, flag_name, False))
+    flag_enabled = bool(getattr(config, flag_name, False))
+    if not flag_enabled:
+        return False
+
+    if provider == "google":
+        return bool(getattr(config, "GOOGLE_AUTH_CONFIGURED", False))
+
+    return True
 
 
 def _provider_unavailable_response(provider: str):

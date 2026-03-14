@@ -4,7 +4,24 @@
 <dict>
 	<key>APPLE_SIGN_IN_ENABLED</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>YOUR_GOOGLE_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 	<key>EMAIL_SIGN_IN_ENABLED</key>
+	<true/>
+	<key>GOOGLE_CLIENT_ID</key>
+	<string>YOUR_GOOGLE_IOS_CLIENT_ID</string>
+	<key>GOOGLE_REVERSED_CLIENT_ID</key>
+	<string>YOUR_GOOGLE_REVERSED_CLIENT_ID</string>
+	<key>GOOGLE_SIGN_IN_ENABLED</key>
 	<true/>
 	<key>LIVE_COACH_VOICE_ENABLED</key>
 	<true/>
