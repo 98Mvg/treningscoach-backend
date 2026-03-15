@@ -200,12 +200,15 @@ struct WorkoutCompleteView: View {
                 .padding(.horizontal, 12)
             }
         }
-        .fullScreenCover(isPresented: $showLiveCoachVoice) {
+        .sheet(isPresented: $showLiveCoachVoice) {
             LiveCoachConversationView(
                 summaryContext: viewModel.postWorkoutSummaryContext,
                 languageCode: liveVoiceLanguageCode,
                 userName: liveVoiceUserName
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showShareOptions) {
             WorkoutShareDestinationsSheet(

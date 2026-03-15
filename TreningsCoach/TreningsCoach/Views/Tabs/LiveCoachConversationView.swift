@@ -115,6 +115,12 @@ final class LiveCoachConversationViewModel: ObservableObject {
         guard !hasAutoStarted else { return }
         hasAutoStarted = true
         await service.start()
+
+        // Auto-retry once on first failure (handles Render cold-start timeouts)
+        if case .failed = service.connectionState {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await service.start()
+        }
     }
 
     func retry() async {
@@ -175,43 +181,60 @@ struct LiveCoachConversationView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                CoachiTheme.backgroundGradient.ignoresSafeArea()
+        ZStack {
+            CoachiTheme.backgroundGradient.ignoresSafeArea()
 
-                VStack(spacing: 18) {
-                    headerCard
-                    transcriptCard
-                    if let failureMessage = viewModel.failureMessage, viewModel.canUseTextFallback {
-                        failureCard(message: failureMessage)
+            VStack(spacing: 14) {
+                // Compact header: status + close
+                HStack {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(viewModel.statusTint)
+                            .frame(width: 10, height: 10)
+                        Text(viewModel.statusLabel.uppercased())
+                            .font(.system(size: 12, weight: .bold))
+                            .tracking(0.8)
+                            .foregroundStyle(Color.white.opacity(0.92))
                     }
-                    if let insight = viewModel.latestShareInsight, viewModel.isConversationEnded {
-                        PostWorkoutInsightShareSection(
-                            summaryContext: viewModel.summaryContext,
-                            languageCode: viewModel.languageCode,
-                            insightText: insight
-                        )
-                    }
-                    Spacer(minLength: 0)
-                    actionBar
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 28)
-            }
-            .navigationTitle(viewModel.languageCode == "no" ? "Snakk med coach live" : "Talk to Coach Live")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(viewModel.languageCode == "no" ? "Lukk" : "Close") {
+                    Spacer()
+                    Text("\(viewModel.service.sessionDurationSeconds)s")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(0.56))
+                    Button {
                         dismiss()
-                        Task {
-                            await viewModel.disconnect()
-                        }
+                        Task { await viewModel.disconnect() }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 26, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.5))
                     }
-                    .foregroundStyle(Color.white.opacity(0.92))
                 }
+                .padding(.top, 6)
+
+                // Voice orb / connection indicator
+                voiceOrbSection
+
+                // Scrollable transcript
+                transcriptCard
+
+                if let failureMessage = viewModel.failureMessage, viewModel.canUseTextFallback {
+                    failureCard(message: failureMessage)
+                }
+
+                if let insight = viewModel.latestShareInsight, viewModel.isConversationEnded {
+                    PostWorkoutInsightShareSection(
+                        summaryContext: viewModel.summaryContext,
+                        languageCode: viewModel.languageCode,
+                        insightText: insight
+                    )
+                }
+
+                Spacer(minLength: 0)
+                actionBar
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 20)
         }
         .task {
             await viewModel.startIfNeeded()
@@ -230,97 +253,49 @@ struct LiveCoachConversationView: View {
         }
     }
 
-    private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(viewModel.languageCode == "no" ? "Rex live coach" : "Rex live coach")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.96))
-                    Text(viewModel.languageCode == "no"
-                         ? "Denne modusen er isolert fra selve treningsmotoren og fokuserer bare pa oppsummeringen av den siste okten."
-                         : "This mode is isolated from the workout runtime and only uses the summary from the workout you just finished.")
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundStyle(Color.white.opacity(0.74))
+    @ViewBuilder
+    private var voiceOrbSection: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                // Pulsing ring when connected
+                if viewModel.isConnected {
+                    Circle()
+                        .stroke(viewModel.statusTint.opacity(0.3), lineWidth: 3)
+                        .frame(width: 72, height: 72)
+                        .scaleEffect(1.15)
+                        .opacity(0.6)
+                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: viewModel.isConnected)
                 }
-                Spacer()
-                statusPill
+                Circle()
+                    .fill(viewModel.statusTint.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                Image(systemName: viewModel.isConnected ? "waveform" : "mic.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(viewModel.statusTint)
             }
-
-            HStack(spacing: 12) {
-                metricChip(
-                    title: viewModel.languageCode == "no" ? "Coach score" : "Coach score",
-                    value: "\(viewModel.summaryContext.coachScore)"
-                )
-                metricChip(
-                    title: viewModel.languageCode == "no" ? "Varighet" : "Duration",
-                    value: viewModel.summaryContext.durationText
-                )
-                metricChip(
-                    title: viewModel.languageCode == "no" ? "Turns" : "Turns",
-                    value: "\(viewModel.service.turnCount)"
-                )
-            }
+            Text(voiceOrbLabel)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.84))
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.white.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
-        )
+        .padding(.vertical, 4)
     }
 
-    private var statusPill: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(viewModel.statusTint)
-                .frame(width: 9, height: 9)
-            Text(viewModel.statusLabel.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.8)
-                .foregroundStyle(Color.white.opacity(0.92))
+    private var voiceOrbLabel: String {
+        let no = viewModel.languageCode == "no"
+        if viewModel.isConnected {
+            return no ? "Snakk med Grok" : "Talk to Grok"
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color.black.opacity(0.26))
-        )
-    }
-
-    private func metricChip(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.6)
-                .foregroundStyle(Color.white.opacity(0.6))
-            Text(value)
-                .font(.system(size: 15, weight: .medium, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(0.94))
+        if viewModel.isConversationEnded {
+            return no ? "Samtale avsluttet" : "Conversation ended"
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.06))
-        )
+        if viewModel.failureMessage != nil {
+            return no ? "Kunne ikke koble til" : "Could not connect"
+        }
+        return no ? "Kobler til..." : "Connecting..."
     }
 
     private var transcriptCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(viewModel.languageCode == "no" ? "Samtale" : "Conversation")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.94))
-                Spacer()
-                Text("\(viewModel.service.sessionDurationSeconds)s")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.72))
-            }
-
+        VStack(alignment: .leading, spacing: 10) {
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(viewModel.transcriptEntries) { entry in
@@ -333,35 +308,24 @@ struct LiveCoachConversationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(18)
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.black.opacity(0.22))
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.black.opacity(0.18))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
         )
     }
 
     private var emptyTranscriptState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.languageCode == "no" ? "Venter pa den forste stemmen..." : "Waiting for the first voice turn...")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.84))
-            Text(viewModel.languageCode == "no"
-                 ? "Nar live-forbindelsen er oppe, blir transkripsjoner og coach-svar vist her."
-                 : "Once the live connection is up, transcripts and coach replies will show here.")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(Color.white.opacity(0.68))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(0.04))
-        )
+        Text(viewModel.languageCode == "no" ? "Si noe for a starte samtalen..." : "Say something to start the conversation...")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Color.white.opacity(0.52))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 20)
     }
 
     private func transcriptBubble(entry: LiveCoachTranscriptEntry) -> some View {
