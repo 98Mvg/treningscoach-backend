@@ -1242,11 +1242,13 @@ class WorkoutViewModel: ObservableObject {
         // Configure audio session for playback
         setupAudioSession()
 
-        // Request speech recognition authorization for wake word
-        Task {
-            let authorized = await wakeWordManager.requestAuthorization()
-            if authorized {
-                print("✅ Speech recognition authorized for wake word")
+        if AppConfig.WorkoutTalk.wakeWordEnabled {
+            // Request speech recognition authorization only when wake word is enabled.
+            Task {
+                let authorized = await wakeWordManager.requestAuthorization()
+                if authorized {
+                    print("✅ Speech recognition authorized for wake word")
+                }
             }
         }
 
@@ -1322,6 +1324,7 @@ class WorkoutViewModel: ObservableObject {
 
     /// Handle wake trigger from on-device keyword spotting.
     private func handleWakeWordUtterance(_ utterance: String) {
+        guard AppConfig.WorkoutTalk.wakeWordEnabled else { return }
         _ = utterance // Wake callbacks currently pass only the matched wake phrase.
         guard isContinuousMode, !isPaused else { return }
         startWorkoutTalkCapture(triggerSource: .wakeWord, playWakeAck: true)
@@ -1346,7 +1349,9 @@ class WorkoutViewModel: ObservableObject {
         talkCaptureTask?.cancel()
         wakeWordResumeTask?.cancel()
         wakeWordResumeTask = nil
-        wakeWordManager.suspendForWorkoutTalk()
+        if AppConfig.WorkoutTalk.wakeWordEnabled {
+            wakeWordManager.suspendForWorkoutTalk()
+        }
         isTalkingToCoach = true
         isWakeWordActive = true
         coachInteractionState = .commandMode
@@ -1471,8 +1476,12 @@ class WorkoutViewModel: ObservableObject {
         isWakeWordActive = false
         coachInteractionState = .passiveListening
         voiceState = isContinuousMode && !isPaused ? .listening : .idle
-        wakeWordManager.resetWakeCooldown()
         wakeWordResumeTask?.cancel()
+        guard AppConfig.WorkoutTalk.wakeWordEnabled else {
+            wakeWordResumeTask = nil
+            return
+        }
+        wakeWordManager.resetWakeCooldown()
         wakeWordResumeTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(self.wakeWordResumeDelayAfterTalkSeconds * 1_000_000_000))
@@ -1540,6 +1549,7 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func startWakeWordListeningIfNeeded() {
+        guard AppConfig.WorkoutTalk.wakeWordEnabled else { return }
         guard isContinuousMode, !isPaused, !isTalkingToCoach else { return }
         wakeWordManager.updateLanguage()
         wakeWordManager.startListening(audioEngine: continuousRecordingManager.engine) { [weak self] utterance in
@@ -2610,13 +2620,15 @@ class WorkoutViewModel: ObservableObject {
                 }
             }
 
-            // Connect wake word manager to audio stream
-            continuousRecordingManager.onAudioBuffer = { [weak self] buffer in
-                self?.wakeWordManager.feedAudioBuffer(buffer)
+            if AppConfig.WorkoutTalk.wakeWordEnabled {
+                // Connect wake word manager to audio stream only when wake word is enabled.
+                continuousRecordingManager.onAudioBuffer = { [weak self] buffer in
+                    self?.wakeWordManager.feedAudioBuffer(buffer)
+                }
+                startWakeWordListeningIfNeeded()
+            } else {
+                continuousRecordingManager.onAudioBuffer = nil
             }
-
-            // Start wake word listening
-            startWakeWordListeningIfNeeded()
 
             // Keep launch-to-active responsive even on slow networks.
             coachingStatusLine = currentLanguage == "no"

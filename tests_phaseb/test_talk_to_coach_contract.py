@@ -54,6 +54,7 @@ def test_talk_button_uses_unified_capture_request_path() -> None:
 
 def test_wake_word_path_uses_ack_and_unified_capture_request_path() -> None:
     text = _viewmodel_text()
+    assert "AppConfig.WorkoutTalk.wakeWordEnabled" in text
     assert "startWorkoutTalkCapture(triggerSource: .wakeWord, playWakeAck: true)" in text
     assert 'currentLanguage == "no" ? "wake_ack.no.default" : "wake_ack.en.default"' in text
     assert 'eventType: "wake_ack"' in text
@@ -75,6 +76,7 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
     assert "isWakeWordActive = false" in text
     assert "coachInteractionState = .passiveListening" in text
     assert "voiceState = isContinuousMode && !isPaused ? .listening : .idle" in text
+    assert "guard AppConfig.WorkoutTalk.wakeWordEnabled else {" in text
     assert "wakeWordManager.resetWakeCooldown()" in text
     assert "wakeWordResumeTask?.cancel()" in text
     assert "private let wakeWordResumeDelayAfterTalkSeconds: TimeInterval = 0.6" in text
@@ -84,8 +86,22 @@ def test_talk_path_resets_state_back_to_passive_listening() -> None:
 def test_talk_path_pauses_wake_word_listening_while_talk_is_active() -> None:
     text = _viewmodel_text()
     assert "private func startWorkoutTalkCapture(triggerSource: TalkTriggerSource, playWakeAck: Bool)" in text
+    assert "if AppConfig.WorkoutTalk.wakeWordEnabled {" in text
     assert "wakeWordManager.suspendForWorkoutTalk()" in text
     assert "private func startWakeWordListeningIfNeeded()" in text
+
+
+def test_wake_word_is_disabled_by_default_for_launch() -> None:
+    config_text = (REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Config.swift").read_text(encoding="utf-8")
+    info_text = (
+        REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Info.plist"
+    ).read_text(encoding="utf-8")
+    text = _viewmodel_text()
+    assert "struct WorkoutTalk" in config_text
+    assert 'static let wakeWordEnabled: Bool = boolInfoValue("WORKOUT_WAKE_WORD_ENABLED", default: false)' in config_text
+    assert "<key>WORKOUT_WAKE_WORD_ENABLED</key>" in info_text
+    assert "<false/>" in info_text.split("<key>WORKOUT_WAKE_WORD_ENABLED</key>", 1)[1]
+    assert "guard AppConfig.WorkoutTalk.wakeWordEnabled else { return }" in text
 
 
 def test_talk_path_logs_policy_blocks_when_returned_by_backend() -> None:

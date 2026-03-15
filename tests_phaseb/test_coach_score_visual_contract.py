@@ -59,6 +59,9 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "appViewModel.levelProgressFraction" in text
     assert "appViewModel.levelProgressLine" in text
     assert "progressHighlightsCard" in text
+    assert "private var progressHighlightsStatsRow: some View" in text
+    assert "private var progressHighlightsLevelSection: some View" in text
+    assert "private var progressHighlightsLevelBar: some View" in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text

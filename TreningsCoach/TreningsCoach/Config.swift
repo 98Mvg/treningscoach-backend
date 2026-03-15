@@ -227,6 +227,31 @@ struct AppConfig {
         static let defaultMaxDurationSeconds: Int = 300
     }
 
+    // MARK: - Workout Talk
+    struct WorkoutTalk {
+        private static func boolInfoValue(_ key: String, default defaultValue: Bool = false) -> Bool {
+            guard let raw = Bundle.main.object(forInfoDictionaryKey: key) else {
+                return defaultValue
+            }
+            if let boolValue = raw as? Bool {
+                return boolValue
+            }
+            if let stringValue = raw as? String {
+                switch stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                case "1", "true", "yes", "on":
+                    return true
+                case "0", "false", "no", "off":
+                    return false
+                default:
+                    return defaultValue
+                }
+            }
+            return defaultValue
+        }
+
+        static let wakeWordEnabled: Bool = boolInfoValue("WORKOUT_WAKE_WORD_ENABLED", default: false)
+    }
+
     // MARK: - Sharing
     struct Share {
         static let coachiWebsiteURLString = "https://coachi.app"

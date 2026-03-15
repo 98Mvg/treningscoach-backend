@@ -33,6 +33,8 @@
 	<true/>
 	<key>LIVE_COACH_VOICE_ENABLED</key>
 	<true/>
+	<key>WORKOUT_WAKE_WORD_ENABLED</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>spotify</string>
