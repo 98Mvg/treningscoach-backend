@@ -251,12 +251,24 @@ def test_security_refresh_ttl_defaults_to_7_days(monkeypatch):
     assert config.JWT_REFRESH_TOKEN_MAX_DAYS == 7
 
 
-def test_mobile_api_auth_defaults_to_guest_friendly(monkeypatch):
+def test_mobile_api_auth_defaults_to_secure_by_default(monkeypatch):
     monkeypatch.delenv("MOBILE_API_AUTH_REQUIRED", raising=False)
 
     importlib.reload(config)
 
-    assert config.MOBILE_API_AUTH_REQUIRED is False
+    assert config.MOBILE_API_AUTH_REQUIRED is True
+
+
+def test_test_only_security_bypass_flags_default_closed(monkeypatch):
+    monkeypatch.delenv("AUTH_BYPASS_FOR_TESTS", raising=False)
+    monkeypatch.delenv("RATE_LIMIT_BYPASS_FOR_TESTS", raising=False)
+    monkeypatch.delenv("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", raising=False)
+
+    importlib.reload(config)
+
+    assert config.AUTH_BYPASS_FOR_TESTS is False
+    assert config.RATE_LIMIT_BYPASS_FOR_TESTS is False
+    assert config.AUDIO_SIGNATURE_BYPASS_FOR_TESTS is False
 
 
 def test_non_apple_auth_providers_default_to_disabled(monkeypatch):

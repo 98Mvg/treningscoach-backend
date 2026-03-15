@@ -11,6 +11,12 @@ import SwiftUI
 import AuthenticationServices
 import UIKit
 import CryptoKit
+import OSLog
+
+private let authLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.coachi.app",
+    category: "AuthManager"
+)
 
 @MainActor
 class AuthManager: ObservableObject {
@@ -338,7 +344,7 @@ class AuthManager: ObservableObject {
     func signOut() {
         let refreshToken = currentRefreshToken()
         transitionToGuestMode()
-        print("Signed out")
+        authLogger.notice("AUTH_SIGN_OUT action=guest_mode")
 
         guard let refreshToken, !refreshToken.isEmpty else { return }
         Task {
@@ -354,7 +360,7 @@ class AuthManager: ObservableObject {
         do {
             try await BackendAPIService.shared.deleteCurrentAccount()
             transitionToGuestMode()
-            print("AUTH_DELETE success=true action=guest_mode")
+            authLogger.notice("AUTH_DELETE success=true action=guest_mode")
             return nil
         } catch {
             let message: String
@@ -365,7 +371,7 @@ class AuthManager: ObservableObject {
                 message = "Could not delete account. Please try again."
             }
             errorMessage = message
-            print("AUTH_DELETE success=false reason=\(message)")
+            authLogger.error("AUTH_DELETE success=false")
             return message
         }
     }
@@ -390,7 +396,7 @@ class AuthManager: ObservableObject {
                     if currentRefreshToken() == nil {
                         signOut()
                     } else {
-                        print("AUTH_PROFILE refresh_failed=network keeping_session=true")
+                        authLogger.notice("AUTH_PROFILE refresh_failed=network keeping_session=true")
                     }
                     return
                 }
@@ -413,7 +419,7 @@ class AuthManager: ObservableObject {
                   httpResponse.statusCode == 200 else {
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 404 {
-                    print("AUTH_PROFILE stale_session=true status=404 action=sign_out")
+                    authLogger.notice("AUTH_PROFILE stale_session=true status=404 action=sign_out")
                     signOut()
                 }
                 return
@@ -422,7 +428,7 @@ class AuthManager: ObservableObject {
             try updateProfileFromResponseData(data)
         } catch {
             // Network timeout / connectivity — keep tokens, don't sign out
-            print("AUTH_PROFILE network_error=true reason=\(error.localizedDescription)")
+            authLogger.error("AUTH_PROFILE network_error=true")
         }
     }
 
@@ -447,7 +453,7 @@ class AuthManager: ObservableObject {
                     if currentRefreshToken() == nil {
                         signOut()
                     } else {
-                        print("AUTH_PROFILE_UPDATE refresh_failed=network keeping_session=true")
+                        authLogger.notice("AUTH_PROFILE_UPDATE refresh_failed=network keeping_session=true")
                     }
                     return
                 }
@@ -458,7 +464,7 @@ class AuthManager: ObservableObject {
                   httpResponse.statusCode == 200 else {
                 if let httpResponse = response as? HTTPURLResponse,
                    httpResponse.statusCode == 404 {
-                    print("AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out")
+                    authLogger.notice("AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out")
                     signOut()
                 }
                 return
@@ -480,10 +486,10 @@ class AuthManager: ObservableObject {
                 profileUpdatedAt: ISO8601DateFormatter().string(from: Date())
             )
             try? await BackendAPIService.shared.upsertUserProfile(snapshot)
-            print("📤 Profile upsert reason=profile_edit")
+            authLogger.debug("PROFILE_UPSERT reason=profile_edit")
 
         } catch {
-            print("Failed to update profile: \(error.localizedDescription)")
+            authLogger.error("PROFILE_UPDATE success=false")
         }
     }
 
@@ -492,7 +498,7 @@ class AuthManager: ObservableObject {
             let runtime = try await BackendAPIService.shared.fetchAppRuntime()
             productFlags = runtime.productFlags
         } catch {
-            print("Failed to fetch runtime flags: \(error.localizedDescription)")
+            authLogger.error("RUNTIME_FLAGS fetch_failed=true")
         }
     }
 
@@ -673,7 +679,7 @@ class AuthManager: ObservableObject {
             await fetchRuntimeFlags()
         }
 
-        print("Authenticated: \(response.user.email)")
+        authLogger.notice("AUTH_SUCCESS session_established=true")
     }
 
     private func performProfileRequest(token: String) async throws -> (Data, URLResponse) {

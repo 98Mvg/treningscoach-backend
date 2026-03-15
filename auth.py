@@ -313,7 +313,7 @@ def require_auth(f):
     return decorated
 
 
-def _testing_bypass_enabled(flag_name: str, default: bool = True) -> bool:
+def _testing_bypass_enabled(flag_name: str, default: bool = False) -> bool:
     if "PYTEST_CURRENT_TEST" not in os.environ:
         return False
     raw = os.getenv(flag_name)
@@ -330,8 +330,6 @@ def require_mobile_auth(f):
     rewriting broad endpoint contract tests in one security hardening pass.
     """
     strict_mobile_auth = bool(getattr(config, "MOBILE_API_AUTH_REQUIRED", True))
-    strict_guard = require_auth(f)
-
     @wraps(f)
     def decorated(*args, **kwargs):
         if not strict_mobile_auth:
@@ -339,13 +337,43 @@ def require_mobile_auth(f):
 
         if _testing_bypass_enabled(
             "AUTH_BYPASS_FOR_TESTS",
-            bool(getattr(config, "AUTH_BYPASS_FOR_TESTS", True)),
+            bool(getattr(config, "AUTH_BYPASS_FOR_TESTS", False)),
         ):
             g.current_user_id = "test-user"
             g.current_user_email = "test@example.com"
             return f(*args, **kwargs)
 
-        return strict_guard(*args, **kwargs)
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify(
+                {
+                    "error": "Missing or invalid Authorization header",
+                    "error_code": "authentication_required",
+                }
+            ), 401
+
+        token = auth_header.split("Bearer ")[1]
+
+        try:
+            payload = decode_jwt(token)
+            g.current_user_id = payload["user_id"]
+            g.current_user_email = payload.get("email")
+        except jwt.ExpiredSignatureError:
+            return jsonify(
+                {
+                    "error": "Token expired",
+                    "error_code": "authentication_required",
+                }
+            ), 401
+        except jwt.InvalidTokenError:
+            return jsonify(
+                {
+                    "error": "Invalid token",
+                    "error_code": "authentication_required",
+                }
+            ), 401
+
+        return f(*args, **kwargs)
 
     return decorated
 
@@ -569,7 +597,7 @@ def enforce_rate_limit(
 
     if _testing_bypass_enabled(
         "RATE_LIMIT_BYPASS_FOR_TESTS",
-        bool(getattr(config, "RATE_LIMIT_BYPASS_FOR_TESTS", True)),
+        bool(getattr(config, "RATE_LIMIT_BYPASS_FOR_TESTS", False)),
     ):
         return None
 

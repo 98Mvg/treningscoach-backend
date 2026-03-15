@@ -31,6 +31,9 @@ def test_auth_response_supports_refresh_token_bundle_fields() -> None:
 
 def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     text = AUTH_MANAGER.read_text(encoding="utf-8")
+    assert "import OSLog" in text
+    assert "Logger(" in text
+    assert "print(" not in text
     assert "static let shared = AuthManager()" in text
     assert "func hasUsableSession() -> Bool {" in text
     assert "func currentRefreshToken() -> String? {" in text
@@ -46,12 +49,17 @@ def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     assert 'httpResponse.statusCode == 404' in text
     assert 'AUTH_PROFILE stale_session=true status=404 action=sign_out' in text
     assert 'AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out' in text
+    assert 'AUTH_SIGN_OUT action=guest_mode' in text
+    assert 'AUTH_SUCCESS session_established=true' in text
     assert "signOut()" in text
     assert 'UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")' not in text
 
 
 def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
     text = API.read_text(encoding="utf-8")
+    assert "import OSLog" in text
+    assert "Logger(" in text
+    assert "print(" not in text
     assert "func refreshAuthTokenIfNeeded() async -> Bool" in text
     assert "func deleteCurrentAccount() async throws" in text
     assert '"\\(baseURL)/auth/me"' in text
@@ -78,13 +86,14 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "if AppConfig.Auth.googleSignInFeatureEnabled {" in view_text
     assert "secondaryActionButton(" in view_text
     assert "title: L10n.continueWithoutAccount" in view_text
-    assert "Text(L10n.signInLaterHint)" in view_text
-    assert "Text(L10n.accountRequiredHint)" in view_text
-    assert "authBenefitRow(icon: \"chart.line.uptrend.xyaxis\", text: L10n.authBenefitSaveHistory)" in view_text
-    assert "authBenefitRow(icon: \"person.crop.circle.badge.checkmark\", text: L10n.authBenefitSyncProfile)" in view_text
-    assert "authBenefitRow(icon: \"envelope.badge\", text: L10n.authBenefitAppleOrEmail)" in view_text
     assert "onContinueWithoutAccount()" in view_text
-    assert "guard acceptedTerms else {" in view_text.split("private var googleButton: some View {", 1)[1]
+    assert "let mode: AuthFlowMode" in view_text
+    assert "private var requiresAcceptedTerms: Bool {" in view_text
+    assert "mode == .register" in view_text
+    assert "mode == .login ? L10n.loginWithApple : L10n.registerWithApple" in view_text
+    assert "mode == .login ? L10n.loginWithGoogle : L10n.registerWithGoogle" in view_text
+    assert "mode == .login ? L10n.loginWithEmail" in view_text
+    assert "guard hasAcceptedRequiredTerms else {" in view_text.split("private var googleButton: some View {", 1)[1]
     assert "let signedIn = await authManager.signInWithGoogle()" in view_text
     assert "title: L10n.emailAddress" in view_text
     assert "title: L10n.emailCodeLabel" in view_text

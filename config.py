@@ -188,13 +188,13 @@ GOOGLE_CLIENT_IDS = _env_csv_set(
 GOOGLE_AUTH_CONFIGURED = len(GOOGLE_CLIENT_IDS) > 0
 
 # Enforce auth for mobile API runtime routes (/coach/*, /analyze, chat control).
-# Default is guest-friendly for the current pre-launch phase; set env true to re-enable strict auth.
-MOBILE_API_AUTH_REQUIRED = _env_bool("MOBILE_API_AUTH_REQUIRED", False)
-# Test-only bypass for new mobile auth/rate-limit guards to preserve deterministic tests.
-AUTH_BYPASS_FOR_TESTS = _env_bool("AUTH_BYPASS_FOR_TESTS", True)
-RATE_LIMIT_BYPASS_FOR_TESTS = _env_bool("RATE_LIMIT_BYPASS_FOR_TESTS", True)
+# Secure-by-default: explicit env opt-out is required to allow guest access.
+MOBILE_API_AUTH_REQUIRED = _env_bool("MOBILE_API_AUTH_REQUIRED", True)
+# Test-only bypass flags remain available, but default closed unless a test opts in.
+AUTH_BYPASS_FOR_TESTS = _env_bool("AUTH_BYPASS_FOR_TESTS", False)
+RATE_LIMIT_BYPASS_FOR_TESTS = _env_bool("RATE_LIMIT_BYPASS_FOR_TESTS", False)
 # Test-only bypass for synthetic audio fixtures that do not carry real file signatures.
-AUDIO_SIGNATURE_BYPASS_FOR_TESTS = _env_bool("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", True)
+AUDIO_SIGNATURE_BYPASS_FOR_TESTS = _env_bool("AUDIO_SIGNATURE_BYPASS_FOR_TESTS", False)
 
 # Database-backed API rate limits (fixed windows, shared across workers).
 RATE_LIMIT_ENABLED = _env_bool("RATE_LIMIT_ENABLED", True)

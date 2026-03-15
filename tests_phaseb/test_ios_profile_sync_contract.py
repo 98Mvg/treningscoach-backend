@@ -48,7 +48,7 @@ def test_onboarding_triggers_profile_upsert():
 def test_profile_edit_triggers_profile_upsert():
     text = AUTH_MANAGER.read_text(encoding="utf-8")
     assert "try? await BackendAPIService.shared.upsertUserProfile(snapshot)" in text
-    assert 'print("📤 Profile upsert reason=profile_edit")' in text
+    assert 'PROFILE_UPSERT reason=profile_edit' in text
 
 
 def test_workout_start_triggers_profile_upsert():

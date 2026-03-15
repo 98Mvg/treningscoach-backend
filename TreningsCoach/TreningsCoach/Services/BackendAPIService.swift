@@ -6,6 +6,12 @@
 //
 
 import Foundation
+import OSLog
+
+private let backendLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.coachi.app",
+    category: "BackendAPIService"
+)
 
 struct WorkoutTalkContext {
     let phase: String?
@@ -193,11 +199,11 @@ class BackendAPIService {
 
     func refreshAuthTokenIfNeeded() async -> Bool {
         guard let refreshToken = currentRefreshToken(), !refreshToken.isEmpty else {
-            print("AUTH_REFRESH skipped reason=missing_refresh_token")
+            backendLogger.notice("AUTH_REFRESH skipped reason=missing_refresh_token")
             return false
         }
         if isExpired(expiresAtKey: KeychainHelper.refreshTokenExpiresAtKey) {
-            print("AUTH_REFRESH skipped reason=refresh_token_expired")
+            backendLogger.notice("AUTH_REFRESH skipped reason=refresh_token_expired")
             clearTokenBundle()
             return false
         }
@@ -207,7 +213,7 @@ class BackendAPIService {
         }
 
         do {
-            print("AUTH_REFRESH attempt=true")
+            backendLogger.debug("AUTH_REFRESH attempt=true")
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -219,7 +225,7 @@ class BackendAPIService {
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("AUTH_REFRESH success=false status=\(httpResponse.statusCode)")
+                backendLogger.notice("AUTH_REFRESH success=false status=\(httpResponse.statusCode)")
                 if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                     clearTokenBundle()
                 }
@@ -239,10 +245,10 @@ class BackendAPIService {
                 expiresIn: payload.expiresIn,
                 refreshExpiresIn: payload.refreshExpiresIn
             )
-            print("AUTH_REFRESH success=true")
+            backendLogger.notice("AUTH_REFRESH success=true")
             return true
         } catch {
-            print("AUTH_REFRESH success=false reason=\(error.localizedDescription)")
+            backendLogger.error("AUTH_REFRESH success=false")
             return false
         }
     }
@@ -266,7 +272,7 @@ class BackendAPIService {
             }
             return httpResponse.statusCode == 200
         } catch {
-            print("AUTH_LOGOUT success=false reason=\(error.localizedDescription)")
+            backendLogger.error("AUTH_LOGOUT success=false")
             return false
         }
     }
@@ -298,7 +304,7 @@ class BackendAPIService {
             return (data, response)
         }
 
-        print("AUTH_RETRY status=\(httpResponse.statusCode) path=\(request.url?.path ?? "unknown")")
+        backendLogger.notice("AUTH_RETRY status=\(httpResponse.statusCode) path=\(request.url?.path ?? "unknown")")
         let refreshed = await refreshAuthTokenIfNeeded()
         guard refreshed else {
             return (data, response)
@@ -638,7 +644,7 @@ class BackendAPIService {
             }
             return httpResponse.statusCode == 200
         } catch {
-            print("ANALYTICS_EVENT failed event=\(event) reason=\(error.localizedDescription)")
+            backendLogger.error("ANALYTICS_EVENT failed event=\(event)")
             return false
         }
     }
@@ -672,7 +678,7 @@ class BackendAPIService {
             }
             return httpResponse.statusCode == 200
         } catch {
-            print("VOICE_TELEMETRY failed event=\(event) reason=\(error.localizedDescription)")
+            backendLogger.error("VOICE_TELEMETRY failed event=\(event)")
             return false
         }
     }

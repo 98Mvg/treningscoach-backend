@@ -552,7 +552,7 @@ def _validate_audio_upload_signature(file_obj) -> bool:
     if detected in ALLOWED_EXTENSIONS:
         return True
     # Preserve existing deterministic test fixtures while keeping runtime strict.
-    if os.getenv("PYTEST_CURRENT_TEST") and bool(getattr(config, "AUDIO_SIGNATURE_BYPASS_FOR_TESTS", True)):
+    if os.getenv("PYTEST_CURRENT_TEST") and bool(getattr(config, "AUDIO_SIGNATURE_BYPASS_FOR_TESTS", False)):
         return True
     return False
 
