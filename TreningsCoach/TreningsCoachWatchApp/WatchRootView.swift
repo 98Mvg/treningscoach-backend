@@ -8,7 +8,7 @@ struct WatchRootView: View {
         NavigationStack {
             VStack(spacing: 12) {
                 Text("Coachi")
-                    .font(.headline)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
 
                 Text("Waiting for iPhone…")
                     .foregroundStyle(.secondary)
