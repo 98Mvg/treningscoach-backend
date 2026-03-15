@@ -22,7 +22,6 @@ struct WorkoutCompleteView: View {
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
     @State private var copiedLink = false
-    @State private var showProgressToast = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -160,6 +159,11 @@ struct WorkoutCompleteView: View {
                     .opacity(contentVisible ? 1 : 0)
                     .frame(maxWidth: .infinity)
 
+                    progressHighlightsCard
+                        .padding(.horizontal, 24)
+                        .padding(.top, 22)
+                        .opacity(contentVisible ? 1 : 0)
+
                     Spacer()
 
                     if canUseLiveCoachVoice {
@@ -175,19 +179,6 @@ struct WorkoutCompleteView: View {
                     .opacity(contentVisible ? 1 : 0)
                 }
                 .padding(.horizontal, 12)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if showProgressToast {
-                progressHighlightsCard
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 140)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            showProgressToast = false
-                        }
-                    }
             }
         }
         .sheet(isPresented: $showLiveCoachVoice) {
@@ -234,18 +225,6 @@ struct WorkoutCompleteView: View {
             }
             withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
                 contentVisible = true
-            }
-
-            // Show progress toast after score animation, auto-dismiss after 5s
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
-                    showProgressToast = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                    withAnimation(.easeOut(duration: 0.4)) {
-                        showProgressToast = false
-                    }
-                }
             }
         }
     }
@@ -309,6 +288,7 @@ struct WorkoutCompleteView: View {
                 ],
                 valueColor: Color.white.opacity(0.97),
                 labelColor: Color.white.opacity(0.80),
+                levelColor: CoachiTheme.success,
                 levelLabel: appViewModel.coachiLevelLabel,
                 xpProgress: appViewModel.coachiXPProgressFraction,
                 showsOuterXPRing: true,

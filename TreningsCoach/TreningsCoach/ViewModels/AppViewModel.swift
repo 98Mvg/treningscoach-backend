@@ -322,7 +322,10 @@ class AppViewModel: ObservableObject {
     }
 
     var coachiLevelLabel: String {
-        coachiProgressState.levelLabel
+        if L10n.current == .no {
+            return "Nivå \(coachiProgressState.level)"
+        }
+        return "Level \(coachiProgressState.level)"
     }
 
     var coachiXPProgressFraction: Double {

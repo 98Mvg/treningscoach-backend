@@ -9,6 +9,7 @@ APP_VIEW_MODEL = (
 WORKOUT_VIEW_MODEL = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "ViewModels" / "WorkoutViewModel.swift"
 )
+CONFIG = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Config.swift"
 
 
 def test_coachi_progress_model_is_separate_from_training_level() -> None:
@@ -26,6 +27,7 @@ def test_coachi_progress_model_is_separate_from_training_level() -> None:
 
 def test_workout_view_model_awards_xp_once_on_completion_path() -> None:
     text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+    config_text = CONFIG.read_text(encoding="utf-8")
     assert "@Published private(set) var lastCoachiProgressAward: CoachiProgressAward?" in text
     assert "private func applyCoachiProgression(durationSeconds: Int, finalCoachScore: Int)" in text
     assert "durationSeconds > AppConfig.Progression.minWorkoutSecondsForXPAward" in text
@@ -36,6 +38,7 @@ def test_workout_view_model_awards_xp_once_on_completion_path() -> None:
     assert "applyCoachiProgression(durationSeconds: duration, finalCoachScore: coachScore)" in text
     assert "good_coach_workout_count" not in text
     assert "applyExperienceProgression" not in text
+    assert "static let minWorkoutSecondsForXPAward: Int = 30" in config_text
 
 
 def test_app_view_model_reads_coachi_progress_without_overloading_profile_training_level() -> None:
@@ -45,6 +48,8 @@ def test_app_view_model_reads_coachi_progress_without_overloading_profile_traini
     assert "coachiProgressState = CoachiProgressStore.load(for: currentProgressUserID)" in text
     assert "var trainingLevelDisplayName: String {" in text
     assert "var coachiLevelLabel: String {" in text
+    assert 'return "Nivå \\(coachiProgressState.level)"' in text
+    assert 'return "Level \\(coachiProgressState.level)"' in text
     assert "var coachiXPProgressFraction: Double {" in text
     assert "var coachiXPLine: String {" in text
     assert "var coachiXPValueLine: String {" in text

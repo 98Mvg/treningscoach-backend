@@ -187,6 +187,7 @@ struct GamifiedCoachScoreRingView: View {
     var gradientColors: [Color] = [Color(hex: "3ED4D5"), Color(hex: "2ED573")]
     var valueColor: Color = CoachiTheme.textPrimary
     var labelColor: Color = CoachiTheme.textSecondary
+    var levelColor: Color? = nil
     var levelLabel: String? = nil
     var xpProgress: Double? = nil
     var showsOuterXPRing: Bool = false
@@ -236,7 +237,7 @@ struct GamifiedCoachScoreRingView: View {
             if showsOuterXPRing, let displayedLevelLabel {
                 Text(displayedLevelLabel)
                     .font(.system(size: size * 0.16, weight: .bold))
-                    .foregroundColor(labelColor)
+                    .foregroundColor(levelColor ?? labelColor)
                     .monospacedDigit()
             }
 
@@ -430,12 +431,24 @@ struct GamifiedCoachScoreRingView: View {
         guard start > end, finalLevelNumber > CoachiProgressState.startingLevel else {
             return finalLabel
         }
-        return "Lv.\(finalLevelNumber - 1)"
+        return formattedLevelLabel(for: finalLevelNumber - 1, template: finalLabel)
     }
 
     private func parsedLevelNumber(from label: String?) -> Int {
         let digits = (label ?? "").filter(\.isNumber)
         return Int(digits) ?? CoachiProgressState.startingLevel
+    }
+
+    private func formattedLevelLabel(for level: Int, template: String?) -> String {
+        let safeLevel = max(CoachiProgressState.startingLevel, level)
+        let normalized = (template ?? "").lowercased()
+        if normalized.contains("nivå") {
+            return "Nivå \(safeLevel)"
+        }
+        if normalized.contains("level") {
+            return "Level \(safeLevel)"
+        }
+        return "Lv.\(safeLevel)"
     }
 }
 

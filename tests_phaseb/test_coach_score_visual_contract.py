@@ -34,6 +34,7 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
     assert "@State private var displayedLevelLabel: String?" in text
     assert "max(0, min(100, score))" in text
     assert "var animationDuration: Double = 2.1" in text
+    assert "var levelColor: Color? = nil" in text
     assert "var levelLabel: String? = nil" in text
     assert "var xpProgress: Double? = nil" in text
     assert "var showsOuterXPRing: Bool = false" in text
@@ -42,13 +43,17 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
     assert "for step in (startScore + 1)...clampedScore" in text
     assert '.task(id: animationKey)' in text
     assert "await animateXP(" in text
-    assert 'return "Lv.\\(finalLevelNumber - 1)"' in text
+    assert "formattedLevelLabel(for: finalLevelNumber - 1, template: finalLabel)" in text
 
 
 def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     text = HOME_VIEW.read_text(encoding="utf-8")
     assert "ScrollView(.vertical, showsIndicators: false)" in text
-    assert "Text(\"(\\(appViewModel.coachiProgressState.level))\")" in text
+    assert "private var homeHorizontalPadding: CGFloat { 16 }" in text
+    assert 'Text(L10n.current == .no ? "Nivå \\(appViewModel.coachiProgressState.level)" : "Level \\(appViewModel.coachiProgressState.level)")' in text
+    assert '.font(.system(size: 16, weight: .heavy))' in text
+    assert '.frame(maxWidth: .infinity, alignment: .leading)' in text
+    assert '.frame(maxWidth: 440, alignment: .leading)' not in text
     assert "scoreHistory: workoutViewModel.coachScoreHistory" in text
     assert "coachScore: workoutViewModel.homeCoachScore" in text
     assert "xpProgress: appViewModel.coachiXPProgressFraction" in text
@@ -73,6 +78,7 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "appViewModel.coachiXPLine" in text
     assert "appViewModel.coachiXPValueLine" in text
     assert "showsOuterXPRing: true" in text
+    assert "levelColor: CoachiTheme.success" in text
     assert "animateXPAward: xpAwardForSummary > 0" in text
     assert "xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction" in text
     assert "xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction" in text
@@ -94,6 +100,7 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert 'shareButton(label: "X"' in text
     assert 'shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
     assert "WorkoutSummaryShareCardView(" in text
+    assert "showProgressToast" not in text
     assert "trainingLevelDisplayName" not in text
     assert "levelProgressFraction" not in text
     assert "levelProgressLine" not in text

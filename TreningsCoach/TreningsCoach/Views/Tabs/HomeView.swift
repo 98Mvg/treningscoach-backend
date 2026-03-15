@@ -15,7 +15,7 @@ struct HomeView: View {
     @State private var showManageMonitors = false
     let onStartWorkout: () -> Void
 
-    private var homeHorizontalPadding: CGFloat { 18 }
+    private var homeHorizontalPadding: CGFloat { 16 }
 
     var body: some View {
         NavigationStack {
@@ -53,8 +53,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, homeHorizontalPadding)
                     .padding(.bottom, max(geo.safeAreaInsets.bottom + 84, 96))
-                    .frame(maxWidth: 440, alignment: .leading)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
@@ -90,10 +89,10 @@ struct HomeView: View {
     }
 
     private var homeLevelBadge: some View {
-        Text("(\(appViewModel.coachiProgressState.level))")
-            .font(.system(size: 15, weight: .bold))
+        Text(L10n.current == .no ? "Nivå \(appViewModel.coachiProgressState.level)" : "Level \(appViewModel.coachiProgressState.level)")
+            .font(.system(size: 16, weight: .heavy))
             .foregroundColor(CoachiTheme.success)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 11)
             .padding(.vertical, 5)
             .background(
                 Capsule(style: .continuous)
