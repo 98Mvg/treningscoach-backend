@@ -8,17 +8,26 @@
 import SwiftUI
 
 private let coachiSupportEmail = "AI.Coachi@hotmail.com"
-private let coachiWebsiteURL = "https://coachi.app"
+private let coachiWebsiteURL = "https://coachi.no"
 private let coachiPrivacyUpdatedNo = "10. mars 2026"
 private let coachiPrivacyUpdatedEn = "March 10, 2026"
+
+private let coachiPrivacyURL = "https://coachi.no/privacy"
+private let coachiTermsURL = "https://coachi.no/terms"
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @Environment(\.openURL) private var openURL
     @Binding var selectedTab: TabItem
     @State private var showingSignOutConfirmation = false
     @State private var showPaywall = false
+    @State private var showingBirthDateEditor = false
+    @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
+    @AppStorage("app_language") private var appLanguageCode: String = "en"
+    @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
+    @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
@@ -104,59 +113,92 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             sectionHeader(L10n.account)
 
-            NavigationLink {
-                PersonalProfileSettingsView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(authManager)
-            } label: {
-                HStack(spacing: 16) {
-                    Image(systemName: "face.smiling")
-                        .font(.system(size: 28))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .frame(width: 76, height: 76)
-                        .background(CoachiTheme.surfaceElevated)
-                        .clipShape(Circle())
+            // Profile header (no extra tap needed)
+            HStack(spacing: 16) {
+                Image(systemName: "face.smiling")
+                    .font(.system(size: 28))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .frame(width: 76, height: 76)
+                    .background(CoachiTheme.surfaceElevated)
+                    .clipShape(Circle())
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(appViewModel.userProfile.name)
-                            .font(.system(size: 19, weight: .bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(appViewModel.userProfile.name)
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
 
-                        Text(L10n.personalProfile)
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textTertiary)
+                    Text(accountStatusSubtitle)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .lineLimit(2)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
 
-            sectionHeader(L10n.coaching)
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
 
             settingsDivider
 
+            // Language
             NavigationLink {
-                HealthProfileView()
-                    .environmentObject(appViewModel)
-                    .environmentObject(authManager)
+                LanguageSettingsView().environmentObject(authManager)
             } label: {
                 SettingsListRow(
-                    icon: "heart",
-                    title: L10n.healthProfile,
-                    subtitle: L10n.current == .no ? "Fødselsdato og treningsnivå" : "Birth date and training level"
+                    icon: "globe",
+                    title: "\(L10n.language): \((AppLanguage(rawValue: appLanguageCode) ?? .en).displayName)"
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider
+
+            // Dark mode
+            HStack(spacing: 14) {
+                Image(systemName: darkModeEnabled ? "moon.fill" : "sun.max.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .frame(width: 30)
+
+                Text(L10n.darkMode)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                Spacer()
+
+                Toggle("", isOn: $darkModeEnabled)
+                    .labelsHidden()
+                    .tint(CoachiTheme.primary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 15)
+
+            settingsDivider
+
+            // Birth date
+            Button {
+                draftBirthDate = storedBirthDate
+                showingBirthDateEditor = true
+            } label: {
+                SettingsListRow(
+                    icon: "calendar",
+                    title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider
+
+            // Experience level (read-only)
+            SettingsListRow(
+                icon: "chart.bar.fill",
+                title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
+                trailingIcon: nil
+            )
+
+            sectionHeader(L10n.coaching)
 
             settingsDivider
 
@@ -241,30 +283,124 @@ struct ProfileView: View {
 
             settingsDivider
 
-            NavigationLink {
-                PrivacyPolicyView()
+            // Privacy Policy — opens website
+            Button {
+                if let url = URL(string: coachiPrivacyURL) { openURL(url) }
             } label: {
                 SettingsListRow(
                     icon: "hand.raised",
                     title: L10n.privacyPolicy,
-                    subtitle: L10n.current == .no ? "Se hvordan data behandles" : "See how your data is handled"
+                    subtitle: L10n.current == .no ? "Åpnes på coachi.no" : "Opens on coachi.no",
+                    trailingIcon: "arrow.up.right.square"
                 )
             }
             .buttonStyle(.plain)
 
             settingsDivider
 
-            NavigationLink {
-                TermsOfUseView()
+            // Terms of Use — opens website
+            Button {
+                if let url = URL(string: coachiTermsURL) { openURL(url) }
             } label: {
                 SettingsListRow(
                     icon: "doc.text",
                     title: L10n.termsOfUse,
-                    subtitle: L10n.current == .no ? "Les vilkårene for bruk" : "Read the terms of use"
+                    subtitle: L10n.current == .no ? "Åpnes på coachi.no" : "Opens on coachi.no",
+                    trailingIcon: "arrow.up.right.square"
                 )
             }
             .buttonStyle(.plain)
+
+            settingsDivider
+
+            // About & Advanced
+            NavigationLink {
+                AboutCoachiView()
+                    .environmentObject(appViewModel)
+            } label: {
+                SettingsListRow(
+                    icon: "info.circle",
+                    title: "\(L10n.aboutCoachi) · v\(AppConfig.version)"
+                )
+            }
+            .buttonStyle(.plain)
+
+            // Delete account (authenticated only)
+            if authManager.isAuthenticated {
+                settingsDivider
+
+                NavigationLink {
+                    DeleteAccountInfoView()
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundColor(CoachiTheme.danger)
+                            .frame(width: 30)
+
+                        Text(L10n.current == .no ? "Slett konto" : "Delete account")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(CoachiTheme.danger)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .sheet(isPresented: $showingBirthDateEditor) {
+            BirthDateEditorSheet(
+                selectedDate: draftBirthDate,
+                minDate: minimumBirthDate,
+                maxDate: Date(),
+                onSave: persistBirthDate
+            )
+        }
+    }
+
+    // MARK: - Profile helpers
+
+    private var accountStatusSubtitle: String {
+        if authManager.isAuthenticated {
+            if let email = authManager.currentUser?.email, !email.isEmpty {
+                return "\(L10n.signedInAs) \(email)"
+            }
+            return L10n.current == .no ? "Konto tilkoblet." : "Account connected."
+        }
+        return "\(L10n.usingWithoutAccount). \(L10n.connectAccountLaterHint)"
+    }
+
+    private var minimumBirthDate: Date {
+        Calendar.current.date(byAdding: .year, value: -95, to: Date()) ?? Date()
+    }
+
+    private var storedBirthDate: Date {
+        guard birthdateTimestamp > 0 else {
+            return Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
+        }
+        return Date(timeIntervalSince1970: birthdateTimestamp)
+    }
+
+    private var birthDateDisplayLine: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateStyle = .medium
+        return formatter.string(from: storedBirthDate)
+    }
+
+    private func persistBirthDate(_ value: Date) {
+        let bounded = min(max(value, minimumBirthDate), Date())
+        birthdateTimestamp = bounded.timeIntervalSince1970
+        let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
+        let age = max(14, min(95, years))
+        UserDefaults.standard.set(age, forKey: "user_age")
     }
 
     private var premiumSection: some View {
