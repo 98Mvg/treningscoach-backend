@@ -247,9 +247,11 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             throw APIError.invalidURL
         }
 
-        var request = URLRequest(url: url, timeoutInterval: 30)
-        request.setValue("Bearer \(bootstrap.clientSecret)", forHTTPHeaderField: "Authorization")
-        let socket = URLSession.shared.webSocketTask(with: request)
+        // Use sec-websocket-protocol for auth — more reliable than Authorization
+        // header on iOS URLSessionWebSocketTask during the HTTP upgrade handshake.
+        // xAI docs: sec-websocket-protocol: xai-client-secret.<token>
+        let protocols = ["xai-client-secret.\(bootstrap.clientSecret)"]
+        let socket = URLSession.shared.webSocketTask(with: url, protocols: protocols)
         socket.resume()
         self.webSocketTask = socket
         connectionState = .connecting
