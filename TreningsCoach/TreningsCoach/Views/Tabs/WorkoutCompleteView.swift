@@ -26,6 +26,7 @@ struct WorkoutCompleteView: View {
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
     @State private var copiedLink = false
+    @State private var showProgressToast = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -194,11 +195,6 @@ struct WorkoutCompleteView: View {
                     .opacity(contentVisible ? 1 : 0)
                     .frame(maxWidth: .infinity)
 
-                    progressHighlightsCard
-                        .padding(.top, 22)
-                        .padding(.horizontal, 18)
-                        .opacity(contentVisible ? 1 : 0)
-
                     Spacer()
 
                     if canUseLiveCoachVoice {
@@ -214,6 +210,19 @@ struct WorkoutCompleteView: View {
                     .opacity(contentVisible ? 1 : 0)
                 }
                 .padding(.horizontal, 12)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showProgressToast {
+                progressHighlightsCard
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 140)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showProgressToast = false
+                        }
+                    }
             }
         }
         .sheet(isPresented: $showLiveCoachVoice) {
@@ -263,6 +272,18 @@ struct WorkoutCompleteView: View {
             }
             ringGlowPulse = true
             animateScoreIfNeeded()
+
+            // Show progress toast after score animation, auto-dismiss after 5s
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) {
+                    showProgressToast = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                    withAnimation(.easeOut(duration: 0.4)) {
+                        showProgressToast = false
+                    }
+                }
+            }
         }
     }
 
@@ -402,64 +423,90 @@ struct WorkoutCompleteView: View {
 
     private var progressHighlightsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                progressStatCard(
-                    title: L10n.streak,
-                    value: "\(coachScoreStreakCount)",
-                    detail: L10n.current == .no ? "gode økter på rad" : "good workouts in a row"
-                )
-
-                progressStatCard(
-                    title: L10n.experienceLevel,
-                    value: appViewModel.trainingLevelDisplayName,
-                    detail: appViewModel.levelBadgeLine
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(L10n.current == .no ? "Neste nivå" : "Next level")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color.white.opacity(0.84))
-                    Spacer()
-                    Text(appViewModel.trainingLevelDisplayName)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color(hex: "A5F3EC"))
-                }
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.12))
-                            .frame(height: 8)
-
-                        Capsule(style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "67E8F9"), Color(hex: "A5F3EC")],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(12, geo.size.width * appViewModel.levelProgressFraction), height: 8)
-                    }
-                }
-                .frame(height: 8)
-
-                Text(appViewModel.levelProgressLine)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color.white.opacity(0.74))
-            }
+            progressHighlightsStatsRow
+            progressHighlightsLevelSection
         }
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+                .fill(progressHighlightsBackgroundFill)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        .overlay(progressHighlightsBorder)
+    }
+
+    private var progressHighlightsStatsRow: some View {
+        HStack(spacing: 12) {
+            progressStatCard(
+                title: L10n.streak,
+                value: "\(coachScoreStreakCount)",
+                detail: L10n.current == .no ? "gode økter på rad" : "good workouts in a row"
+            )
+
+            progressStatCard(
+                title: L10n.experienceLevel,
+                value: appViewModel.trainingLevelDisplayName,
+                detail: appViewModel.levelBadgeLine
+            )
+        }
+    }
+
+    private var progressHighlightsLevelSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            progressHighlightsLevelHeader
+            progressHighlightsLevelBar
+
+            Text(appViewModel.levelProgressLine)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color.white.opacity(0.74))
+        }
+    }
+
+    private var progressHighlightsLevelHeader: some View {
+        HStack {
+            Text(L10n.current == .no ? "Neste nivå" : "Next level")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Color.white.opacity(0.84))
+            Spacer()
+            Text(appViewModel.trainingLevelDisplayName)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(Color(hex: "A5F3EC"))
+        }
+    }
+
+    private var progressHighlightsLevelBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(0.12))
+                    .frame(height: 8)
+
+                Capsule(style: .continuous)
+                    .fill(progressHighlightsLevelGradient)
+                    .frame(
+                        width: max(12, geo.size.width * appViewModel.levelProgressFraction),
+                        height: 8
+                    )
+            }
+        }
+        .frame(maxWidth: 220)
+        .frame(height: 8)
+    }
+
+    private var progressHighlightsLevelGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: "67E8F9"), Color(hex: "A5F3EC")],
+            startPoint: .leading,
+            endPoint: .trailing
         )
+    }
+
+    private var progressHighlightsBackgroundFill: Color {
+        Color.white.opacity(0.08)
+    }
+
+    private var progressHighlightsBorder: some View {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .stroke(Color.white.opacity(0.12), lineWidth: 1)
     }
 
     @ViewBuilder
