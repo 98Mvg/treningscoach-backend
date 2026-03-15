@@ -123,7 +123,6 @@ class WorkoutViewModel: ObservableObject {
 
     private let spotifyPromptPendingKey = "spotify_prompt_pending"
     private let spotifyPromptSeenKey = "spotify_prompt_seen"
-    private let goodCoachWorkoutCountKey = "good_coach_workout_count"
     private let coachScoreHistoryKey = "coach_score_history_v1"
     private let lastCoachScoreKey = "last_real_coach_score"
     private let maxCoachScoreHistoryCount = 42
@@ -231,6 +230,7 @@ class WorkoutViewModel: ObservableObject {
     @Published var breathAvailableReliable: Bool = false
     @Published private(set) var coachScoreHistory: [CoachScoreRecord] = []
     @Published private(set) var lastPersistedCoachScore: Int = 0
+    @Published private(set) var lastCoachiProgressAward: CoachiProgressAward?
     @Published var zoneTimeInTargetPct: Double?
     @Published var zoneOvershoots: Int = 0
     @Published var workoutContextSummary: WorkoutContextSummary?
@@ -759,6 +759,7 @@ class WorkoutViewModel: ObservableObject {
         movementState = "unknown"
         workoutContextSummary = nil
         workoutContextSummaryReceivedAt = nil
+        lastCoachiProgressAward = nil
         // If no warmup selected, start directly in intense phase
         if configuredWarmupDuration == 0 {
             hasSkippedWarmup = true
@@ -858,6 +859,7 @@ class WorkoutViewModel: ObservableObject {
         movementScore = nil
         cadenceSPM = nil
         movementSource = "none"
+        lastCoachiProgressAward = nil
         movementState = "unknown"
         workoutContextSummary = nil
         workoutContextSummaryReceivedAt = nil
@@ -1789,33 +1791,20 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    private func applyExperienceProgression(durationSeconds: Int, finalCoachScore: Int) {
-        guard durationSeconds >= AppConfig.Progression.minWorkoutSecondsForProgression else { return }
-        guard finalCoachScore >= AppConfig.Progression.goodCoachScoreThreshold else { return }
+    private func applyCoachiProgression(durationSeconds: Int, finalCoachScore: Int) {
+        let currentState = CoachiProgressStore.load(for: authManager.currentUser?.id)
+        let qualifiesForXP =
+            durationSeconds > AppConfig.Progression.minWorkoutSecondsForXPAward &&
+            finalCoachScore >= AppConfig.Progression.minCoachScoreForXPAward
 
-        let defaults = UserDefaults.standard
-        let previousGoodWorkouts = defaults.integer(forKey: goodCoachWorkoutCountKey)
-        let newGoodWorkouts = previousGoodWorkouts + 1
-        defaults.set(newGoodWorkouts, forKey: goodCoachWorkoutCountKey)
-
-        let nextLevel = experienceLevel(forGoodWorkoutCount: newGoodWorkouts)
-        let currentLevel = defaults.string(forKey: "training_level") ?? "beginner"
-        if currentLevel != nextLevel {
-            defaults.set(nextLevel, forKey: "training_level")
-            print("⬆️ Experience level up: \(currentLevel) -> \(nextLevel) (\(newGoodWorkouts) good workouts)")
+        if qualifiesForXP {
+            lastCoachiProgressAward = CoachiProgressStore.awardXP(
+                AppConfig.Progression.xpAwardPerQualifiedWorkout,
+                for: authManager.currentUser?.id
+            )
         } else {
-            print("✅ Good workout counted (\(newGoodWorkouts) total)")
+            lastCoachiProgressAward = currentState.applyingXPAward(0)
         }
-    }
-
-    private func experienceLevel(forGoodWorkoutCount count: Int) -> String {
-        if count >= AppConfig.Progression.advancedAtGoodWorkouts {
-            return "advanced"
-        }
-        if count >= AppConfig.Progression.intermediateAtGoodWorkouts {
-            return "intermediate"
-        }
-        return "beginner"
     }
 
     private func eventPriority(for eventType: String) -> Int {
@@ -2905,7 +2894,7 @@ class WorkoutViewModel: ObservableObject {
 
         if let duration = finalDurationSeconds {
             persistCompletedWorkoutIfNeeded(durationSeconds: duration, intensity: finalIntensity)
-            applyExperienceProgression(durationSeconds: duration, finalCoachScore: coachScore)
+            applyCoachiProgression(durationSeconds: duration, finalCoachScore: coachScore)
         }
         if hasAuthoritativeCoachScore {
             persistFinalCoachScore(coachScore, at: Date())

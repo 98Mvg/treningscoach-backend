@@ -320,12 +320,10 @@ struct AppConfig {
 
     // MARK: - Experience Progression
     struct Progression {
-        // A workout counts as "good quality" only if both duration and CoachScore pass.
-        static let minWorkoutSecondsForProgression: Int = 12 * 60
-        static let goodCoachScoreThreshold: Int = 80
-
-        // Level-up thresholds based on good-quality workouts.
-        static let intermediateAtGoodWorkouts: Int = 4
-        static let advancedAtGoodWorkouts: Int = 12
+        static let minWorkoutSecondsForXPAward: Int = 5 * 60
+        static let minCoachScoreForXPAward: Int = 50
+        static let xpAwardPerQualifiedWorkout: Int = 25
+        static let xpPerLevel: Int = CoachiProgressState.xpPerLevel
+        static let maxCoachiLevel: Int = CoachiProgressState.maximumLevel
     }
 }

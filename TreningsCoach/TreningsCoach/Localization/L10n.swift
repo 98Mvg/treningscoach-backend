@@ -118,11 +118,17 @@ struct L10n {
     static var minutes: String { current == .no ? "Minutter" : "Minutes" }
     static var streak: String { current == .no ? "Rekke" : "Streak" }
     static var experienceLevel: String { current == .no ? "Treningsnivå" : "Experience Level" }
+    static var coachiLevel: String { current == .no ? "Coachi-nivå" : "Coachi Level" }
+    static var xp: String { "XP" }
+    static var xpEarned: String { current == .no ? "XP tjent" : "XP earned" }
+    static var xpToNextLevel: String { current == .no ? "XP til neste nivå" : "XP to next level" }
+    static var noXPEarned: String { current == .no ? "Ingen XP tjent" : "No XP earned" }
     static var dateOfBirth: String { current == .no ? "Fødselsdato" : "Date of birth" }
     static var coachVoice: String { current == .no ? "Coach-stemme" : "Coach Voice" }
     static var language: String { current == .no ? "Språk" : "Language" }
     static var signOut: String { current == .no ? "Logg ut" : "Sign Out" }
     static var athlete: String { current == .no ? "Utover" : "Athlete" }
+    static var maxLevelReached: String { current == .no ? "Maks nivå nådd" : "Max level reached" }
 
     // MARK: - Onboarding
     static var chooseLanguage: String { current == .no ? "Velg språk" : "Choose language" }

@@ -30,38 +30,56 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
     text = RING_VIEW.read_text(encoding="utf-8")
     assert "struct GamifiedCoachScoreRingView: View" in text
     assert "@State private var displayedScore: Int = 0" in text
+    assert "@State private var displayedXPProgress: CGFloat = 0.0" in text
+    assert "@State private var displayedLevelLabel: String?" in text
     assert "max(0, min(100, score))" in text
     assert "var animationDuration: Double = 2.1" in text
+    assert "var levelLabel: String? = nil" in text
+    assert "var xpProgress: Double? = nil" in text
+    assert "var showsOuterXPRing: Bool = false" in text
+    assert "var animateXPAward: Bool = false" in text
     assert "let startScore = clampedScore > 0 ? 1 : 0" in text
     assert "for step in (startScore + 1)...clampedScore" in text
-    assert '.task(id: clampedScore)' in text
+    assert '.task(id: animationKey)' in text
+    assert "await animateXP(" in text
+    assert 'return "Lv.\\(finalLevelNumber - 1)"' in text
 
 
 def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     text = HOME_VIEW.read_text(encoding="utf-8")
     assert "scoreHistory: workoutViewModel.coachScoreHistory" in text
     assert "coachScore: workoutViewModel.homeCoachScore" in text
+    assert "levelLabel: appViewModel.coachiLevelLabel" in text
+    assert "xpProgress: appViewModel.coachiXPProgressFraction" in text
     assert "GamifiedCoachScoreRingView(" in text
+    assert "showsOuterXPRing: true" in text
 
 
 def test_workout_complete_uses_gamified_score_ring() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
     assert "@EnvironmentObject var appViewModel: AppViewModel" in text
-    assert "@State private var displayedScore: Int = 0" in text
-    assert "@State private var displayedRingProgress: Double = 0" in text
     assert "Text(\"COACH SCORE\")" in text
     assert '@State private var finalBPMText = "0 BPM"' in text
     assert "private var shareSummaryText: String {" in text
     assert "private var coachScoreStreakCount: Int {" in text
+    assert "private var xpAwardForSummary: Int {" in text
     assert "L10n.streak" in text
-    assert "L10n.experienceLevel" in text
-    assert "appViewModel.trainingLevelDisplayName" in text
-    assert "appViewModel.levelProgressFraction" in text
-    assert "appViewModel.levelProgressLine" in text
+    assert "L10n.xpEarned" in text
+    assert "L10n.coachiLevel" in text
+    assert "appViewModel.coachiLevelLabel" in text
+    assert "appViewModel.coachiXPProgressFraction" in text
+    assert "appViewModel.coachiXPLine" in text
+    assert "appViewModel.coachiXPValueLine" in text
+    assert "showsOuterXPRing: true" in text
+    assert "animateXPAward: xpAwardForSummary > 0" in text
+    assert "xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction" in text
+    assert "xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction" in text
+    assert "scoreRingView(ringSize: ringSize)" in text
     assert "progressHighlightsCard" in text
     assert "private var progressHighlightsStatsRow: some View" in text
     assert "private var progressHighlightsLevelSection: some View" in text
     assert "private var progressHighlightsLevelBar: some View" in text
+    assert "private var progressHighlightsLevelFooter: some View" in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text
@@ -74,6 +92,9 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert 'shareButton(label: "X"' in text
     assert 'shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
     assert "WorkoutSummaryShareCardView(" in text
+    assert "trainingLevelDisplayName" not in text
+    assert "levelProgressFraction" not in text
+    assert "levelProgressLine" not in text
 
 
 def test_onboarding_data_and_result_use_gamified_ring() -> None:

@@ -187,9 +187,17 @@ struct GamifiedCoachScoreRingView: View {
     var gradientColors: [Color] = [Color(hex: "3ED4D5"), Color(hex: "2ED573")]
     var valueColor: Color = CoachiTheme.textPrimary
     var labelColor: Color = CoachiTheme.textSecondary
+    var levelLabel: String? = nil
+    var xpProgress: Double? = nil
+    var showsOuterXPRing: Bool = false
+    var animateXPAward: Bool = false
+    var xpAnimationFrom: Double? = nil
+    var xpAnimationTo: Double? = nil
 
     @State private var displayedScore: Int = 0
     @State private var displayedProgress: CGFloat = 0.0
+    @State private var displayedXPProgress: CGFloat = 0.0
+    @State private var displayedLevelLabel: String?
 
     private var clampedScore: Int {
         max(0, min(100, score))
@@ -199,38 +207,115 @@ struct GamifiedCoachScoreRingView: View {
         CGFloat(clampedScore) / 100.0
     }
 
+    private var clampedXPProgress: CGFloat {
+        CGFloat(max(0, min(1, xpProgress ?? 0)))
+    }
+
+    private var outerLineWidth: CGFloat {
+        max(6, lineWidth * 0.55)
+    }
+
+    private var outerRingSize: CGFloat {
+        size + (showsOuterXPRing ? max(22, outerLineWidth * 3.8) : 0)
+    }
+
+    private var animationKey: String {
+        [
+            "\(clampedScore)",
+            levelLabel ?? "nil",
+            "\(xpProgress ?? -1)",
+            "\(animateXPAward)",
+            "\(xpAnimationFrom ?? -1)",
+            "\(xpAnimationTo ?? -1)",
+            "\(fullSweepBeforeSettling)",
+        ].joined(separator: "|")
+    }
+
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(trackColor, lineWidth: lineWidth)
-
-            Circle()
-                .trim(from: 0, to: displayedProgress)
-                .stroke(
-                    LinearGradient(
-                        colors: gradientColors,
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-
-            VStack(spacing: 2) {
-                Text("\(displayedScore)")
-                    .font(.system(size: size * 0.30, weight: .bold))
-                    .foregroundColor(valueColor)
-                    .monospacedDigit()
-
-                Text(label)
-                    .font(.system(size: size * 0.14, weight: .semibold))
+        VStack(spacing: showsOuterXPRing ? max(8, size * 0.05) : 0) {
+            if showsOuterXPRing, let displayedLevelLabel {
+                Text(displayedLevelLabel)
+                    .font(.system(size: size * 0.16, weight: .bold))
                     .foregroundColor(labelColor)
+                    .monospacedDigit()
             }
+
+            ZStack {
+                if showsOuterXPRing {
+                    Circle()
+                        .stroke(trackColor.opacity(0.32), lineWidth: outerLineWidth)
+                        .frame(width: outerRingSize, height: outerRingSize)
+
+                    Circle()
+                        .trim(from: 0, to: displayedXPProgress)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color(hex: "FDE68A"), Color(hex: "F59E0B")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            style: StrokeStyle(lineWidth: outerLineWidth, lineCap: .round)
+                        )
+                        .frame(width: outerRingSize, height: outerRingSize)
+                        .rotationEffect(.degrees(-90))
+                }
+
+                Circle()
+                    .stroke(trackColor, lineWidth: lineWidth)
+
+                Circle()
+                    .trim(from: 0, to: displayedProgress)
+                    .stroke(
+                        LinearGradient(
+                            colors: gradientColors,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+
+                VStack(spacing: 2) {
+                    Text("\(displayedScore)")
+                        .font(.system(size: size * 0.30, weight: .bold))
+                        .foregroundColor(valueColor)
+                        .monospacedDigit()
+
+                    Text(label)
+                        .font(.system(size: size * 0.14, weight: .semibold))
+                        .foregroundColor(labelColor)
+                }
+            }
+            .frame(width: outerRingSize, height: outerRingSize)
         }
-        .frame(width: size, height: size)
-        .task(id: clampedScore) {
-            await animateScore()
+        .frame(width: outerRingSize)
+        .task(id: animationKey) {
+            await animateVisuals()
         }
+    }
+
+    private func animateVisuals() async {
+        let finalLevelLabel = levelLabel
+        let finalLevelNumber = parsedLevelNumber(from: finalLevelLabel)
+        let startXP = CGFloat(max(0, min(1, xpAnimationFrom ?? xpProgress ?? 0)))
+
+        if showsOuterXPRing {
+            displayedXPProgress = animateXPAward ? startXP : clampedXPProgress
+            displayedLevelLabel = initialDisplayedLevelLabel(
+                finalLabel: finalLevelLabel,
+                finalLevelNumber: finalLevelNumber
+            )
+        } else {
+            displayedLevelLabel = finalLevelLabel
+        }
+
+        await animateScore()
+
+        guard showsOuterXPRing else { return }
+        await animateXP(
+            finalLabel: finalLevelLabel,
+            finalLevelNumber: finalLevelNumber
+        )
     }
 
     private func animateScore() async {
@@ -305,6 +390,52 @@ struct GamifiedCoachScoreRingView: View {
                 displayedProgress = CGFloat(step) / 100.0
             }
         }
+    }
+
+    private func animateXP(finalLabel: String?, finalLevelNumber: Int) async {
+        if !animateXPAward {
+            displayedLevelLabel = finalLabel
+            displayedXPProgress = clampedXPProgress
+            return
+        }
+
+        let start = CGFloat(max(0, min(1, xpAnimationFrom ?? xpProgress ?? 0)))
+        let end = CGFloat(max(0, min(1, xpAnimationTo ?? xpProgress ?? 0)))
+        let wrapsLevel = start > end && finalLevelNumber > CoachiProgressState.startingLevel
+
+        if wrapsLevel {
+            withAnimation(.easeOut(duration: 0.38)) {
+                displayedXPProgress = 1.0
+            }
+            try? await Task.sleep(nanoseconds: 420_000_000)
+            if Task.isCancelled { return }
+            displayedLevelLabel = finalLabel
+            displayedXPProgress = 0.0
+            withAnimation(.easeOut(duration: 0.46)) {
+                displayedXPProgress = end
+            }
+            return
+        }
+
+        displayedLevelLabel = finalLabel
+        withAnimation(.easeOut(duration: 0.5)) {
+            displayedXPProgress = end
+        }
+    }
+
+    private func initialDisplayedLevelLabel(finalLabel: String?, finalLevelNumber: Int) -> String? {
+        guard animateXPAward else { return finalLabel }
+        let start = max(0, min(1, xpAnimationFrom ?? xpProgress ?? 0))
+        let end = max(0, min(1, xpAnimationTo ?? xpProgress ?? 0))
+        guard start > end, finalLevelNumber > CoachiProgressState.startingLevel else {
+            return finalLabel
+        }
+        return "Lv.\(finalLevelNumber - 1)"
+    }
+
+    private func parsedLevelNumber(from label: String?) -> Int {
+        let digits = (label ?? "").filter(\.isNumber)
+        return Int(digits) ?? CoachiProgressState.startingLevel
     }
 }
 

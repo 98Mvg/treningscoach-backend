@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import UIKit
 import UserNotifications
+import Combine
 
 struct LocalProfile {
     var name: String
@@ -271,12 +272,13 @@ class AppViewModel: ObservableObject {
     @AppStorage("has_completed_onboarding") var hasCompletedOnboarding: Bool = false
     @AppStorage("user_display_name") var userName: String = ""
     @AppStorage("training_level") var trainingLevelRaw: String = "beginner"
-    @AppStorage("good_coach_workout_count") var goodCoachWorkoutCount: Int = 0
     @AppStorage("app_language") var languageCode: String = "en"
     @AppStorage("spotify_prompt_pending") private var spotifyPromptPending: Bool = false
     @AppStorage("spotify_prompt_seen") private var spotifyPromptSeen: Bool = false
     @Published var pendingDeepLink: AppDeepLinkDestination?
+    @Published private(set) var coachiProgressState = CoachiProgressState()
     let pushNotificationManager = PushNotificationManager.shared
+    private var cancellables: Set<AnyCancellable> = []
 
     var userProfile: LocalProfile {
         LocalProfile(
@@ -290,6 +292,24 @@ class AppViewModel: ObservableObject {
     let authManager = AuthManager.shared
     private let backendAPI = BackendAPIService.shared
 
+    init() {
+        refreshCoachiProgress()
+
+        authManager.$currentUser
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshCoachiProgress()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .coachiProgressDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refreshCoachiProgress()
+            }
+            .store(in: &cancellables)
+    }
+
     var trainingLevelDisplayName: String {
         switch trainingLevelRaw {
         case "advanced":
@@ -301,57 +321,34 @@ class AppViewModel: ObservableObject {
         }
     }
 
-    var levelProgressFraction: Double {
-        guard let target = nextLevelTargetCount else { return 1.0 }
-        let start = currentLevelStartCount
-        let span = max(1, target - start)
-        let progress = max(0, min(span, goodCoachWorkoutCount - start))
-        return Double(progress) / Double(span)
+    var coachiLevelLabel: String {
+        coachiProgressState.levelLabel
     }
 
-    var levelProgressLine: String {
-        guard let target = nextLevelTargetCount else {
-            return L10n.current == .no
-                ? "Maksnivå nådd • \(goodCoachWorkoutCount) gode økter"
-                : "Max level reached • \(goodCoachWorkoutCount) good workouts"
-        }
-
-        let start = currentLevelStartCount
-        let needed = max(1, target - start)
-        let progress = max(0, min(needed, goodCoachWorkoutCount - start))
-        if L10n.current == .no {
-            return "\(progress)/\(needed) gode økter til neste nivå"
-        }
-        return "\(progress)/\(needed) good workouts to next level"
+    var coachiXPProgressFraction: Double {
+        coachiProgressState.xpFraction
     }
 
-    var levelBadgeLine: String {
-        if L10n.current == .no {
-            return "Nivå \(trainingLevelDisplayName)"
+    var coachiXPLine: String {
+        if coachiProgressState.isMaxLevel {
+            return L10n.maxLevelReached
         }
-        return "Level \(trainingLevelDisplayName)"
+        return "\(coachiProgressState.xpToNextLevel) \(L10n.xpToNextLevel)"
     }
 
-    private var currentLevelStartCount: Int {
-        switch trainingLevelRaw {
-        case "advanced":
-            return AppConfig.Progression.advancedAtGoodWorkouts
-        case "intermediate":
-            return AppConfig.Progression.intermediateAtGoodWorkouts
-        default:
-            return 0
+    var coachiXPValueLine: String {
+        if coachiProgressState.isMaxLevel {
+            return "\(CoachiProgressState.xpPerLevel)/\(CoachiProgressState.xpPerLevel) \(L10n.xp)"
         }
+        return "\(coachiProgressState.xpInCurrentLevel)/\(CoachiProgressState.xpPerLevel) \(L10n.xp)"
     }
 
-    private var nextLevelTargetCount: Int? {
-        switch trainingLevelRaw {
-        case "advanced":
-            return nil
-        case "intermediate":
-            return AppConfig.Progression.advancedAtGoodWorkouts
-        default:
-            return AppConfig.Progression.intermediateAtGoodWorkouts
-        }
+    func refreshCoachiProgress() {
+        coachiProgressState = CoachiProgressStore.load(for: currentProgressUserID)
+    }
+
+    private var currentProgressUserID: String? {
+        authManager.currentUser?.id
     }
 
     func completeOnboarding(profile: OnboardingProfileDraft) {
@@ -359,11 +356,11 @@ class AppViewModel: ObservableObject {
         userName = profile.displayName
         trainingLevelRaw = profile.trainingLevel
         languageCode = profile.languageCode
-        goodCoachWorkoutCount = 0
 
         defaults.set(profile.displayName, forKey: "user_display_name")
         defaults.set(profile.trainingLevel, forKey: "training_level")
         defaults.set(profile.languageCode, forKey: "app_language")
+        defaults.removeObject(forKey: "good_coach_workout_count")
 
         defaults.set(profile.firstName, forKey: "user_first_name")
         defaults.set(profile.lastName, forKey: "user_last_name")
@@ -423,12 +420,15 @@ class AppViewModel: ObservableObject {
             "user_moderate_sessions_per_week",
             "user_moderate_duration",
             "notifications_opt_in",
+            "good_coach_workout_count",
         ]
         keysToClear.forEach { defaults.removeObject(forKey: $0) }
 
         userName = ""
         trainingLevelRaw = "beginner"
         hasCompletedOnboarding = false
+        CoachiProgressStore.clearGuestProgress()
+        refreshCoachiProgress()
         pushNotificationManager.clearPendingCoachReminders()
     }
 

@@ -657,6 +657,171 @@ struct CoachScoreRecord: Identifiable, Codable {
     }
 }
 
+// MARK: - Coachi Progression
+
+struct CoachiProgressState: Codable, Equatable {
+    static let startingLevel = 1
+    static let maximumLevel = 99
+    static let xpPerLevel = 100
+
+    let level: Int
+    let xpInCurrentLevel: Int
+
+    init(level: Int = CoachiProgressState.startingLevel, xpInCurrentLevel: Int = 0) {
+        let clampedLevel = max(Self.startingLevel, min(Self.maximumLevel, level))
+        self.level = clampedLevel
+        if clampedLevel >= Self.maximumLevel {
+            self.xpInCurrentLevel = Self.xpPerLevel
+        } else {
+            self.xpInCurrentLevel = max(0, min(Self.xpPerLevel - 1, xpInCurrentLevel))
+        }
+    }
+
+    var levelLabel: String {
+        "Lv.\(level)"
+    }
+
+    var isMaxLevel: Bool {
+        level >= Self.maximumLevel
+    }
+
+    var xpFraction: Double {
+        if isMaxLevel {
+            return 1.0
+        }
+        return Double(xpInCurrentLevel) / Double(Self.xpPerLevel)
+    }
+
+    var xpToNextLevel: Int {
+        if isMaxLevel {
+            return 0
+        }
+        return max(0, Self.xpPerLevel - xpInCurrentLevel)
+    }
+
+    func applyingXPAward(_ xpAward: Int) -> CoachiProgressAward {
+        let normalizedAward = max(0, xpAward)
+        guard normalizedAward > 0, !isMaxLevel else {
+            return CoachiProgressAward(
+                xpAwarded: 0,
+                levelBefore: level,
+                levelAfter: level,
+                xpBefore: xpInCurrentLevel,
+                xpAfter: xpInCurrentLevel
+            )
+        }
+
+        var nextLevel = level
+        var nextXP = xpInCurrentLevel + normalizedAward
+
+        while nextXP >= Self.xpPerLevel, nextLevel < Self.maximumLevel {
+            nextXP -= Self.xpPerLevel
+            nextLevel += 1
+        }
+
+        if nextLevel >= Self.maximumLevel {
+            nextLevel = Self.maximumLevel
+            nextXP = Self.xpPerLevel
+        }
+
+        return CoachiProgressAward(
+            xpAwarded: normalizedAward,
+            levelBefore: level,
+            levelAfter: nextLevel,
+            xpBefore: xpInCurrentLevel,
+            xpAfter: nextXP
+        )
+    }
+}
+
+struct CoachiProgressAward: Equatable {
+    let xpAwarded: Int
+    let levelBefore: Int
+    let levelAfter: Int
+    let xpBefore: Int
+    let xpAfter: Int
+
+    var didLevelUp: Bool {
+        levelAfter > levelBefore
+    }
+
+    var stateAfterAward: CoachiProgressState {
+        CoachiProgressState(level: levelAfter, xpInCurrentLevel: xpAfter)
+    }
+
+    var xpProgressBeforeFraction: Double {
+        if levelBefore >= CoachiProgressState.maximumLevel {
+            return 1.0
+        }
+        return Double(xpBefore) / Double(CoachiProgressState.xpPerLevel)
+    }
+
+    var xpProgressAfterFraction: Double {
+        stateAfterAward.xpFraction
+    }
+}
+
+extension Notification.Name {
+    static let coachiProgressDidChange = Notification.Name("coachiProgressDidChange")
+}
+
+enum CoachiProgressStore {
+    private static let guestKey = "coachi_progress_guest"
+
+    static func storageKey(for userID: String?) -> String {
+        let normalized = userID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !normalized.isEmpty else { return guestKey }
+        return "coachi_progress_\(normalized)"
+    }
+
+    static func load(for userID: String?) -> CoachiProgressState {
+        let defaults = UserDefaults.standard
+        let key = storageKey(for: userID)
+        guard let data = defaults.data(forKey: key),
+              let decoded = try? JSONDecoder().decode(CoachiProgressState.self, from: data) else {
+            return CoachiProgressState()
+        }
+        return decoded
+    }
+
+    static func save(_ state: CoachiProgressState, for userID: String?) {
+        let defaults = UserDefaults.standard
+        let key = storageKey(for: userID)
+        if let data = try? JSONEncoder().encode(state) {
+            defaults.set(data, forKey: key)
+        }
+        NotificationCenter.default.post(
+            name: .coachiProgressDidChange,
+            object: nil,
+            userInfo: [
+                "user_id": userID ?? "",
+                "storage_key": key,
+            ]
+        )
+    }
+
+    static func awardXP(_ xpAward: Int, for userID: String?) -> CoachiProgressAward {
+        let current = load(for: userID)
+        let award = current.applyingXPAward(xpAward)
+        if award.xpAwarded > 0 {
+            save(award.stateAfterAward, for: userID)
+        }
+        return award
+    }
+
+    static func clearGuestProgress() {
+        UserDefaults.standard.removeObject(forKey: guestKey)
+        NotificationCenter.default.post(
+            name: .coachiProgressDidChange,
+            object: nil,
+            userInfo: [
+                "user_id": "",
+                "storage_key": guestKey,
+            ]
+        )
+    }
+}
+
 // MARK: - User Stats
 
 struct UserStats {

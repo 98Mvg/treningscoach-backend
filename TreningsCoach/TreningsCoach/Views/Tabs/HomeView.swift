@@ -94,7 +94,9 @@ struct HomeView: View {
 
                     CoachScoreSection(
                         scoreHistory: workoutViewModel.coachScoreHistory,
-                        coachScore: workoutViewModel.homeCoachScore
+                        coachScore: workoutViewModel.homeCoachScore,
+                        levelLabel: appViewModel.coachiLevelLabel,
+                        xpProgress: appViewModel.coachiXPProgressFraction
                     )
                     .padding(.horizontal, 20)
                     .padding(.top, 22)
@@ -120,6 +122,8 @@ struct HomeView: View {
 private struct CoachScoreSection: View {
     let scoreHistory: [CoachScoreRecord]
     let coachScore: Int
+    let levelLabel: String
+    let xpProgress: Double
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -163,7 +167,10 @@ private struct CoachScoreSection: View {
                     label: L10n.current == .no ? "Score" : "Score",
                     size: 216,
                     lineWidth: 12,
-                    fullSweepBeforeSettling: true
+                    fullSweepBeforeSettling: true,
+                    levelLabel: levelLabel,
+                    xpProgress: xpProgress,
+                    showsOuterXPRing: true
                 )
                 .padding(.vertical, 4)
             }

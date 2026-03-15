@@ -15,10 +15,6 @@ struct WorkoutCompleteView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var checkmarkScale: CGFloat = 0.65
     @State private var contentVisible = false
-    @State private var displayedScore: Int = 0
-    @State private var displayedRingProgress: Double = 0
-    @State private var ringGlowPulse = false
-    @State private var hasAnimatedScore = false
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
     @State private var showLiveCoachVoice = false
@@ -51,13 +47,28 @@ struct WorkoutCompleteView: View {
     }
 
     private var coachScoreStreakCount: Int {
-        let threshold = AppConfig.Progression.goodCoachScoreThreshold
+        let threshold = AppConfig.Progression.minCoachScoreForXPAward
         var streak = 0
         for record in viewModel.coachScoreHistory.sorted(by: { $0.date > $1.date }) {
             guard record.score >= threshold else { break }
             streak += 1
         }
         return streak
+    }
+
+    private var xpAwardForSummary: Int {
+        viewModel.lastCoachiProgressAward?.xpAwarded ?? 0
+    }
+
+    private var xpAwardSummaryValue: String {
+        "\(xpAwardForSummary) \(L10n.xp)"
+    }
+
+    private var xpAwardSummaryDetail: String {
+        if xpAwardForSummary > 0 {
+            return L10n.current == .no ? "fra denne økten" : "from this workout"
+        }
+        return L10n.noXPEarned
     }
 
     private var shareSummaryText: String {
@@ -140,54 +151,8 @@ struct WorkoutCompleteView: View {
                         .padding(.top, 22)
                         .opacity(contentVisible ? 1 : 0)
 
-                    ZStack {
-                        Circle()
-                            .fill(Color.white.opacity(0.07))
-                            .frame(width: ringSize + 34, height: ringSize + 34)
-                            .blur(radius: 16)
-
-                        Circle()
-                            .stroke(Color.white.opacity(0.20), lineWidth: 14)
-                            .frame(width: ringSize, height: ringSize)
-
-                        Circle()
-                            .trim(from: 0, to: displayedRingProgress)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [Color.white.opacity(0.97), Color(hex: "A5F3EC"), Color(hex: "67E8F9"), Color.white.opacity(0.9)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round)
-                            )
-                            .frame(width: ringSize, height: ringSize)
-                            .rotationEffect(.degrees(-90))
-                            .shadow(color: Color.white.opacity(0.24), radius: 10, y: 1)
-
-                        if displayedRingProgress > 0.01 {
-                            Circle()
-                                .fill(Color.white.opacity(0.95))
-                                .frame(width: 14, height: 14)
-                                .shadow(color: Color.white.opacity(0.64), radius: 7, y: 0)
-                                .offset(y: -ringSize / 2)
-                                .rotationEffect(.degrees(360 * displayedRingProgress - 90))
-                        }
-
-                        Text("\(displayedScore)")
-                            .font(.system(size: ringSize * 0.32, weight: .medium))
-                            .foregroundColor(Color.white.opacity(0.97))
-                            .shadow(color: .black.opacity(0.30), radius: 8, y: 2)
-                    }
-                    .frame(width: ringSize + 34, height: ringSize + 34)
+                    scoreRingView(ringSize: ringSize)
                     .padding(.top, 26)
-                    .overlay {
-                        Circle()
-                            .stroke(Color.white.opacity(0.34), lineWidth: 2.5)
-                            .blur(radius: ringGlowPulse ? 6 : 2.5)
-                            .scaleEffect(ringGlowPulse ? 1.06 : 0.98)
-                            .opacity(ringGlowPulse ? 0.58 : 0.18)
-                            .animation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true), value: ringGlowPulse)
-                    }
                     .opacity(contentVisible ? 1 : 0)
 
                     summaryRow(metricFontSize: metricFontSize)
@@ -270,8 +235,6 @@ struct WorkoutCompleteView: View {
             withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
                 contentVisible = true
             }
-            ringGlowPulse = true
-            animateScoreIfNeeded()
 
             // Show progress toast after score animation, auto-dismiss after 5s
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
@@ -322,41 +285,38 @@ struct WorkoutCompleteView: View {
         finalBPMText = viewModel.watchBPMDisplayText
     }
 
-    private func animateScoreIfNeeded() {
-        guard !hasAnimatedScore else { return }
-        hasAnimatedScore = true
+    private func scoreRingView(ringSize: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.07))
+                .frame(width: ringSize + 56, height: ringSize + 56)
+                .blur(radius: 18)
 
-        let score = targetScore
-        guard score > 0 else {
-            displayedScore = 0
-            displayedRingProgress = 0
-            return
-        }
-
-        Task {
-            let animationDuration = 2.2
-            let start = CACurrentMediaTime()
-            while true {
-                let elapsed = CACurrentMediaTime() - start
-                let progress = min(max(elapsed / animationDuration, 0), 1)
-                let eased = 1 - pow(1 - progress, 3)
-                let nextScore = max(1, Int(round(Double(score) * eased)))
-
-                await MainActor.run {
-                    displayedScore = min(score, nextScore)
-                    displayedRingProgress = Double(displayedScore) / 100.0
-                }
-
-                if progress >= 1 {
-                    break
-                }
-                try? await Task.sleep(nanoseconds: 16_000_000)
-            }
-
-            await MainActor.run {
-                displayedScore = score
-                displayedRingProgress = Double(score) / 100.0
-            }
+            GamifiedCoachScoreRingView(
+                score: targetScore,
+                label: L10n.current == .no ? "Score" : "Score",
+                size: ringSize,
+                lineWidth: 14,
+                animateFromOne: true,
+                fullSweepBeforeSettling: true,
+                animationDuration: 2.2,
+                trackColor: Color.white.opacity(0.20),
+                gradientColors: [
+                    Color.white.opacity(0.97),
+                    Color(hex: "A5F3EC"),
+                    Color(hex: "67E8F9"),
+                    Color.white.opacity(0.9),
+                ],
+                valueColor: Color.white.opacity(0.97),
+                labelColor: Color.white.opacity(0.80),
+                levelLabel: appViewModel.coachiLevelLabel,
+                xpProgress: appViewModel.coachiXPProgressFraction,
+                showsOuterXPRing: true,
+                animateXPAward: xpAwardForSummary > 0,
+                xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction,
+                xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction
+            )
+            .shadow(color: Color.white.opacity(0.12), radius: 16, y: 2)
         }
     }
 
@@ -443,9 +403,9 @@ struct WorkoutCompleteView: View {
             )
 
             progressStatCard(
-                title: L10n.experienceLevel,
-                value: appViewModel.trainingLevelDisplayName,
-                detail: appViewModel.levelBadgeLine
+                title: L10n.xpEarned,
+                value: xpAwardSummaryValue,
+                detail: xpAwardSummaryDetail
             )
         }
     }
@@ -454,20 +414,17 @@ struct WorkoutCompleteView: View {
         VStack(alignment: .leading, spacing: 8) {
             progressHighlightsLevelHeader
             progressHighlightsLevelBar
-
-            Text(appViewModel.levelProgressLine)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.white.opacity(0.74))
+            progressHighlightsLevelFooter
         }
     }
 
     private var progressHighlightsLevelHeader: some View {
         HStack {
-            Text(L10n.current == .no ? "Neste nivå" : "Next level")
+            Text(L10n.coachiLevel)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(Color.white.opacity(0.84))
             Spacer()
-            Text(appViewModel.trainingLevelDisplayName)
+            Text(appViewModel.coachiLevelLabel)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(Color(hex: "A5F3EC"))
         }
@@ -483,13 +440,25 @@ struct WorkoutCompleteView: View {
                 Capsule(style: .continuous)
                     .fill(progressHighlightsLevelGradient)
                     .frame(
-                        width: max(12, geo.size.width * appViewModel.levelProgressFraction),
+                        width: max(12, geo.size.width * appViewModel.coachiXPProgressFraction),
                         height: 8
                     )
             }
         }
-        .frame(maxWidth: 220)
         .frame(height: 8)
+    }
+
+    private var progressHighlightsLevelFooter: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(appViewModel.coachiXPValueLine)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color.white.opacity(0.84))
+            Spacer(minLength: 8)
+            Text(appViewModel.coachiXPLine)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color.white.opacity(0.74))
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     private var progressHighlightsLevelGradient: LinearGradient {
