@@ -1206,7 +1206,7 @@ class WorkoutViewModel: ObservableObject {
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
     private var watchLaunchTask: Task<Void, Never>?
-    private let watchStartAckTimeoutSeconds: TimeInterval = 15.0
+    private let watchStartAckTimeoutSeconds: TimeInterval = 5.0
     private var latestMovementSampleDate: Date?
     private var latestMovementSource: String = "none"
     private let eventSpeechCollisionWindowSeconds: TimeInterval = 2.0
@@ -2546,6 +2546,7 @@ class WorkoutViewModel: ObservableObject {
         guard !isContinuousMode else { return }
         resetGuestBackendSuppression()
         clearWatchStartPendingState()
+        PushNotificationManager.shared.clearPendingCoachReminders()
         watchStartStatusLine = nil
         workoutState = .active
 
@@ -2617,17 +2618,12 @@ class WorkoutViewModel: ObservableObject {
             // Start wake word listening
             startWakeWordListeningIfNeeded()
 
-            // Force manifest sync on every workout start so event playback resolves
-            // against the latest cached local pack when available.
-            // Then start the coaching loop immediately.
-            Task {
-                await syncProfileSnapshotToBackend(reason: "workout_start")
-                await AudioPackSyncManager.shared.syncIfNeeded(workoutState: self.workoutState)
-                await prefetchCoreAudioIfNeeded()
-                await MainActor.run {
-                    scheduleNextTick()
-                }
-            }
+            // Keep launch-to-active responsive even on slow networks.
+            coachingStatusLine = currentLanguage == "no"
+                ? "Coachen er klar om et oyeblikk."
+                : "Coach will be ready in a moment."
+            scheduleNextTick()
+            kickOffWorkoutStartBackgroundPreparation()
 
             // Set auto-timeout (45 minutes)
             autoTimeoutTimer = Timer.scheduledTimer(
@@ -2667,6 +2663,13 @@ class WorkoutViewModel: ObservableObject {
             print("📤 Profile upsert reason=\(reason)")
         } catch {
             print("⚠️ Profile upsert failed reason=\(reason) error=\(error.localizedDescription)")
+        }
+    }
+
+    private func kickOffWorkoutStartBackgroundPreparation() {
+        Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            await self.syncProfileSnapshotToBackend(reason: "workout_start")
         }
     }
 
@@ -3444,70 +3447,6 @@ class WorkoutViewModel: ObservableObject {
             print("📦 Audio pack fetch failed for \(utteranceID): \(error.localizedDescription)")
             return nil
         }
-    }
-
-    private func corePrefetchUtteranceIDs() -> [String] {
-        var ids = [
-            "wake_ack.en.default",
-            "wake_ack.no.default",
-            "zone.phase.warmup.1",
-            "zone.countdown.30",
-            "zone.countdown.15",
-            "zone.countdown.5",
-            "zone.countdown.start",
-            "zone.in_zone.default.1",
-            "zone.above.default.1",
-            "zone.below.default.1",
-            "zone.silence.default.1",
-            "zone.silence.work.1",
-            "zone.silence.rest.1",
-            "zone.hr_poor_enter.1",
-            "zone.hr_poor_exit.1",
-            "zone.hr_poor_timing.1",
-            "zone.watch_disconnected.1",
-            "zone.watch_restored.1",
-            "zone.no_sensors.1",
-            "zone.structure.work.1",
-            "zone.structure.recovery.1",
-            "zone.structure.finish.1",
-        ]
-        for idx in 1 ... 6 {
-            ids.append("zone.structure.steady.\(idx)")
-        }
-        for workoutPrefix in ["interval", "easy_run"] {
-            for stage in 1 ... 4 {
-                ids.append("\(workoutPrefix).motivate.s\(stage).1")
-                ids.append("\(workoutPrefix).motivate.s\(stage).2")
-            }
-        }
-        return ids
-    }
-
-    private func prefetchCoreAudioIfNeeded() async {
-        guard AppConfig.AudioPack.prefetchEnabled else { return }
-        let language = normalizedLanguageCode(currentLanguage)
-        let personaKey = activeAudioPersonaKey
-        var downloaded = 0
-        var missing = 0
-        for utteranceID in corePrefetchUtteranceIDs() {
-            guard isLocalPackAllowed(for: utteranceID) else { continue }
-            if localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) != nil {
-                continue
-            }
-            if bundledPackFileURL(for: utteranceID, language: language, personaKey: personaKey) != nil {
-                continue
-            }
-            if let _ = await downloadAudioPackFileIfNeeded(
-                for: utteranceID,
-                language: language,
-                personaKey: personaKey
-            ) {
-                downloaded += 1
-            } else {
-                missing += 1
-            }
-        }
-        print("📦 AUDIO_PREFETCH downloaded=\(downloaded) missing=\(missing) language=\(language)")
     }
 
     private func logSpeechTranscript(utteranceID: String, eventType: String, source: String, text: String?) {

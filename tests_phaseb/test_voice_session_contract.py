@@ -318,6 +318,71 @@ def test_voice_session_returns_bootstrap_for_premium_users(monkeypatch):
             _delete_user(user_id)
 
 
+def test_voice_session_sanitizes_history_context_before_bootstrap(monkeypatch):
+    monkeypatch.setattr(main.config, "XAI_VOICE_AGENT_ENABLED", True, raising=False)
+    captured = {}
+
+    def _fake_bootstrap(
+        *,
+        summary_context,
+        history_context=None,
+        language,
+        user_name=None,
+        max_duration_seconds=None,
+        logger=None,
+    ):
+        captured["summary_context"] = dict(summary_context)
+        captured["history_context"] = dict(history_context or {})
+        _ = (language, user_name, max_duration_seconds, logger)
+        return {
+            "voice_session_id": "voice_history_sanitized",
+            "websocket_url": "wss://api.x.ai/v1/realtime",
+            "client_secret": "ek_history",
+            "client_secret_expires_at": 1_763_000_000,
+            "voice": "Rex",
+            "model": "grok-3-mini",
+            "region": "us-east-1",
+            "max_duration_seconds": 120,
+            "summary_context": dict(summary_context),
+            "session_update": {"type": "session.update"},
+            "session_update_json": "{\"type\":\"session.update\"}",
+        }
+
+    monkeypatch.setattr(main, "bootstrap_post_workout_voice_session", _fake_bootstrap)
+    client = main.app.test_client()
+
+    with main.app.app_context():
+        user = _create_user("voice-sanitize", tier="premium")
+        user_id = user.id
+        _create_workout_history(
+            user_id,
+            days_ago=0,
+            duration_seconds=-120,
+            final_phase=" cooldown\\nwith extra internal detail that should not keep going forever ",
+            avg_intensity=" very intense   but controlled and much longer than expected for the prompt layer ",
+            language="norwegian-bookmal-long",
+        )
+        token = auth.create_jwt(user.id, user.email)
+
+    try:
+        response = client.post(
+            "/voice/session",
+            json={"summary_context": {"coach_score": 88, "coach_score_summary_line": "Great\\njob"}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        recent = captured["history_context"]["recent_workouts"][0]
+        assert recent["duration_minutes"] == 0
+        assert "\n" not in recent["final_phase"]
+        assert len(recent["final_phase"]) <= 40
+        assert len(recent["avg_intensity"]) <= 40
+        assert len(recent["language"]) <= 8
+        assert "\n" not in captured["summary_context"]["coach_score_summary_line"]
+    finally:
+        with main.app.app_context():
+            _delete_user(user_id)
+
+
 def test_voice_session_free_daily_limit_returns_429(monkeypatch):
     _disable_rate_limit_bypass(monkeypatch)
     _clear_rate_limit_counters()

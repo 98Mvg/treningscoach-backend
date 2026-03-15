@@ -226,6 +226,13 @@ def test_workout_view_model_launch_cta_and_helper_are_watch_capability_driven() 
     assert ' : "Coachi opens on Apple Watch when you press Start. If nothing happens, open the app manually and accept access if prompted."' in text
 
 
+def test_workout_start_sets_immediate_startup_status_line() -> None:
+    text = _workout_view_model_text()
+    assert '? "Coachen er klar om et oyeblikk."' in text
+    assert ': "Coach will be ready in a moment."' in text
+    assert "scheduleNextTick()" in text
+
+
 def test_warmup_stage_labels_easy_intensity_cue() -> None:
     text = _workout_launch_view_text()
     assert 'return "\\(L10n.warmupTime) · \\(L10n.intensityEasy)"' in text

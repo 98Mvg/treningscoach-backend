@@ -46,11 +46,19 @@ def test_home_uses_gamified_score_ring_for_coach_score() -> None:
 
 def test_workout_complete_uses_gamified_score_ring() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
+    assert "@EnvironmentObject var appViewModel: AppViewModel" in text
     assert "@State private var displayedScore: Int = 0" in text
     assert "@State private var displayedRingProgress: Double = 0" in text
     assert "Text(\"COACH SCORE\")" in text
     assert '@State private var finalBPMText = "0 BPM"' in text
     assert "private var shareSummaryText: String {" in text
+    assert "private var coachScoreStreakCount: Int {" in text
+    assert "L10n.streak" in text
+    assert "L10n.experienceLevel" in text
+    assert "appViewModel.trainingLevelDisplayName" in text
+    assert "appViewModel.levelProgressFraction" in text
+    assert "appViewModel.levelProgressLine" in text
+    assert "progressHighlightsCard" in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text

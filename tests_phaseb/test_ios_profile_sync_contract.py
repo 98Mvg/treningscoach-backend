@@ -53,5 +53,15 @@ def test_profile_edit_triggers_profile_upsert():
 
 def test_workout_start_triggers_profile_upsert():
     text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
-    assert 'await syncProfileSnapshotToBackend(reason: "workout_start")' in text
+    startup_block = text.split("private func startContinuousWorkoutInternal() {", 1)[1].split("private func syncProfileSnapshotToBackend", 1)[0]
+    assert "scheduleNextTick()" in startup_block
+    assert "kickOffWorkoutStartBackgroundPreparation()" in startup_block
+    assert 'await self.syncProfileSnapshotToBackend(reason: "workout_start")' in text
+    assert "private func kickOffWorkoutStartBackgroundPreparation()" in text
     assert "private func syncProfileSnapshotToBackend(reason: String) async" in text
+
+
+def test_workout_start_does_not_prefetch_audio_pack_before_first_tick():
+    text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+    assert "prefetchCoreAudioIfNeeded" not in text
+    assert "corePrefetchUtteranceIDs" not in text

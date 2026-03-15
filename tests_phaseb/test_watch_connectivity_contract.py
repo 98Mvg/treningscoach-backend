@@ -75,7 +75,7 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "private var activeWatchRequestId: String?" in text
     assert "private var isWatchBackedContinuousSession = false" in text
     assert "private var watchLaunchTask: Task<Void, Never>?" in text
-    assert "private let watchStartAckTimeoutSeconds: TimeInterval = 15.0" in text
+    assert "private let watchStartAckTimeoutSeconds: TimeInterval = 5.0" in text
     assert "requestWatchStartOrFallback()" in text
     assert "requestSystemWatchLaunch(workoutType: workoutType, requestID: requestID)" in text
     assert "scheduleWatchStartAckTimeout(requestTimestamp:" in text

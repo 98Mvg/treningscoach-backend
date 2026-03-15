@@ -7,6 +7,8 @@
 
 import Foundation
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct LocalProfile {
     var name: String
@@ -37,6 +39,197 @@ enum AppDeepLinkDestination: Equatable {
             return "subscription_manage"
         case .restorePurchases:
             return "subscription_restore"
+        }
+    }
+}
+
+final class PushNotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
+    static let shared = PushNotificationManager()
+
+    private let notificationCenter = UNUserNotificationCenter.current()
+    private let backendAPI = BackendAPIService.shared
+    private let reminderRequestIdentifier = "coachi.onboarding.reminder.v1"
+    private let deviceTokenDefaultsKey = "apns_device_token_hex"
+
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published private(set) var apnsDeviceToken: String = UserDefaults.standard.string(forKey: "apns_device_token_hex") ?? ""
+    @Published private(set) var lastRegistrationError: String?
+
+    var hasAuthorizedNotifications: Bool {
+        switch authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined, .denied:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
+    func configure() {
+        notificationCenter.delegate = self
+        Task {
+            await refreshAuthorizationStatus()
+        }
+    }
+
+    func refreshAuthorizationStatus() async {
+        let settings = await notificationCenter.notificationSettings()
+        await MainActor.run {
+            authorizationStatus = settings.authorizationStatus
+        }
+    }
+
+    func requestAuthorizationAndRegister() async -> Bool {
+        let granted = (try? await notificationCenter.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+        await refreshAuthorizationStatus()
+
+        _ = await backendAPI.trackAnalyticsEvent(
+            event: granted ? "push_permission_granted" : "push_permission_denied",
+            metadata: [
+                "source": "onboarding",
+                "authorization_status": authorizationStatus.analyticsName,
+            ]
+        )
+
+        guard granted else { return false }
+        await registerForRemoteNotifications()
+        return true
+    }
+
+    func registerForRemoteNotificationsIfAuthorized() async {
+        await refreshAuthorizationStatus()
+        guard hasAuthorizedNotifications else { return }
+        await registerForRemoteNotifications()
+    }
+
+    func scheduleOnboardingReminderIfNeeded() async {
+        await refreshAuthorizationStatus()
+        guard hasAuthorizedNotifications else { return }
+
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [reminderRequestIdentifier])
+
+        let content = UNMutableNotificationContent()
+        if L10n.current == .no {
+            content.title = "Coachi er klar"
+            content.body = "Ta en ny økt når du er klar. Coachi coacher deg live underveis."
+        } else {
+            content.title = "Coachi is ready"
+            content.body = "Start another workout when you're ready. Coachi will guide you live."
+        }
+        content.sound = .default
+
+        let tomorrow = Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        var components = Calendar.autoupdatingCurrent.dateComponents([.year, .month, .day], from: tomorrow)
+        components.hour = 18
+        components.minute = 0
+
+        let request = UNNotificationRequest(
+            identifier: reminderRequestIdentifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "push_local_reminder_scheduled",
+                metadata: [
+                    "source": "onboarding",
+                    "request_id": reminderRequestIdentifier,
+                ]
+            )
+        } catch {
+            await MainActor.run {
+                lastRegistrationError = error.localizedDescription
+            }
+        }
+    }
+
+    func clearPendingCoachReminders() {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [reminderRequestIdentifier])
+    }
+
+    func handleDidRegisterForRemoteNotifications(deviceToken: Data) {
+        let hexToken = deviceToken.map { String(format: "%02x", $0) }.joined()
+        UserDefaults.standard.set(hexToken, forKey: deviceTokenDefaultsKey)
+
+        Task { @MainActor in
+            apnsDeviceToken = hexToken
+            lastRegistrationError = nil
+        }
+
+        Task {
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "push_token_registered",
+                metadata: [
+                    "token_prefix": String(hexToken.prefix(12)),
+                    "source": "apns",
+                ]
+            )
+        }
+    }
+
+    func handleDidFailToRegisterForRemoteNotifications(error: Error) {
+        let message = error.localizedDescription
+        Task { @MainActor in
+            lastRegistrationError = message
+        }
+        Task {
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "push_registration_failed",
+                metadata: [
+                    "source": "apns",
+                    "error": message,
+                ]
+            )
+        }
+    }
+
+    private func registerForRemoteNotifications() async {
+        await MainActor.run {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        _ = center
+        _ = notification
+        return [.banner, .sound]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        _ = center
+        _ = await backendAPI.trackAnalyticsEvent(
+            event: "push_notification_opened",
+            metadata: [
+                "request_id": response.notification.request.identifier,
+            ]
+        )
+    }
+}
+
+private extension UNAuthorizationStatus {
+    var analyticsName: String {
+        switch self {
+        case .notDetermined:
+            return "not_determined"
+        case .denied:
+            return "denied"
+        case .authorized:
+            return "authorized"
+        case .provisional:
+            return "provisional"
+        case .ephemeral:
+            return "ephemeral"
+        @unknown default:
+            return "unknown"
         }
     }
 }
@@ -83,6 +276,7 @@ class AppViewModel: ObservableObject {
     @AppStorage("spotify_prompt_pending") private var spotifyPromptPending: Bool = false
     @AppStorage("spotify_prompt_seen") private var spotifyPromptSeen: Bool = false
     @Published var pendingDeepLink: AppDeepLinkDestination?
+    let pushNotificationManager = PushNotificationManager.shared
 
     var userProfile: LocalProfile {
         LocalProfile(
@@ -195,6 +389,9 @@ class AppViewModel: ObservableObject {
 
         Task {
             await syncProfileToBackend(reason: "onboarding")
+            if profile.notificationsOptIn {
+                await pushNotificationManager.scheduleOnboardingReminderIfNeeded()
+            }
             _ = await backendAPI.trackAnalyticsEvent(
                 event: "onboarding_completed",
                 metadata: [
@@ -232,6 +429,7 @@ class AppViewModel: ObservableObject {
         userName = ""
         trainingLevelRaw = "beginner"
         hasCompletedOnboarding = false
+        pushNotificationManager.clearPendingCoachReminders()
     }
 
     func syncProfileToBackend(reason: String) async {

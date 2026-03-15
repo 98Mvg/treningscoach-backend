@@ -31,7 +31,7 @@ def sanitize_post_workout_summary_context(raw_context: Any) -> dict[str, Any]:
         value = raw_context.get(key)
         if value in (None, ""):
             return None
-        normalized = str(value).strip()
+        normalized = " ".join(str(value).split())
         if not normalized:
             return None
         return normalized[:limit]
@@ -83,18 +83,19 @@ def sanitize_workout_history_context(raw_context: Any) -> dict[str, Any]:
     def _clean_string(value: Any, *, limit: int = 80) -> str | None:
         if value in (None, ""):
             return None
-        normalized = str(value).strip()
+        normalized = " ".join(str(value).split())
         if not normalized:
             return None
         return normalized[:limit]
 
-    def _clean_int(value: Any) -> int | None:
+    def _clean_int(value: Any, *, min_value: int = 0, max_value: int = 100_000) -> int | None:
         if value in (None, ""):
             return None
         try:
-            return int(value)
+            parsed = int(value)
         except (TypeError, ValueError):
             return None
+        return max(min_value, min(max_value, parsed))
 
     sanitized: dict[str, Any] = {
         "total_workouts": _clean_int(raw_context.get("total_workouts")),

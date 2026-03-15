@@ -79,7 +79,11 @@ from app_store_runtime import (
     extract_transaction_fields,
     tier_from_status,
 )
-from xai_voice import bootstrap_post_workout_voice_session, sanitize_post_workout_summary_context
+from xai_voice import (
+    bootstrap_post_workout_voice_session,
+    sanitize_post_workout_summary_context,
+    sanitize_workout_history_context,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -4386,13 +4390,13 @@ def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
             }
         )
 
-    return {
+    return sanitize_workout_history_context({
         "total_workouts": total_workouts,
         "total_duration_minutes": max(0, round(total_duration_seconds / 60)),
         "workouts_last_7_days": int(workouts_last_7_days or 0),
         "workouts_last_30_days": int(workouts_last_30_days or 0),
         "recent_workouts": recent_history,
-    }
+    })
 
 @app.route('/voice/session', methods=['POST'])
 @rate_limit(

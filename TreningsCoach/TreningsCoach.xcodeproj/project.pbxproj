@@ -13,23 +13,6 @@
 		AA0005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0004 /* Assets.xcassets */; };
 		AA0010 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0009 /* Models.swift */; };
 		AA0014 /* BackendAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0013 /* BackendAPIService.swift */; };
-		CC3001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3000 /* SubscriptionManager.swift */; };
-		CC3003 /* TalkUsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3002 /* TalkUsageTracker.swift */; };
-		CC2001 /* XAIRealtimeVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2000 /* XAIRealtimeVoiceService.swift */; };
-		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
-		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
-		HR1001 /* HeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1000 /* HeartRateProvider.swift */; };
-		HR1003 /* AppleWatchWCProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1002 /* AppleWatchWCProvider.swift */; };
-		HR1005 /* BLEHeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1004 /* BLEHeartRateProvider.swift */; };
-		HR1007 /* HealthKitFallbackProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1006 /* HealthKitFallbackProvider.swift */; };
-		HR1009 /* HeartRateArbiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1008 /* HeartRateArbiter.swift */; };
-		WD1001 /* TreningsCoachWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1000 /* TreningsCoachWatchApp.swift */; };
-		WD1003 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1002 /* WatchRootView.swift */; };
-		WD1005 /* WatchStartWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1004 /* WatchStartWorkoutView.swift */; };
-		WD1007 /* WatchWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1006 /* WatchWCManager.swift */; };
-		WD1009 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1008 /* WatchWorkoutManager.swift */; };
-		WD1011 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1010 /* WCKeys.swift */; };
-		WD3002 /* TreningsCoachWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = WDWATCHAPP /* TreningsCoachWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA0016 /* WorkoutViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0015 /* WorkoutViewModel.swift */; };
 		AA0020 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0019 /* Config.swift */; };
 		AA0022 /* ContinuousRecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0021 /* ContinuousRecordingManager.swift */; };
@@ -69,6 +52,24 @@
 		BB0045 /* WorkoutLaunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0044 /* WorkoutLaunchView.swift */; };
 		BB0047 /* LiveCoachConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0046 /* LiveCoachConversationView.swift */; };
 		BB0049 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0048 /* PaywallView.swift */; };
+		CC1001 /* PhoneWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1000 /* PhoneWCManager.swift */; };
+		CC1003 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1002 /* WCKeys.swift */; };
+		CC2001 /* XAIRealtimeVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2000 /* XAIRealtimeVoiceService.swift */; };
+		CC3001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3000 /* SubscriptionManager.swift */; };
+		CC3003 /* TalkUsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3002 /* TalkUsageTracker.swift */; };
+		HR1001 /* HeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1000 /* HeartRateProvider.swift */; };
+		HR1003 /* AppleWatchWCProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1002 /* AppleWatchWCProvider.swift */; };
+		HR1005 /* BLEHeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1004 /* BLEHeartRateProvider.swift */; };
+		HR1007 /* HealthKitFallbackProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1006 /* HealthKitFallbackProvider.swift */; };
+		HR1009 /* HeartRateArbiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1008 /* HeartRateArbiter.swift */; };
+		WD1001 /* TreningsCoachWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1000 /* TreningsCoachWatchApp.swift */; };
+		WD1003 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1002 /* WatchRootView.swift */; };
+		WD1005 /* WatchStartWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1004 /* WatchStartWorkoutView.swift */; };
+		WD1007 /* WatchWCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1006 /* WatchWCManager.swift */; };
+		WD1009 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1008 /* WatchWorkoutManager.swift */; };
+		WD1020 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = WD1021 /* Assets.xcassets */; };
+		WD1011 /* WCKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = WD1010 /* WCKeys.swift */; };
+		WD3002 /* TreningsCoachWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = WDWATCHAPP /* TreningsCoachWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,25 +104,6 @@
 		AA0004 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		AA0013 /* BackendAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIService.swift; sourceTree = "<group>"; };
-		CC3000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
-		CC3002 /* TalkUsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkUsageTracker.swift; sourceTree = "<group>"; };
-		CC2000 /* XAIRealtimeVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAIRealtimeVoiceService.swift; sourceTree = "<group>"; };
-		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
-		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
-		HR1000 /* HeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateProvider.swift; sourceTree = "<group>"; };
-		HR1002 /* AppleWatchWCProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleWatchWCProvider.swift; sourceTree = "<group>"; };
-		HR1004 /* BLEHeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEHeartRateProvider.swift; sourceTree = "<group>"; };
-		HR1006 /* HealthKitFallbackProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitFallbackProvider.swift; sourceTree = "<group>"; };
-		HR1008 /* HeartRateArbiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateArbiter.swift; sourceTree = "<group>"; };
-		WD1000 /* TreningsCoachWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreningsCoachWatchApp.swift; sourceTree = "<group>"; };
-		WD1002 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
-		WD1004 /* WatchStartWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStartWorkoutView.swift; sourceTree = "<group>"; };
-		WD1006 /* WatchWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWCManager.swift; sourceTree = "<group>"; };
-		WD1008 /* WatchWorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
-		WD1010 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
-		WD1012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		WD1013 /* TreningsCoachWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TreningsCoachWatchApp.entitlements; sourceTree = "<group>"; };
-		WDWATCHAPP /* TreningsCoachWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TreningsCoachWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0015 /* WorkoutViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutViewModel.swift; sourceTree = "<group>"; };
 		AA0019 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		AA0021 /* ContinuousRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuousRecordingManager.swift; sourceTree = "<group>"; };
@@ -163,6 +145,26 @@
 		BB0044 /* WorkoutLaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLaunchView.swift; sourceTree = "<group>"; };
 		BB0046 /* LiveCoachConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCoachConversationView.swift; sourceTree = "<group>"; };
 		BB0048 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		CC1000 /* PhoneWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWCManager.swift; sourceTree = "<group>"; };
+		CC1002 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
+		CC2000 /* XAIRealtimeVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAIRealtimeVoiceService.swift; sourceTree = "<group>"; };
+		CC3000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		CC3002 /* TalkUsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkUsageTracker.swift; sourceTree = "<group>"; };
+		HR1000 /* HeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateProvider.swift; sourceTree = "<group>"; };
+		HR1002 /* AppleWatchWCProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleWatchWCProvider.swift; sourceTree = "<group>"; };
+		HR1004 /* BLEHeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEHeartRateProvider.swift; sourceTree = "<group>"; };
+		HR1006 /* HealthKitFallbackProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitFallbackProvider.swift; sourceTree = "<group>"; };
+		HR1008 /* HeartRateArbiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateArbiter.swift; sourceTree = "<group>"; };
+		WD1000 /* TreningsCoachWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreningsCoachWatchApp.swift; sourceTree = "<group>"; };
+		WD1002 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
+		WD1004 /* WatchStartWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStartWorkoutView.swift; sourceTree = "<group>"; };
+		WD1006 /* WatchWCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWCManager.swift; sourceTree = "<group>"; };
+		WD1008 /* WatchWorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
+		WD1010 /* WCKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WCKeys.swift; sourceTree = "<group>"; };
+		WD1012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		WD1013 /* TreningsCoachWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TreningsCoachWatchApp.entitlements; sourceTree = "<group>"; };
+		WD1021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		WDWATCHAPP /* TreningsCoachWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TreningsCoachWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -277,26 +279,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		HR1010 /* HeartRate */ = {
-			isa = PBXGroup;
-			children = (
-				HR1000 /* HeartRateProvider.swift */,
-				HR1002 /* AppleWatchWCProvider.swift */,
-				HR1004 /* BLEHeartRateProvider.swift */,
-				HR1006 /* HealthKitFallbackProvider.swift */,
-				HR1008 /* HeartRateArbiter.swift */,
-			);
-			path = HeartRate;
-			sourceTree = "<group>";
-		};
-		CC1004 /* WC */ = {
-			isa = PBXGroup;
-			children = (
-				CC1002 /* WCKeys.swift */,
-			);
-			path = WC;
-			sourceTree = "<group>";
-		};
 		AASETTINGS /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -369,9 +351,30 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		CC1004 /* WC */ = {
+			isa = PBXGroup;
+			children = (
+				CC1002 /* WCKeys.swift */,
+			);
+			path = WC;
+			sourceTree = "<group>";
+		};
+		HR1010 /* HeartRate */ = {
+			isa = PBXGroup;
+			children = (
+				HR1000 /* HeartRateProvider.swift */,
+				HR1002 /* AppleWatchWCProvider.swift */,
+				HR1004 /* BLEHeartRateProvider.swift */,
+				HR1006 /* HealthKitFallbackProvider.swift */,
+				HR1008 /* HeartRateArbiter.swift */,
+			);
+			path = HeartRate;
+			sourceTree = "<group>";
+		};
 		WDWATCHGROUP /* TreningsCoachWatchApp */ = {
 			isa = PBXGroup;
 			children = (
+				WD1021 /* Assets.xcassets */,
 				WD1013 /* TreningsCoachWatchApp.entitlements */,
 				WD1000 /* TreningsCoachWatchApp.swift */,
 				WD1002 /* WatchRootView.swift */,
@@ -490,18 +493,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				WD1020 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		WD3004 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = WDTARGET /* TreningsCoachWatchApp */;
-			targetProxy = WD3003 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AASOURCES /* Sources */ = {
@@ -578,6 +574,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		WD3004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = WDTARGET /* TreningsCoachWatchApp */;
+			targetProxy = WD3003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AADEBUG /* Debug */ = {
@@ -786,6 +790,8 @@
 		WDTARGETDEBUG /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
 				CODE_SIGN_ENTITLEMENTS = TreningsCoachWatchApp/TreningsCoachWatchApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -808,6 +814,8 @@
 		WDTARGETRELEASE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = NO;
 				CODE_SIGN_ENTITLEMENTS = TreningsCoachWatchApp/TreningsCoachWatchApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;

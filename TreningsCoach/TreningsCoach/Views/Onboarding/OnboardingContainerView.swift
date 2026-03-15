@@ -9,7 +9,6 @@
 
 import SwiftUI
 import UIKit
-import UserNotifications
 
 enum OnboardingStep: Int {
     case welcome = 0
@@ -473,7 +472,7 @@ struct OnboardingContainerView: View {
         finishingOnboarding = true
 
         Task {
-            let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            let granted = await appViewModel.pushNotificationManager.requestAuthorizationAndRegister()
             await MainActor.run {
                 finishOnboarding(notificationsGranted: granted)
             }
