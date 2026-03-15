@@ -15,97 +15,47 @@ struct HomeView: View {
     @State private var showManageMonitors = false
     let onStartWorkout: () -> Void
 
+    private var homeHorizontalPadding: CGFloat { 18 }
+
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
-                VStack(spacing: 0) {
-                    // Header
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.greeting + ",")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                            Text(appViewModel.userProfile.name)
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(CoachiTheme.textPrimary)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        headerSection
+                            .padding(.top, 16)
+                            .opacity(appeared ? 1 : 0)
+
+                        monitorButton
+                            .padding(.top, 18)
+                            .opacity(appeared ? 1 : 0)
+
+                        PulseButtonView(
+                            title: L10n.startWorkout,
+                            icon: "play.fill",
+                            size: 140,
+                            useNanoBananaLogo: true,
+                            layout: .card
+                        ) {
+                            onStartWorkout()
                         }
-                        Spacer()
+                        .padding(.top, 24)
+                        .opacity(appeared ? 1 : 0)
+
+                        CoachScoreSection(
+                            scoreHistory: workoutViewModel.coachScoreHistory,
+                            coachScore: workoutViewModel.homeCoachScore,
+                            xpProgress: appViewModel.coachiXPProgressFraction
+                        )
+                        .padding(.top, 22)
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : 10)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-                    .opacity(appeared ? 1 : 0)
-
-                    // Watch CTA
-                    Button {
-                        showManageMonitors = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "applewatch")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(CoachiTheme.primary)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(
-                                    workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble
-                                        ? (L10n.current == .no ? "Live puls klar" : "Live heart-rate ready")
-                                        : L10n.connectHeartRateMonitorTitle
-                                )
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textPrimary)
-
-                                if workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble,
-                                   let hr = workoutViewModel.heartRate {
-                                    Text("HR \(hr)")
-                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                        .foregroundColor(CoachiTheme.textSecondary)
-                                } else {
-                                    Text(L10n.connectHeartRateMonitorBody)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(CoachiTheme.textSecondary)
-                                }
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                        }
-                        .padding(14)
-                        .cardStyle()
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 18)
-                    .opacity(appeared ? 1 : 0)
-
-                    PulseButtonView(
-                        title: L10n.startWorkout,
-                        icon: "play.fill",
-                        size: 140,
-                        useNanoBananaLogo: true,
-                        layout: .card
-                    ) {
-                        onStartWorkout()
-                    }
-                    .padding(.top, 24)
-                    .padding(.horizontal, 20)
-                    .opacity(appeared ? 1 : 0)
-
-                    CoachScoreSection(
-                        scoreHistory: workoutViewModel.coachScoreHistory,
-                        coachScore: workoutViewModel.homeCoachScore,
-                        levelLabel: appViewModel.coachiLevelLabel,
-                        xpProgress: appViewModel.coachiXPProgressFraction
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.top, 22)
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 10)
-
-                    Spacer(minLength: max(geo.safeAreaInsets.bottom + 84, 96))
+                    .padding(.horizontal, homeHorizontalPadding)
+                    .padding(.bottom, max(geo.safeAreaInsets.bottom + 84, 96))
+                    .frame(maxWidth: 440, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
             .navigationDestination(isPresented: $showManageMonitors) {
@@ -117,12 +67,90 @@ struct HomeView: View {
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
     }
+
+    private var headerSection: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.greeting + ",")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(appViewModel.userProfile.name)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+
+                    homeLevelBadge
+                }
+            }
+            Spacer()
+        }
+    }
+
+    private var homeLevelBadge: some View {
+        Text("(\(appViewModel.coachiProgressState.level))")
+            .font(.system(size: 15, weight: .bold))
+            .foregroundColor(CoachiTheme.success)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(CoachiTheme.success.opacity(0.12))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(CoachiTheme.success.opacity(0.45), lineWidth: 1)
+            )
+    }
+
+    private var monitorButton: some View {
+        Button {
+            showManageMonitors = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "applewatch")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(CoachiTheme.primary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(
+                        workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble
+                            ? (L10n.current == .no ? "Live puls klar" : "Live heart-rate ready")
+                            : L10n.connectHeartRateMonitorTitle
+                    )
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                    if workoutViewModel.hrSource == .wc || workoutViewModel.hrSource == .ble,
+                       let hr = workoutViewModel.heartRate {
+                        Text("HR \(hr)")
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    } else {
+                        Text(L10n.connectHeartRateMonitorBody)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
+            .padding(14)
+            .cardStyle()
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 private struct CoachScoreSection: View {
     let scoreHistory: [CoachScoreRecord]
     let coachScore: Int
-    let levelLabel: String
     let xpProgress: Double
 
     var body: some View {
@@ -168,7 +196,6 @@ private struct CoachScoreSection: View {
                     size: 216,
                     lineWidth: 12,
                     fullSweepBeforeSettling: true,
-                    levelLabel: levelLabel,
                     xpProgress: xpProgress,
                     showsOuterXPRing: true
                 )

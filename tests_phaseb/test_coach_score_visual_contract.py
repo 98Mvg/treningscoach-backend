@@ -47,12 +47,14 @@ def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
 
 def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     text = HOME_VIEW.read_text(encoding="utf-8")
+    assert "ScrollView(.vertical, showsIndicators: false)" in text
+    assert "Text(\"(\\(appViewModel.coachiProgressState.level))\")" in text
     assert "scoreHistory: workoutViewModel.coachScoreHistory" in text
     assert "coachScore: workoutViewModel.homeCoachScore" in text
-    assert "levelLabel: appViewModel.coachiLevelLabel" in text
     assert "xpProgress: appViewModel.coachiXPProgressFraction" in text
     assert "GamifiedCoachScoreRingView(" in text
     assert "showsOuterXPRing: true" in text
+    assert "levelLabel: levelLabel" not in text
 
 
 def test_workout_complete_uses_gamified_score_ring() -> None:
