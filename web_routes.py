@@ -70,6 +70,21 @@ def create_web_blueprint(
         response.headers["X-Web-Variant"] = resolved_variant
         return response
 
+    @web_bp.route("/privacy")
+    def privacy():
+        """Privacy policy page."""
+        return render_template("privacy.html")
+
+    @web_bp.route("/termsofuse")
+    def termsofuse():
+        """Terms of use page."""
+        return render_template("termsofuse.html")
+
+    @web_bp.route("/support")
+    def support():
+        """Support page."""
+        return render_template("support.html")
+
     @web_bp.route("/health")
     def health():
         """Simple health endpoint."""

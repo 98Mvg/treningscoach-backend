@@ -13,7 +13,8 @@ private let coachiPrivacyUpdatedNo = "10. mars 2026"
 private let coachiPrivacyUpdatedEn = "March 10, 2026"
 
 private let coachiPrivacyURL = "https://coachi.no/privacy"
-private let coachiTermsURL = "https://coachi.no/terms"
+private let coachiTermsURL = "https://coachi.no/termsofuse"
+private let coachiSupportURL = "https://coachi.no/support"
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
@@ -222,8 +223,7 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "applewatch",
-                    title: L10n.manageHeartRateMonitors,
-                    subtitle: L10n.current == .no ? "Apple Watch, Bluetooth og status" : "Apple Watch, Bluetooth, and status"
+                    title: L10n.manageHeartRateMonitors
                 )
             }
             .buttonStyle(.plain)
@@ -235,8 +235,7 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "figure.run",
-                    title: L10n.howCoachiWorks,
-                    subtitle: L10n.current == .no ? "Slik guider appen deg gjennom økten" : "How the app guides your workout"
+                    title: L10n.howCoachiWorks
                 )
             }
             .buttonStyle(.plain)
@@ -248,8 +247,7 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "clock.arrow.circlepath",
-                    title: L10n.historyAndData,
-                    subtitle: L10n.current == .no ? "Historikk, lagring og personvern" : "History, storage, and privacy"
+                    title: L10n.historyAndData
                 )
             }
             .buttonStyle(.plain)
@@ -263,8 +261,7 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "questionmark.circle",
-                    title: L10n.faqTitle,
-                    subtitle: L10n.current == .no ? "Svar på de vanligste spørsmålene" : "Answers to the most common questions"
+                    title: L10n.faqTitle
                 )
             }
             .buttonStyle(.plain)
@@ -276,8 +273,7 @@ struct ProfileView: View {
             } label: {
                 SettingsListRow(
                     icon: "headphones",
-                    title: L10n.contactSupport,
-                    subtitle: L10n.current == .no ? "Få hjelp direkte fra Coachi" : "Get help directly from Coachi"
+                    title: L10n.contactSupport
                 )
             }
             .buttonStyle(.plain)
@@ -291,7 +287,6 @@ struct ProfileView: View {
                 SettingsListRow(
                     icon: "hand.raised",
                     title: L10n.privacyPolicy,
-                    subtitle: L10n.current == .no ? "Åpnes på coachi.no" : "Opens on coachi.no",
                     trailingIcon: "arrow.up.right.square"
                 )
             }
@@ -306,7 +301,6 @@ struct ProfileView: View {
                 SettingsListRow(
                     icon: "doc.text",
                     title: L10n.termsOfUse,
-                    subtitle: L10n.current == .no ? "Åpnes på coachi.no" : "Opens on coachi.no",
                     trailingIcon: "arrow.up.right.square"
                 )
             }
