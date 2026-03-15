@@ -21,7 +21,11 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
               let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) else {
             return
         }
-        try await healthStore.requestAuthorization(toShare: [], read: [hrType])
+        // HKLiveWorkoutBuilder requires write permission for workoutType
+        // to collect HR data during an active workout session
+        let typesToShare: Set<HKSampleType> = [HKQuantityType.workoutType()]
+        let typesToRead: Set<HKObjectType> = [hrType]
+        try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
     }
 
     func startWorkout(
@@ -216,6 +220,11 @@ extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
 
         if WCSession.default.isReachable {
             WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        } else {
+            // Fallback: deliver latest HR via applicationContext when not reachable.
+            // Phone receives this in didReceiveApplicationContext → handleIncomingPayload.
+            // applicationContext keeps only the latest value (no queue buildup).
+            try? WCSession.default.updateApplicationContext(payload)
         }
     }
 
