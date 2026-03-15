@@ -68,26 +68,15 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "Text(\"COACH SCORE\")" in text
     assert '@State private var finalBPMText = "0 BPM"' in text
     assert "private var shareSummaryText: String {" in text
-    assert "private var coachScoreStreakCount: Int {" in text
     assert "private var xpAwardForSummary: Int {" in text
-    assert "L10n.streak" in text
-    assert "L10n.xpEarned" in text
-    assert "L10n.coachiLevel" in text
     assert "appViewModel.coachiLevelLabel" in text
-    assert "appViewModel.coachiXPProgressFraction" in text
-    assert "appViewModel.coachiXPLine" in text
-    assert "appViewModel.coachiXPValueLine" in text
     assert "showsOuterXPRing: true" in text
     assert "levelColor: CoachiTheme.success" in text
     assert "animateXPAward: xpAwardForSummary > 0" in text
     assert "xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction" in text
     assert "xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction" in text
     assert "scoreRingView(ringSize: ringSize)" in text
-    assert "progressHighlightsCard" in text
-    assert "private var progressHighlightsStatsRow: some View" in text
-    assert "private var progressHighlightsLevelSection: some View" in text
-    assert "private var progressHighlightsLevelBar: some View" in text
-    assert "private var progressHighlightsLevelFooter: some View" in text
+    assert "progressHighlightsCard" not in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text

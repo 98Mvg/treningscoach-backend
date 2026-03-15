@@ -45,29 +45,8 @@ struct WorkoutCompleteView: View {
         finalBPMText != "0 BPM"
     }
 
-    private var coachScoreStreakCount: Int {
-        let threshold = AppConfig.Progression.minCoachScoreForXPAward
-        var streak = 0
-        for record in viewModel.coachScoreHistory.sorted(by: { $0.date > $1.date }) {
-            guard record.score >= threshold else { break }
-            streak += 1
-        }
-        return streak
-    }
-
     private var xpAwardForSummary: Int {
         viewModel.lastCoachiProgressAward?.xpAwarded ?? 0
-    }
-
-    private var xpAwardSummaryValue: String {
-        "\(xpAwardForSummary) \(L10n.xp)"
-    }
-
-    private var xpAwardSummaryDetail: String {
-        if xpAwardForSummary > 0 {
-            return L10n.current == .no ? "fra denne økten" : "from this workout"
-        }
-        return L10n.noXPEarned
     }
 
     private var shareSummaryText: String {
@@ -158,11 +137,6 @@ struct WorkoutCompleteView: View {
                     .padding(.top, 34)
                     .opacity(contentVisible ? 1 : 0)
                     .frame(maxWidth: .infinity)
-
-                    progressHighlightsCard
-                        .padding(.horizontal, 24)
-                        .padding(.top, 22)
-                        .opacity(contentVisible ? 1 : 0)
 
                     Spacer()
 
@@ -359,132 +333,6 @@ struct WorkoutCompleteView: View {
                     .minimumScaleFactor(0.75)
             }
         }
-    }
-
-    private var progressHighlightsCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            progressHighlightsStatsRow
-            progressHighlightsLevelSection
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(progressHighlightsBackgroundFill)
-        )
-        .overlay(progressHighlightsBorder)
-    }
-
-    private var progressHighlightsStatsRow: some View {
-        HStack(spacing: 12) {
-            progressStatCard(
-                title: L10n.streak,
-                value: "\(coachScoreStreakCount)",
-                detail: L10n.current == .no ? "gode økter på rad" : "good workouts in a row"
-            )
-
-            progressStatCard(
-                title: L10n.xpEarned,
-                value: xpAwardSummaryValue,
-                detail: xpAwardSummaryDetail
-            )
-        }
-    }
-
-    private var progressHighlightsLevelSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            progressHighlightsLevelHeader
-            progressHighlightsLevelBar
-            progressHighlightsLevelFooter
-        }
-    }
-
-    private var progressHighlightsLevelHeader: some View {
-        HStack {
-            Text(L10n.coachiLevel)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(Color.white.opacity(0.84))
-            Spacer()
-            Text(appViewModel.coachiLevelLabel)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(Color(hex: "A5F3EC"))
-        }
-    }
-
-    private var progressHighlightsLevelBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule(style: .continuous)
-                    .fill(Color.white.opacity(0.12))
-                    .frame(height: 8)
-
-                Capsule(style: .continuous)
-                    .fill(progressHighlightsLevelGradient)
-                    .frame(
-                        width: max(12, geo.size.width * appViewModel.coachiXPProgressFraction),
-                        height: 8
-                    )
-            }
-        }
-        .frame(height: 8)
-    }
-
-    private var progressHighlightsLevelFooter: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(appViewModel.coachiXPValueLine)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color.white.opacity(0.84))
-            Spacer(minLength: 8)
-            Text(appViewModel.coachiXPLine)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.white.opacity(0.74))
-                .multilineTextAlignment(.trailing)
-        }
-    }
-
-    private var progressHighlightsLevelGradient: LinearGradient {
-        LinearGradient(
-            colors: [Color(hex: "67E8F9"), Color(hex: "A5F3EC")],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-
-    private var progressHighlightsBackgroundFill: Color {
-        Color.white.opacity(0.08)
-    }
-
-    private var progressHighlightsBorder: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-    }
-
-    @ViewBuilder
-    private func progressStatCard(title: String, value: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.6)
-                .foregroundColor(Color.white.opacity(0.64))
-
-            Text(value)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(Color.white.opacity(0.96))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-
-            Text(detail)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color.white.opacity(0.70))
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.black.opacity(0.14))
-        )
     }
 
     private var doneButton: some View {
