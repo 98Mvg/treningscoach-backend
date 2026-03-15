@@ -320,7 +320,7 @@ struct AppConfig {
 
     // MARK: - Experience Progression
     struct Progression {
-        static let minWorkoutSecondsForXPAward: Int = 30
+        static let minWorkoutSecondsForXPAward: Int = 10
         static let minCoachScoreForXPAward: Int = 50
         static let xpAwardPerQualifiedWorkout: Int = 25
         static let xpPerLevel: Int = CoachiProgressState.xpPerLevel

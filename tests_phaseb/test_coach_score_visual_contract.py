@@ -72,6 +72,8 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "appViewModel.coachiLevelLabel" in text
     assert "showsOuterXPRing: true" in text
     assert "levelColor: CoachiTheme.success" in text
+    assert "animateFromOne: false" in text
+    assert "fullSweepBeforeSettling: false" in text
     assert "animateXPAward: xpAwardForSummary > 0" in text
     assert "xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction" in text
     assert "xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction" in text

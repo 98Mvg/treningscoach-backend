@@ -229,7 +229,10 @@ flowchart LR
 | `/health` | `GET` | `web_routes.health` |
 | `/preview` | `GET` | `web_routes.preview_compare` |
 | `/preview/<variant>` | `GET` | `web_routes.preview_variant` |
+| `/privacy` | `GET` | `web_routes.privacy` |
 | `/subscription/validate` | `POST` | `subscription_validate` |
+| `/support` | `GET` | `web_routes.support` |
+| `/termsofuse` | `GET` | `web_routes.termsofuse` |
 | `/tts/cache/stats` | `GET` | `tts_cache_stats` |
 | `/voice/session` | `POST` | `create_voice_session` |
 | `/voice/telemetry` | `POST` | `voice_telemetry` |

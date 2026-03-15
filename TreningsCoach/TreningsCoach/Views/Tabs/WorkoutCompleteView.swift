@@ -250,8 +250,8 @@ struct WorkoutCompleteView: View {
                 label: L10n.current == .no ? "Score" : "Score",
                 size: ringSize,
                 lineWidth: 14,
-                animateFromOne: true,
-                fullSweepBeforeSettling: true,
+                animateFromOne: false,
+                fullSweepBeforeSettling: false,
                 animationDuration: 2.2,
                 trackColor: Color.white.opacity(0.20),
                 gradientColors: [

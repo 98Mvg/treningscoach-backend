@@ -38,7 +38,7 @@ def test_workout_view_model_awards_xp_once_on_completion_path() -> None:
     assert "applyCoachiProgression(durationSeconds: duration, finalCoachScore: coachScore)" in text
     assert "good_coach_workout_count" not in text
     assert "applyExperienceProgression" not in text
-    assert "static let minWorkoutSecondsForXPAward: Int = 30" in config_text
+    assert "static let minWorkoutSecondsForXPAward: Int = 10" in config_text
 
 
 def test_app_view_model_reads_coachi_progress_without_overloading_profile_training_level() -> None:
