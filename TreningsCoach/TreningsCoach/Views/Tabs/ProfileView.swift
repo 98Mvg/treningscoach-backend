@@ -23,6 +23,7 @@ struct ProfileView: View {
     @Binding var selectedTab: TabItem
     @State private var showingSignOutConfirmation = false
     @State private var showPaywall = false
+    @State private var showProfileDetails = false
     @State private var showingBirthDateEditor = false
     @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
     @AppStorage("app_language") private var appLanguageCode: String = "en"
@@ -113,90 +114,104 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             sectionHeader(L10n.account)
 
-            // Profile header (no extra tap needed)
-            HStack(spacing: 16) {
-                Image(systemName: "face.smiling")
-                    .font(.system(size: 28))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .frame(width: 76, height: 76)
-                    .background(CoachiTheme.surfaceElevated)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(appViewModel.userProfile.name)
-                        .font(.system(size: 19, weight: .bold))
-                        .foregroundColor(CoachiTheme.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-
-                    Text(accountStatusSubtitle)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-
-            settingsDivider
-
-            // Language
-            NavigationLink {
-                LanguageSettingsView().environmentObject(authManager)
-            } label: {
-                SettingsListRow(
-                    icon: "globe",
-                    title: "\(L10n.language): \((AppLanguage(rawValue: appLanguageCode) ?? .en).displayName)"
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            // Dark mode
-            HStack(spacing: 14) {
-                Image(systemName: darkModeEnabled ? "moon.fill" : "sun.max.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .frame(width: 30)
-
-                Text(L10n.darkMode)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundColor(CoachiTheme.textPrimary)
-
-                Spacer()
-
-                Toggle("", isOn: $darkModeEnabled)
-                    .labelsHidden()
-                    .tint(CoachiTheme.primary)
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 15)
-
-            settingsDivider
-
-            // Birth date
+            // Profile header — tap to expand personal settings
             Button {
-                draftBirthDate = storedBirthDate
-                showingBirthDateEditor = true
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    showProfileDetails.toggle()
+                }
             } label: {
-                SettingsListRow(
-                    icon: "calendar",
-                    title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
-                )
+                HStack(spacing: 16) {
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 28))
+                        .foregroundColor(CoachiTheme.textTertiary)
+                        .frame(width: 76, height: 76)
+                        .background(CoachiTheme.surfaceElevated)
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(appViewModel.userProfile.name)
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        Text(accountStatusSubtitle)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: showProfileDetails ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textTertiary)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
-            settingsDivider
+            if showProfileDetails {
+                settingsDivider
 
-            // Experience level (read-only)
-            SettingsListRow(
-                icon: "chart.bar.fill",
-                title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
-                trailingIcon: nil
-            )
+                // Language
+                NavigationLink {
+                    LanguageSettingsView().environmentObject(authManager)
+                } label: {
+                    SettingsListRow(
+                        icon: "globe",
+                        title: "\(L10n.language): \((AppLanguage(rawValue: appLanguageCode) ?? .en).displayName)"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider
+
+                // Dark mode
+                HStack(spacing: 14) {
+                    Image(systemName: darkModeEnabled ? "moon.fill" : "sun.max.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(CoachiTheme.textTertiary)
+                        .frame(width: 30)
+
+                    Text(L10n.darkMode)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(CoachiTheme.textPrimary)
+
+                    Spacer()
+
+                    Toggle("", isOn: $darkModeEnabled)
+                        .labelsHidden()
+                        .tint(CoachiTheme.primary)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 15)
+
+                settingsDivider
+
+                // Birth date
+                Button {
+                    draftBirthDate = storedBirthDate
+                    showingBirthDateEditor = true
+                } label: {
+                    SettingsListRow(
+                        icon: "calendar",
+                        title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
+                    )
+                }
+                .buttonStyle(.plain)
+
+                settingsDivider
+
+                // Experience level (read-only)
+                SettingsListRow(
+                    icon: "chart.bar.fill",
+                    title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
+                    trailingIcon: nil
+                )
+            }
 
             sectionHeader(L10n.coaching)
 
@@ -222,20 +237,6 @@ struct ProfileView: View {
                     icon: "figure.run",
                     title: L10n.howCoachiWorks,
                     subtitle: L10n.current == .no ? "Slik guider appen deg gjennom økten" : "How the app guides your workout"
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            NavigationLink {
-                AudioAndVoicesView()
-                    .environmentObject(authManager)
-            } label: {
-                SettingsListRow(
-                    icon: "speaker.wave.3",
-                    title: L10n.audioAndVoices,
-                    subtitle: L10n.current == .no ? "Språk, lydpakke og stemme" : "Language, voice pack, and voice"
                 )
             }
             .buttonStyle(.plain)

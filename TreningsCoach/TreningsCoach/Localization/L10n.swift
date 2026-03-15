@@ -117,7 +117,7 @@ struct L10n {
     static var workouts: String { current == .no ? "Treninger" : "Workouts" }
     static var minutes: String { current == .no ? "Minutter" : "Minutes" }
     static var streak: String { current == .no ? "Rekke" : "Streak" }
-    static var experienceLevel: String { current == .no ? "Treningsnivaa" : "Experience Level" }
+    static var experienceLevel: String { current == .no ? "Treningsnivå" : "Experience Level" }
     static var dateOfBirth: String { current == .no ? "Fødselsdato" : "Date of birth" }
     static var coachVoice: String { current == .no ? "Coach-stemme" : "Coach Voice" }
     static var language: String { current == .no ? "Språk" : "Language" }
