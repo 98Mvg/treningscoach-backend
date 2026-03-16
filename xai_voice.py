@@ -15,6 +15,7 @@ from typing import Any, Mapping
 import requests
 
 import config
+from persona_manager import PersonaManager
 
 
 def voice_runtime_available() -> bool:
@@ -265,16 +266,21 @@ def build_post_workout_voice_instructions(
         else "- No stored workout history overview was provided."
     )
 
+    persona_text = PersonaManager.get_system_prompt(
+        persona="personal_trainer",
+        language=language,
+        emotional_mode="supportive",
+        safety_override=False,
+    )
+
     common_intro = (
-        "You are Coachi's post-workout live voice coach. "
+        f"{persona_text}\n\n"
+        "You are now in post-workout review mode. "
         f"Speak in {language_name}. "
-        "Use a practical, calm, supportive tone. "
-        "Keep answers short and conversational, usually 1-3 sentences. "
         "Use the just-finished workout summary first. "
-        "You may also use the supplied workout history overview, which is a sanitized summary of the athlete's stored workout records with full-history aggregates and recent workout entries. "
-        "Use that history only for pattern, progress, and consistency questions. "
-        "Do not claim to remember prior conversations or any data beyond the supplied summary and workout-history overview. "
-        "If the athlete asks for medical diagnosis, tell them to stop training and seek professional care. "
+        "You may also reference the workout history overview for pattern, progress, and consistency questions. "
+        "Do not claim to remember prior conversations or any data beyond the supplied summary and history overview. "
+        "If the athlete asks for medical diagnosis, tell them to seek professional care. "
         "Do not invent metrics that are not in the supplied data.\n"
         f"{athlete_line}\n"
         "Workout summary:\n"

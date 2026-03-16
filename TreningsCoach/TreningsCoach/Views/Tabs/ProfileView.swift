@@ -1595,86 +1595,56 @@ private struct WorkoutHistoryRow: View {
 }
 
 private struct WorkoutSessionDetailView: View {
-    @EnvironmentObject var authManager: AuthManager
-    @EnvironmentObject var subscriptionManager: SubscriptionManager
-    @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
-    @State private var showLiveCoachVoice = false
-    @State private var showLiveVoicePaywall = false
     let record: WorkoutRecord
 
     private var isNorwegian: Bool { L10n.current == .no }
-    private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
-    private var hasLiveVoiceAccountAccess: Bool { authManager.hasUsableSession() }
-    private var liveVoiceIsAvailable: Bool {
-        AppConfig.LiveVoice.isEnabled &&
-        hasLiveVoiceAccountAccess &&
-        liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
-    }
-    private var remainingLiveSessions: Int? {
-        guard hasLiveVoiceAccountAccess else { return nil }
-        return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
-    }
-    private var liveVoiceStatusText: String {
-        if liveVoiceIsAvailable {
-            if let remaining = remainingLiveSessions {
-                let unit = isNorwegian
-                    ? (remaining == 1 ? "økt igjen i dag" : "økter igjen i dag")
-                    : (remaining == 1 ? "session left today" : "sessions left today")
-                return isNorwegian ? "Gratis: \(remaining) \(unit)" : "Free: \(remaining) \(unit)"
-            }
-            return "Premium"
+
+    // Rich context matched by duration (±2s). Used for HR and zone%.
+    private var richContext: PostWorkoutSummaryContext? {
+        guard let saved = WorkoutViewModel.loadLastWorkoutSummaryContext(),
+              abs(saved.elapsedS ?? 0 - record.durationSeconds) <= 2 else {
+            return nil
         }
-        if !hasLiveVoiceAccountAccess {
-            return isNorwegian ? "Logg inn for å bruke live" : "Sign in to use live"
+        return saved
+    }
+
+    // Build ordered list of available (title, value) cells — no empty/dash cells
+    private var statCells: [(title: String, value: String)] {
+        var cells: [(String, String)] = []
+
+        // Duration — always available
+        cells.append((isNorwegian ? "Varighet" : "Duration", record.durationFormatted))
+
+        // Coachi Score — only if > 0
+        if let score = record.coachScore, score > 0 {
+            cells.append(("Coachi Score", "\(score)"))
         }
-        return isNorwegian ? "Ingen økter igjen i dag" : "No sessions left today"
-    }
-    private var languageCode: String {
-        authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
-    }
-    private var userName: String {
-        authManager.currentUser?.displayName ?? ""
-    }
-    private var summaryContext: PostWorkoutSummaryContext {
-        // Prefer the rich persisted context if it belongs to this workout (same duration ± 2s).
-        if let saved = WorkoutViewModel.loadLastWorkoutSummaryContext(),
-           abs(saved.elapsedS ?? 0 - record.durationSeconds) <= 2 {
-            return saved
+
+        // Heart Rate — only from rich context, only if meaningful
+        if let hr = richContext?.finalHeartRateText,
+           !hr.isEmpty, hr != "—", hr != "0 BPM" {
+            cells.append((isNorwegian ? "Puls" : "Heart Rate", hr))
         }
-        // Fallback: construct from WorkoutRecord fields (HR and zone% not available).
-        let label = isNorwegian ? "\(record.durationFormatted) økt" : "\(record.durationFormatted) workout"
-        return PostWorkoutSummaryContext(
-            workoutMode: record.finalPhase,
-            workoutLabel: label,
-            durationText: record.durationFormatted,
-            finalHeartRateText: "—",
-            coachScore: record.coachScore ?? 0,
-            coachScoreSummaryLine: "",
-            zoneTimeInTargetPct: nil,
-            zoneOvershoots: 0,
-            phase: record.finalPhase,
-            elapsedS: record.durationSeconds,
-            timeLeftS: nil,
-            repIndex: nil,
-            repsTotal: nil,
-            repRemainingS: nil,
-            repsRemainingIncludingCurrent: nil,
-            elapsedSource: nil
-        )
+
+        // Time in Zone — only from rich context
+        if let pct = richContext?.zoneTimeInTargetPct {
+            let clamped = max(0.0, min(pct <= 1.0 ? pct * 100.0 : pct, 100.0))
+            cells.append((isNorwegian ? "Tid i sone" : "Time in Zone", "\(Int(clamped))%"))
+        }
+
+        // Intensity — always available
+        cells.append((isNorwegian ? "Intensitet" : "Intensity", localizedIntensity(record.avgIntensity)))
+
+        // Phase — always available
+        cells.append((isNorwegian ? "Fase" : "Phase", localizedPhase(record.finalPhase)))
+
+        return cells
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
-                // Stats grid
-                statsGrid
-
-                if AppConfig.LiveVoice.isEnabled {
-                    Divider()
-                        .background(CoachiTheme.borderSubtle.opacity(0.4))
-
-                    liveCoachSection
-                }
+                adaptiveStatsGrid
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -1683,47 +1653,26 @@ private struct WorkoutSessionDetailView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(record.dateFormatted)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { liveVoiceTracker.synchronize() }
-        .sheet(isPresented: $showLiveCoachVoice) {
-            LiveCoachConversationView(
-                summaryContext: summaryContext,
-                languageCode: languageCode,
-                userName: userName,
-                isPremium: hasPremiumAccess
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showLiveVoicePaywall) {
-            PaywallView(context: .liveVoice)
-                .environmentObject(subscriptionManager)
-        }
     }
 
-    private var statsGrid: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                statCell(
-                    title: isNorwegian ? "Varighet" : "Duration",
-                    value: record.durationFormatted
-                )
-                Divider().frame(width: 1)
-                statCell(
-                    title: isNorwegian ? "Coachi Score" : "Coachi Score",
-                    value: record.coachScore.map { $0 > 0 ? "\($0)" : "—" } ?? "—"
-                )
+    private var adaptiveStatsGrid: some View {
+        let rows = stride(from: 0, to: statCells.count, by: 2).map { i -> [(String, String)] in
+            if i + 1 < statCells.count {
+                return [statCells[i], statCells[i + 1]]
+            } else {
+                return [statCells[i]]
             }
-            Divider()
-            HStack(spacing: 0) {
-                statCell(
-                    title: isNorwegian ? "Intensitet" : "Intensity",
-                    value: localizedIntensity(record.avgIntensity)
-                )
-                Divider().frame(width: 1)
-                statCell(
-                    title: isNorwegian ? "Fase" : "Phase",
-                    value: localizedPhase(record.finalPhase)
-                )
+        }
+        return VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { rowIdx, row in
+                if rowIdx > 0 { Divider() }
+                HStack(spacing: 0) {
+                    statCell(title: row[0].title, value: row[0].value)
+                    if row.count > 1 {
+                        Divider().frame(width: 1)
+                        statCell(title: row[1].title, value: row[1].value)
+                    }
+                }
             }
         }
         .background(
@@ -1741,62 +1690,21 @@ private struct WorkoutSessionDetailView: View {
             Text(value)
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Text(title)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(CoachiTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
     }
 
-    private var liveCoachSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                Text(isNorwegian
-                    ? "Få tilbakemelding på denne økten fra AI-coachen din."
-                    : "Get feedback on this workout from your AI coach.")
-                    .font(.system(size: 14))
-                    .foregroundColor(CoachiTheme.textSecondary)
-            }
-
-            Button {
-                if liveVoiceIsAvailable {
-                    showLiveCoachVoice = true
-                } else {
-                    showLiveVoicePaywall = true
-                }
-            } label: {
-                Text(isNorwegian ? "Start coaching" : "Start coaching")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(liveVoiceIsAvailable ? .white : CoachiTheme.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(liveVoiceIsAvailable
-                                ? CoachiTheme.accent
-                                : CoachiTheme.surfaceElevated)
-                    )
-            }
-            .buttonStyle(.plain)
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary.opacity(0.4))
-                    .frame(width: 6, height: 6)
-                Text(liveVoiceStatusText)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-            }
-        }
-    }
-
     private func localizedIntensity(_ intensity: String) -> String {
         switch intensity {
-        case "calm":    return isNorwegian ? "Rolig" : "Calm"
+        case "calm":     return isNorwegian ? "Rolig" : "Calm"
         case "moderate": return isNorwegian ? "Moderat" : "Moderate"
         case "intense":  return isNorwegian ? "Intens" : "Intense"
         case "critical": return isNorwegian ? "Kritisk" : "Critical"
