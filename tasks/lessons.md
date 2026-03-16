@@ -116,3 +116,5 @@ Updated: 2026-03-16
 - 2026-03-16: Realtime voice sessions should send an explicit first-response kickoff after connect; relying only on VAD/user speech can leave the coach silent even when the socket is healthy.
 - 2026-03-16: If a monetization surface depends on a user milestone like successful watch connection, insert it on that exact onboarding branch instead of showing a generic upsell earlier or elsewhere in settings.
 - 2026-03-16: New onboarding monetization steps should reuse the existing `PaywallView` purchase path; keep the bridge screen explanatory and let the actual StoreKit handling stay in one place.
+- 2026-03-16: When handing work over between agents, create a repo-local sync note with pushed commit, runtime path, changed files, remaining local-only artifacts, and clear guardrails so the next agent does not need to reconstruct state from chat history.
+- 2026-03-16: Agent handoff notes are more useful when they separate remaining fix work, remaining polish work, and remaining manual launch work; otherwise the next agent cannot tell what is code vs ops vs QA.

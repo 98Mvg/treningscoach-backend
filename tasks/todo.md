@@ -228,3 +228,10 @@ Updated: 2026-03-16
 - Verification:
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py` -> `8 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 Claude sync handoff
+
+- Added a dedicated Claude handoff in [2026-03-16-claude-sync-handoff.md](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-16-claude-sync-handoff.md) with current pushed commit, runtime map, request/event path, latest landed changes, and guardrails for continuing work.
+- Explicitly documented which local artifacts are references only and must stay out of product commits.
+- Added explicit remaining-work sections for the fix phase, polish phase, and today's launch goal so the next agent has a concrete continuation list instead of just a generic "next work" hint.
+- Reconfirmed that [CODEBASE_GUIDE.md](/Users/mariusgaarder/Documents/treningscoach/CODEBASE_GUIDE.md) is in sync after the handoff doc was added.
