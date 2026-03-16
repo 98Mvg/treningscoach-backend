@@ -75,7 +75,7 @@ struct WorkoutCompleteView: View {
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }
     private var hasLiveVoiceAccountAccess: Bool {
-        authManager.isAuthenticated && authManager.currentUser != nil
+        authManager.hasUsableSession()
     }
     private var remainingLiveSessions: Int? {
         guard hasLiveVoiceAccountAccess else { return nil }
@@ -90,7 +90,7 @@ struct WorkoutCompleteView: View {
         authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
     }
     private var liveVoiceUserName: String {
-        authManager.currentUser?.displayName ?? ""
+        authManager.currentUser?.displayName ?? appViewModel.userProfile.name
     }
 
     var body: some View {

@@ -220,6 +220,18 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
+                FAQGuideView()
+            } label: {
+                SettingsListRow(
+                    icon: "questionmark.circle",
+                    title: L10n.faqTitle
+                )
+            }
+            .buttonStyle(.plain)
+
+            settingsDivider
+
+            NavigationLink {
                 ContactSupportView()
             } label: {
                 SettingsListRow(
@@ -508,52 +520,36 @@ private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
     @State private var showPaywall = false
+    @State private var selectedPlan: SubscriptionPlanOption = .yearly
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
-    private let freeHighlights: [(String, String)] = [
-        ("Kjernecoaching", "Core coaching"),
-        ("Coach Score og oppsummering", "Coach Score and summary"),
-        ("Nylige økter", "Recent workouts"),
-    ]
-    private let premiumHighlights: [(String, String)] = [
-        ("Live voice med coachen", "Live voice with your coach"),
-        ("Mer historikk og høyere grenser", "More history and higher limits"),
-        ("Måneds- eller årsabonnement", "Monthly or yearly subscription"),
-    ]
+
+    private enum SubscriptionPlanOption {
+        case monthly
+        case yearly
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                Text(isNorwegian ? "Inkludert i abonnementet" : "Included in subscription")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
+            VStack(spacing: 20) {
+                if hasPremiumAccess {
+                    currentPlanCard
+                }
 
-                statusCard(
-                    title: isNorwegian ? "Gratis" : "Free",
-                    headline: isNorwegian ? "Kjernecoaching" : "Core coaching",
-                    detailText: isNorwegian ? "Gratis å bruke" : "Free to use",
-                    highlights: freeHighlights,
-                    isSelected: !hasPremiumAccess,
-                    accentColor: CoachiTheme.textSecondary
-                )
-
-                statusCard(
-                    title: "Premium",
-                    headline: localizedPlanStatus,
-                    detailText: hasPremiumAccess
-                        ? (isNorwegian ? "Aktivt i App Store" : "Active in the App Store")
-                        : (isNorwegian ? "Alle Coachi-funksjoner" : "All Coachi features"),
-                    highlights: premiumHighlights,
-                    isSelected: hasPremiumAccess,
-                    accentColor: Color(hex: "8B5CF6"),
-                    ribbonTitle: isNorwegian ? "Populær" : "Popular"
-                )
+                subscriptionPlanCard(option: .monthly)
+                subscriptionPlanCard(option: .yearly)
 
                 Button {
-                    showPaywall = true
+                    if hasPremiumAccess {
+                        subscriptionManager.manageSubscription()
+                    } else {
+                        showPaywall = true
+                    }
                 } label: {
-                    Text(isNorwegian ? "Se alle tilbudene" : "See all offers")
+                    Text(hasPremiumAccess
+                        ? (isNorwegian ? "Administrer i App Store" : "Manage in App Store")
+                        : (isNorwegian ? "Se alle tilbudene" : "See all offers"))
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -608,24 +604,64 @@ private struct ManageSubscriptionView: View {
         }
     }
 
-    private func statusCard(
-        title: String,
-        headline: String,
-        detailText: String,
-        highlights: [(String, String)],
-        isSelected: Bool,
-        accentColor: Color,
-        ribbonTitle: String? = nil
-    ) -> some View {
-        Button {
-            if !isSelected {
-                showPaywall = true
+    private var currentPlanCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(hex: "22C55E").opacity(0.12))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color(hex: "22C55E"))
             }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isNorwegian ? "Premium er aktivt" : "Premium is active")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                Text(localizedPlanStatus)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(CoachiTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 10)
+    }
+
+    private func subscriptionPlanCard(option: SubscriptionPlanOption) -> some View {
+        let isSelected = selectedPlan == option
+        let isYearly = option == .yearly
+        let name = isYearly
+            ? (isNorwegian ? "Årsabonnement" : "Yearly plan")
+            : (isNorwegian ? "Månedsabonnement" : "Monthly plan")
+        let subtitle = isNorwegian ? "Kun deg" : "Just you"
+        let trialText = isNorwegian
+            ? "Gratis prøveperiode \(AppConfig.Subscription.trialDurationDays) dager"
+            : "\(AppConfig.Subscription.trialDurationDays)-day free trial"
+        let detailText = isYearly
+            ? (isNorwegian ? "Best verdi for hele året" : "Best value for the full year")
+            : (isNorwegian ? "Betal måned for måned" : "Pay month to month")
+        let accentColor = Color(hex: "8B5CF6")
+        let priceLabel = isYearly ? yearlyPriceLabel : monthlyPriceLabel
+
+        return Button {
+            selectedPlan = option
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                if let ribbonTitle {
+                if isYearly {
                     HStack {
-                        Text(ribbonTitle)
+                        Text(isNorwegian ? "Populær" : "Popular")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
                         Spacer()
@@ -637,29 +673,32 @@ private struct ManageSubscriptionView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .background(Color(hex: "A78BFA"))
+                    .background(accentColor.opacity(0.7))
                 }
 
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(title)
+                        Text(name)
                             .font(.system(size: 19, weight: .semibold))
                             .foregroundColor(CoachiTheme.textPrimary)
-                        Text(headline)
+                        Text(subtitle)
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(CoachiTheme.textPrimary)
-                        Text(detailText)
+                        Text(trialText)
                             .font(.system(size: 15, weight: .regular))
                             .foregroundColor(CoachiTheme.textSecondary)
+                        Text(detailText)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(accentColor)
                     }
 
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: 6) {
-                        Text(isSelected ? (isNorwegian ? "Aktiv" : "Current") : title)
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(isSelected ? accentColor : CoachiTheme.textPrimary)
-                        if isSelected && ribbonTitle == nil {
+                        Text(priceLabel)
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        if isSelected && !isYearly {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(accentColor)
@@ -667,25 +706,8 @@ private struct ManageSubscriptionView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 14)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(highlights.indices, id: \.self) { index in
-                        let item = highlights[index]
-                        HStack(spacing: 10) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(accentColor)
-                            Text(isNorwegian ? item.0 : item.1)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
                 .padding(.bottom, 18)
+                .padding(.top, 18)
             }
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -701,6 +723,14 @@ private struct ManageSubscriptionView: View {
             .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
+    }
+
+    private var monthlyPriceLabel: String {
+        subscriptionManager.monthlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackMonthlyPrice
+    }
+
+    private var yearlyPriceLabel: String {
+        subscriptionManager.yearlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackYearlyPrice
     }
 
     private var localizedPlanStatus: String {
@@ -1408,106 +1438,133 @@ private struct HistoryAndDataView: View {
     }
 }
 
-private struct SupportFAQItem: Identifiable {
+private struct FAQGuideSection: Identifiable {
     let id: String
-    let question: String
-    let answer: String
+    let title: String
+    let body: String
+    let tips: [String]
 }
 
-private func supportFAQItems(isNorwegian: Bool) -> [SupportFAQItem] {
+private func faqGuideSections(isNorwegian: Bool) -> [FAQGuideSection] {
     if isNorwegian {
         return [
-            SupportFAQItem(
-                id: "how",
-                question: "Hvordan fungerer Coachi?",
-                answer: "Coachi guider deg gjennom økter med korte lydsignaler, overganger og tydelige beskjeder underveis."
+            FAQGuideSection(
+                id: "watch_sync",
+                title: "Klokke og synkronisering",
+                body: "Slik kobler du til pulsmåleren din og holder dataene oppdatert i Coachi.",
+                tips: [
+                    "Koble til Apple Watch eller annen støttet pulsmåler i profilen.",
+                    "Start en kort testøkt for å sjekke at puls kommer inn live.",
+                    "Hvis data ikke oppdateres, åpne Administrer pulsmålere og koble til på nytt.",
+                ]
             ),
-            SupportFAQItem(
-                id: "watch",
-                question: "Trenger jeg Apple Watch eller pulsklokke?",
-                answer: "Nei. Du kan bruke Coachi uten puls. Hvis puls er tilgjengelig, kan coachingen bli mer presis."
+            FAQGuideSection(
+                id: "profile",
+                title: "Brukerprofil",
+                body: "Finn ut hvor du endrer navn, e-post, språk og andre profilinnstillinger.",
+                tips: [
+                    "Åpne Personlig profil for å se og oppdatere kontodetaljene dine.",
+                    "Logg ut og inn igjen hvis profilinformasjon ikke ser riktig ut.",
+                    "Du kan slette kontoen din direkte fra profilfanen når du trenger det.",
+                ]
             ),
-            SupportFAQItem(
-                id: "no_hr",
-                question: "Hva skjer hvis puls mangler?",
-                answer: "Coachi fortsetter med struktur og timing. Du kan fortsatt fullføre økten uten live puls."
-            ),
-            SupportFAQItem(
-                id: "free",
-                question: "Hva er inkludert i gratisversjonen?",
-                answer: "Kjernecoaching, lydsignaler, nedtellinger, enkel oppsummering, coach score og nylige økter er en del av gratisopplevelsen."
-            ),
-            SupportFAQItem(
-                id: "premium",
-                question: "Hva er inkludert i Premium?",
-                answer: "Premium låser opp mer av Coachi, som live voice, høyere grenser og andre abonnementsbaserte funksjoner. Når Premium er tilgjengelig i appen, kan du velge månedlig eller årlig abonnement."
-            ),
-            SupportFAQItem(
+            FAQGuideSection(
                 id: "subscription",
-                question: "Hvordan avslutter jeg abonnementet?",
-                answer: "Hvis du abonnerer gjennom Apple, administrerer eller avslutter du abonnementet i App Store-abonnementene dine. Gjenoppretting av kjøp gjøres i Coachi."
+                title: "Abonnement",
+                body: "Her finner du veien til aktivering, gjenoppretting og håndtering av Premium.",
+                tips: [
+                    "Velg Administrer abonnement for å se månedlig og årlig plan.",
+                    "Bruk Gjenopprett kjøp hvis App Store-kjøp ikke dukker opp.",
+                    "Aktive abonnement håndteres videre i App Store på iPhone.",
+                ]
             ),
-            SupportFAQItem(
-                id: "delete",
-                question: "Hvordan sletter jeg kontoen min?",
-                answer: "Åpne Slett konto i innstillinger for å slette kontoen direkte i appen. Kontakt \(coachiSupportEmail) hvis du trenger hjelp."
-            ),
-            SupportFAQItem(
-                id: "support",
-                question: "Hvordan kontakter jeg support?",
-                answer: "Kontakt oss på \(coachiSupportEmail) og beskriv hva som skjedde, hvilken enhet du bruker og gjerne legg ved skjermbilder."
+            FAQGuideSection(
+                id: "heart_rate",
+                title: "Puls og pulsmåler",
+                body: "Gode råd for å få stabile pulsmålinger og riktige Coachi-økter.",
+                tips: [
+                    "Bruk hvilepuls og makspuls i Helseprofil for mer presis coaching.",
+                    "Sjekk at klokken sitter tett nok under intervaller og kalde økter.",
+                    "Hvis puls mangler, fortsetter Coachi med timing og struktur som normalt.",
+                ]
             ),
         ]
     }
 
     return [
-        SupportFAQItem(
-            id: "how",
-            question: "How does Coachi work?",
-            answer: "Coachi guides your workouts with short audio cues, transitions, and clear instructions during the session."
+        FAQGuideSection(
+            id: "watch_sync",
+            title: "Watch and sync",
+            body: "Learn how to connect your heart-rate source and keep data flowing into Coachi.",
+            tips: [
+                "Connect Apple Watch or another supported heart-rate source from your profile.",
+                "Run a short test workout to confirm live heart rate is arriving.",
+                "If sync looks stale, reconnect from Manage heart-rate monitors.",
+            ]
         ),
-        SupportFAQItem(
-            id: "watch",
-            question: "Do I need Apple Watch or a heart-rate sensor?",
-            answer: "No. You can use Coachi without heart rate. If heart rate is available, coaching can become more precise."
+        FAQGuideSection(
+            id: "profile",
+            title: "User profile",
+            body: "Find the essentials for updating your account details and profile settings.",
+            tips: [
+                "Open Personal profile to review name, email, and account details.",
+                "Sign out and back in if your profile information looks outdated.",
+                "You can delete your account directly from the profile tab when needed.",
+            ]
         ),
-        SupportFAQItem(
-            id: "no_hr",
-            question: "What happens if heart rate is missing?",
-            answer: "Coachi continues with structure and timing cues. You can still complete the workout without live heart rate."
-        ),
-        SupportFAQItem(
-            id: "free",
-            question: "What is included in the free version?",
-            answer: "Core coaching, audio cues, countdowns, a simple summary, coach score, and recent workouts are part of the free experience."
-        ),
-        SupportFAQItem(
-            id: "premium",
-            question: "What is included in Premium?",
-            answer: "Premium unlocks deeper Coachi features like live voice, higher limits, and other subscription-linked features. When Premium is available in the app, you can choose a monthly or yearly subscription."
-        ),
-        SupportFAQItem(
+        FAQGuideSection(
             id: "subscription",
-            question: "How do I cancel my subscription?",
-            answer: "If you subscribe through Apple, you manage or cancel your subscription in your App Store subscriptions. Restore Purchases is available inside Coachi."
+            title: "Subscription",
+            body: "Get the basics for starting, restoring, and managing Premium inside Coachi.",
+            tips: [
+                "Use Manage subscription to view monthly and yearly plans.",
+                "Tap Restore Purchases if an App Store purchase does not appear.",
+                "Active subscriptions are managed further in the App Store on iPhone.",
+            ]
         ),
-        SupportFAQItem(
-            id: "delete",
-            question: "How do I delete my account?",
-            answer: "Open Delete account in settings to delete your account directly in the app. Contact \(coachiSupportEmail) if you need help."
-        ),
-        SupportFAQItem(
-            id: "support",
-            question: "How do I contact support?",
-            answer: "Contact us at \(coachiSupportEmail) and include what happened, which device you use, and screenshots if helpful."
+        FAQGuideSection(
+            id: "heart_rate",
+            title: "Heart rate and sensors",
+            body: "Practical advice for cleaner heart-rate capture and more reliable workout guidance.",
+            tips: [
+                "Set resting and max heart rate in Health profile for better guidance.",
+                "Wear your watch snugly during intervals and colder workouts.",
+                "If heart rate drops out, Coachi continues with timing and workout structure.",
+            ]
         ),
     ]
 }
 
-private struct ContactSupportView: View {
-    @Environment(\.openURL) private var openURL
+private struct FAQGuideView: View {
     private var isNorwegian: Bool { L10n.current == .no }
-    private var faqItems: [SupportFAQItem] { supportFAQItems(isNorwegian: isNorwegian) }
+    private var guideSections: [FAQGuideSection] { faqGuideSections(isNorwegian: isNorwegian) }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                SupportCard(
+                    title: L10n.faqTitle,
+                    copyText: isNorwegian
+                        ? "Her finner du korte forklaringer på det folk oftest trenger hjelp til i Coachi."
+                        : "Here you will find short explanations for the things people most often need help with in Coachi."
+                )
+
+                ForEach(guideSections) { section in
+                    SupportGuideCard(section: section)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.faqTitle)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ContactSupportView: View {
+    private var isNorwegian: Bool { L10n.current == .no }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1515,64 +1572,30 @@ private struct ContactSupportView: View {
                 SupportCard(
                     title: isNorwegian ? "Kontakt support" : "Contact support",
                     copyText: isNorwegian
-                        ? "Hvis noe ikke fungerer som det skal, eller du trenger hjelp, kan du kontakte oss direkte. Vi prioriterer klare beskrivelser og praktiske detaljer."
-                        : "If something is not working as expected, or you need help, you can contact us directly. Clear descriptions and practical details help us resolve issues faster."
+                        ? "Har du støtt på et problem du ikke finner svaret på i FAQ-seksjonen? Kontakt vårt support-team, som kan hjelpe deg."
+                        : "Have you run into an issue you cannot solve from the FAQ section? Contact our support team and we will help you."
                 )
 
-                SupportCard(
-                    title: isNorwegian ? "Support" : "Support",
-                    copyText: "\(coachiSupportEmail)\n\(coachiSupportURL)"
-                )
-
-                HStack(spacing: 12) {
-                    Button {
-                        openSupportEmail()
-                    } label: {
-                        SettingsActionRow(
-                            icon: "paperplane",
-                            title: isNorwegian ? "Send e-post til support" : "Email support",
-                            tint: CoachiTheme.primary
+                NavigationLink {
+                    SupportRequestFormView()
+                } label: {
+                    Text(isNorwegian ? "Kontakt support" : "Contact support")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                         )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        openSupportSite()
-                    } label: {
-                        SettingsActionRow(
-                            icon: "arrow.up.right.square",
-                            title: isNorwegian ? "Åpne supportside" : "Open support page",
-                            tint: CoachiTheme.textPrimary
-                        )
-                    }
-                    .buttonStyle(.plain)
                 }
-
-                SupportCard(
-                    title: isNorwegian ? "Ta gjerne med dette" : "Include this if possible",
-                    copyText: isNorwegian
-                        ? "Appversjon, enhetsmodell og om problemet skjedde under en økt, ved innlogging eller under synk av lydpakke. Skjermbilder er nyttige hvis du har dem."
-                        : "App version, device model, and whether the issue happened during a workout, during sign-in, or during audio-pack sync. Screenshots are useful if you have them."
-                )
-
-                SupportCard(
-                    title: isNorwegian ? "Hva support kan hjelpe med" : "What support can help with",
-                    copyText: isNorwegian
-                        ? "Feil under økter, problemer med konto, spørsmål om historikk, lydpakke, abonnement og andre tekniske problemer i Coachi."
-                        : "Workout issues, account problems, questions about history, audio packs, subscriptions, and other technical issues in Coachi."
-                )
-
-                Text(L10n.faqTitle)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .padding(.top, 6)
-
-                ForEach(faqItems) { item in
-                    SupportCard(
-                        title: item.question,
-                        copyText: item.answer
-                    )
-                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -1582,15 +1605,193 @@ private struct ContactSupportView: View {
         .navigationTitle(L10n.contactSupport)
         .navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    private func openSupportEmail() {
-        guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
+private struct SupportRequestFormView: View {
+    @EnvironmentObject private var appViewModel: AppViewModel
+    @EnvironmentObject private var authManager: AuthManager
+    @Environment(\.openURL) private var openURL
+
+    @State private var subject = ""
+    @State private var email = ""
+    @State private var firstName = ""
+    @State private var lastName = ""
+    @State private var accountStatus = ""
+    @State private var category = ""
+    @State private var watchType = ""
+    @State private var phoneType = ""
+    @State private var description = ""
+
+    private var isNorwegian: Bool { L10n.current == .no }
+    private var accountStatusOptions: [String] {
+        isNorwegian
+            ? ["Velg", "Jeg har et Premium-abonnement", "Jeg bruker gratisversjonen", "Jeg er ikke sikker"]
+            : ["Select", "I have Premium", "I use the free version", "I am not sure"]
+    }
+    private var categoryOptions: [String] {
+        isNorwegian
+            ? ["Velg", "Klokke og synkronisering", "Brukerprofil", "Abonnement", "Puls og pulsmåler", "Annet"]
+            : ["Select", "Watch and sync", "User profile", "Subscription", "Heart rate and sensors", "Other"]
+    }
+    private var isFormValid: Bool {
+        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                SupportCard(
+                    title: isNorwegian ? "Kontakt support" : "Contact support",
+                    copyText: isNorwegian
+                        ? "Fortell oss kort hva du trenger hjelp med, så åpner vi en ferdig utfylt henvendelse til support."
+                        : "Tell us briefly what you need help with and we will open a pre-filled support request."
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "Overskrift / emne" : "Title / subject",
+                    text: $subject,
+                    keyboardType: .default
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "E-post" : "Email",
+                    text: $email,
+                    keyboardType: .emailAddress
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "Fornavn" : "First name",
+                    text: $firstName,
+                    keyboardType: .default
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "Etternavn" : "Last name",
+                    text: $lastName,
+                    keyboardType: .default
+                )
+
+                SupportPickerField(
+                    title: isNorwegian ? "Kontostatus" : "Account status",
+                    selection: $accountStatus,
+                    options: accountStatusOptions
+                )
+
+                SupportPickerField(
+                    title: isNorwegian ? "Kategori" : "Category",
+                    selection: $category,
+                    options: categoryOptions
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "Klokkemerke/type" : "Watch brand / type",
+                    text: $watchType,
+                    keyboardType: .default
+                )
+
+                SupportFormField(
+                    title: isNorwegian ? "Telefontype" : "Phone type",
+                    text: $phoneType,
+                    keyboardType: .default
+                )
+
+                SupportTextEditorField(
+                    title: isNorwegian ? "Beskrivelse" : "Description",
+                    text: $description
+                )
+
+                Button {
+                    openSupportDraft()
+                } label: {
+                    Text(isNorwegian ? "Send" : "Send")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!isFormValid)
+                .opacity(isFormValid ? 1 : 0.5)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(L10n.contactSupport)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            prefillFromCurrentUser()
+        }
+    }
+
+    private func prefillFromCurrentUser() {
+        if email.isEmpty {
+            email = authManager.currentUser?.email ?? ""
+        }
+        if firstName.isEmpty && lastName.isEmpty {
+            let displayName = authManager.currentUser?.displayName ?? appViewModel.userProfile.name
+            let parts = displayName
+                .split(separator: " ", omittingEmptySubsequences: true)
+                .map(String.init)
+            if let first = parts.first {
+                firstName = first
+                lastName = parts.dropFirst().joined(separator: " ")
+            }
+        }
+        if accountStatus.isEmpty {
+            accountStatus = accountStatusOptions.first ?? ""
+        }
+        if category.isEmpty {
+            category = categoryOptions.first ?? ""
+        }
+    }
+
+    private func openSupportDraft() {
+        let accountLine = normalizedChoice(accountStatus)
+        let categoryLine = normalizedChoice(category)
+        let body = [
+            "\(isNorwegian ? "Navn" : "Name"): \(firstName) \(lastName)",
+            "\(isNorwegian ? "E-post" : "Email"): \(email)",
+            "\(isNorwegian ? "Kontostatus" : "Account status"): \(accountLine)",
+            "\(isNorwegian ? "Kategori" : "Category"): \(categoryLine)",
+            "\(isNorwegian ? "Klokkemerke/type" : "Watch brand / type"): \(watchType)",
+            "\(isNorwegian ? "Telefontype" : "Phone type"): \(phoneType)",
+            "",
+            "\(isNorwegian ? "Beskrivelse" : "Description"):",
+            description,
+        ]
+        .joined(separator: "\n")
+
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = coachiSupportEmail
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body),
+        ]
+
+        guard let url = components.url else { return }
         openURL(url)
     }
 
-    private func openSupportSite() {
-        guard let url = URL(string: coachiSupportURL) else { return }
-        openURL(url)
+    private func normalizedChoice(_ value: String) -> String {
+        let defaultValue = isNorwegian ? "Velg" : "Select"
+        return value == defaultValue ? (isNorwegian ? "Ikke valgt" : "Not selected") : value
     }
 }
 
@@ -1835,6 +2036,133 @@ private struct DeleteAccountInfoView: View {
     private func openSupportEmail() {
         guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
         openURL(url)
+    }
+}
+
+private struct SupportGuideCard: View {
+    let section: FAQGuideSection
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(section.title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(section.body)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(section.tips, id: \.self) { tip in
+                    HStack(alignment: .top, spacing: 10) {
+                        Circle()
+                            .fill(CoachiTheme.primary)
+                            .frame(width: 7, height: 7)
+                            .padding(.top, 6)
+
+                        Text(tip)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
+        )
+    }
+}
+
+private struct SupportFormField: View {
+    let title: String
+    @Binding var text: String
+    let keyboardType: UIKeyboardType
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            TextField("", text: $text)
+                .keyboardType(keyboardType)
+                .textInputAutocapitalization(keyboardType == .emailAddress ? .never : .words)
+                .autocorrectionDisabled(keyboardType == .emailAddress)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                )
+        }
+    }
+}
+
+private struct SupportPickerField: View {
+    let title: String
+    @Binding var selection: String
+    let options: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Picker(title, selection: $selection) {
+                ForEach(options, id: \.self) { option in
+                    Text(option).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(CoachiTheme.textPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(CoachiTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+            )
+        }
+    }
+}
+
+private struct SupportTextEditorField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            TextEditor(text: $text)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .frame(minHeight: 150)
+                .padding(12)
+                .scrollContentBackground(.hidden)
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+                )
+        }
     }
 }
 

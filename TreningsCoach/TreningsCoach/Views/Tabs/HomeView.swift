@@ -22,38 +22,44 @@ struct HomeView: View {
             GeometryReader { geo in
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        headerSection
-                            .padding(.top, 16)
+                        VStack(spacing: 0) {
+                            headerSection
+                                .padding(.top, 16)
+                                .opacity(appeared ? 1 : 0)
+
+                            monitorButton
+                                .padding(.top, 18)
+                                .opacity(appeared ? 1 : 0)
+
+                            PulseButtonView(
+                                title: L10n.startWorkout,
+                                icon: "play.fill",
+                                size: 140,
+                                useNanoBananaLogo: true,
+                                layout: .card
+                            ) {
+                                onStartWorkout()
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
                             .opacity(appeared ? 1 : 0)
 
-                        monitorButton
-                            .padding(.top, 18)
+                            CoachScoreSection(
+                                scoreHistory: workoutViewModel.coachScoreHistory,
+                                coachScore: workoutViewModel.homeCoachScore,
+                                xpProgress: appViewModel.coachiXPProgressFraction
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 22)
                             .opacity(appeared ? 1 : 0)
-
-                        PulseButtonView(
-                            title: L10n.startWorkout,
-                            icon: "play.fill",
-                            size: 140,
-                            useNanoBananaLogo: true,
-                            layout: .card
-                        ) {
-                            onStartWorkout()
+                            .offset(y: appeared ? 0 : 10)
                         }
-                        .padding(.top, 24)
-                        .opacity(appeared ? 1 : 0)
-
-                        CoachScoreSection(
-                            scoreHistory: workoutViewModel.coachScoreHistory,
-                            coachScore: workoutViewModel.homeCoachScore,
-                            xpProgress: appViewModel.coachiXPProgressFraction
-                        )
-                        .padding(.top, 22)
-                        .opacity(appeared ? 1 : 0)
-                        .offset(y: appeared ? 0 : 10)
+                        .frame(maxWidth: 560)
+                        .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, homeHorizontalPadding)
                     .padding(.bottom, max(geo.safeAreaInsets.bottom + 84, 96))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
@@ -86,6 +92,7 @@ struct HomeView: View {
             }
             Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var homeLevelBadge: some View {
@@ -144,6 +151,7 @@ struct HomeView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -153,10 +161,11 @@ private struct CoachScoreSection: View {
     let xpProgress: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 12) {
             Text(L10n.coachScore)
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 16) {
                 HStack(spacing: 8) {
@@ -206,6 +215,7 @@ private struct CoachScoreSection: View {
             .background(CoachiTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var weekSlots: [CoachScoreWeekSlot] {

@@ -160,3 +160,27 @@ Updated: 2026-03-16
   - result: `10 passed`
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
   - result: `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 profile/support/home/live batch
+
+- Reworked `Administrer abonnement` in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) to a pricing-card layout that matches the existing paywall direction more closely, while keeping restore/legal/App Store management on the same runtime path.
+- Split support into a short `Kontakt support` surface plus a dedicated `SupportRequestFormView` mailto draft flow, and moved FAQ into a separate `FAQGuideView` with four Coachi-specific help categories.
+- Relaxed summary live-voice account gating in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) from `currentUser != nil` to `hasUsableSession()` so free signed-in users are not blocked when profile hydration lags.
+- Centered the home content column in [HomeView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/HomeView.swift) without introducing a parallel layout path.
+- Verification:
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `22 passed`
+  - `python3 scripts/generate_codebase_guide.py` -> `CODEBASE_GUIDE.md` regenerated
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 onboarding explanation pass
+
+- Kept onboarding on the single existing SwiftUI path in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) and added Coachi-specific explanations directly to the max pulse, resting HR, endurance, and intensity steps instead of introducing a new onboarding engine or copying Mia layouts.
+- Expanded the max pulse step with a clearer definition of what max pulse means and a small explanation card about when to trust a measured value versus the age-based estimate.
+- Expanded the resting HR step with a stronger definition for when resting HR should be measured and an extra explanation card about why calm conditions matter.
+- Added a dedicated endurance explainer block with examples that count (`løping`, `gåturer`, `sykling`, `svømming`, `dansing`, `aerobic`) and examples that usually do not count on their own (`yoga`, `styrketrening`, `pilates`).
+- Strengthened the low/moderate/high intensity descriptions so users can map the hardest weekly endurance session to breathing and effort, and added a short explanation of moderate intensity on the frequency/duration step.
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_onboarding_theme_contract.py` -> `33 passed`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

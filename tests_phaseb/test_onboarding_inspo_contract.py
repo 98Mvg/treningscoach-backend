@@ -134,3 +134,22 @@ def test_reset_onboarding_clears_profile_and_hr_defaults() -> None:
     assert '"resting_hr"' in text
     assert '"user_age"' in text
     assert 'keysToClear.forEach { defaults.removeObject(forKey: $0) }' in text
+
+
+def test_onboarding_explains_hr_endurance_and_intensity_in_coachi_copy() -> None:
+    text = _onboarding_text()
+    assert "Makspuls er det høyeste antall slag hjertet ditt kan slå per minutt." in text
+    assert "Hvilepuls kan anslås når du har sittet rolig i minst 5 minutter og ikke har trent høy intensitet på minst en time." in text
+    assert "Hva er utholdenhetstrening?" in text
+    assert "🏃 Løping" in text
+    assert "🚶 Gåturer" in text
+    assert "🚴 Sykling" in text
+    assert "🏊 Svømming" in text
+    assert "💃 Dansing" in text
+    assert "🤸 Aerobic" in text
+    assert "🧘 Yoga" in text
+    assert "🏋️ Styrketrening" in text
+    assert "🙆 Pilates" in text
+    assert "Du blir bare lett andpusten og kan holde samme tempo lenge uten problemer." in text
+    assert "Du puster raskere og kjenner at du jobber, men du har fortsatt kontroll og kan holde på en god stund." in text
+    assert "Du blir tydelig andpusten, må jobbe hardt og klarer bare å holde intensiteten i korte drag." in text

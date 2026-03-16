@@ -36,9 +36,16 @@ Updated: 2026-03-16
 
 ## Session-Specific Lessons
 
+- 2026-03-16: When onboarding copy feels too thin, enrich the existing step views in `OnboardingContainerView.swift` with compact Coachi explanation cards instead of adding a second explainer flow or copying inspiration screens literally.
+- 2026-03-16: For HR onboarding, define the metric first (`makspuls`, `hvilepuls`) and then give one concrete measurement rule; that is enough clarity without turning the page into a medical article.
+- 2026-03-16: When asking about endurance habits, users need explicit examples of what counts and what does not. Keep those examples on the same page as the yes/no choice so they do not have to guess before answering.
+- 2026-03-16: Intensity labels (`lav`, `moderat`, `høy`) are too abstract on their own; anchor them to breathing, control, and how long the effort can be sustained.
 - 2026-03-16: Summary CTA gating and quota accounting are separate concerns; keep `Talk to Coach Live` visible as a discovery surface, but only consume a free daily session after the realtime voice connection actually reaches `.connected`.
 - 2026-03-16: When a live-voice policy exists on both iOS and Flask, sync the numeric defaults (`sessions/day`, free/premium max duration) in code, `.env.example`, and ops docs on the same pass or launch truth drifts immediately.
 - 2026-03-16: When redesigning existing settings/profile surfaces from inspiration screenshots, first map them onto the fields that already live in `UserDefaults`, auth state, and the current SwiftUI path; do not invent a second profile model just to match UI.
+- 2026-03-16: If a free signed-in feature is gated in SwiftUI, prefer session validity (`hasUsableSession()`) over `currentUser != nil`; profile hydration can lag behind token availability and incorrectly lock users out.
+- 2026-03-16: Keep support surfaces separated by intent: one short “Contact support” screen with a clear CTA, and a separate FAQ/instructions screen. Mixing long FAQ text into the support entry page makes the profile tab feel unfinished.
+- 2026-03-16: When a home screen feels visually off-center, center the content column first and give individual sections explicit leading alignment as needed instead of forcing the whole root stack to `.leading`.
 - 2026-03-16: If FAQ content is moved into support, remove the separate runtime entry point and lock the new consolidated support surface with contract tests so profile navigation does not drift back into duplicate help pages.
 - 2026-03-16: Launch-surface cleanup must include metadata and legal anchors, not just visible hero/FAQ copy; stale canonical URLs and `#` footer links are launch bugs too.
 - 2026-03-16: If Swift reports `Cannot find '<type>' in scope` right after a new file lands, check `project.pbxproj` target membership first; the file may exist on disk but still be absent from `PBXFileReference` and `PBXSourcesBuildPhase`.

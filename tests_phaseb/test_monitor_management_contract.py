@@ -42,8 +42,10 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "sectionHeader(L10n.coaching)" in text
     assert "sectionHeader(L10n.helpAndSupport)" in text
     assert "FAQView()" not in text
+    assert "NavigationLink {\n                FAQGuideView()" in text
     assert "NavigationLink {\n                ContactSupportView()" in text
     assert "title: L10n.contactSupport" in text
+    assert "title: L10n.faqTitle" in text
     assert "title: L10n.privacyPolicy" in text
     assert "title: L10n.termsOfUse" in text
     assert "SupportCenterView()" not in text
@@ -70,20 +72,19 @@ def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)"' not in text
     assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)"' not in text
 
-
-def test_profile_faq_covers_launch_critical_questions() -> None:
+def test_profile_faq_guide_covers_launch_help_topics() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
-    assert 'question: "Hvordan fungerer Coachi?"' in text
-    assert 'question: "Trenger jeg Apple Watch eller pulsklokke?"' in text
-    assert 'question: "Hva skjer hvis puls mangler?"' in text
-    assert 'question: "Hva er inkludert i gratisversjonen?"' in text
-    assert 'question: "Hva er inkludert i Premium?"' in text
-    assert 'question: "Hvordan avslutter jeg abonnementet?"' in text
-    assert 'question: "Hvordan sletter jeg kontoen min?"' in text
-    assert 'question: "Hvordan kontakter jeg support?"' in text
-    assert 'question: "How does Coachi work?"' in text
-    assert 'question: "Do I need Apple Watch or a heart-rate sensor?"' in text
-    assert 'question: "What happens if heart rate is missing?"' in text
+    assert "private struct FAQGuideView: View" in text
+    assert "private struct FAQGuideSection: Identifiable" in text
+    assert 'title: "Klokke og synkronisering"' in text
+    assert 'title: "Brukerprofil"' in text
+    assert 'title: "Abonnement"' in text
+    assert 'title: "Puls og pulsmåler"' in text
+    assert 'title: "Watch and sync"' in text
+    assert 'title: "User profile"' in text
+    assert 'title: "Subscription"' in text
+    assert 'title: "Heart rate and sensors"' in text
+    assert "SupportGuideCard(section: section)" in text
 
 
 def test_profile_support_center_exposes_launch_critical_support_and_legal_surfaces() -> None:
@@ -96,23 +97,29 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "private struct HistoryAndDataView: View" in text
     assert "private struct FAQView: View" not in text
     assert "private struct ContactSupportView: View" in text
-    assert "SupportFAQItem" in text
-    assert "supportFAQItems(isNorwegian: isNorwegian)" in text
+    assert "private struct SupportRequestFormView: View" in text
+    assert "private struct SupportGuideCard: View" in text
+    assert "SupportFAQItem" not in text
+    assert "supportFAQItems(isNorwegian: isNorwegian)" not in text
     assert 'icon: "headphones"' in text
+    assert 'icon: "questionmark.circle"' in text
     assert 'icon: "hand.raised"' in text
     assert 'icon: "doc.text"' in text
     assert "DeleteAccountInfoView()" in text
-    assert '"https://coachi.no/support"' in text
+    assert "coachiSupportURL" in text
     assert '"https://coachi.no/privacy"' in text
     assert '"https://coachi.no/terms"' in text
     assert "AI.Coachi@hotmail.com" in text
-    assert '@Environment(\\.openURL) private var openURL' in text
     assert "showManageSubscription = true" in text
     assert 'title: L10n.manageSubscription' in text
     assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
     assert "await authManager.deleteAccount()" in text
-    assert 'Text(L10n.faqTitle)' in text
-    assert "openSupportSite()" in text
+    assert 'Text(isNorwegian ? "Kontakt support" : "Contact support")' in text
+    assert ".navigationTitle(L10n.faqTitle)" in text
+    assert 'NavigationLink {\n                    SupportRequestFormView()' in text
+    assert 'components.scheme = "mailto"' in text
+    assert 'URLQueryItem(name: "subject", value: subject)' in text
+    assert 'URLQueryItem(name: "body", value: body)' in text
     assert "[SUPPORT_EMAIL]" not in text
     assert "[COMPANY_NAME]" not in text
     assert "[SUBSCRIPTION_DETAILS]" not in text

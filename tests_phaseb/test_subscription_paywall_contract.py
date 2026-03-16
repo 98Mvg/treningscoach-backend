@@ -30,7 +30,9 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert "ManageSubscriptionView()" in content
     assert "showManageSubscription = true" in content
     assert "title: L10n.manageSubscription" in content
-    assert '"Se alle tilbudene"' in content
-    assert 'Text(isNorwegian ? "Inkludert i abonnementet" : "Included in subscription")' in content
-    assert 'ribbonTitle: isNorwegian ? "Populær" : "Popular"' in content
-    assert '("Live voice med coachen", "Live voice with your coach")' in content
+    assert "subscriptionPlanCard(option: .monthly)" in content
+    assert "subscriptionPlanCard(option: .yearly)" in content
+    assert '(isNorwegian ? "Administrer i App Store" : "Manage in App Store")' in content
+    assert '(isNorwegian ? "Se alle tilbudene" : "See all offers")' in content
+    assert 'Text(isNorwegian ? "Populær" : "Popular")' in content
+    assert 'Text(isNorwegian ? "Premium er aktivt" : "Premium is active")' in content

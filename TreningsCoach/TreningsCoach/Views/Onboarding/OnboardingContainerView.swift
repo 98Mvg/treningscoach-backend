@@ -77,16 +77,16 @@ private enum HardestIntensityOption: String, CaseIterable, Identifiable {
         switch self {
         case .low:
             return L10n.current == .no
-                ? "Jeg blir ikke nevneverdig andpusten og svett."
-                : "I can keep this pace for a long time."
+                ? "Du blir bare lett andpusten og kan holde samme tempo lenge uten problemer."
+                : "You only get lightly out of breath and can keep this pace for a long time."
         case .moderate:
             return L10n.current == .no
-                ? "Jeg puster raskt, men kan holde intensiteten en stund."
-                : "I breathe harder but can sustain the effort."
+                ? "Du puster raskere og kjenner at du jobber, men du har fortsatt kontroll og kan holde på en god stund."
+                : "You breathe harder and feel the effort, but still have control and can keep going for a while."
         case .high:
             return L10n.current == .no
-                ? "Jeg tar meg nesten helt ut og holder ikke lenge."
-                : "I push close to max and cannot hold it for long."
+                ? "Du blir tydelig andpusten, må jobbe hardt og klarer bare å holde intensiteten i korte drag."
+                : "You get clearly out of breath, have to work hard, and can only hold the intensity for short bursts."
         }
     }
 }
@@ -971,8 +971,8 @@ private struct MaxHeartRateStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "Maks puls starter fra alder, men du kan justere hvis du vet riktig tall."
-                : "Max HR starts from age, but you can adjust if you know your true value.",
+                ? "Makspuls er det høyeste antall slag hjertet ditt kan slå per minutt."
+                : "Max heart rate is the highest number of beats your heart can reach in one minute.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: parsedHRMax != nil,
@@ -1023,6 +1023,13 @@ private struct MaxHeartRateStepView: View {
                 )
                 .font(.footnote.weight(.medium))
                 .foregroundColor(CoachiTheme.textSecondary)
+
+                OnboardingExplanationCard(
+                    title: L10n.current == .no ? "Hva betyr makspuls?" : "What does max HR mean?",
+                    message: L10n.current == .no
+                        ? "Hvis du vet makspulsen din fra test, løp eller klokke, bruk gjerne den verdien. Hvis ikke starter vi med et forsiktig anslag basert på alder."
+                        : "If you know your max HR from a test, a hard session, or your watch, use that value. If not, we start with a cautious estimate based on age."
+                )
             }
             .onAppear {
                 if hrMaxText.isEmpty {
@@ -1049,8 +1056,8 @@ private struct RestingHeartRateStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "Legg inn hvilepuls. Du kan endre dette senere i appen."
-                : "Enter your resting HR. You can update this later in settings.",
+                ? "Hvilepuls kan anslås når du har sittet rolig i minst 5 minutter og ikke har trent høy intensitet på minst en time."
+                : "Resting HR can be estimated after you have been seated calmly for at least 5 minutes and avoided high intensity for at least an hour.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: parsedResting != nil,
@@ -1071,11 +1078,18 @@ private struct RestingHeartRateStepView: View {
 
                 Text(
                     L10n.current == .no
-                        ? "Tips: mål hvilepuls når du sitter rolig, helst etter noen minutter hvile."
-                        : "Tip: measure resting HR while seated and relaxed for a few minutes."
+                        ? "Mål gjerne når du er avslappet og kroppen føles rolig. Du kan alltids oppdatere tallet senere."
+                        : "Measure it when you feel calm and settled. You can always update the number later."
                 )
                 .font(.footnote.weight(.medium))
                 .foregroundColor(CoachiTheme.textSecondary)
+
+                OnboardingExplanationCard(
+                    title: L10n.current == .no ? "Når er målingen nyttig?" : "When is the reading useful?",
+                    message: L10n.current == .no
+                        ? "Hvilepuls er mest nyttig når den tas i en rolig situasjon. Høy puls etter kaffe, stress eller trening gir ofte et mindre presist startpunkt."
+                        : "Resting HR is most useful when measured in a calm setting. A higher pulse after coffee, stress, or training often gives a less precise starting point."
+                )
             }
             .onAppear {
                 if restingText.isEmpty {
@@ -1118,15 +1132,48 @@ private struct EnduranceHabitStepView: View {
                     )
                 }
 
+                OnboardingExplanationCard(
+                    title: L10n.current == .no ? "Hva er utholdenhetstrening?" : "What counts as endurance training?",
+                    message: L10n.current == .no
+                        ? "Vi mener aktivitet som holder pulsen oppe over tid og trener hjertet og pusten."
+                        : "We mean activity that keeps your heart rate up over time and trains your heart and breathing."
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        OnboardingExampleGroup(
+                            title: L10n.current == .no ? "Dette teller som utholdenhet" : "This counts as endurance",
+                            tint: CoachiTheme.primary,
+                            items: L10n.current == .no
+                                ? ["🏃 Løping", "🚶 Gåturer", "🚴 Sykling", "🏊 Svømming", "💃 Dansing", "🤸 Aerobic"]
+                                : ["🏃 Running", "🚶 Walking", "🚴 Cycling", "🏊 Swimming", "💃 Dancing", "🤸 Aerobics"]
+                        )
+
+                        OnboardingExampleGroup(
+                            title: L10n.current == .no ? "Dette teller vanligvis ikke alene" : "This usually does not count on its own",
+                            tint: Color.orange,
+                            items: L10n.current == .no
+                                ? ["🧘 Yoga", "🏋️ Styrketrening", "🙆 Pilates"]
+                                : ["🧘 Yoga", "🏋️ Strength training", "🙆 Pilates"]
+                        )
+                    }
+                }
+
                 if doesEnduranceTraining {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(
                             L10n.current == .no
-                                ? "Hvor intensiv er den hardeste utholdenhetsøkta di?"
-                                : "How intense is your hardest endurance session?"
+                                ? "Hvor intensiv er den hardeste utholdenhetsaktiviteten du vanligvis gjør i løpet av en uke?"
+                                : "How intense is the hardest endurance activity you usually do in a normal week?"
                         )
                         .font(.body.weight(.semibold))
                         .foregroundColor(CoachiTheme.textPrimary)
+
+                        Text(
+                            L10n.current == .no
+                                ? "Tenk på økta der du må jobbe mest. Velg det alternativet som ligner best på hvordan kroppen din føles."
+                                : "Think about the session where you have to work the hardest. Pick the option that best matches how your body feels."
+                        )
+                        .font(.footnote.weight(.medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
 
                         ForEach(HardestIntensityOption.allCases) { option in
                             Button {
@@ -1185,14 +1232,21 @@ private struct FrequencyDurationStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "Hvor ofte og hvor lenge trener du med moderat intensitet?"
-                : "How often and how long do you train at moderate intensity?",
+                ? "Hvor ofte og hvor lenge trener du vanligvis med moderat intensitet?"
+                : "How often and how long do you usually train at moderate intensity?",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: true,
             onPrimary: onContinue
         ) {
             VStack(spacing: 16) {
+                OnboardingExplanationCard(
+                    title: L10n.current == .no ? "Hva mener vi med moderat intensitet?" : "What do we mean by moderate intensity?",
+                    message: L10n.current == .no
+                        ? "Moderat intensitet er tempoet der du puster raskere og kjenner at du jobber, men fortsatt kan holde det gående en stund."
+                        : "Moderate intensity is the pace where you breathe harder and feel the effort, but can still keep going for a while."
+                )
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.current == .no ? "Frekvens per uke" : "Frequency per week")
                         .font(.subheadline.weight(.semibold))
@@ -1742,6 +1796,80 @@ private struct OnboardingNumericField: View {
                     .frame(height: 40)
                     .background(CoachiTheme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+    }
+}
+
+private struct OnboardingExplanationCard<Content: View>: View {
+    let title: String
+    let message: String
+    let content: Content
+
+    init(
+        title: String,
+        message: String,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.message = message
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(message)
+                .font(.footnote.weight(.medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            content
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface.opacity(0.94))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
+        )
+    }
+}
+
+private extension OnboardingExplanationCard where Content == EmptyView {
+    init(title: String, message: String) {
+        self.init(title: title, message: message) {
+            EmptyView()
+        }
+    }
+}
+
+private struct OnboardingExampleGroup: View {
+    let title: String
+    let tint: Color
+    let items: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.bold))
+                .foregroundColor(tint)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    Text(item)
+                        .font(.footnote.weight(.medium))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(CoachiTheme.surfaceElevated)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
             }
         }
     }

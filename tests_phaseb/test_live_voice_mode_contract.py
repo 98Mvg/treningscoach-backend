@@ -34,7 +34,7 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }' in text
     assert "private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }" in text
     assert "private var hasLiveVoiceAccountAccess: Bool {" in text
-    assert "authManager.isAuthenticated && authManager.currentUser != nil" in text
+    assert "authManager.hasUsableSession()" in text
     assert "LiveVoiceSessionTracker.shared" in text
     assert "showLiveVoicePaywall = true" in text
     assert ".sheet(isPresented: $showLiveCoachVoice)" in text
@@ -44,6 +44,7 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert ".frame(height: 44)" in text
     assert "RoundedRectangle(cornerRadius: 16, style: .continuous)" in text
     assert "PaywallView(context: .liveVoice)" in text
+    assert "authManager.currentUser?.displayName ?? appViewModel.userProfile.name" in text
     assert "liveVoiceTracker.recordSession()" not in text
 
 
