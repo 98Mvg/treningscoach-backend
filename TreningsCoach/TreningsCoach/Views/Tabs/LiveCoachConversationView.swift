@@ -56,6 +56,13 @@ final class LiveCoachConversationViewModel: ObservableObject {
                 self.liveVoiceTracker.recordSession(isPremium: self.isPremium)
             }
             .store(in: &cancellables)
+
+        service.$isQuotaExhausted
+            .filter { $0 }
+            .sink { [weak self] _ in
+                self?.liveVoiceTracker.markExhausted()
+            }
+            .store(in: &cancellables)
     }
 
     var transcriptEntries: [LiveCoachTranscriptEntry] {

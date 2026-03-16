@@ -59,6 +59,13 @@ final class LiveVoiceSessionTracker: ObservableObject {
         publishSessionsUsedToday(updated)
     }
 
+    /// Call when the backend returns 429 — syncs local tracker to reflect exhausted quota.
+    func markExhausted() {
+        let limit = AppConfig.LiveVoice.freeSessionsPerDay
+        defaults.set(limit, forKey: countKey)
+        publishSessionsUsedToday(limit)
+    }
+
     // MARK: - Private Helpers
 
     private func currentStoredCount(resetIfNeeded: Bool) -> Int {

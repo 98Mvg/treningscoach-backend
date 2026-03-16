@@ -40,6 +40,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     @Published private(set) var turnCount: Int = 0
     @Published private(set) var voiceSessionId: String?
     @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var isQuotaExhausted: Bool = false
 
     private let apiService: BackendAPIService
     private let summaryContext: PostWorkoutSummaryContext
@@ -166,6 +167,13 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             sessionTimerTask = Task { [weak self] in
                 await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)
             }
+        } catch APIError.quotaExceeded {
+            isQuotaExhausted = true
+            await handleFailure(
+                languageCode == "no"
+                    ? "Du har brukt alle dine gratis okter i dag. Kom tilbake i morgen!"
+                    : "You've used today's free sessions. Come back tomorrow!"
+            )
         } catch let apiError as APIError {
             await handleFailure(apiError.localizedDescription)
         } catch {
@@ -376,9 +384,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
                 try await handleSocketMessage(message)
             }
         } catch {
-            if case .ended = connectionState {
-                return
-            }
+            if case .ended = connectionState { return }
+            if case .failed = connectionState { return }
             await handleFailure("Live voice connection closed unexpectedly.")
         }
     }
