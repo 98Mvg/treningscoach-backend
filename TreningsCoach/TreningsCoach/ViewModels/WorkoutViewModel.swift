@@ -2710,7 +2710,11 @@ class WorkoutViewModel: ObservableObject {
                     phase: currentPhase.rawValue,
                     intensity: intensity,
                     persona: activePersonality.rawValue,
-                    language: currentLanguage
+                    language: currentLanguage,
+                    coachScore: hasAuthoritativeCoachScore ? coachScore : nil,
+                    hrScore: coachScoreComponents?.zone,
+                    breathScore: coachScoreComponents?.breath,
+                    durationScore: coachScoreComponents?.duration
                 )
                 print("📤 WORKOUT_SAVED duration=\(durationSeconds)s phase=\(currentPhase.rawValue)")
             } catch {

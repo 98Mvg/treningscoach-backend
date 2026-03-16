@@ -234,6 +234,11 @@ def derive_app_store_status(
     if revocation_date is not None or normalized_type in {"REFUND", "REVOKE"}:
         return "revoked"
 
+    if normalized_type == "CANCEL":
+        if expires_at is not None and expires_at <= _utcnow_naive():
+            return "expired"
+        return "active"
+
     if normalized_type == "EXPIRED":
         return "expired"
 

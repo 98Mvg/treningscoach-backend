@@ -142,6 +142,11 @@ def test_env_examples_expose_launch_integration_keys():
         "EMAIL_PROVIDER=",
         "RESEND_API_KEY=",
         "RESEND_API_URL=",
+        "SUPABASE_URL=",
+        "SUPABASE_ANON_KEY=",
+        "SUPABASE_PUBLISHABLE_KEY=",
+        "SUPABASE_SERVICE_ROLE_KEY=",
+        "SUPABASE_AUTH_REDIRECT_URL=",
     ]
 
     for path in [os.path.join(REPO_ROOT, ".env.example"), os.path.join(REPO_ROOT, "backend", ".env.example")]:
@@ -155,3 +160,5 @@ def test_requirements_include_sentry_sdk():
     with open(os.path.join(REPO_ROOT, "requirements.txt"), encoding="utf-8") as handle:
         content = handle.read()
     assert "sentry-sdk" in content
+    assert "supabase" in content
+    assert "psycopg" in content

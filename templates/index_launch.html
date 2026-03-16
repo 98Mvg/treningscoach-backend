@@ -112,9 +112,14 @@
 
         /* ── HAMBURGER ── */
         .hamburger {
-            display: none; border: 0; background: none; cursor: pointer;
-            width: 40px; height: 40px; padding: 8px;
-            flex-direction: column; justify-content: center; gap: 5px;
+            display: none; border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.08); cursor: pointer;
+            width: 46px; height: 46px; padding: 0;
+            border-radius: 14px;
+            align-items: center; justify-content: center;
+            flex-direction: column; gap: 5px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+            -webkit-tap-highlight-color: transparent;
         }
         .hamburger span { display: block; height: 2px; background: #edf1ff; border-radius: 1px; transition: transform 0.2s, opacity 0.2s; }
         .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
@@ -990,7 +995,7 @@
                         <button class="lang-btn active" data-lang-btn="no" aria-pressed="true">NO</button>
                         <button class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
                     </div>
-                    <button class="hamburger" id="hamburger" aria-label="Meny">
+                    <button class="hamburger" id="hamburger" aria-label="Meny" aria-expanded="false" aria-controls="mobileMenu">
                         <span></span><span></span><span></span>
                     </button>
                 </div>
@@ -1689,10 +1694,7 @@
                 e.preventDefault();
                 switchPage(el.dataset.navPage);
                 // Close mobile menu if open
-                const hamburger = document.getElementById("hamburger");
-                const mobileMenu = document.getElementById("mobileMenu");
-                hamburger.classList.remove("open");
-                mobileMenu.classList.remove("open");
+                setMobileMenuOpen(false);
             });
         });
 
@@ -1723,9 +1725,24 @@
         /* ── HAMBURGER ── */
         const hamburger = document.getElementById("hamburger");
         const mobileMenu = document.getElementById("mobileMenu");
+        function setMobileMenuOpen(isOpen) {
+            hamburger.classList.toggle("open", isOpen);
+            hamburger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            mobileMenu.classList.toggle("open", isOpen);
+        }
+
         hamburger.addEventListener("click", () => {
-            hamburger.classList.toggle("open");
-            mobileMenu.classList.toggle("open");
+            setMobileMenuOpen(!mobileMenu.classList.contains("open"));
+        });
+
+        mobileMenu.querySelectorAll("a, button[data-lang-btn]").forEach(el => {
+            el.addEventListener("click", () => setMobileMenuOpen(false));
+        });
+
+        window.addEventListener("resize", () => {
+            if (window.innerWidth > 900) {
+                setMobileMenuOpen(false);
+            }
         });
 
         /* ── FAQ ACCORDION ── */

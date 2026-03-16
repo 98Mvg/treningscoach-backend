@@ -5,7 +5,7 @@
 > Regenerate with: `python3 scripts/generate_codebase_guide.py`
 > Verify sync with: `pytest -q tests_phaseb/test_codebase_guide_sync.py`
 
-Last generated: 2026-03-15
+Last generated: 2026-03-16
 Repository: `/Users/mariusgaarder/Documents/treningscoach`
 
 ## Agent Quickstart
@@ -193,6 +193,7 @@ flowchart LR
 | Route | Methods | Endpoint |
 |---|---|---|
 | `/auth/apple` | `POST` | `auth.auth_apple` |
+| `/auth/email/password-reset` | `POST` | `auth.auth_email_password_reset` |
 | `/auth/email/request-code` | `POST` | `auth.auth_email_request_code` |
 | `/auth/email/verify` | `POST` | `auth.auth_email_verify` |
 | `/auth/facebook` | `POST` | `auth.auth_facebook` |
@@ -232,6 +233,7 @@ flowchart LR
 | `/privacy` | `GET` | `web_routes.privacy` |
 | `/subscription/validate` | `POST` | `subscription_validate` |
 | `/support` | `GET` | `web_routes.support` |
+| `/terms` | `GET` | `web_routes.terms` |
 | `/termsofuse` | `GET` | `web_routes.termsofuse` |
 | `/tts/cache/stats` | `GET` | `tts_cache_stats` |
 | `/voice/session` | `POST` | `create_voice_session` |

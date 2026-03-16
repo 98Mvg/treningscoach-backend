@@ -354,3 +354,14 @@ def test_database_default_url_uses_instance_dir(monkeypatch):
     database_url = database.get_database_url()
     assert database_url.startswith("sqlite:////")
     assert database_url.endswith("/tmp/test-instance-db/treningscoach.db")
+
+
+def test_database_url_normalizes_postgres_urls_for_psycopg(monkeypatch):
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://postgres:secret@db.example.supabase.co:5432/postgres",
+    )
+
+    database_url = database.get_database_url()
+
+    assert database_url == "postgresql+psycopg://postgres:secret@db.example.supabase.co:5432/postgres"

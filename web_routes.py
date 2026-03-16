@@ -80,6 +80,11 @@ def create_web_blueprint(
         """Terms of use page."""
         return render_template("termsofuse.html")
 
+    @web_bp.route("/terms")
+    def terms():
+        """Canonical public terms page alias."""
+        return render_template("termsofuse.html")
+
     @web_bp.route("/support")
     def support():
         """Support page."""

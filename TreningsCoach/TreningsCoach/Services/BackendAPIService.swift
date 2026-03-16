@@ -684,7 +684,17 @@ class BackendAPIService {
     }
 
     /// Save workout record to backend
-    func saveWorkout(durationSeconds: Int, phase: String, intensity: String, persona: String? = nil, language: String? = nil) async throws {
+    func saveWorkout(
+        durationSeconds: Int,
+        phase: String,
+        intensity: String,
+        persona: String? = nil,
+        language: String? = nil,
+        coachScore: Int? = nil,
+        hrScore: Int? = nil,
+        breathScore: Int? = nil,
+        durationScore: Int? = nil
+    ) async throws {
         let url = URL(string: "\(baseURL)/workouts")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -698,6 +708,10 @@ class BackendAPIService {
         ]
         if let persona = persona { body["persona"] = persona }
         if let language = language, !language.isEmpty { body["language"] = language }
+        if let coachScore { body["coach_score"] = coachScore }
+        if let hrScore { body["hr_score"] = hrScore }
+        if let breathScore { body["breath_score"] = breathScore }
+        if let durationScore { body["duration_score"] = durationScore }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

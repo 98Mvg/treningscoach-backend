@@ -33,6 +33,7 @@ from strategic_brain import get_strategic_brain  # Import Strategic Brain for hi
 from database import (
     AppStoreServerNotification,
     AppStoreSubscriptionState,
+    CoachingScore,
     UserSubscription,
     init_db,
     db,
@@ -72,6 +73,8 @@ from workout_contracts import (
     profile_validation_errors,
 )
 from launch_integrations import capture_posthog_event, init_sentry
+from launch_integrations import capture_exception_with_context
+from email_service import sendSubscriptionReceipt
 from app_store_runtime import (
     AppStorePayloadError,
     ACTIVE_APP_STORE_STATUSES,
@@ -384,6 +387,15 @@ def _update_user_subscription_tier_record(*, user_id: str | None, status: str | 
     else:
         subscription.tier = resolved_tier
     return resolved_tier
+
+
+def _product_plan_label(product_id: str | None) -> str:
+    normalized = str(product_id or "").strip().lower()
+    if "year" in normalized:
+        return "yearly"
+    if "month" in normalized:
+        return "monthly"
+    return "premium"
 
 
 def _upsert_app_store_subscription_state(
@@ -4147,7 +4159,7 @@ def save_workout():
     }
     """
     try:
-        from database import db, WorkoutHistory
+        from database import CoachingScore, db, WorkoutHistory
 
         data = request.get_json()
         if not data:
@@ -4159,6 +4171,23 @@ def save_workout():
         except (TypeError, ValueError):
             return jsonify({"error": "duration_seconds must be an integer"}), 400
 
+        def _optional_score(*keys: str):
+            for key in keys:
+                if key in data and data.get(key) not in (None, ""):
+                    try:
+                        return max(0, min(100, int(data.get(key))))
+                    except (TypeError, ValueError):
+                        raise ValueError(f"{key} must be an integer")
+            return None
+
+        try:
+            coach_score = _optional_score("coach_score", "score")
+            hr_score = _optional_score("hr_score", "zone_score")
+            breath_score = _optional_score("breath_score")
+            duration_score = _optional_score("duration_score")
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
         workout = WorkoutHistory(
             user_id=user_id,
             duration_seconds=duration_seconds,
@@ -4168,13 +4197,36 @@ def save_workout():
             language=data.get("language", getattr(config, "DEFAULT_LANGUAGE", "en"))
         )
         db.session.add(workout)
+        db.session.flush()
+
+        coaching_score = None
+        if coach_score is not None:
+            coaching_score = CoachingScore(
+                user_id=user_id,
+                workout_id=workout.id,
+                score=coach_score,
+                hr_score=hr_score,
+                breath_score=breath_score,
+                duration_score=duration_score,
+            )
+            db.session.add(coaching_score)
+
         db.session.commit()
 
         logger.info(f"Workout saved: {workout.duration_seconds}s, phase={workout.final_phase}")
 
-        return jsonify({"workout": workout.to_dict()}), 201
+        payload = {"workout": workout.to_dict()}
+        if coaching_score is not None:
+            payload["coaching_score"] = coaching_score.to_dict()
+        return jsonify(payload), 201
 
     except Exception as e:
+        capture_exception_with_context(
+            e,
+            tags={"surface": "workouts", "action": "save"},
+            extra={"user_id": getattr(g, "current_user_id", None)},
+            logger=logger,
+        )
         logger.error(f"Save workout error: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
@@ -5075,6 +5127,12 @@ def app_store_server_notifications():
         )
     except AppStorePayloadError as exc:
         logger.warning("APP_STORE_WEBHOOK_REJECTED reason=%s", exc)
+        capture_exception_with_context(
+            exc,
+            tags={"surface": "subscriptions", "source": "app_store_webhook", "stage": "notification_decode"},
+            extra={"reason": str(exc)},
+            logger=logger,
+        )
         return jsonify({"error": str(exc)}), 400
 
     notification_uuid = str(notification_payload.get("notificationUUID") or "").strip()
@@ -5119,6 +5177,12 @@ def app_store_server_notifications():
             "APP_STORE_WEBHOOK_TRANSACTION_REJECTED notification_uuid=%s reason=%s",
             notification_uuid or "unknown",
             exc,
+        )
+        capture_exception_with_context(
+            exc,
+            tags={"surface": "subscriptions", "source": "app_store_webhook", "stage": "transaction_decode"},
+            extra={"notification_uuid": notification_uuid or "unknown", "reason": str(exc)},
+            logger=logger,
         )
         return jsonify({"error": str(exc)}), 400
 
@@ -5189,6 +5253,12 @@ def subscription_validate():
             )
         except AppStorePayloadError as exc:
             db.session.rollback()
+            capture_exception_with_context(
+                exc,
+                tags={"surface": "subscriptions", "source": "subscription_validate"},
+                extra={"user_id": user_id, "transaction_id": transaction_id, "reason": str(exc)},
+                logger=logger,
+            )
             _capture_mobile_analytics_event(
                 "subscription_sync_failed",
                 user_id=user_id,
@@ -5207,6 +5277,15 @@ def subscription_validate():
 
         db.session.commit()
         tier = resolve_user_subscription_tier(user_id)
+        user = db.session.get(User, user_id)
+        if user is not None and tier == "premium":
+            sendSubscriptionReceipt(
+                user.email,
+                plan=_product_plan_label(state.product_id),
+                status=state.status,
+                language=user.language,
+                logger=logger,
+            )
         _capture_mobile_analytics_event(
             "subscription_sync_succeeded",
             user_id=user_id,
@@ -5240,6 +5319,11 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
+    capture_exception_with_context(
+        error if isinstance(error, Exception) else Exception(str(error)),
+        tags={"surface": "flask", "handler": "500"},
+        logger=logger,
+    )
     logger.error(f"Internal server error: {error}")
     return jsonify({"error": "Internal server error"}), 500
 

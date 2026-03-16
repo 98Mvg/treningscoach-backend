@@ -271,3 +271,43 @@ def send_sign_in_code_email(
         )
 
     return _send_email(to_email=email, subject=subject, body=body, logger=logger)
+
+
+def send_subscription_receipt_email(
+    email: str,
+    *,
+    plan: str,
+    status: str,
+    language: str = "en",
+    logger: Any = None,
+) -> bool:
+    normalized_language = (language or "en").strip().lower()
+    normalized_plan = (plan or "premium").strip()
+    normalized_status = (status or "active").strip()
+
+    if normalized_language == "no":
+        subject = "Coachi-abonnementet ditt er aktivert"
+        body = (
+            "Hei,\n\n"
+            "Abonnementet ditt i Coachi er oppdatert.\n\n"
+            f"Plan: {normalized_plan}\n"
+            f"Status: {normalized_status}\n\n"
+            "Du kan administrere eller gjenopprette abonnementet ditt direkte i appen.\n\n"
+            f"Trenger du hjelp? Kontakt {os.getenv('SUPPORT_EMAIL') or DEFAULT_SUPPORT_EMAIL}.\n\n"
+            "Hilsen\n"
+            "Coachi"
+        )
+    else:
+        subject = "Your Coachi subscription is active"
+        body = (
+            "Hi,\n\n"
+            "Your Coachi subscription has been updated.\n\n"
+            f"Plan: {normalized_plan}\n"
+            f"Status: {normalized_status}\n\n"
+            "You can manage or restore your subscription directly in the app.\n\n"
+            f"Need help? Contact {os.getenv('SUPPORT_EMAIL') or DEFAULT_SUPPORT_EMAIL}.\n\n"
+            "Regards,\n"
+            "Coachi"
+        )
+
+    return _send_email(to_email=email, subject=subject, body=body, logger=logger)

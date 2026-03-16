@@ -1,6 +1,6 @@
 # Task Plan (Active)
 
-Updated: 2026-02-23
+Updated: 2026-03-16
 
 ## Working Rules (from workflow image)
 
@@ -29,6 +29,14 @@ Updated: 2026-02-23
 
 ## Progress Log
 
+- 2026-03-16: Kept the single existing Flask API path and added Supabase-ready backend infrastructure under it instead of introducing direct Supabase calls from SwiftUI.
+- 2026-03-16: Added `CoachingScore` persistence on the existing workout save path plus an Alembic migration and Supabase RLS bootstrap SQL for `users`, `workout_history`, `coaching_scores`, and `user_subscriptions`.
+- 2026-03-16: Migrated the existing email OTP routes to optional Supabase Auth behind `SUPABASE_AUTH_ENABLED`, while preserving current `/auth/email/request-code` and `/auth/email/verify` contract shapes.
+- 2026-03-16: Added a dedicated `email_service` boundary for login, password reset, and subscription receipt sending, reusing the existing Resend-capable email sender.
+- 2026-03-16: Hardened error monitoring by routing auth, subscription, webhook, and workout-save failures through the existing Sentry integration path with structured context.
+- 2026-03-16: Fixed onboarding so the endurance-training "No" path skips frequency/duration cleanly, returns from summary to the correct prior step, and preserves one deterministic onboarding session.
+- 2026-03-16: Reworked the Coachi paywall/manage-subscription/profile/settings/legal surfaces to Coachi-only copy and Coachi URLs, while keeping the same SwiftUI navigation/runtime path.
+- 2026-03-16: Fixed website mobile navigation visibility and interaction on the existing `index_launch.html` path and added a `/terms` alias without breaking `/termsofuse`.
 - 2026-02-23: Fixed iPhone 15 intro clipping in `FeaturesPageView` by constraining content-card width to device width and tightening responsive paddings/wrapping; pushed in commit `0b849ca`.
 - 2026-02-23: Validation run after clipping fix: onboarding/speech contract tests passed (`19 passed`) and iOS build succeeded.
 - 2026-02-23: Resumed with workflow-orchestration rules from user-provided image.
@@ -62,6 +70,18 @@ Updated: 2026-02-23
 
 ## Review Results
 
+- `python3 -m py_compile main.py auth_routes.py database.py config.py launch_integrations.py email_service.py supabase_auth_service.py web_routes.py app_store_runtime.py`
+  - result: passed
+- `pytest -q tests_phaseb/test_supabase_auth_contract.py tests_phaseb/test_launch_integrations_contract.py tests_phaseb/test_app_store_runtime_contract.py tests_phaseb/test_app_store_webhook_contract.py tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_web_blueprint_contract.py`
+  - result: `43 passed`
+- `pytest -q tests_phaseb/test_ios_auth_refresh_contract.py tests_phaseb/test_onboarding_theme_contract.py tests_phaseb/test_coach_score_visual_contract.py tests_phaseb/test_coachi_progress_contract.py tests_phaseb/test_workout_ui_gesture_contract.py`
+  - result: `66 passed`
+- `python3 scripts/generate_codebase_guide.py`
+  - result: `CODEBASE_GUIDE.md` regenerated
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
 - `pytest -q tests_phaseb/test_workout_ui_gesture_contract.py tests_phaseb/test_phase3_hr_quality_contract.py`
   - result: `5 passed`
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`

@@ -13,6 +13,18 @@ def test_web_blueprint_is_registered() -> None:
 
 
 def test_web_blueprint_owns_landing_and_runtime_routes() -> None:
-    expected_paths = {"/", "/preview", "/preview/<variant>", "/health", "/app/runtime", "/waitlist", "/analytics/event"}
+    expected_paths = {
+        "/",
+        "/preview",
+        "/preview/<variant>",
+        "/health",
+        "/app/runtime",
+        "/waitlist",
+        "/analytics/event",
+        "/privacy",
+        "/support",
+        "/terms",
+        "/termsofuse",
+    }
     found = {rule.rule for rule in main.app.url_map.iter_rules() if rule.rule in expected_paths}
     assert found == expected_paths

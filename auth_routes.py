@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify, g
 from database import db, EmailAuthCode, User, UserSettings
 from email_sender import send_account_welcome_email, send_sign_in_code_email
+from email_service import sendLoginEmail, sendPasswordReset
 from auth import (
     create_jwt,
     enforce_rate_limit,
@@ -27,6 +28,8 @@ from auth import (
     verify_vipps_token,
 )
 import config
+from launch_integrations import capture_exception_with_context
+from supabase_auth_service import verify_email_otp
 
 logger = logging.getLogger(__name__)
 
@@ -266,6 +269,16 @@ def auth_email_request_code():
     if not _is_valid_email(email):
         return jsonify({"error": "Valid email is required", "error_code": "email_invalid"}), 400
 
+    if bool(getattr(config, "SUPABASE_AUTH_ENABLED", False)):
+        delivered, error_code = sendLoginEmail(email, logger=logger)
+        if not delivered:
+            logger.warning("EMAIL_AUTH_SUPABASE_REQUEST_FAILED email=%s error_code=%s", email, error_code)
+            return jsonify({"error": "Email sign-in unavailable", "error_code": error_code or "email_delivery_unavailable"}), 503
+
+        ttl_minutes = max(3, int(getattr(config, "EMAIL_AUTH_CODE_TTL_MINUTES", 10)))
+        logger.info("EMAIL_AUTH_SUPABASE_REQUEST_OK email=%s ttl_minutes=%s", email, ttl_minutes)
+        return jsonify({"success": True, "code_sent": True, "expires_in": ttl_minutes * 60}), 200
+
     _prune_expired_email_auth_codes()
 
     ttl_minutes = max(3, int(getattr(config, "EMAIL_AUTH_CODE_TTL_MINUTES", 10)))
@@ -317,6 +330,29 @@ def auth_email_verify():
     if len(code) != 6 or not code.isdigit():
         return jsonify({"error": "Valid code is required", "error_code": "email_code_invalid"}), 400
 
+    if bool(getattr(config, "SUPABASE_AUTH_ENABLED", False)):
+        verified, _payload, error_code = verify_email_otp(email, code, logger=logger)
+        if not verified:
+            return jsonify({"error": "Invalid sign-in code", "error_code": error_code or "email_code_mismatch"}), 401
+
+        provider_info = _email_provider_info(email)
+        register_limited = _enforce_register_rate_limit_if_new_user("email", provider_info)
+        if register_limited is not None:
+            return register_limited
+
+        user = find_or_create_user("email", provider_info)
+        token_bundle = issue_auth_tokens(user.id, user.email)
+
+        return jsonify({
+            "token": token_bundle["access_token"],
+            "access_token": token_bundle["access_token"],
+            "refresh_token": token_bundle["refresh_token"],
+            "token_type": "bearer",
+            "expires_in": token_bundle["expires_in"],
+            "refresh_expires_in": token_bundle["refresh_expires_in"],
+            "user": user.to_dict(),
+        }), 200
+
     _prune_expired_email_auth_codes()
 
     auth_code = (
@@ -350,6 +386,36 @@ def auth_email_verify():
         "refresh_expires_in": token_bundle["refresh_expires_in"],
         "user": user.to_dict(),
     }), 200
+
+
+@auth_bp.route("/email/password-reset", methods=["POST"])
+@rate_limit(
+    limit=getattr(config, "PASSWORD_RESET_RATE_LIMIT_PER_HOUR", 3),
+    window_seconds=3600,
+    key_prefix="auth.email.password_reset",
+    scope="ip",
+)
+def auth_email_password_reset():
+    data = request.get_json(silent=True) or {}
+    email = _normalize_email(data.get("email"))
+    if not _is_valid_email(email):
+        return jsonify({"error": "Valid email is required", "error_code": "email_invalid"}), 400
+
+    try:
+        delivered, error_code = sendPasswordReset(email, logger=logger)
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        capture_exception_with_context(
+            exc,
+            tags={"surface": "auth", "provider": "email", "action": "password_reset"},
+            extra={"email_domain": email.partition("@")[2]},
+            logger=logger,
+        )
+        return jsonify({"error": "Password reset unavailable", "error_code": "password_reset_unavailable"}), 503
+
+    if not delivered:
+        return jsonify({"error": "Password reset unavailable", "error_code": error_code or "password_reset_unavailable"}), 503
+
+    return jsonify({"success": True, "email_sent": True}), 200
 
 @auth_bp.route("/apple", methods=["POST"])
 @rate_limit(

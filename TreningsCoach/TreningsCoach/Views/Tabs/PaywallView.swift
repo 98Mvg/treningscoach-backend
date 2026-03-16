@@ -87,52 +87,51 @@ enum PaywallContext: Identifiable {
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     let context: PaywallContext
+    @State private var selectedPlan: SubscriptionPlanOption = .yearly
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool {
         subscriptionManager.hasPremiumAccess
     }
 
+    private enum SubscriptionPlanOption {
+        case monthly
+        case yearly
+    }
+
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: [Color(hex: "060D1A"), Color(hex: "0B1E30"), Color(hex: "0E2640")],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    topBar
+                    if let hint = isNorwegian ? context.contextHintNo : context.contextHint {
+                        Text(hint)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(CoachiTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        headerSection
-                        bulletSection
-                        comparisonSection
-                        pricingSection
-                        footerSection
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 48)
+                    planCard(option: .monthly)
+                    planCard(option: .yearly)
+
+                    callToActionButton
+                    restoreButton
+                    termsAndPrivacyFooter
                 }
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
+                .padding(.bottom, 40)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(isNorwegian ? "Lukk" : "Close") {
-                        trackPaywallEvent("paywall_dismissed", context: contextKey)
-                        dismiss()
-                    }
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .font(.system(size: 15, weight: .medium))
-                }
-            }
+            .background(Color(hex: "F7F7FB").ignoresSafeArea())
+            .navigationBarHidden(true)
         }
         .interactiveDismissDisabled(subscriptionManager.isLoading)
         .onAppear {
@@ -146,6 +145,217 @@ struct PaywallView: View {
         case .talkLimit: return "talk_limit"
         case .general:   return "general"
         }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                trackPaywallEvent("paywall_dismissed", context: contextKey)
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(.plain)
+
+            Text(isNorwegian ? "Velg abonnement" : "Choose subscription")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Spacer()
+        }
+        .padding(.top, 6)
+    }
+
+    private func planCard(option: SubscriptionPlanOption) -> some View {
+        let isSelected = selectedPlan == option
+        let isYearly = option == .yearly
+        let priceLabel = isYearly ? yearlyPriceLabel : monthlyPriceLabel
+        let name = isYearly
+            ? (isNorwegian ? "Årsabonnement" : "Yearly plan")
+            : (isNorwegian ? "Månedsabonnement" : "Monthly plan")
+        let subtitle = isNorwegian ? "Kun deg" : "Just you"
+        let trialText = planTrialText(for: option)
+        let detailText = isYearly ? yearlySubtitle : (isNorwegian ? "Betal måned for måned" : "Pay month to month")
+
+        return Button {
+            selectedPlan = option
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                if isYearly {
+                    HStack {
+                        Text(isNorwegian ? "Populær" : "Popular")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color(hex: "A78BFA"))
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(name)
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(subtitle)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(trialText)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                        Text(detailText)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(Color(hex: "8B5CF6"))
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(priceLabel)
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        if isSelected && !isYearly {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(Color(hex: "5B4FD1"))
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(CoachiTheme.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(
+                        isSelected ? Color(hex: "A78BFA") : CoachiTheme.borderSubtle.opacity(0.28),
+                        lineWidth: isSelected ? 3 : 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var callToActionButton: some View {
+        Button {
+            trackPaywallEvent(
+                "paywall_cta_tapped",
+                context: contextKey,
+                metadata: ["plan": selectedPlan == .yearly ? "yearly" : "monthly"]
+            )
+            Task {
+                switch selectedPlan {
+                case .monthly:
+                    if let product = subscriptionManager.monthlyProduct {
+                        await subscriptionManager.purchase(product)
+                    }
+                case .yearly:
+                    if let product = subscriptionManager.yearlyProduct {
+                        await subscriptionManager.purchase(product)
+                    }
+                }
+            }
+        } label: {
+            Text(primaryCTAString)
+                .font(.system(size: 19, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(subscriptionManager.isLoading || selectedProduct == nil)
+        .opacity(subscriptionManager.isLoading || selectedProduct == nil ? 0.65 : 1.0)
+        .overlay(alignment: .center) {
+            if subscriptionManager.isLoading {
+                ProgressView()
+                    .tint(.white)
+            }
+        }
+    }
+
+    private var restoreButton: some View {
+        Button(isNorwegian ? "Gjenopprett kjøp" : "Restore Purchases") {
+            trackPaywallEvent("paywall_restore_tapped", context: contextKey)
+            Task { await subscriptionManager.restorePurchases() }
+        }
+        .font(.system(size: 16, weight: .bold))
+        .foregroundColor(Color(hex: "5B4FD1"))
+    }
+
+    private var termsAndPrivacyFooter: some View {
+        HStack(spacing: 8) {
+            Button(isNorwegian ? "Brukervilkår" : "Terms") {
+                if let url = URL(string: "https://coachi.no/terms") { openURL(url) }
+            }
+            .buttonStyle(.plain)
+
+            Text(isNorwegian ? "og" : "and")
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            Button(isNorwegian ? "personvernerklæring" : "privacy policy") {
+                if let url = URL(string: "https://coachi.no/privacy") { openURL(url) }
+            }
+            .buttonStyle(.plain)
+        }
+        .font(.system(size: 14, weight: .semibold))
+        .foregroundColor(CoachiTheme.textPrimary)
+    }
+
+    private var selectedProduct: Product? {
+        switch selectedPlan {
+        case .monthly:
+            return subscriptionManager.monthlyProduct
+        case .yearly:
+            return subscriptionManager.yearlyProduct
+        }
+    }
+
+    private var primaryCTAString: String {
+        if planHasTrial(selectedPlan) {
+            return isNorwegian ? "Start gratis prøveperiode" : "Start free trial"
+        }
+        return isNorwegian ? "Fortsett" : "Continue"
+    }
+
+    private func planHasTrial(_ option: SubscriptionPlanOption) -> Bool {
+        switch option {
+        case .monthly:
+            return subscriptionManager.monthlyProduct?.subscription?.introductoryOffer != nil || !subscriptionManager.hasLoadedProducts
+        case .yearly:
+            return subscriptionManager.yearlyProduct?.subscription?.introductoryOffer != nil || !subscriptionManager.hasLoadedProducts
+        }
+    }
+
+    private func planTrialText(for option: SubscriptionPlanOption) -> String {
+        if planHasTrial(option) {
+            return isNorwegian
+                ? "Gratis prøveperiode \(AppConfig.Subscription.trialDurationDays) dager"
+                : "Free trial \(AppConfig.Subscription.trialDurationDays) days"
+        }
+        return isNorwegian ? "Ingen gratis prøveperiode" : "No free trial"
     }
 
     // MARK: - Header

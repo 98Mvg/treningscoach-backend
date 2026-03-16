@@ -10,7 +10,7 @@ import auth
 import auth_routes
 import main
 from auth_routes import find_or_create_user
-from database import WorkoutHistory, User, UserSettings, db
+from database import CoachingScore, WorkoutHistory, User, UserSettings, db
 
 
 def _create_user(email_prefix: str) -> User:
@@ -29,6 +29,7 @@ def _create_user(email_prefix: str) -> User:
 
 
 def _delete_user_and_workouts(user_id: str) -> None:
+    CoachingScore.query.filter_by(user_id=user_id).delete(synchronize_session=False)
     workouts = WorkoutHistory.query.filter_by(user_id=user_id).all()
     for workout in workouts:
         db.session.delete(workout)
@@ -196,17 +197,32 @@ def test_save_workout_accepts_mobile_field_aliases():
             "intensity": "moderate",
             "persona": "toxic_mode",
             "language": "no",
+            "coach_score": 82,
+            "hr_score": 79,
+            "breath_score": 76,
+            "duration_score": 88,
         },
     )
     assert response.status_code == 201
 
     payload = response.get_json()
     workout = payload["workout"]
+    coaching_score = payload["coaching_score"]
     assert workout["user_id"] == user_id
     assert workout["final_phase"] == "cooldown"
     assert workout["avg_intensity"] == "moderate"
     assert workout["persona_used"] == "toxic_mode"
     assert workout["language"] == "no"
+    assert coaching_score["score"] == 82
+    assert coaching_score["hr_score"] == 79
+    assert coaching_score["breath_score"] == 76
+    assert coaching_score["duration_score"] == 88
+
+    with main.app.app_context():
+        persisted = CoachingScore.query.filter_by(user_id=user_id).first()
+        assert persisted is not None
+        assert persisted.score == 82
+        assert persisted.hr_score == 79
 
     with main.app.app_context():
         _delete_user_and_workouts(user_id)

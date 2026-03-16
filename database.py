@@ -53,6 +53,10 @@ def get_database_url():
     """Get database URL from environment or default to SQLite"""
     configured = (os.getenv("DATABASE_URL") or "").strip()
     if configured:
+        if configured.startswith("postgres://"):
+            return configured.replace("postgres://", "postgresql+psycopg://", 1)
+        if configured.startswith("postgresql://") and "+psycopg" not in configured:
+            return configured.replace("postgresql://", "postgresql+psycopg://", 1)
         return configured
 
     instance_dir = Path(getattr(config, "INSTANCE_DIR", Path(__file__).resolve().parent / "instance"))
@@ -105,6 +109,7 @@ class User(db.Model):
     profile = db.relationship("UserProfile", backref="user", uselist=False, cascade="all, delete-orphan")
     subscription = db.relationship("UserSubscription", backref="user", uselist=False, cascade="all, delete-orphan")
     workouts = db.relationship("WorkoutHistory", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    coaching_scores = db.relationship("CoachingScore", backref="user", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
         subscription_tier = "free"
@@ -217,6 +222,7 @@ class WorkoutHistory(db.Model):
 
     # Timestamps
     created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    coaching_score = db.relationship("CoachingScore", backref="workout", uselist=False, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -229,6 +235,31 @@ class WorkoutHistory(db.Model):
             "persona_used": self.persona_used,
             "language": self.language,
             "created_at": self.created_at.isoformat()
+        }
+
+
+class CoachingScore(db.Model):
+    __tablename__ = "coaching_scores"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    workout_id = db.Column(db.String(36), db.ForeignKey("workout_history.id"), nullable=False, unique=True, index=True)
+    score = db.Column(db.Integer, nullable=False)
+    hr_score = db.Column(db.Integer, nullable=True)
+    breath_score = db.Column(db.Integer, nullable=True)
+    duration_score = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, index=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "workout_id": self.workout_id,
+            "score": self.score,
+            "hr_score": self.hr_score,
+            "breath_score": self.breath_score,
+            "duration_score": self.duration_score,
+            "created_at": self.created_at.isoformat(),
         }
 
 

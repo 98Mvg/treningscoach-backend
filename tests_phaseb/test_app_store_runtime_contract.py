@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from app_store_runtime import AppStorePayloadError, decode_app_store_signed_payload
+from app_store_runtime import AppStorePayloadError, decode_app_store_signed_payload, derive_app_store_status
 
 
 def _issue_certificate(
@@ -105,3 +105,23 @@ def test_decode_app_store_signed_payload_rejects_untrusted_root():
         assert str(exc) == "untrusted_root_certificate"
     else:  # pragma: no cover - explicit failure branch
         raise AssertionError("Expected AppStorePayloadError for untrusted root")
+
+
+def test_derive_app_store_status_preserves_access_for_cancel_until_expiry():
+    future = datetime.now(timezone.utc) + timedelta(days=10)
+    assert derive_app_store_status(
+        expires_at=future.replace(tzinfo=None),
+        revocation_date=None,
+        notification_type="CANCEL",
+        notification_subtype="",
+    ) == "active"
+
+
+def test_derive_app_store_status_revokes_refunds_immediately():
+    future = datetime.now(timezone.utc) + timedelta(days=10)
+    assert derive_app_store_status(
+        expires_at=future.replace(tzinfo=None),
+        revocation_date=None,
+        notification_type="REFUND",
+        notification_subtype="",
+    ) == "revoked"

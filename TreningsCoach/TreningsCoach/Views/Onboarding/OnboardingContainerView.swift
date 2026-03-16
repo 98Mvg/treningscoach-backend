@@ -302,7 +302,7 @@ struct OnboardingContainerView: View {
                         doesEnduranceTraining: $formState.doesEnduranceTraining,
                         hardestIntensity: $formState.hardestIntensity,
                         onBack: { move(to: .restingHeartRate) },
-                        onContinue: { move(to: .frequencyAndDuration) }
+                        onContinue: { move(to: nextStepAfterEnduranceHabits) }
                     )
                     .transition(stepTransition)
 
@@ -318,7 +318,7 @@ struct OnboardingContainerView: View {
                 case .summary:
                     SummaryStepView(
                         state: formState,
-                        onBack: { move(to: .frequencyAndDuration) },
+                        onBack: { move(to: summaryBackStep) },
                         onContinue: { move(to: .sensorConnect) }
                     )
                     .transition(stepTransition)
@@ -423,17 +423,28 @@ struct OnboardingContainerView: View {
     }
 
     private var guidedOnboardingSteps: [OnboardingStep] {
-        [
+        var steps: [OnboardingStep] = [
             .birthAndGender,
             .bodyMetrics,
             .maxHeartRate,
             .restingHeartRate,
             .enduranceHabits,
-            .frequencyAndDuration,
             .summary,
             .sensorConnect,
             .notificationPermission,
         ]
+        if formState.doesEnduranceTraining {
+            steps.insert(.frequencyAndDuration, at: 5)
+        }
+        return steps
+    }
+
+    private var nextStepAfterEnduranceHabits: OnboardingStep {
+        formState.doesEnduranceTraining ? .frequencyAndDuration : .summary
+    }
+
+    private var summaryBackStep: OnboardingStep {
+        formState.doesEnduranceTraining ? .frequencyAndDuration : .enduranceHabits
     }
 
     private var showsGuidedProgress: Bool {

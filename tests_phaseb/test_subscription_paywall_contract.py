@@ -17,15 +17,17 @@ def test_subscription_manager_exposes_manage_subscription_path():
 def test_paywall_exposes_restore_and_manage_subscription_buttons():
     content = PAYWALL.read_text()
     assert '"Restore Purchases"' in content
-    assert '"Manage Subscription"' in content
+    assert '"Choose subscription"' in content
+    assert '"Yearly plan"' in content
+    assert '"Monthly plan"' in content
     assert "subscriptionManager.restorePurchases()" in content
-    assert "subscriptionManager.manageSubscription()" in content
+    assert '"https://coachi.no/terms"' in content
+    assert '"https://coachi.no/privacy"' in content
 
 
 def test_profile_premium_section_exposes_reviewer_visible_subscription_actions():
     content = PROFILE.read_text()
-    assert "premiumUtilityButton(" in content
-    assert '"Restore Purchases"' in content
-    assert '"Manage Subscription"' in content
-    assert "subscriptionManager.restorePurchases()" in content
-    assert "subscriptionManager.manageSubscription()" in content
+    assert "ManageSubscriptionView()" in content
+    assert "showManageSubscription = true" in content
+    assert "title: L10n.manageSubscription" in content
+    assert '"Se alle tilbudene"' in content

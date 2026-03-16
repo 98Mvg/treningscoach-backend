@@ -101,6 +101,26 @@ def sentry_status() -> dict[str, Any]:
     return dict(_SENTRY_RUNTIME_STATUS)
 
 
+def capture_exception_with_context(
+    exc: Exception,
+    *,
+    tags: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
+    logger: Any = None,
+) -> None:
+    log = _log(logger)
+    log.warning("SENTRY_CAPTURE exception=%s tags=%s", exc, tags or {})
+    if not _SENTRY_RUNTIME_STATUS.get("active") or sentry_sdk is None:
+        return
+
+    with sentry_sdk.push_scope() as scope:  # pragma: no branch - thin wrapper
+        for key, value in (tags or {}).items():
+            scope.set_tag(str(key), value)
+        for key, value in (extra or {}).items():
+            scope.set_extra(str(key), value)
+        sentry_sdk.capture_exception(exc)
+
+
 def capture_posthog_event(
     event: str,
     *,

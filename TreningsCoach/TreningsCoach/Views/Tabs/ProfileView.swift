@@ -13,7 +13,7 @@ private let coachiPrivacyUpdatedNo = "10. mars 2026"
 private let coachiPrivacyUpdatedEn = "March 10, 2026"
 
 private let coachiPrivacyURL = "https://coachi.no/privacy"
-private let coachiTermsURL = "https://coachi.no/termsofuse"
+private let coachiTermsURL = "https://coachi.no/terms"
 private let coachiSupportURL = "https://coachi.no/support"
 
 struct ProfileView: View {
@@ -24,12 +24,7 @@ struct ProfileView: View {
     @Binding var selectedTab: TabItem
     @State private var showingSignOutConfirmation = false
     @State private var showPaywall = false
-    @State private var showProfileDetails = false
-    @State private var showingBirthDateEditor = false
-    @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
-    @AppStorage("app_language") private var appLanguageCode: String = "en"
-    @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
-    @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
+    @State private var showManageSubscription = false
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
@@ -60,6 +55,10 @@ struct ProfileView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: .general)
+        }
+        .navigationDestination(isPresented: $showManageSubscription) {
+            ManageSubscriptionView()
+                .environmentObject(subscriptionManager)
         }
         .confirmationDialog(
             L10n.signOut,
@@ -115,11 +114,10 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             sectionHeader(L10n.account)
 
-            // Profile header — tap to expand personal settings
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showProfileDetails.toggle()
-                }
+            NavigationLink {
+                PersonalProfileSettingsView()
+                    .environmentObject(appViewModel)
+                    .environmentObject(authManager)
             } label: {
                 HStack(spacing: 16) {
                     Image(systemName: "face.smiling")
@@ -136,7 +134,7 @@ struct ProfileView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
 
-                        Text(accountStatusSubtitle)
+                        Text(L10n.personalProfile)
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(CoachiTheme.textSecondary)
                             .lineLimit(2)
@@ -144,7 +142,7 @@ struct ProfileView: View {
 
                     Spacer()
 
-                    Image(systemName: showProfileDetails ? "chevron.up" : "chevron.down")
+                    Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(CoachiTheme.textTertiary)
                 }
@@ -154,67 +152,18 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
-            if showProfileDetails {
-                settingsDivider
+            settingsDivider
 
-                // Language
-                NavigationLink {
-                    LanguageSettingsView().environmentObject(authManager)
-                } label: {
-                    SettingsListRow(
-                        icon: "globe",
-                        title: "\(L10n.language): \((AppLanguage(rawValue: appLanguageCode) ?? .en).displayName)"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                settingsDivider
-
-                // Dark mode
-                HStack(spacing: 14) {
-                    Image(systemName: darkModeEnabled ? "moon.fill" : "sun.max.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .frame(width: 30)
-
-                    Text(L10n.darkMode)
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(CoachiTheme.textPrimary)
-
-                    Spacer()
-
-                    Toggle("", isOn: $darkModeEnabled)
-                        .labelsHidden()
-                        .tint(CoachiTheme.primary)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 15)
-
-                settingsDivider
-
-                // Birth date
-                Button {
-                    draftBirthDate = storedBirthDate
-                    showingBirthDateEditor = true
-                } label: {
-                    SettingsListRow(
-                        icon: "calendar",
-                        title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                settingsDivider
-
-                // Experience level (read-only)
+            NavigationLink {
+                HealthProfileView()
+                    .environmentObject(appViewModel)
+            } label: {
                 SettingsListRow(
-                    icon: "chart.bar.fill",
-                    title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
-                    trailingIcon: nil
+                    icon: "heart",
+                    title: L10n.healthProfile
                 )
             }
-
-            sectionHeader(L10n.coaching)
+            .buttonStyle(.plain)
 
             settingsDivider
 
@@ -227,6 +176,8 @@ struct ProfileView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            sectionHeader(L10n.coaching)
 
             settingsDivider
 
@@ -252,7 +203,19 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
-            sectionHeader(L10n.helpAndLegal)
+            settingsDivider
+
+            Button {
+                showManageSubscription = true
+            } label: {
+                SettingsListRow(
+                    icon: "bookmark",
+                    title: L10n.manageSubscription
+                )
+            }
+            .buttonStyle(.plain)
+
+            sectionHeader(L10n.helpAndSupport)
 
             settingsDivider
 
@@ -268,12 +231,13 @@ struct ProfileView: View {
 
             settingsDivider
 
-            NavigationLink {
-                ContactSupportView()
+            Button {
+                if let url = URL(string: coachiSupportURL) { openURL(url) }
             } label: {
                 SettingsListRow(
                     icon: "headphones",
-                    title: L10n.contactSupport
+                    title: L10n.contactSupport,
+                    trailingIcon: "arrow.up.right.square"
                 )
             }
             .buttonStyle(.plain)
@@ -308,7 +272,8 @@ struct ProfileView: View {
 
             settingsDivider
 
-            // About & Advanced
+            settingsDivider
+
             NavigationLink {
                 AboutCoachiView()
                     .environmentObject(appViewModel)
@@ -320,7 +285,6 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
 
-            // Delete account (authenticated only)
             if authManager.isAuthenticated {
                 settingsDivider
 
@@ -350,14 +314,73 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             }
         }
-        .sheet(isPresented: $showingBirthDateEditor) {
-            BirthDateEditorSheet(
-                selectedDate: draftBirthDate,
-                minDate: minimumBirthDate,
-                maxDate: Date(),
-                onSave: persistBirthDate
-            )
+    }
+
+    private var premiumSection: some View {
+        VStack(spacing: 12) {
+            if !hasPremiumAccess {
+                Button { showPaywall = true } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(hex: "5B4FD1").opacity(0.10))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(hex: "5B4FD1"))
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.current == .no ? "Se alle tilbudene" : "See all offers")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                            Text(L10n.current == .no ? "Velg mellom måneds- eller årsabonnement." : "Choose monthly or yearly premium.")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(CoachiTheme.surfaceElevated)
+                    )
+                    .padding(.horizontal, 16)
+                }
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(hex: "22C55E").opacity(0.12))
+                            .frame(width: 38, height: 38)
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Color(hex: "22C55E"))
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.current == .no ? "Premium er aktivt" : "Premium is active")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(subscriptionManager.resolvedPlanLabel)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(CoachiTheme.surfaceElevated)
+                )
+                .padding(.horizontal, 16)
+            }
         }
+        .padding(.top, 20)
     }
 
     // MARK: - Profile helpers
@@ -370,167 +393,6 @@ struct ProfileView: View {
             return L10n.current == .no ? "Konto tilkoblet." : "Account connected."
         }
         return "\(L10n.usingWithoutAccount). \(L10n.connectAccountLaterHint)"
-    }
-
-    private var minimumBirthDate: Date {
-        Calendar.current.date(byAdding: .year, value: -95, to: Date()) ?? Date()
-    }
-
-    private var storedBirthDate: Date {
-        guard birthdateTimestamp > 0 else {
-            return Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
-        }
-        return Date(timeIntervalSince1970: birthdateTimestamp)
-    }
-
-    private var birthDateDisplayLine: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateStyle = .medium
-        return formatter.string(from: storedBirthDate)
-    }
-
-    private func persistBirthDate(_ value: Date) {
-        let bounded = min(max(value, minimumBirthDate), Date())
-        birthdateTimestamp = bounded.timeIntervalSince1970
-        let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
-        let age = max(14, min(95, years))
-        UserDefaults.standard.set(age, forKey: "user_age")
-    }
-
-    private var premiumSection: some View {
-        VStack(spacing: 12) {
-            if !hasPremiumAccess {
-                Button { showPaywall = true } label: {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(hex: "A5F3EC").opacity(0.14))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Color(hex: "A5F3EC"))
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.current == .no ? "Oppgrader til Pro" : "Upgrade to Pro")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textPrimary)
-                            Text(L10n.current == .no ? "Ubegrenset coaching og analyse" : "Unlimited coaching & insights")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(CoachiTheme.surfaceElevated)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(CoachiTheme.primary.opacity(0.18), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 16)
-                }
-                .buttonStyle(.plain)
-
-                HStack(spacing: 12) {
-                    premiumUtilityButton(
-                        title: L10n.current == .no ? "Gjenopprett kjøp" : "Restore Purchases",
-                        icon: "arrow.clockwise"
-                    ) {
-                        Task { await subscriptionManager.restorePurchases() }
-                    }
-
-                    premiumUtilityButton(
-                        title: L10n.current == .no ? "Administrer abonnement" : "Manage Subscription",
-                        icon: "creditcard"
-                    ) {
-                        subscriptionManager.manageSubscription()
-                    }
-                }
-                .padding(.horizontal, 16)
-            } else {
-                VStack(spacing: 12) {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(hex: "A5F3EC").opacity(0.14))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Color(hex: "A5F3EC"))
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.current == .no ? "Coachi Pro aktiv" : "Coachi Pro Active")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Color(hex: "A5F3EC"))
-                            Text(subscriptionManager.resolvedPlanLabel)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(CoachiTheme.surfaceElevated)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color(hex: "A5F3EC").opacity(0.18), lineWidth: 1)
-                            )
-                    )
-
-                    HStack(spacing: 12) {
-                        premiumUtilityButton(
-                            title: L10n.current == .no ? "Administrer abonnement" : "Manage Subscription",
-                            icon: "creditcard"
-                        ) {
-                            subscriptionManager.manageSubscription()
-                        }
-
-                        premiumUtilityButton(
-                            title: L10n.current == .no ? "Gjenopprett kjøp" : "Restore Purchases",
-                            icon: "arrow.clockwise"
-                        ) {
-                            Task { await subscriptionManager.restorePurchases() }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-        }
-        .padding(.top, 20)
-    }
-
-    private func premiumUtilityButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .foregroundColor(CoachiTheme.textPrimary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(CoachiTheme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     private var signOutSection: some View {
@@ -635,6 +497,133 @@ private struct SettingsListRow: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 15)
         .contentShape(Rectangle())
+    }
+}
+
+private struct ManageSubscriptionView: View {
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @Environment(\.openURL) private var openURL
+    @State private var showPaywall = false
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    private let comparisonRows: [(titleNo: String, titleEn: String, free: String, premium: String)] = [
+        ("Live coaching under økten", "Live coaching during workouts", "✓", "✓"),
+        ("Coach Score etter hver økt", "Coach Score after every workout", "✓", "✓"),
+        ("Historikk", "History", "10", "Alle"),
+        ("Snakk med coachen live", "Talk to your coach live", "—", "✓"),
+        ("Flere coach-samtaler", "More coach conversations", "1/økt", "Ubegr."),
+    ]
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 22) {
+                Text(isNorwegian ? "Inkludert i abonnementet" : "Included in subscription")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                comparisonTable
+
+                Button {
+                    showPaywall = true
+                } label: {
+                    Text(isNorwegian ? "Se alle tilbudene" : "See all offers")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Button(isNorwegian ? "Gjenopprett kjøp" : "Restore purchases") {
+                    Task { await subscriptionManager.restorePurchases() }
+                }
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Color(hex: "5B4FD1"))
+                .frame(maxWidth: .infinity)
+
+                HStack(spacing: 8) {
+                    Button(isNorwegian ? "Brukervilkår" : "Terms") {
+                        if let url = URL(string: coachiTermsURL) { openURL(url) }
+                    }
+                    .buttonStyle(.plain)
+
+                    Text(isNorwegian ? "og" : "and")
+                        .foregroundColor(CoachiTheme.textSecondary)
+
+                    Button(isNorwegian ? "personvernerklæring" : "privacy policy") {
+                        if let url = URL(string: coachiPrivacyURL) { openURL(url) }
+                    }
+                    .buttonStyle(.plain)
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 36)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .general)
+        }
+    }
+
+    private var comparisonTable: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(isNorwegian ? "Gratis" : "Free")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                Text("Premium")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .padding(.leading, 190)
+            .padding(.bottom, 10)
+
+            ForEach(Array(comparisonRows.enumerated()), id: \.offset) { index, row in
+                HStack(spacing: 0) {
+                    Text(isNorwegian ? row.titleNo : row.titleEn)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(row.free)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .frame(width: 72, alignment: .center)
+
+                    Text(row.premium)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(Color(hex: "5B4FD1"))
+                        .frame(width: 92, alignment: .center)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 15)
+                .background(index.isMultiple(of: 2) ? CoachiTheme.surface : CoachiTheme.surfaceElevated)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.32), lineWidth: 1)
+        )
     }
 }
 

@@ -40,7 +40,7 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "PlaceholderSettingsView" not in text
     assert "sectionHeader(L10n.account)" in text
     assert "sectionHeader(L10n.coaching)" in text
-    assert "sectionHeader(L10n.helpAndLegal)" in text
+    assert "sectionHeader(L10n.helpAndSupport)" in text
     assert "title: L10n.faqTitle" in text
     assert "title: L10n.contactSupport" in text
     assert "title: L10n.privacyPolicy" in text
@@ -48,16 +48,12 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "SupportCenterView()" not in text
     assert "title: L10n.howCoachiWorks" in text
     assert "CoachingSettingsView()" in text
-    assert "title: L10n.audioAndVoices" in text
-    assert "AudioAndVoicesView()" in text
     assert "title: L10n.historyAndData" in text
     assert "HistoryAndDataView()" in text
-    assert "title: L10n.accountStatus" in text
-    assert "subtitle: accountStatusSubtitle" in text
-    assert 'icon: "person.crop.circle.badge.checkmark"' in text
+    assert "PersonalProfileSettingsView()" in text
+    assert "HealthProfileView()" in text
+    assert "ManageSubscriptionView()" in text
     assert "AboutCoachiView()" in text
-    assert "title: L10n.advancedSettings" in text
-    assert "subtitle: L10n.audioMaintenance" in text
     assert "confirmationDialog(" in text
     assert 'Text("\\(L10n.appVersionLabel) \\(AppConfig.version)")' in text
     assert "private var isGuestMode: Bool" in text
@@ -89,6 +85,7 @@ def test_profile_faq_covers_launch_critical_questions() -> None:
 def test_profile_support_center_exposes_launch_critical_support_and_legal_surfaces() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     assert "private struct SupportCenterView: View" not in text
+    assert "private struct ManageSubscriptionView: View" in text
     assert "private struct AboutCoachiView: View" in text
     assert "private struct CoachingSettingsView: View" in text
     assert "private struct AudioAndVoicesView: View" in text
@@ -97,15 +94,14 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'icon: "headphones"' in text
     assert 'icon: "hand.raised"' in text
     assert 'icon: "doc.text"' in text
-    assert "ContactSupportView()" in text
-    assert "PrivacyPolicyView()" in text
-    assert "TermsOfUseView()" in text
     assert "DeleteAccountInfoView()" in text
+    assert '"https://coachi.no/support"' in text
+    assert '"https://coachi.no/privacy"' in text
+    assert '"https://coachi.no/terms"' in text
     assert "AI.Coachi@hotmail.com" in text
     assert '@Environment(\\.openURL) private var openURL' in text
-    assert 'URL(string: "mailto:\\(coachiSupportEmail)")' in text
-    assert 'title: isNorwegian ? "Kontakt support" : "Contact support"' in text
-    assert 'title: isNorwegian ? "Send e-post til support" : "Email support"' in text
+    assert "showManageSubscription = true" in text
+    assert 'title: L10n.manageSubscription' in text
     assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
     assert "await authManager.deleteAccount()" in text
     assert "[SUPPORT_EMAIL]" not in text
@@ -118,13 +114,12 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "Audio storage and sync: Cloudflare R2" in text
     assert "Coachi is free to download and includes a free version." in text
     assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
-    assert 'ToolbarItem(placement: .topBarTrailing)' in text
     assert 'Text(L10n.signOut)' in text
-    assert 'Text(L10n.current == .no ? "Oppgrader til Pro" : "Upgrade to Pro")' in text
+    assert 'Text(L10n.current == .no ? "Se alle tilbudene" : "See all offers")' in text
     assert '.foregroundColor(CoachiTheme.textPrimary)' in text
     assert '.foregroundColor(CoachiTheme.textSecondary)' in text
     assert '.fill(CoachiTheme.surfaceElevated)' in text
-    assert 'Text(\n                isGuestMode' in text
+    assert 'private let coachiTermsURL = "https://coachi.no/terms"' in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
@@ -162,7 +157,7 @@ def test_localization_contains_monitor_and_coach_score_strings() -> None:
     assert "static var usingWithoutAccount: String" in text
     assert "static var connectAccountLaterHint: String" in text
     assert "static var coaching: String" in text
-    assert "static var helpAndLegal: String" in text
+    assert "static var helpAndSupport: String" in text
     assert "static var audioAndVoices: String" in text
     assert "static var historyAndData: String" in text
     assert "static var howCoachiWorks: String" in text
@@ -179,6 +174,7 @@ def test_localization_contains_monitor_and_coach_score_strings() -> None:
     assert "static var liveCoachingSourceHint: String" in text
     assert "static var historySyncOnlyHint: String" in text
     assert "static var goToManageMonitors: String" in text
+    assert "static var manageSubscription: String" in text
     assert "static var notConnected: String" in text
     assert "static var legal: String" in text
     assert "static var termsOfUse: String" in text

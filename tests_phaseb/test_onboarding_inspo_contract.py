@@ -59,6 +59,8 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert ".birthAndGender," in guided_block
     assert ".notificationPermission," in guided_block
     assert ".dataPurpose," not in guided_block
+    assert "steps.insert(.frequencyAndDuration, at: 5)" in guided_block
+    assert "if formState.doesEnduranceTraining" in guided_block
 
 
 def test_post_auth_explainer_starts_with_personalized_hello_page() -> None:
@@ -96,7 +98,11 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "onSecondary: { move(to: .identity) }" in text
     assert "onPrimary: { move(to: .birthAndGender) }" in text
     assert "onBack: { move(to: .features) }" in text
+    assert "onContinue: { move(to: nextStepAfterEnduranceHabits) }" in text
+    assert "private var nextStepAfterEnduranceHabits: OnboardingStep" in text
+    assert "private var summaryBackStep: OnboardingStep" in text
     assert "onContinue: { move(to: .sensorConnect) }" in text
+    assert "onBack: { move(to: summaryBackStep) }" in text
     assert "move(to: .notificationPermission)" in text
     assert "case .dataPurpose:" not in text
     assert "let profileDraft = formState.toDraft(" in text
