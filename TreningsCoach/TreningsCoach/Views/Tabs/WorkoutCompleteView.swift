@@ -264,7 +264,7 @@ struct WorkoutCompleteView: View {
                 labelColor: Color.white.opacity(0.80),
                 levelColor: CoachiTheme.success,
                 levelLabel: appViewModel.coachiLevelLabel,
-                xpProgress: appViewModel.coachiXPProgressFraction,
+                xpProgress: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction ?? appViewModel.coachiXPProgressFraction,
                 showsOuterXPRing: true,
                 animateXPAward: xpAwardForSummary > 0,
                 xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction,
