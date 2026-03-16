@@ -308,12 +308,11 @@ def build_post_workout_voice_session_update(
             "type": "server_vad",
             "threshold": float(getattr(config, "XAI_VOICE_AGENT_VAD_THRESHOLD", 0.5) or 0.5),
             "prefix_padding_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_PREFIX_PADDING_MS", 300) or 300),
-            "silence_duration_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 200) or 200),
+            "silence_duration_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 300) or 300),
             "create_response": True,
-            "interrupt_response": True,
         },
-        "input_audio_format": {"type": "audio/pcm", "rate": 24000},
-        "output_audio_format": {"type": "audio/pcm", "rate": 24000},
+        "input_audio_format": "pcm16",
+        "output_audio_format": "pcm16",
     }
     model = str(getattr(config, "XAI_VOICE_AGENT_MODEL", "") or "").strip()
     if model:
