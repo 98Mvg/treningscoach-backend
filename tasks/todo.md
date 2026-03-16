@@ -296,3 +296,15 @@ Updated: 2026-03-16
 - Updated [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock the new non-empty picker initialization and invalid-selection fallback.
 - Verification:
   - `pytest -q tests_phaseb/test_monitor_management_contract.py` -> `9 passed`
+
+## Review — 2026-03-16 Claude XP summary handoff
+
+- Added a focused Claude handoff for the XP summary path in [2026-03-16-session-learnings-claude-xp-summary-handoff.md](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-16-session-learnings-claude-xp-summary-handoff.md).
+- The note documents:
+  - the user-visible XP summary bug
+  - the real root cause
+  - the correct runtime path from `stopContinuousWorkout()` to `WorkoutCompleteView`
+  - the files that define the contract
+  - the duration-only XP product rule
+  - guardrails for future edits
+- This is intentionally separate from the mixed legal/support note so Claude can find the summary logic quickly without reconstructing it from chat history.
