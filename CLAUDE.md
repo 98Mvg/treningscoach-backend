@@ -498,3 +498,57 @@ Workout session timeline:
 - **Anti-repetition**: `SessionCoachState` tracks last 10 messages + last 5 themes. Cue types (pace/effort/form/breathing/motivation) are weighted by phase.
 - **Forbidden phrases** (R0.4): "breathing exercise", "breathing app", "as an ai", etc. — see `FORBIDDEN_PHRASES` in `coaching_engine.py`.
 - **Integration status**: `coaching_engine.py`, `breathing_timeline.py`, and `locale_config.py` are standalone modules ready to be wired into `main.py`'s `/coach/continuous` endpoint.
+
+---
+
+## 12) Parallel AI Workflow (Claude + Codex)
+
+### Branch naming
+- Claude tasks:  `claude/<task-slug>`  (worktrees under `.claude/worktrees/`)
+- Codex tasks:   `codex/<task-slug>`   (separate worktree or checkout)
+- Never work directly on `main`
+
+### File ownership — Claude owns (UI / iOS)
+| Surface | Files |
+|---|---|
+| Onboarding | `OnboardingView.swift`, `FeaturesPageView.swift`, `OnboardingPageView.swift` |
+| Workout UI | `WorkoutView.swift`, `WorkoutCompleteView.swift`, `CoachOrbView.swift` |
+| Home / Profile | `HomeView.swift`, `ProfileView.swift`, `SettingsView.swift` |
+| Paywall / Subs | `PaywallView.swift`, `SubscriptionManager.swift` |
+| Strings | `L10n.swift` |
+| iOS Services | `LiveVoiceSessionTracker.swift`, `TalkUsageTracker.swift`, `AudioPipelineDiagnostics.swift` |
+| iOS Config | `Config.swift` (iOS only, not `config.py`) |
+
+### File ownership — Codex owns (backend / infra)
+| Surface | Files |
+|---|---|
+| Backend runtime | `main.py`, `config.py`, `brain_router.py`, `brains/*.py` |
+| Auth | `auth_routes.py` |
+| Database | `database.py`, `alembic/versions/*.py` |
+| TTS / Voice | `elevenlabs_tts.py`, `xai_voice.py` |
+| Build / CI | `requirements.txt`, `Procfile`, `*.sh` scripts |
+| Coaching engine | `coaching_engine.py`, `voice_intelligence.py`, `breathing_timeline.py` |
+
+### Shared files — single-owner rule
+These files must be owned by ONE agent per task. Do not let both touch them in parallel:
+- `BackendAPIService.swift` — whichever agent owns the API change
+- `AppViewModel.swift` — Claude by default unless backend state change
+- `WorkoutViewModel.swift` — Claude by default
+
+### Merge order protocol
+1. Both branches start from latest `main`
+2. Agent 1 finishes → merges to `main` first
+3. Agent 2 rebases onto updated `main` → then merges
+4. Never merge two branches simultaneously
+
+### Prompt template for each task
+```
+You are working only on branch <branch-name>.
+You may edit only these files:
+- <file 1>
+- <file 2>
+Do not touch:
+- <shared file — owned by other agent>
+Before coding: list files you plan to touch.
+After coding: list changed files, tests run, risks.
+```
