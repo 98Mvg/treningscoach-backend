@@ -235,3 +235,12 @@ Updated: 2026-03-16
 - Explicitly documented which local artifacts are references only and must stay out of product commits.
 - Added explicit remaining-work sections for the fix phase, polish phase, and today's launch goal so the next agent has a concrete continuation list instead of just a generic "next work" hint.
 - Reconfirmed that [CODEBASE_GUIDE.md](/Users/mariusgaarder/Documents/treningscoach/CODEBASE_GUIDE.md) is in sync after the handoff doc was added.
+
+## Review — 2026-03-16 Live voice tracker SwiftUI publish warning
+
+- Fixed the `Publishing changes from within view updates is not allowed` warning in [LiveVoiceSessionTracker.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/LiveVoiceSessionTracker.swift) by removing the eager `synchronize()` publish from `init()` and deferring later `@Published` updates to the next main-loop turn.
+- Kept the existing runtime path intact: [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) and [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift) still use the same shared tracker, but tracker writes no longer fire synchronously during SwiftUI update passes.
+- Updated [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py) to lock the deferred publish helper so the tracker does not drift back to direct synchronous assignment in `synchronize()` or `recordSession()`.
+- Verification:
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py` -> `11 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

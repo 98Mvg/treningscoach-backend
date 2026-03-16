@@ -27,7 +27,7 @@ final class LiveVoiceSessionTracker: ObservableObject {
     private let dateKey  = "live_voice_daily_date"
 
     private init() {
-        synchronize()
+        sessionsUsedToday = currentStoredCount(resetIfNeeded: true)
     }
 
     // MARK: - Query
@@ -46,7 +46,7 @@ final class LiveVoiceSessionTracker: ObservableObject {
     }
 
     func synchronize() {
-        sessionsUsedToday = currentStoredCount(resetIfNeeded: true)
+        publishSessionsUsedToday(currentStoredCount(resetIfNeeded: true))
     }
 
     // MARK: - Mutation
@@ -56,7 +56,7 @@ final class LiveVoiceSessionTracker: ObservableObject {
         if isPremium { return }
         let updated = currentStoredCount(resetIfNeeded: true) + 1
         defaults.set(updated, forKey: countKey)
-        sessionsUsedToday = updated
+        publishSessionsUsedToday(updated)
     }
 
     // MARK: - Private Helpers
@@ -79,5 +79,14 @@ final class LiveVoiceSessionTracker: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    private func publishSessionsUsedToday(_ value: Int) {
+        guard sessionsUsedToday != value else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard self.sessionsUsedToday != value else { return }
+            self.sessionsUsedToday = value
+        }
     }
 }

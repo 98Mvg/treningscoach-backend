@@ -129,6 +129,9 @@ def test_live_voice_tracker_queries_are_side_effect_free_for_summary_reads() -> 
     assert "func synchronize()" in text
     assert "currentStoredCount(resetIfNeeded: false)" in text
     assert "sessionsUsedToday = currentStoredCount(resetIfNeeded: true)" in text
+    assert "publishSessionsUsedToday(currentStoredCount(resetIfNeeded: true))" in text
+    assert "publishSessionsUsedToday(updated)" in text
+    assert "DispatchQueue.main.async" in text
     assert "refreshDailyCount()" not in text
 
 

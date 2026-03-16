@@ -404,6 +404,29 @@ class AppViewModel: ObservableObject {
         }
     }
 
+    /// Called after a successful login for a user who already completed onboarding on a previous
+    /// install or device. Skips the full profile setup flow and lands the user in the main app.
+    /// Any existing backend profile data is re-synced in the background after the transition.
+    func completeOnboardingForReturningUser(displayName: String, languageCode: String) {
+        let defaults = UserDefaults.standard
+        if !displayName.isEmpty {
+            userName = displayName
+            defaults.set(displayName, forKey: "user_display_name")
+        }
+        if !languageCode.isEmpty {
+            self.languageCode = languageCode
+            defaults.set(languageCode, forKey: "app_language")
+        }
+        hasCompletedOnboarding = true
+        Task {
+            await syncProfileToBackend(reason: "returning_user_login")
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "onboarding_skipped_returning_user",
+                metadata: ["language": languageCode]
+            )
+        }
+    }
+
     func resetOnboarding() {
         let defaults = UserDefaults.standard
         let keysToClear = [

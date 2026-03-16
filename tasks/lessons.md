@@ -118,3 +118,4 @@ Updated: 2026-03-16
 - 2026-03-16: New onboarding monetization steps should reuse the existing `PaywallView` purchase path; keep the bridge screen explanatory and let the actual StoreKit handling stay in one place.
 - 2026-03-16: When handing work over between agents, create a repo-local sync note with pushed commit, runtime path, changed files, remaining local-only artifacts, and clear guardrails so the next agent does not need to reconstruct state from chat history.
 - 2026-03-16: Agent handoff notes are more useful when they separate remaining fix work, remaining polish work, and remaining manual launch work; otherwise the next agent cannot tell what is code vs ops vs QA.
+- 2026-03-16: Shared `ObservableObject` singletons used by SwiftUI screens must not publish synchronously from `init()` or other code paths that can run during first render; seed initial values without publish and defer later `@Published` updates to the next main-loop turn when needed.

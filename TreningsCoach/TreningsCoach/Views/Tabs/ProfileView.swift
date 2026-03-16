@@ -50,12 +50,12 @@ struct ProfileView: View {
                     .background(CoachiTheme.bg)
             }
             .navigationBarHidden(true)
+            .navigationDestination(isPresented: $showManageSubscription) {
+                ManageSubscriptionView()
+                    .environmentObject(subscriptionManager)
+            }
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
-        .navigationDestination(isPresented: $showManageSubscription) {
-            ManageSubscriptionView()
-                .environmentObject(subscriptionManager)
-        }
         .task {
             guard !hasCheckedForAppUpdate else { return }
             hasCheckedForAppUpdate = true
@@ -747,7 +747,7 @@ private struct ManageSubscriptionView: View {
             ManageSubscriptionFeatureRowData(
                 title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
                 freeValue: isNorwegian ? "3/dag" : "3/day",
-                premiumValue: isNorwegian ? "Lengre" : "Longer"
+                premiumValue: isNorwegian ? "Ubegrenset" : "Unlimited"
             ),
             ManageSubscriptionFeatureRowData(
                 title: isNorwegian ? "Økthistorikk" : "Workout history",

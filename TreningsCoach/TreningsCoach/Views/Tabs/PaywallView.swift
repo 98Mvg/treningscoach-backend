@@ -49,7 +49,7 @@ enum PaywallContext: Identifiable {
 
     var contextHint: String? {
         switch self {
-        case .liveVoice: return "Live voice coaching is a premium feature. Upgrade to talk to Rex after every workout."
+        case .liveVoice: return "You've used your 3 free live sessions for today. Upgrade to Premium for unlimited daily sessions with your coach."
         case .talkLimit: return "You've used your free coach question for this workout. Upgrade to keep the conversation going."
         case .general:   return nil
         }
@@ -57,7 +57,7 @@ enum PaywallContext: Identifiable {
 
     var contextHintNo: String? {
         switch self {
-        case .liveVoice: return "Live-samtale med coach er en premium-funksjon. Oppgrader for å snakke med Rex etter hver økt."
+        case .liveVoice: return "Du har brukt dine 3 gratis livesessions for i dag. Oppgrader for ubegrenset daglig coaching med coachen din."
         case .talkLimit: return "Du har brukt det gratis coach-spørsmålet ditt for denne økten. Oppgrader for å fortsette samtalen."
         case .general:   return nil
         }

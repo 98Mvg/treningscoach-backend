@@ -218,6 +218,7 @@ private struct OnboardingFormState {
 
 struct OnboardingContainerView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     @State private var currentStep: OnboardingStep = .welcome
@@ -270,7 +271,16 @@ struct OnboardingContainerView: View {
 
                 case .auth:
                     AuthView(mode: authMode) {
-                        move(to: .identity)
+                        if authMode == .login {
+                            // Returning user — skip profile setup and go straight to main app.
+                            let displayName = authManager.currentUser?.displayName ?? ""
+                            appViewModel.completeOnboardingForReturningUser(
+                                displayName: displayName,
+                                languageCode: L10n.current.rawValue
+                            )
+                        } else {
+                            move(to: .identity)
+                        }
                     } onContinueWithoutAccount: {
                         move(to: .identity)
                     }
