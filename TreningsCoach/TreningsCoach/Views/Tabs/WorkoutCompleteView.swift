@@ -33,6 +33,12 @@ struct WorkoutCompleteView: View {
         return 0
     }
 
+    private var coachScoreSummaryLine: String {
+        let line = viewModel.completedWorkoutSnapshot?.summaryContext.coachScoreSummaryLine
+            ?? viewModel.postWorkoutSummaryContext.coachScoreSummaryLine
+        return line
+    }
+
     private var workoutLabel: String {
         switch viewModel.selectedWorkoutMode {
         case .easyRun:
@@ -82,7 +88,7 @@ struct WorkoutCompleteView: View {
         return "I finished \(workoutLabel) with Coachi. \(metrics)"
     }
 
-    private var doneLabel: String { L10n.current == .no ? "TILBAKE TIL HJEM" : "BACK TO HOME" }
+    private var doneLabel: String { L10n.current == .no ? "HJEM" : "HOME" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
     private var shareChooserTitle: String { L10n.current == .no ? "Del økten" : "Share workout" }
     private var shareChooserSubtitle: String {
@@ -101,7 +107,7 @@ struct WorkoutCompleteView: View {
         return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
     }
     private var liveVoiceIsAvailable: Bool {
-        hasLiveVoiceAccountAccess && (hasPremiumAccess || liveVoiceTracker.sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay)
+        hasLiveVoiceAccountAccess && liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
     }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
@@ -158,8 +164,20 @@ struct WorkoutCompleteView: View {
                     .padding(.top, 26)
                     .opacity(contentVisible ? 1 : 0)
 
+                    if !coachScoreSummaryLine.isEmpty {
+                        Text(coachScoreSummaryLine)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.72))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 18)
+                            .opacity(contentVisible ? 1 : 0)
+                    }
+
                     summaryRow(metricFontSize: metricFontSize)
-                    .padding(.top, 34)
+                    .padding(.top, coachScoreSummaryLine.isEmpty ? 34 : 14)
                     .opacity(contentVisible ? 1 : 0)
                     .frame(maxWidth: .infinity)
 

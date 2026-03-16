@@ -749,8 +749,8 @@ private struct ManageSubscriptionView: View {
             ),
             ManageSubscriptionFeatureRowData(
                 title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
-                freeValue: isNorwegian ? "3/dag" : "3/day",
-                premiumValue: isNorwegian ? "Ubegrenset" : "Unlimited"
+                freeValue: isNorwegian ? "1/dag" : "1/day",
+                premiumValue: isNorwegian ? "3/dag" : "3/day"
             ),
             ManageSubscriptionFeatureRowData(
                 title: isNorwegian ? "Økthistorikk" : "Workout history",
@@ -1453,6 +1453,7 @@ private struct AudioAndVoicesView: View {
 
 private struct HistoryAndDataView: View {
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
     private var isNorwegian: Bool { L10n.current == .no }
     @State private var workouts: [WorkoutRecord] = []
     @State private var isLoading = false
@@ -1533,6 +1534,15 @@ private struct HistoryAndDataView: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
                 )
+
+                if !subscriptionManager.hasPremiumAccess && workouts.count >= 10 {
+                    Text(isNorwegian
+                        ? "Viser de siste 10 øktene. Oppgrader til Premium for full historikk."
+                        : "Showing last 10 workouts. Upgrade to Premium for full history.")
+                        .font(.system(size: 12))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .padding(.top, 4)
+                }
             }
         }
     }
@@ -1541,7 +1551,8 @@ private struct HistoryAndDataView: View {
         guard authManager.hasUsableSession() else { return }
         isLoading = true
         defer { isLoading = false }
-        workouts = (try? await BackendAPIService.shared.getWorkoutHistory(limit: 20)) ?? []
+        let limit = subscriptionManager.hasPremiumAccess ? 50 : 10
+        workouts = (try? await BackendAPIService.shared.getWorkoutHistory(limit: limit)) ?? []
     }
 }
 
@@ -1597,7 +1608,7 @@ private struct WorkoutSessionDetailView: View {
     private var liveVoiceIsAvailable: Bool {
         AppConfig.LiveVoice.isEnabled &&
         hasLiveVoiceAccountAccess &&
-        (hasPremiumAccess || liveVoiceTracker.sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay)
+        liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
     }
     private var remainingLiveSessions: Int? {
         guard hasLiveVoiceAccountAccess else { return nil }
@@ -1625,6 +1636,12 @@ private struct WorkoutSessionDetailView: View {
         authManager.currentUser?.displayName ?? ""
     }
     private var summaryContext: PostWorkoutSummaryContext {
+        // Prefer the rich persisted context if it belongs to this workout (same duration ± 2s).
+        if let saved = WorkoutViewModel.loadLastWorkoutSummaryContext(),
+           abs(saved.elapsedS ?? 0 - record.durationSeconds) <= 2 {
+            return saved
+        }
+        // Fallback: construct from WorkoutRecord fields (HR and zone% not available).
         let label = isNorwegian ? "\(record.durationFormatted) økt" : "\(record.durationFormatted) workout"
         return PostWorkoutSummaryContext(
             workoutMode: record.finalPhase,
