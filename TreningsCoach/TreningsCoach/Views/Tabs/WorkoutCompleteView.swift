@@ -21,10 +21,12 @@ struct WorkoutCompleteView: View {
     @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
     @State private var showLiveCoachVoice = false
     @State private var showLiveVoicePaywall = false
+    @State private var showWorkoutSummary = false
     @State private var showShareOptions = false
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
     @State private var copiedLink = false
+    @State private var xpBadgeVisible = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -62,14 +64,10 @@ struct WorkoutCompleteView: View {
         summaryProgressAward?.xpAwarded ?? 0
     }
 
-    private var summaryLevelLabel: String {
-        if let awardedLevel = summaryProgressAward?.stateAfterAward.level {
-            if L10n.current == .no {
-                return "Nivå \(awardedLevel)"
-            }
-            return "Level \(awardedLevel)"
-        }
-        return appViewModel.coachiLevelLabel
+    private var summaryLevelLabel: String { "" }
+
+    private var xpToNextLevel: Int? {
+        summaryProgressAward?.stateAfterAward.xpToNextLevel
     }
 
     private var summaryXPProgress: Double {
@@ -96,7 +94,7 @@ struct WorkoutCompleteView: View {
             ? "Velg hvor du vil dele kortet ditt."
             : "Choose where you want to share your card."
     }
-    private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }
+    private var liveCoachVoiceLabel: String { L10n.current == .no ? "Treningsoversikt" : "Workout Summary" }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }
     private var hasLiveVoiceAccountAccess: Bool {
@@ -198,6 +196,45 @@ struct WorkoutCompleteView: View {
                 .padding(.horizontal, 12)
             }
         }
+        .sheet(isPresented: $showWorkoutSummary) {
+            WorkoutSummarySheet(
+                xpGained: xpAwardForSummary,
+                xpToNextLevel: xpToNextLevel,
+                heartRateText: finalBPMText,
+                durationText: finalDurationText,
+                zoneTimePct: viewModel.postWorkoutSummaryContext.zoneTimeInTargetPct,
+                coachScore: targetScore,
+                liveVoiceIsAvailable: liveVoiceIsAvailable,
+                liveVoiceStatusText: liveVoiceStatusText,
+                isNorwegian: L10n.current == .no,
+                onStartCoaching: {
+                    showWorkoutSummary = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        if liveVoiceIsAvailable {
+                            showLiveCoachVoice = true
+                        } else {
+                            showLiveVoicePaywall = true
+                        }
+                    }
+                },
+                onHome: {
+                    showWorkoutSummary = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        withAnimation(AppConfig.Anim.transitionSpring) {
+                            viewModel.resetWorkout()
+                        }
+                    }
+                },
+                onShare: {
+                    showWorkoutSummary = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showShareOptions = true
+                    }
+                }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showLiveCoachVoice) {
             LiveCoachConversationView(
                 summaryContext: viewModel.postWorkoutSummaryContext,
@@ -249,6 +286,19 @@ struct WorkoutCompleteView: View {
             withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
                 contentVisible = true
             }
+            if xpAwardForSummary > 0 {
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.62).delay(0.55)) {
+                    xpBadgeVisible = true
+                }
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_400_000_000)
+                    await MainActor.run {
+                        withAnimation(.easeOut(duration: 0.4)) {
+                            xpBadgeVisible = false
+                        }
+                    }
+                }
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -279,12 +329,7 @@ struct WorkoutCompleteView: View {
                         metadata: metadata
                     )
                 }
-
-                if liveVoiceIsAvailable {
-                    showLiveCoachVoice = true
-                } else {
-                    showLiveVoicePaywall = true
-                }
+                showWorkoutSummary = true
             } label: {
                 Text(liveCoachVoiceLabel)
                     .font(.system(size: 15, weight: .medium))
@@ -358,6 +403,15 @@ struct WorkoutCompleteView: View {
                 xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction
             )
             .shadow(color: Color.white.opacity(0.12), radius: 16, y: 2)
+
+            if xpAwardForSummary > 0 {
+                Text("+\(xpAwardForSummary) XP")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(Color(hex: "A5F3EC"))
+                    .shadow(color: Color(hex: "A5F3EC").opacity(0.55), radius: 8, y: 0)
+                    .offset(y: xpBadgeVisible ? -(ringSize / 2 + 20) : -(ringSize / 2 + 10))
+                    .opacity(xpBadgeVisible ? 1 : 0)
+            }
         }
     }
 
@@ -538,6 +592,218 @@ struct WorkoutCompleteView: View {
         )
         renderer.scale = 1
         return renderer.uiImage
+    }
+}
+
+// MARK: - Workout Summary Sheet
+
+private struct WorkoutSummarySheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let xpGained: Int
+    let xpToNextLevel: Int?
+    let heartRateText: String
+    let durationText: String
+    let zoneTimePct: Double?
+    let coachScore: Int
+    let liveVoiceIsAvailable: Bool
+    let liveVoiceStatusText: String
+    let isNorwegian: Bool
+    let onStartCoaching: () -> Void
+    let onHome: () -> Void
+    let onShare: () -> Void
+
+    private var hasHeartRate: Bool {
+        !heartRateText.isEmpty && heartRateText != "0 BPM" && heartRateText != "—"
+    }
+
+    private var zoneTimeFormatted: String? {
+        guard let pct = zoneTimePct else { return nil }
+        let clamped = max(0.0, min(pct <= 1.0 ? pct * 100.0 : pct, 100.0))
+        return "\(Int(clamped))%"
+    }
+
+    // Build ordered list of (title, value) cells — only available data
+    private var statCells: [(title: String, value: String)] {
+        var cells: [(String, String)] = []
+
+        if xpGained > 0 {
+            cells.append((isNorwegian ? "XP opptjent" : "XP Gained", "+\(xpGained)"))
+        }
+        if let toNext = xpToNextLevel, toNext > 0 {
+            cells.append((isNorwegian ? "XP til neste nivå" : "XP to Next Level", "\(toNext)"))
+        }
+        if hasHeartRate {
+            cells.append((isNorwegian ? "Puls" : "Heart Rate", heartRateText))
+        }
+        cells.append((isNorwegian ? "Varighet" : "Duration", durationText))
+        if let zone = zoneTimeFormatted {
+            cells.append((isNorwegian ? "Tid i sone" : "Time in Zone", zone))
+        }
+        if coachScore > 0 {
+            cells.append(("Coachi Score", "\(coachScore)"))
+        }
+        return cells
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 24) {
+                // Title
+                Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .padding(.top, 8)
+
+                // Adaptive stats grid
+                if !statCells.isEmpty {
+                    statsGrid
+                }
+
+                if AppConfig.LiveVoice.isEnabled {
+                    Divider()
+                        .background(CoachiTheme.borderSubtle.opacity(0.4))
+
+                    liveCoachSection
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+    }
+
+    private var statsGrid: some View {
+        let rows = stride(from: 0, to: statCells.count, by: 2).map { i -> [(String, String)] in
+            if i + 1 < statCells.count {
+                return [statCells[i], statCells[i + 1]]
+            } else {
+                return [statCells[i]]
+            }
+        }
+        return VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { rowIdx, row in
+                if rowIdx > 0 { Divider() }
+                HStack(spacing: 0) {
+                    statCell(title: row[0].title, value: row[0].value)
+                    if row.count > 1 {
+                        Divider().frame(width: 1)
+                        statCell(title: row[1].title, value: row[1].value)
+                    }
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(CoachiTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+        )
+    }
+
+    private func statCell(title: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+
+    private var liveCoachSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                Text(isNorwegian
+                    ? "Still spørsmål om denne økten"
+                    : "Ask questions about this workout")
+                    .font(.system(size: 14))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            Button {
+                onStartCoaching()
+            } label: {
+                Text(isNorwegian ? "Start coaching" : "Start Coaching")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(liveVoiceIsAvailable
+                                ? CoachiTheme.accent
+                                : CoachiTheme.surfaceElevated)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary.opacity(0.4))
+                    .frame(width: 6, height: 6)
+                Text(liveVoiceStatusText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            HStack(spacing: 14) {
+                Button {
+                    onHome()
+                } label: {
+                    Text(isNorwegian ? "HJEM" : "HOME")
+                        .font(.system(size: 15, weight: .medium))
+                        .tracking(0.6)
+                        .foregroundColor(Color.white.opacity(0.9))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "9FB08C").opacity(0.96), Color(hex: "8CA078").opacity(0.96)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onShare()
+                } label: {
+                    Text(isNorwegian ? "DEL" : "SHARE")
+                        .font(.system(size: 15, weight: .medium))
+                        .tracking(0.6)
+                        .foregroundColor(Color.white.opacity(0.92))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            Capsule(style: .continuous)
+                                .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(Color.black.opacity(0.08))
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 4)
+        }
     }
 }
 
