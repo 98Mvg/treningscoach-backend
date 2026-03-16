@@ -1823,29 +1823,45 @@ class WorkoutViewModel: ObservableObject {
         coachiProgressAward: CoachiProgressAward?
     ) {
         let durationText = formattedElapsedTime(seconds: durationSeconds)
+        let context = PostWorkoutSummaryContext(
+            workoutMode: selectedWorkoutMode.rawValue,
+            workoutLabel: postWorkoutLabel,
+            durationText: durationText,
+            finalHeartRateText: finalHeartRateText,
+            coachScore: max(0, min(100, coachScore)),
+            coachScoreSummaryLine: coachScoreSummaryLine,
+            zoneTimeInTargetPct: zoneTimeInTargetPct,
+            zoneOvershoots: zoneOvershoots,
+            phase: workoutContextSummary?.phase,
+            elapsedS: workoutContextSummary?.elapsedS ?? durationSeconds,
+            timeLeftS: workoutContextSummary?.timeLeftS,
+            repIndex: workoutContextSummary?.repIndex,
+            repsTotal: workoutContextSummary?.repsTotal,
+            repRemainingS: workoutContextSummary?.repRemainingS,
+            repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
+            elapsedSource: workoutContextSummary?.elapsedSource
+        )
         completedWorkoutSnapshot = WorkoutCompletionSnapshot(
             durationText: durationText,
             finalHeartRateText: finalHeartRateText,
-            summaryContext: PostWorkoutSummaryContext(
-                workoutMode: selectedWorkoutMode.rawValue,
-                workoutLabel: postWorkoutLabel,
-                durationText: durationText,
-                finalHeartRateText: finalHeartRateText,
-                coachScore: max(0, min(100, coachScore)),
-                coachScoreSummaryLine: coachScoreSummaryLine,
-                zoneTimeInTargetPct: zoneTimeInTargetPct,
-                zoneOvershoots: zoneOvershoots,
-                phase: workoutContextSummary?.phase,
-                elapsedS: workoutContextSummary?.elapsedS ?? durationSeconds,
-                timeLeftS: workoutContextSummary?.timeLeftS,
-                repIndex: workoutContextSummary?.repIndex,
-                repsTotal: workoutContextSummary?.repsTotal,
-                repRemainingS: workoutContextSummary?.repRemainingS,
-                repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
-                elapsedSource: workoutContextSummary?.elapsedSource
-            ),
+            summaryContext: context,
             coachiProgressAward: coachiProgressAward
         )
+        persistLastWorkoutSummaryContext(context)
+    }
+
+    private static let lastWorkoutSummaryContextKey = "last_workout_summary_context"
+
+    private func persistLastWorkoutSummaryContext(_ context: PostWorkoutSummaryContext) {
+        guard let data = try? JSONEncoder().encode(context) else { return }
+        UserDefaults.standard.set(data, forKey: Self.lastWorkoutSummaryContextKey)
+    }
+
+    static func loadLastWorkoutSummaryContext() -> PostWorkoutSummaryContext? {
+        guard let data = UserDefaults.standard.data(forKey: lastWorkoutSummaryContextKey),
+              let context = try? JSONDecoder().decode(PostWorkoutSummaryContext.self, from: data)
+        else { return nil }
+        return context
     }
 
     private func eventPriority(for eventType: String) -> Int {

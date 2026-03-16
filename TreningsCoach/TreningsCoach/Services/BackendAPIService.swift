@@ -780,12 +780,14 @@ class BackendAPIService {
             } else {
                 date = Date()
             }
+            let coachScore: Int? = dict["coach_score"] as? Int
             return WorkoutRecord(
                 date: date,
                 durationSeconds: durationSeconds,
                 finalPhase: dict["final_phase"] as? String ?? "cooldown",
                 avgIntensity: dict["avg_intensity"] as? String ?? "moderate",
-                personaUsed: dict["persona_used"] as? String ?? "personal_trainer"
+                personaUsed: dict["persona_used"] as? String ?? "personal_trainer",
+                coachScore: coachScore
             )
         }
     }
