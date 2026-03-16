@@ -170,9 +170,10 @@ A cell is shown only if its data is non-nil and meaningful. Missing cells are si
 - Rows with zero available cells are omitted entirely
 - Minimum always rendered: Duration + Coachi Score (at least 1 row guaranteed)
 
-### Big "Start Coaching" button
-Same as `WorkoutSummarySheet`: full width, `CoachiTheme.accent`, 56pt tall.
-Subtitle: `"Ask questions about this workout"` / `"Still spørsmål om denne økten"`
+### No coach CTA
+`WorkoutSessionDetailView` contains **no** "Talk to Coach Live" button and no "Start Coaching" button.
+The existing `liveCoachSection` block is removed entirely from this view.
+History is a read-only summary. Live coach is only accessible from the fresh post-workout sheet.
 
 ---
 
