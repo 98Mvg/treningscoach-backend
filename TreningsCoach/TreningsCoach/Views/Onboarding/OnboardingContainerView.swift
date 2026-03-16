@@ -382,7 +382,7 @@ struct OnboardingContainerView: View {
                         watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .summary) },
                         onContinue: { watchConnected in
-                            if watchConnected && !subscriptionManager.hasPremiumAccess {
+                            if !subscriptionManager.hasPremiumAccess {
                                 notificationBackStep = .watchConnectedOffer
                                 move(to: .watchConnectedOffer)
                             } else {

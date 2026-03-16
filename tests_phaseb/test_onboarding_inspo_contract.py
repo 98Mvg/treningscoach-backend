@@ -106,7 +106,7 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "onContinue: { move(to: .sensorConnect) }" in text
     assert "onBack: { move(to: summaryBackStep) }" in text
     assert "onContinue: { watchConnected in" in text
-    assert "if watchConnected && !subscriptionManager.hasPremiumAccess {" in text
+    assert "if !subscriptionManager.hasPremiumAccess {" in text
     assert "notificationBackStep = .watchConnectedOffer" in text
     assert "move(to: .watchConnectedOffer)" in text
     assert "notificationBackStep = .sensorConnect" in text

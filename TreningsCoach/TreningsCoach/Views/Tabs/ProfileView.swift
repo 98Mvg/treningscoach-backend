@@ -652,7 +652,7 @@ private struct ManageSubscriptionView: View {
 
     private var subscriptionStatusCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isNorwegian ? "Dine inkluderte elementer" : "Your included items")
+            Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
 
@@ -676,6 +676,8 @@ private struct ManageSubscriptionView: View {
                     tint: Color(hex: "5B4FD1")
                 )
             }
+
+            currentPlanSummary
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
@@ -760,6 +762,28 @@ private struct ManageSubscriptionView: View {
                 premiumValue: "✓"
             ),
         ]
+    }
+
+    private var currentPlanSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(isNorwegian ? "Min plan" : "My plan")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            Text(localizedPlanStatus)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(
+                hasPremiumAccess
+                    ? (isNorwegian ? "Abonnementet ditt administreres i App Store." : "Your subscription is managed in the App Store.")
+                    : (isNorwegian ? "Du kan oppgradere når du vil og sammenligne Gratis og Premium nedenfor." : "You can upgrade any time and compare Free and Premium below.")
+            )
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(CoachiTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
     }
 
     private func planBadge(title: String, isCurrent: Bool, tint: Color) -> some View {

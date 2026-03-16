@@ -244,3 +244,12 @@ Updated: 2026-03-16
 - Verification:
   - `pytest -q tests_phaseb/test_live_voice_mode_contract.py` -> `11 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 onboarding premium bridge and profile subscription polish
+
+- Synced [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py) to the intended onboarding behavior: all non-premium users now see the Premium bridge in onboarding, not only users with a confirmed watch-connected flag.
+- Refined [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) so the screen shows a clearer `My plan / Min plan` summary using the existing subscription-manager state, while keeping the included-items Free vs Premium comparison on the same page.
+- Moved the primary CTA stack in [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) into a bottom safe-area section so `Continue / Start free trial` stays anchored at the bottom of the screen instead of living inside the scroll content.
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py` -> `20 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

@@ -20,6 +20,8 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     assert '"Choose subscription"' in content
     assert '"Yearly plan"' in content
     assert '"Monthly plan"' in content
+    assert ".safeAreaInset(edge: .bottom)" in content
+    assert "bottomActionSection" in content
     assert "subscriptionManager.restorePurchases()" in content
     assert '"https://coachi.no/terms"' in content
     assert '"https://coachi.no/privacy"' in content
@@ -30,8 +32,10 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert "ManageSubscriptionView()" in content
     assert "showManageSubscription = true" in content
     assert "title: L10n.manageSubscription" in content
-    assert 'Text(isNorwegian ? "Dine inkluderte elementer" : "Your included items")' in content
+    assert 'Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")' in content
     assert 'Text(isNorwegian ? "Inkludert i abonnementet" : "Included in your plan")' in content
+    assert 'Text(isNorwegian ? "Min plan" : "My plan")' in content
+    assert "Text(localizedPlanStatus)" in content
     assert 'title: isNorwegian ? "Guidede økter" : "Guided workouts"' in content
     assert 'title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live"' in content
     assert 'title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights"' in content

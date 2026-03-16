@@ -121,17 +121,16 @@ struct PaywallView: View {
 
                     planCard(option: .monthly)
                     planCard(option: .yearly)
-
-                    callToActionButton
-                    restoreButton
-                    termsAndPrivacyFooter
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 14)
-                .padding(.bottom, 40)
+                .padding(.bottom, 220)
             }
             .background(Color(hex: "F7F7FB").ignoresSafeArea())
             .navigationBarHidden(true)
+            .safeAreaInset(edge: .bottom) {
+                bottomActionSection
+            }
         }
         .interactiveDismissDisabled(subscriptionManager.isLoading)
         .onAppear {
@@ -322,6 +321,23 @@ struct PaywallView: View {
         }
         .font(.system(size: 14, weight: .semibold))
         .foregroundColor(CoachiTheme.textPrimary)
+    }
+
+    private var bottomActionSection: some View {
+        VStack(spacing: 14) {
+            callToActionButton
+            restoreButton
+            termsAndPrivacyFooter
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 18)
+        .padding(.bottom, 16)
+        .background(
+            Rectangle()
+                .fill(Color(hex: "F7F7FB").opacity(0.96))
+                .ignoresSafeArea(edges: .bottom)
+                .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
+        )
     }
 
     private var selectedProduct: Product? {
