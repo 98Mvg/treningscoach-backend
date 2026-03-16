@@ -288,6 +288,8 @@ struct AppConfig {
         static let hrStaleThresholdSeconds: TimeInterval = 8.0
         static let hrPoorSpikeDeltaBPM: Int = 20
         static let hrPoorSpikeWindowSeconds: TimeInterval = 2.0
+        static let hkStartupSnapshotMaxAgeSeconds: TimeInterval = 15.0
+        static let watchHRStartupGraceSeconds: TimeInterval = 45.0
     }
 
     // MARK: - Motion Signals

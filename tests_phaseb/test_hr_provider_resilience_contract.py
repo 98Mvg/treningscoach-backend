@@ -18,6 +18,19 @@ HR_ARBITER = (
     / "HeartRate"
     / "HeartRateArbiter.swift"
 )
+WORKOUT_VM = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "ViewModels"
+    / "WorkoutViewModel.swift"
+)
+CONFIG = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Config.swift"
+)
 
 
 def test_ble_provider_has_scan_timeout_and_backoff_guards() -> None:
@@ -46,3 +59,12 @@ def test_arbiter_exposes_deterministic_time_hook_for_edge_case_testing() -> None
     assert "func evaluateForTesting(at now: Date)" in text
     assert "private func evaluate(reason: String, now overrideNow: Date? = nil)" in text
     assert "let now = overrideNow ?? nowProvider()" in text
+
+
+def test_workout_view_model_filters_old_hk_startup_snapshots() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    config_text = CONFIG.read_text(encoding="utf-8")
+    assert "static let hkStartupSnapshotMaxAgeSeconds: TimeInterval = 15.0" in config_text
+    assert "HK_STARTUP_SNAPSHOT_ACCEPTED" in text
+    assert "HK_STARTUP_SNAPSHOT_IGNORED" in text
+    assert "if age <= AppConfig.Health.hkStartupSnapshotMaxAgeSeconds {" in text

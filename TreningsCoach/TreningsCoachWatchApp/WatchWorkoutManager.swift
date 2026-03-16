@@ -12,6 +12,10 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
     private var sessionPlanSnapshot: WatchSessionPlanSnapshot?
     private var sessionStartDate: Date?
     private var didSendStopForCurrentSession = false
+    private var lastQueuedHRTransferAt: Date?
+    private var lastQueuedHRBPM: Int?
+    private let queuedHRTransferIntervalSeconds: TimeInterval = 2.0
+    private let queuedHRTransferMinDeltaBPM: Int = 2
 
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var currentHR: Double?
@@ -39,6 +43,8 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         self.sessionPlanSnapshot = sessionPlan
         self.sessionStartDate = nil
         didSendStopForCurrentSession = false
+        lastQueuedHRTransferAt = nil
+        lastQueuedHRBPM = nil
         let normalized = WCKeys.WorkoutType.normalized(workoutType)
         let activityType: HKWorkoutActivityType = normalized == WCKeys.WorkoutType.intervals
             ? .highIntensityIntervalTraining
@@ -54,6 +60,8 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
 
     func stopWorkout(sendRemoteSignal: Bool = true) {
         workoutSession?.end()
+        lastQueuedHRTransferAt = nil
+        lastQueuedHRBPM = nil
         if sendRemoteSignal {
             sendWorkoutStoppedSignal()
         }
@@ -186,6 +194,8 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
             self.isRunning = toState == .running
             if toState == .ended {
                 self.sessionStartDate = nil
+                self.lastQueuedHRTransferAt = nil
+                self.lastQueuedHRBPM = nil
                 self.sendWorkoutStoppedSignal()
             }
         }
@@ -211,24 +221,39 @@ extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
         let bpm = quantity.doubleValue(for: HKUnit.count().unitDivided(by: HKUnit.minute()))
         Task { @MainActor in
             self.currentHR = bpm
-        }
+            let roundedBPM = Int(round(bpm))
+            let sampleDate = Date()
+            let payload: [String: Any] = [
+                WCKeys.heartRate: bpm,
+                WCKeys.timestamp: sampleDate.timeIntervalSince1970,
+            ]
 
-        let payload: [String: Any] = [
-            WCKeys.heartRate: bpm,
-            WCKeys.timestamp: Date().timeIntervalSince1970,
-        ]
-
-        if WCSession.default.isReachable {
-            WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
-        } else {
-            // Fallback: deliver latest HR via applicationContext when not reachable.
-            // Phone receives this in didReceiveApplicationContext → handleIncomingPayload.
-            // applicationContext keeps only the latest value (no queue buildup).
-            try? WCSession.default.updateApplicationContext(payload)
+            if WCSession.default.isReachable {
+                print("WATCH_HR_SEND transport=message bpm=\(roundedBPM)")
+                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            } else if self.shouldQueueFallbackHeartRatePayload(bpm: roundedBPM, at: sampleDate) {
+                print("WATCH_HR_SEND transport=userInfo bpm=\(roundedBPM)")
+                WCSession.default.transferUserInfo(payload)
+                self.lastQueuedHRTransferAt = sampleDate
+                self.lastQueuedHRBPM = roundedBPM
+            }
         }
     }
 
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
         _ = workoutBuilder
+    }
+
+    private func shouldQueueFallbackHeartRatePayload(bpm: Int, at sampleDate: Date) -> Bool {
+        guard bpm > 0 else { return false }
+        guard let lastQueuedHRTransferAt else { return true }
+
+        let elapsed = sampleDate.timeIntervalSince(lastQueuedHRTransferAt)
+        if elapsed >= queuedHRTransferIntervalSeconds {
+            return true
+        }
+
+        guard let lastQueuedHRBPM else { return true }
+        return abs(bpm - lastQueuedHRBPM) >= queuedHRTransferMinDeltaBPM
     }
 }

@@ -308,3 +308,25 @@ Updated: 2026-03-16
   - the duration-only XP product rule
   - guardrails for future edits
 - This is intentionally separate from the mixed legal/support note so Claude can find the summary logic quickly without reconstructing it from chat history.
+
+## Review — 2026-03-17 Apple Watch HR stabilization
+
+- Stabilized the single existing watch HR runtime path instead of introducing a parallel transport architecture:
+  - [PhoneWCManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/PhoneWCManager.swift) now accepts queued HR fallback payloads through `didReceiveUserInfo`, routes them through the same ingress path as `sendMessage`, and retries one deferred start request when reachability recovers.
+  - [WatchWorkoutManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/WatchWorkoutManager.swift) now uses `transferUserInfo` as the unreachable HR fallback transport with a 2-second throttle and BPM-delta gating instead of abusing `updateApplicationContext` for live HR.
+  - [HeartRateArbiter.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/HeartRate/HeartRateArbiter.swift) now treats watch `.degraded` / `.connecting` as watch-attached while keeping live-HR truth tied to fresh samples.
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) now filters stale HK startup snapshots, starts a 45-second `watch_starting` grace window for watch-backed workouts, clears that grace on first fresh watch HR sample, and sends `watch_starting` to backend ticks until live watch HR arrives or the grace expires.
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) now suppresses `hr_structure_mode_notice`, `watch_disconnected_notice`, and `no_sensors_notice` during the explicit watch startup grace period, while leaving normal deterministic notice behavior unchanged after grace expiry.
+- Added troubleshooting-grade telemetry for transport path, startup grace lifecycle, HK snapshot acceptance/ignore decisions, and deferred watch-start retry.
+- Synced/expanded the watch HR contracts in:
+  - [test_watch_connectivity_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_watch_connectivity_contract.py)
+  - [test_watch_request_id_correlation_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_watch_request_id_correlation_contract.py)
+  - [test_hr_arbiter_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_hr_arbiter_contract.py)
+  - [test_hr_provider_resilience_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_hr_provider_resilience_contract.py)
+  - [test_watch_hr_source_arbitration_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_watch_hr_source_arbitration_contract.py)
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_watch_connectivity_contract.py tests_phaseb/test_watch_request_id_correlation_contract.py tests_phaseb/test_hr_arbiter_contract.py tests_phaseb/test_hr_provider_resilience_contract.py tests_phaseb/test_watch_hr_source_arbitration_contract.py tests_phaseb/test_zone_event_motor.py` -> `56 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+  - `python3 -m py_compile zone_event_motor.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`

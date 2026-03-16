@@ -120,6 +120,36 @@ final class PhoneWCManager: NSObject, ObservableObject {
         }
     }
 
+    func retryDeferredStartRequest(
+        workoutType: String,
+        timestamp: TimeInterval,
+        requestID: String,
+        context: [String: Any] = [:]
+    ) -> Bool {
+        guard WCSession.isSupported() else { return false }
+
+        let session = WCSession.default
+        refreshState(from: session)
+
+        guard watchCapabilityState == .watchReady else { return false }
+
+        var payload: [String: Any] = [
+            WCKeys.cmd: WCKeys.Command.requestStartWorkout,
+            WCKeys.requestId: requestID,
+            WCKeys.workoutType: WCKeys.WorkoutType.normalized(workoutType),
+            WCKeys.timestamp: timestamp,
+        ]
+        context.forEach { payload[$0.key] = $0.value }
+
+        print("WATCH_START_RETRY_TRANSPORT request_id=\(requestID) transport=message")
+        session.sendMessage(payload, replyHandler: nil) { error in
+            Task { @MainActor in
+                print("WATCH_START_RETRY_FAILED request_id=\(requestID) error=\(error.localizedDescription)")
+            }
+        }
+        return true
+    }
+
     func launchWatchAppForWorkout(workoutType: String) async -> WatchLaunchOutcome {
         refreshState(from: .default)
 
@@ -198,17 +228,20 @@ final class PhoneWCManager: NSObject, ObservableObject {
         return Date().timeIntervalSince1970
     }
 
-    private func handleIncomingPayload(_ payload: [String: Any]) {
+    private func handleIncomingPayload(_ payload: [String: Any], transport: String) {
         if let hr = payload[WCKeys.heartRate] as? Double {
+            print("WATCH_HR_RECEIVED transport=\(transport) bpm=\(Int(round(hr)))")
             onHeartRate?(hr, parseTimestamp(payload[WCKeys.timestamp]))
             return
         }
         if let hrInt = payload[WCKeys.heartRate] as? Int {
+            print("WATCH_HR_RECEIVED transport=\(transport) bpm=\(hrInt)")
             onHeartRate?(Double(hrInt), parseTimestamp(payload[WCKeys.timestamp]))
             return
         }
 
         guard let cmd = payload[WCKeys.cmd] as? String else { return }
+        print("WATCH_CMD_RECEIVED transport=\(transport) cmd=\(cmd)")
         let timestamp = parseTimestamp(payload[WCKeys.timestamp])
         let requestID = (payload[WCKeys.requestId] as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -231,13 +264,19 @@ final class PhoneWCManager: NSObject, ObservableObject {
 extension PhoneWCManager: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         Task { @MainActor in
-            self.handleIncomingPayload(message)
+            self.handleIncomingPayload(message, transport: "message")
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         Task { @MainActor in
-            self.handleIncomingPayload(applicationContext)
+            self.handleIncomingPayload(applicationContext, transport: "applicationContext")
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
+        Task { @MainActor in
+            self.handleIncomingPayload(userInfo, transport: "userInfo")
         }
     }
 

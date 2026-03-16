@@ -55,3 +55,13 @@ def test_workout_view_model_marshals_hr_pipeline_updates_to_main_actor() -> None
     assert "bleHeartRateProvider.onStatus = { [weak self] status in\n            Task { @MainActor [weak self] in" in text
     assert "hkFallbackProvider.onStatus = { [weak self] status in\n            Task { @MainActor [weak self] in" in text
     assert "heartRateArbiter.onOutput = { [weak self] output in\n            Task { @MainActor [weak self] in" in text
+
+
+def test_watch_hr_startup_grace_is_explicit_and_clears_on_first_live_sample() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private var watchHRStartupGraceDeadline: Date?" in text
+    assert "private func beginWatchHRStartupGrace(reason: String)" in text
+    assert "private func clearWatchHRStartupGrace(reason: String)" in text
+    assert "private func resolvedWatchStatusForBackend(now: Date = Date()) -> String" in text
+    assert 'return "watch_starting"' in text
+    assert 'clearWatchHRStartupGrace(reason: "first_live_watch_hr")' in text

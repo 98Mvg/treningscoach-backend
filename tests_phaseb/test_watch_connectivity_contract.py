@@ -44,6 +44,9 @@ def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     assert "enum StartRequestOutcome" in text
     assert "session.sendMessage(payload" in text
     assert "session.updateApplicationContext(payload)" in text
+    assert "func retryDeferredStartRequest(" in text
+    assert "WATCH_START_RETRY_TRANSPORT" in text
+    assert "didReceiveUserInfo" in text
     assert ".liveRequestSent" in text
     assert ".deferredAwaitingReachability" in text
     assert "WCKeys.requestId: requestID" in text
@@ -123,3 +126,6 @@ def test_watch_workout_ack_and_failure_semantics() -> None:
     assert "WCKeys.Command.workoutStartFailed" in text
     assert "WCKeys.Command.workoutStopped" in text
     assert "WCKeys.requestId: requestID ?? \"\"" in text
+    assert "WCSession.default.transferUserInfo(payload)" in text
+    assert "private func shouldQueueFallbackHeartRatePayload(bpm: Int, at sampleDate: Date) -> Bool" in text
+    assert "private let queuedHRTransferIntervalSeconds: TimeInterval = 2.0" in text

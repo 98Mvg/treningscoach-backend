@@ -51,6 +51,8 @@ def test_view_model_accepts_watch_start_ack_only_for_matching_pending_request_id
     text = WORKOUT_VM.read_text(encoding="utf-8")
     assert "private var pendingWatchRequestId: String?" in text
     assert "private var activeWatchRequestId: String?" in text
+    assert "private var isPendingWatchStartDeferred = false" in text
+    assert "private var didRetryPendingWatchStartAfterReachability = false" in text
     assert "guard requestID == pendingWatchRequestId else { return }" in text
     assert "guard let pendingTimestamp = pendingWatchRequestTimestamp" not in text
 
@@ -61,3 +63,12 @@ def test_phone_owned_fallback_sessions_ignore_late_watch_stop_events() -> None:
     assert "isWatchBackedContinuousSession = true" in text
     assert "guard isWatchBackedContinuousSession," in text
     assert "requestID == activeWatchRequestId else { return }" in text
+
+
+def test_deferred_watch_start_retries_same_request_once_when_reachability_returns() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private func retryDeferredWatchStartIfNeeded(trigger: String)" in text
+    assert "guard isPendingWatchStartDeferred else { return }" in text
+    assert "guard !didRetryPendingWatchStartAfterReachability else { return }" in text
+    assert "phoneWCManager.retryDeferredStartRequest(" in text
+    assert "WATCH_START_RETRY request_id=" in text

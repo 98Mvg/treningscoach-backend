@@ -738,6 +738,7 @@ class WorkoutViewModel: ObservableObject {
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         isWatchBackedContinuousSession = false
+        clearWatchHRStartupGrace(reason: "new_workout")
         watchStartStatusLine = nil
         coachingStatusLine = nil
         workoutState = .idle
@@ -836,6 +837,7 @@ class WorkoutViewModel: ObservableObject {
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         isWatchBackedContinuousSession = false
+        clearWatchHRStartupGrace(reason: "reset_workout")
         watchStartStatusLine = nil
         coachingStatusLine = nil
         workoutState = .idle
@@ -1216,6 +1218,9 @@ class WorkoutViewModel: ObservableObject {
     private var pendingWatchRequestId: String?
     private var activeWatchRequestId: String?
     private var isWatchBackedContinuousSession = false
+    private var isPendingWatchStartDeferred = false
+    private var didRetryPendingWatchStartAfterReachability = false
+    private var watchHRStartupGraceDeadline: Date?
     private var guestBackendSuppressed = false
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
@@ -2259,6 +2264,7 @@ class WorkoutViewModel: ObservableObject {
                 paired: self.phoneWCManager.isPaired,
                 installed: self.phoneWCManager.isWatchAppInstalled
             )
+            self.retryDeferredWatchStartIfNeeded(trigger: "reachability_change")
         }
         phoneWCManager.onSessionStateChanged = { [weak self] capabilityState in
             guard let self else { return }
@@ -2269,6 +2275,7 @@ class WorkoutViewModel: ObservableObject {
                 paired: self.phoneWCManager.isPaired,
                 installed: self.phoneWCManager.isWatchAppInstalled
             )
+            self.retryDeferredWatchStartIfNeeded(trigger: "capability_state")
         }
         phoneWCManager.onHeartRate = { [weak self] bpm, ts in
             self?.handleWCHRUpdate(bpm: bpm, timestamp: ts)
@@ -2307,6 +2314,8 @@ class WorkoutViewModel: ObservableObject {
 
         switch result {
         case .liveRequestSent:
+            isPendingWatchStartDeferred = false
+            didRetryPendingWatchStartAfterReachability = false
             print(
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=watch capability=\(watchCapabilityState.rawValue)"
             )
@@ -2316,6 +2325,8 @@ class WorkoutViewModel: ObservableObject {
                 : "Waiting for Watch confirmation..."
             scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp, requestID: requestID)
         case .deferredAwaitingReachability:
+            isPendingWatchStartDeferred = true
+            didRetryPendingWatchStartAfterReachability = false
             print(
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=watch_deferred reason=watch_not_reachable capability=\(watchCapabilityState.rawValue)"
             )
@@ -2411,6 +2422,27 @@ class WorkoutViewModel: ObservableObject {
         isWaitingForWatchStart = false
         pendingWatchRequestTimestamp = nil
         pendingWatchRequestId = nil
+        isPendingWatchStartDeferred = false
+        didRetryPendingWatchStartAfterReachability = false
+    }
+
+    private func retryDeferredWatchStartIfNeeded(trigger: String) {
+        guard isWaitingForWatchStart else { return }
+        guard isPendingWatchStartDeferred else { return }
+        guard !didRetryPendingWatchStartAfterReachability else { return }
+        guard watchCapabilityState == .watchReady else { return }
+        guard let pendingWatchRequestTimestamp, let pendingWatchRequestId else { return }
+
+        let didSend = phoneWCManager.retryDeferredStartRequest(
+            workoutType: requestedWatchWorkoutType,
+            timestamp: pendingWatchRequestTimestamp,
+            requestID: pendingWatchRequestId,
+            context: watchStartContextPayload()
+        )
+        guard didSend else { return }
+
+        didRetryPendingWatchStartAfterReachability = true
+        print("WATCH_START_RETRY request_id=\(pendingWatchRequestId) trigger=\(trigger) status=sent")
     }
 
     private func handleWatchWorkoutStartedAck(workoutType _: String, timestamp _: TimeInterval, requestID: String) {
@@ -2448,6 +2480,7 @@ class WorkoutViewModel: ObservableObject {
               requestID == activeWatchRequestId else { return }
         clearWatchStartPendingState()
         isWatchBackedContinuousSession = false
+        clearWatchHRStartupGrace(reason: "watch_stopped")
         print("WATCH_ACK request_id=\(requestID) status=stopped")
         if isContinuousMode {
             stopWorkout(notifyWatch: false)
@@ -2457,6 +2490,11 @@ class WorkoutViewModel: ObservableObject {
     private func handleWCHRUpdate(bpm: Double, timestamp: TimeInterval) {
         let sampleDate = Date(timeIntervalSince1970: timestamp)
         lastWCHRSampleAt = sampleDate
+        let sampleAge = max(0, Date().timeIntervalSince(sampleDate))
+        if sampleAge <= 10.0, watchHRStartupGraceDeadline != nil {
+            clearWatchHRStartupGrace(reason: "first_live_watch_hr")
+            print("WATCH_HR_FIRST_LIVE_SAMPLE bpm=\(Int(round(bpm))) age_s=\(String(format: "%.2f", sampleAge))")
+        }
         watchHRProvider.ingestHeartRate(bpm: bpm, timestamp: timestamp)
     }
 
@@ -2483,7 +2521,13 @@ class WorkoutViewModel: ObservableObject {
         }
 
         if let snapshot = await hkFallbackProvider.fetchLatestHeartRateSnapshot() {
-            heartRateArbiter.ingest(sample: snapshot)
+            let age = max(0, Date().timeIntervalSince(snapshot.ts))
+            if age <= AppConfig.Health.hkStartupSnapshotMaxAgeSeconds {
+                print("HK_STARTUP_SNAPSHOT_ACCEPTED age_s=\(String(format: "%.2f", age)) bpm=\(snapshot.bpm)")
+                heartRateArbiter.ingest(sample: snapshot)
+            } else {
+                print("HK_STARTUP_SNAPSHOT_IGNORED age_s=\(String(format: "%.2f", age)) bpm=\(snapshot.bpm)")
+            }
         }
     }
 
@@ -2550,6 +2594,7 @@ class WorkoutViewModel: ObservableObject {
 
     private func refreshHeartRateSignalQualityFromAge() {
         heartRateArbiter.refreshLiveness()
+        expireWatchHRStartupGraceIfNeeded()
     }
 
     private func resolvedHRQualityForRequest(
@@ -2564,6 +2609,33 @@ class WorkoutViewModel: ObservableObject {
         }
         guard watchConnected else { return "poor" }
         return currentQuality == "good" ? "good" : "poor"
+    }
+
+    private func beginWatchHRStartupGrace(reason: String) {
+        guard isWatchBackedContinuousSession else { return }
+        watchHRStartupGraceDeadline = Date().addingTimeInterval(AppConfig.Health.watchHRStartupGraceSeconds)
+        print("WATCH_HR_GRACE state=started reason=\(reason) duration_s=\(Int(AppConfig.Health.watchHRStartupGraceSeconds))")
+    }
+
+    private func clearWatchHRStartupGrace(reason: String) {
+        guard watchHRStartupGraceDeadline != nil else { return }
+        watchHRStartupGraceDeadline = nil
+        print("WATCH_HR_GRACE state=cleared reason=\(reason)")
+    }
+
+    private func expireWatchHRStartupGraceIfNeeded(now: Date = Date()) {
+        guard let watchHRStartupGraceDeadline else { return }
+        guard now >= watchHRStartupGraceDeadline else { return }
+        self.watchHRStartupGraceDeadline = nil
+        print("WATCH_HR_GRACE state=expired")
+    }
+
+    private func resolvedWatchStatusForBackend(now: Date = Date()) -> String {
+        expireWatchHRStartupGraceIfNeeded(now: now)
+        if watchHRStartupGraceDeadline != nil {
+            return "watch_starting"
+        }
+        return latestWatchStatusForBackend
     }
 
     private func applyMotionUpdate(_ update: MotionCadenceService.Update) {
@@ -2631,7 +2703,7 @@ class WorkoutViewModel: ObservableObject {
             hrSignalQuality = HRQuality.none.rawValue
             liveHRBannerText = nil
             coachingStatusLine = nil
-            latestWatchStatusForBackend = "no_live_hr"
+            latestWatchStatusForBackend = isWatchBackedContinuousSession ? "watch_starting" : "no_live_hr"
             lastWCHRSampleAt = nil
             lastBLEHRSampleAt = nil
             lastHKSampleAt = nil
@@ -2655,6 +2727,11 @@ class WorkoutViewModel: ObservableObject {
 
             // Start live heart-rate monitoring from HealthKit/Watch
             startHealthMonitoring()
+            if isWatchBackedContinuousSession {
+                beginWatchHRStartupGrace(reason: "watch_backed_workout_started")
+            } else {
+                clearWatchHRStartupGrace(reason: "phone_owned_workout_started")
+            }
             startMotionMonitoring()
 
             // Start 1-second timer to update elapsed time (drives the timer ring UI)
@@ -2901,6 +2978,7 @@ class WorkoutViewModel: ObservableObject {
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         isWatchBackedContinuousSession = false
+        clearWatchHRStartupGrace(reason: "workout_stopped")
         watchStartStatusLine = nil
         isContinuousMode = false
         isPaused = false
@@ -3062,16 +3140,17 @@ class WorkoutViewModel: ObservableObject {
                 refreshMotionSignalFromAge()
                 let tickHeartRate = heartRate
                 let tickSampleAge = hrSampleAgeSecondsForRequest
+                let tickWatchStatus = resolvedWatchStatusForBackend()
+                let tickWatchConnected = watchConnected || tickWatchStatus == "watch_starting"
                 let tickQuality = resolvedHRQualityForRequest(
                     heartRate: tickHeartRate,
-                    watchConnected: watchConnected,
+                    watchConnected: tickWatchConnected,
                     currentQuality: hrSignalQuality,
                     source: hrSource
                 )
                 let tickMovementScore = movementScore
                 let tickCadenceSPM = cadenceSPM
                 let tickMovementSource = (tickMovementScore != nil || tickCadenceSPM != nil) ? latestMovementSource : "none"
-                let liveHRConnected = hrSource == .wc || hrSource == .ble
                 let sessionPlan = effectiveSessionPlan
                 let response = try await apiService.getContinuousCoachFeedback(
                     audioChunk,
@@ -3098,8 +3177,8 @@ class WorkoutViewModel: ObservableObject {
                     hrSampleAgeSeconds: tickSampleAge,
                     hrQuality: tickQuality,
                     hrConfidence: tickQuality == "good" ? 0.9 : 0.2,
-                    watchConnected: liveHRConnected,
-                    watchStatus: latestWatchStatusForBackend,
+                    watchConnected: tickWatchConnected,
+                    watchStatus: tickWatchStatus,
                     movementScore: tickMovementScore,
                     cadenceSPM: tickCadenceSPM,
                     movementSource: tickMovementSource,

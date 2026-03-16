@@ -89,6 +89,56 @@ def test_no_hr_startup_emits_structure_notice_without_sensor_specific_cues():
     assert "no_sensors_notice" not in events
 
 
+def test_watch_starting_suppresses_structure_and_sensor_notices_during_grace():
+    state = {}
+    result = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=True,
+            watch_status="watch_starting",
+            breath_signal_quality=None,
+        )
+    )
+    events = [item.get("event_type") for item in result.get("events", []) if isinstance(item, dict)]
+    assert "hr_structure_mode_notice" not in events
+    assert "watch_disconnected_notice" not in events
+    assert "no_sensors_notice" not in events
+
+
+def test_watch_starting_allows_structure_notice_after_grace_expires() -> None:
+    state = {}
+    first = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=True,
+            watch_status="watch_starting",
+            breath_signal_quality=None,
+        )
+    )
+    first_events = [item.get("event_type") for item in first.get("events", []) if isinstance(item, dict)]
+    assert "hr_structure_mode_notice" not in first_events
+
+    later = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=60,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=True,
+            watch_status="no_live_hr",
+            breath_signal_quality=None,
+        )
+    )
+    later_events = [item.get("event_type") for item in later.get("events", []) if isinstance(item, dict)]
+    assert "hr_structure_mode_notice" in later_events
+
+
 def test_style_matrix_blocks_too_frequent_corrective_cues():
     state = {}
 

@@ -1268,12 +1268,13 @@ def _evaluate_hr_quality(
     reasons = []
     hint = (hr_quality_hint or "").strip().lower()
     watch_state = (watch_status or "").strip().lower()
+    watch_starting = watch_state == "watch_starting"
     gap_seconds = _safe_float(hr_sample_gap_seconds)
 
     if hint == "poor":
         reasons.append("client_reported_poor")
 
-    if watch_connected is False:
+    if watch_connected is False and not watch_starting:
         reasons.append("watch_not_connected")
 
     if watch_state in {"not_worn", "no_permission", "workout_not_running", "disconnected"}:
@@ -2616,6 +2617,12 @@ def evaluate_zone_tick(
             "watch_disconnected_notice",
             "no_sensors_notice",
         })
+    if (str(watch_status or "").strip().lower() == "watch_starting"):
+        suppressed_notice_events.update({
+            "hr_structure_mode_notice",
+            "watch_disconnected_notice",
+            "no_sensors_notice",
+        })
     if target_enforced and "hr_signal_restored" in hr_signal_events:
         suppressed_notice_events.add("watch_restored_notice")
 
@@ -2630,6 +2637,7 @@ def evaluate_zone_tick(
         instruction_mode == "structure_driven"
         and bool(state.get("structure_mode_notice_pending"))
         and not bool(state.get("structure_mode_notice_sent"))
+        and "hr_structure_mode_notice" not in suppressed_notice_events
         and "hr_structure_mode_notice" not in event_types
     ):
         event_types.append("hr_structure_mode_notice")
