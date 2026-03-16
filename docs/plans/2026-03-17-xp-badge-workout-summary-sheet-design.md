@@ -148,11 +148,40 @@ Workout history overview:
 
 ---
 
+## 4. WorkoutSessionDetailView (ProfileView — history) — Same structure, available data only
+
+Same 2×3 grid layout as `WorkoutSummarySheet`, but cells are **conditionally rendered**.
+A cell is shown only if its data is non-nil and meaningful. Missing cells are simply absent — no "—" placeholder, no empty slot.
+
+### Cell availability per source
+| Cell | Source | Show when |
+|---|---|---|
+| XP Gained | `summaryProgressAward?.xpAwarded` (only if persisted context matches) | > 0 |
+| XP to Next Level | `summaryProgressAward?.xpToNextLevel` | non-nil and persisted context matches |
+| Heart Rate | `record.finalHeartRateText` / persisted context | not nil, not "—", not "0 BPM" |
+| Duration | `record.durationFormatted` | always available |
+| Time in Zone | persisted context `.zoneTimeInTargetPct` | non-nil (only if richContext matched) |
+| Coachi Score | `record.coachScore` | > 0 |
+| Distance | — | **never shown** (HealthKit deferred, no stub) |
+
+### Grid rendering rule
+- Cells are paired left/right per row
+- If only one cell is available in a row, it spans full width
+- Rows with zero available cells are omitted entirely
+- Minimum always rendered: Duration + Coachi Score (at least 1 row guaranteed)
+
+### Big "Start Coaching" button
+Same as `WorkoutSummarySheet`: full width, `CoachiTheme.accent`, 56pt tall.
+Subtitle: `"Ask questions about this workout"` / `"Still spørsmål om denne økten"`
+
+---
+
 ## Files to change
 
 | File | Change |
 |---|---|
 | `TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift` | XP badge, remove level label, rename button, add WorkoutSummarySheet |
+| `TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift` | WorkoutSessionDetailView: adaptive grid (available data only, no "—"), big Start Coaching button |
 | `xai_voice.py` | Import PersonaManager, inject personal trainer persona into instructions |
 
 ## Validation
