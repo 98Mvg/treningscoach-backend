@@ -261,3 +261,38 @@ Updated: 2026-03-16
 - Verification:
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py` -> `20 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 XP summary + launch legal/support pass
+
+- Locked the summary XP/runtime path to the existing workout-complete flow by verifying the local snapshot-based fix in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift), [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift), [Config.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Config.swift), and [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift). XP now keys off qualified workout duration, and the summary reads a frozen completion snapshot instead of live values that may already have reset.
+- Verified that profile/settings section headers remain left-aligned on the existing path in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift); no parallel settings surface was introduced.
+- Replaced the public [support.html](/Users/mariusgaarder/Documents/treningscoach/templates/support.html), [privacy.html](/Users/mariusgaarder/Documents/treningscoach/templates/privacy.html), and [termsofuse.html](/Users/mariusgaarder/Documents/treningscoach/templates/termsofuse.html) stubs with launch-grade Coachi pages, and upgraded the source legal drafts in [coachi-personvernerklaering-utkast-no.md](/Users/mariusgaarder/Documents/treningscoach/docs/legal/coachi-personvernerklaering-utkast-no.md) and [coachi-vilkar-for-bruk-utkast-no.md](/Users/mariusgaarder/Documents/treningscoach/docs/legal/coachi-vilkar-for-bruk-utkast-no.md) so site/runtime text and source-of-truth docs match.
+- Added and synced focused contracts in [test_support_and_legal_web_content_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_support_and_legal_web_content_contract.py), [test_settings_docs_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_settings_docs_contract.py), [test_coachi_progress_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_coachi_progress_contract.py), and [test_coach_score_visual_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_coach_score_visual_contract.py) to match the current single runtime path.
+- Checked local email activation status and confirmed Resend is still not active on this machine because `.env` is missing `RESEND_API_KEY`, `EMAIL_PROVIDER`, `EMAIL_SENDING_ENABLED`, and `EMAIL_FROM`.
+- Verification:
+  - `pytest -q tests_phaseb/test_coachi_progress_contract.py tests_phaseb/test_coach_score_visual_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_web_blueprint_contract.py tests_phaseb/test_support_and_legal_web_content_contract.py tests_phaseb/test_settings_docs_contract.py` -> `27 passed`
+  - `python3 scripts/generate_codebase_guide.py` -> `CODEBASE_GUIDE.md` regenerated
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-16 legal entity insertion for launch docs
+
+- Inserted the real legal entity details you provided into the active legal/support surfaces:
+  - [privacy.html](/Users/mariusgaarder/Documents/treningscoach/templates/privacy.html)
+  - [termsofuse.html](/Users/mariusgaarder/Documents/treningscoach/templates/termsofuse.html)
+  - [support.html](/Users/mariusgaarder/Documents/treningscoach/templates/support.html)
+- Synced the same entity details into the source legal drafts:
+  - [coachi-personvernerklaering-utkast-no.md](/Users/mariusgaarder/Documents/treningscoach/docs/legal/coachi-personvernerklaering-utkast-no.md)
+  - [coachi-vilkar-for-bruk-utkast-no.md](/Users/mariusgaarder/Documents/treningscoach/docs/legal/coachi-vilkar-for-bruk-utkast-no.md)
+- Legal identity now reads `GAARDER (enkeltpersonforetak)` with org.nr. `937 327 412`.
+- Remaining launch-grade legal gap after this pass: postal/business address is still not present because it has not been provided yet.
+- Verification:
+  - `pytest -q tests_phaseb/test_support_and_legal_web_content_contract.py tests_phaseb/test_settings_docs_contract.py` -> `6 passed`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-16 support form picker selection fix
+
+- Fixed the SwiftUI runtime warning `Picker: the selection "" is invalid and does not have an associated tag` on the existing profile/support path in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift).
+- Root cause was that `SupportRequestFormView` rendered with `accountStatus` and `category` set to `""` before `.onAppear` could replace them with the first valid picker options. The support form now seeds those `@State` values in `init()` with valid localized defaults and revalidates them in `prefillFromCurrentUser()`.
+- Updated [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock the new non-empty picker initialization and invalid-selection fallback.
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py` -> `9 passed`

@@ -1,6 +1,6 @@
 # Vilkår for bruk av Coachi
 
-**Sist oppdatert:** 10. mars 2026
+**Sist oppdatert:** 16. mars 2026
 
 Disse vilkårene gjelder for bruk av Coachi.
 
@@ -48,6 +48,11 @@ Coachi kan bruke puls og andre sensordata for å levere bedre coaching. Vi kan i
 
 Hvis puls mangler, kan appen fortsette med andre coachingmoduser. Du er fortsatt selv ansvarlig for innsats og sikker gjennomføring.
 
+## 6A. Historikk og treningsdata
+Coachi kan lagre treningshistorikk, oppsummeringer og treningsrelaterte målinger for å vise utvikling over tid og levere relevante funksjoner i appen.
+
+Hvor mye historikk eller innsikt som er tilgjengelig kan variere med kontostatus, funksjoner og eventuelt Premium-nivå.
+
 ## 7. Talk to Coach og AI-funksjoner
 Coachi kan tilby AI-baserte funksjoner, inkludert spørsmål og svar under eller etter trening.
 
@@ -84,6 +89,9 @@ Tvister søkes løst i minnelighet først. Hvis det ikke lykkes, avgjøres saken
 ## 14. Kontakt
 Spørsmål om vilkårene kan sendes til:
 
-**Coachi**  
+**GAARDER (enkeltpersonforetak)**  
+Organisasjonsnummer: 937 327 412  
+Merke/app: Coachi  
+Adresse: Brenneribakken 10, 2815 Gjøvik  
 E-post: AI.Coachi@hotmail.com  
-Nettside: https://coachi.app
+Nettside: https://coachi.no

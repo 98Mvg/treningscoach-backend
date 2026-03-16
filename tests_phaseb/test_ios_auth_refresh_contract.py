@@ -116,5 +116,7 @@ def test_workout_view_model_surfaces_backend_backoff_status_line() -> None:
     assert "@Published var coachingStatusLine: String?" in view_model_text
     assert "private func applyCoachingFailureBackoff()" in view_model_text
     assert "private func isRetriableCoachingError(_ error: Error) -> Bool" in view_model_text
+    assert "case .invalidURL, .invalidResponse, .downloadFailed, .networkError, .quotaExceeded:" in view_model_text
+    assert "case .authenticationRequired, .invalidURL, .downloadFailed, .quotaExceeded:" in view_model_text
     assert "authManager.hasUsableSession()" in view_model_text
     assert "if let statusLine = viewModel.coachingStatusLine {" in active_view_text

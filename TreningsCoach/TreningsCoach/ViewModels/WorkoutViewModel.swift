@@ -231,6 +231,7 @@ class WorkoutViewModel: ObservableObject {
     @Published private(set) var coachScoreHistory: [CoachScoreRecord] = []
     @Published private(set) var lastPersistedCoachScore: Int = 0
     @Published private(set) var lastCoachiProgressAward: CoachiProgressAward?
+    @Published private(set) var completedWorkoutSnapshot: WorkoutCompletionSnapshot?
     @Published var zoneTimeInTargetPct: Double?
     @Published var zoneOvershoots: Int = 0
     @Published var workoutContextSummary: WorkoutContextSummary?
@@ -285,9 +286,7 @@ class WorkoutViewModel: ObservableObject {
 
     // Formatted elapsed time for Coachi display (MM:SS)
     var elapsedFormatted: String {
-        let mins = Int(elapsedTime) / 60
-        let secs = Int(elapsedTime) % 60
-        return String(format: "%02d:%02d", mins, secs)
+        formattedElapsedTime(seconds: Int(elapsedTime))
     }
 
     var timerRingTitleText: String {
@@ -434,7 +433,11 @@ class WorkoutViewModel: ObservableObject {
     }
 
     var postWorkoutSummaryContext: PostWorkoutSummaryContext {
-        PostWorkoutSummaryContext(
+        if let snapshot = completedWorkoutSnapshot {
+            return snapshot.summaryContext
+        }
+
+        return PostWorkoutSummaryContext(
             workoutMode: selectedWorkoutMode.rawValue,
             workoutLabel: postWorkoutLabel,
             durationText: elapsedFormatted,
@@ -452,6 +455,13 @@ class WorkoutViewModel: ObservableObject {
             repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
             elapsedSource: workoutContextSummary?.elapsedSource
         )
+    }
+
+    private func formattedElapsedTime(seconds: Int) -> String {
+        let safeSeconds = max(0, seconds)
+        let mins = safeSeconds / 60
+        let secs = safeSeconds % 60
+        return String(format: "%02d:%02d", mins, secs)
     }
 
     var coachScoreCapHint: String? {
@@ -760,6 +770,7 @@ class WorkoutViewModel: ObservableObject {
         workoutContextSummary = nil
         workoutContextSummaryReceivedAt = nil
         lastCoachiProgressAward = nil
+        completedWorkoutSnapshot = nil
         // If no warmup selected, start directly in intense phase
         if configuredWarmupDuration == 0 {
             hasSkippedWarmup = true
@@ -868,6 +879,7 @@ class WorkoutViewModel: ObservableObject {
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
         activeSessionPlan = nil
+        completedWorkoutSnapshot = nil
         currentPhase = configuredWarmupDuration > 0 ? .warmup : .intense
 
         // Cleanup stale audio pack files now that workout is idle
@@ -1791,11 +1803,9 @@ class WorkoutViewModel: ObservableObject {
         }
     }
 
-    private func applyCoachiProgression(durationSeconds: Int, finalCoachScore: Int) {
+    private func applyCoachiProgression(durationSeconds: Int) {
         let currentState = CoachiProgressStore.load(for: authManager.currentUser?.id)
-        let qualifiesForXP =
-            durationSeconds > AppConfig.Progression.minWorkoutSecondsForXPAward &&
-            finalCoachScore >= AppConfig.Progression.minCoachScoreForXPAward
+        let qualifiesForXP = durationSeconds >= AppConfig.Progression.minWorkoutSecondsForXPAward
 
         if qualifiesForXP {
             lastCoachiProgressAward = CoachiProgressStore.awardXP(
@@ -1805,6 +1815,37 @@ class WorkoutViewModel: ObservableObject {
         } else {
             lastCoachiProgressAward = currentState.applyingXPAward(0)
         }
+    }
+
+    private func captureWorkoutCompletionSnapshot(
+        durationSeconds: Int,
+        finalHeartRateText: String,
+        coachiProgressAward: CoachiProgressAward?
+    ) {
+        let durationText = formattedElapsedTime(seconds: durationSeconds)
+        completedWorkoutSnapshot = WorkoutCompletionSnapshot(
+            durationText: durationText,
+            finalHeartRateText: finalHeartRateText,
+            summaryContext: PostWorkoutSummaryContext(
+                workoutMode: selectedWorkoutMode.rawValue,
+                workoutLabel: postWorkoutLabel,
+                durationText: durationText,
+                finalHeartRateText: finalHeartRateText,
+                coachScore: max(0, min(100, coachScore)),
+                coachScoreSummaryLine: coachScoreSummaryLine,
+                zoneTimeInTargetPct: zoneTimeInTargetPct,
+                zoneOvershoots: zoneOvershoots,
+                phase: workoutContextSummary?.phase,
+                elapsedS: workoutContextSummary?.elapsedS ?? durationSeconds,
+                timeLeftS: workoutContextSummary?.timeLeftS,
+                repIndex: workoutContextSummary?.repIndex,
+                repsTotal: workoutContextSummary?.repsTotal,
+                repRemainingS: workoutContextSummary?.repRemainingS,
+                repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
+                elapsedSource: workoutContextSummary?.elapsedSource
+            ),
+            coachiProgressAward: coachiProgressAward
+        )
     }
 
     private func eventPriority(for eventType: String) -> Int {
@@ -2821,6 +2862,8 @@ class WorkoutViewModel: ObservableObject {
 
         print("⏹️ Stopping continuous workout")
 
+        let finalHeartRateText = watchBPMDisplayText
+
         // Stop wake word listening
         wakeWordManager.stopListening()
         continuousRecordingManager.onAudioBuffer = nil
@@ -2898,7 +2941,12 @@ class WorkoutViewModel: ObservableObject {
 
         if let duration = finalDurationSeconds {
             persistCompletedWorkoutIfNeeded(durationSeconds: duration, intensity: finalIntensity)
-            applyCoachiProgression(durationSeconds: duration, finalCoachScore: coachScore)
+            applyCoachiProgression(durationSeconds: duration)
+            captureWorkoutCompletionSnapshot(
+                durationSeconds: duration,
+                finalHeartRateText: finalHeartRateText,
+                coachiProgressAward: lastCoachiProgressAward
+            )
         }
         if hasAuthoritativeCoachScore {
             persistFinalCoachScore(coachScore, at: Date())
@@ -3221,7 +3269,7 @@ class WorkoutViewModel: ObservableObject {
             case .serverError(let message):
                 let normalized = message.lowercased()
                 return normalized.contains("authorization") || normalized.contains("unauthorized")
-            case .invalidURL, .invalidResponse, .downloadFailed, .networkError:
+            case .invalidURL, .invalidResponse, .downloadFailed, .networkError, .quotaExceeded:
                 return false
             }
         }
@@ -3237,7 +3285,7 @@ class WorkoutViewModel: ObservableObject {
                 return true
             case .httpError(let statusCode):
                 return statusCode == 408 || statusCode == 425 || statusCode == 429 || (500 ... 599).contains(statusCode)
-            case .authenticationRequired, .invalidURL, .downloadFailed:
+            case .authenticationRequired, .invalidURL, .downloadFailed, .quotaExceeded:
                 return false
             }
         }

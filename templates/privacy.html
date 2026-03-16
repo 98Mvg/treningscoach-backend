@@ -3,54 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personvern — Coachi</title>
+    <title>Personvernerklæring — Coachi</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0d0d14;
-            color: #e8e8ed;
-            line-height: 1.7;
-            padding: 24px 20px 80px;
-            max-width: 720px;
-            margin: 0 auto;
+        :root {
+            --bg: #f7f7fc;
+            --surface: #ffffff;
+            --text: #232238;
+            --muted: #5f657c;
+            --line: rgba(72, 63, 156, 0.12);
+            --primary: #5543d1;
         }
-        h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-        h2 { font-size: 20px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff; }
-        p, li { font-size: 16px; color: #b0b0bc; margin-bottom: 12px; }
-        ul { padding-left: 20px; }
-        a { color: #f06040; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .updated { font-size: 14px; color: #666; margin-bottom: 32px; }
-        .back { display: inline-block; margin-bottom: 24px; font-size: 14px; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(180deg, #fbfbff 0%, var(--bg) 100%);
+            color: var(--text);
+            line-height: 1.72;
+        }
+
+        main {
+            width: min(940px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 24px 0 64px;
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 22px;
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .hero,
+        .section {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            box-shadow: 0 20px 42px rgba(50, 42, 114, 0.07);
+        }
+
+        .hero {
+            padding: 32px 24px;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #efedff;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: clamp(34px, 8vw, 54px);
+            line-height: 1.04;
+            margin-bottom: 10px;
+        }
+
+        .lead,
+        .updated {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .section {
+            padding: 24px;
+            margin-top: 16px;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        p,
+        li {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        ul {
+            padding-left: 22px;
+            margin-top: 12px;
+        }
+
+        li + li {
+            margin-top: 8px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .mini-card {
+            padding: 18px;
+            border-radius: 20px;
+            background: #f7f6ff;
+            border: 1px solid var(--line);
+        }
+
+        .mini-card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            main {
+                width: min(100% - 24px, 940px);
+                padding-top: 18px;
+            }
+
+            .hero,
+            .section {
+                border-radius: 24px;
+            }
+
+            .hero,
+            .section {
+                padding: 22px 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back">← Coachi</a>
-    <h1>Personvernerklæring</h1>
-    <p class="updated">Sist oppdatert: 10. mars 2026</p>
+    <main>
+        <a class="back" href="/">&#8592; Tilbake til Coachi</a>
 
-    <h2>1. Hvem er vi</h2>
-    <p>Coachi er en AI-drevet treningscoach-app. Denne personvernerklæringen forklarer hvordan vi samler inn, bruker og beskytter dine data.</p>
+        <section class="hero">
+            <div class="eyebrow">&#128274; Personvern</div>
+            <h1>Personvernerklæring for Coachi</h1>
+            <p class="lead">
+                Denne erkl&aelig;ringen forklarer hvilke personopplysninger Coachi behandler, hvorfor opplysningene brukes,
+                og hvilke rettigheter du har n&aring;r du bruker tjenesten.
+            </p>
+            <p class="updated" style="margin-top: 14px;">Sist oppdatert: 16. mars 2026</p>
+            <p class="updated">GAARDER · org.nr. 937 327 412</p>
+        </section>
 
-    <h2>2. Hvilke data samler vi inn</h2>
-    <ul>
-        <li>Kontoinformasjon (e-post, navn) ved registrering</li>
-        <li>Treningsdata (varighet, intensitet, puls) under økter</li>
-        <li>Lyddata behandles i sanntid og lagres ikke</li>
-        <li>Enhetsinformasjon for feilsøking</li>
-    </ul>
+        <section class="section">
+            <h2>1. Hvem vi er</h2>
+            <p>
+                Coachi er en treningsapp for l&oslash;ping og annen utholdenhetstrening. Tjenesten tilbyr onboarding,
+                treningsoppsett, lydcoaching, &oslash;kthistorikk, oppsummeringer, eventuelle Premium-funksjoner og support.
+            </p>
+            <div class="grid" style="margin-top: 16px;">
+                <div class="mini-card">
+                    <h3>Kontakt</h3>
+                    <p>Virksomhet: GAARDER (enkeltpersonforetak)</p>
+                    <p>Organisasjonsnummer: 937 327 412</p>
+                    <p>Merke/app: Coachi</p>
+                    <p>Adresse: Brenneribakken 10, 2815 Gj&oslash;vik</p>
+                    <p>E-post: <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a></p>
+                    <p>Nettside: <a href="https://coachi.no">coachi.no</a></p>
+                </div>
+                <div class="mini-card">
+                    <h3>Hva denne siden dekker</h3>
+                    <p>Konto, treningsdata, historikk, puls, lyd, support, sikkerhet, lagringstid og rettighetene dine.</p>
+                </div>
+            </div>
+        </section>
 
-    <h2>3. Hvordan bruker vi dataene</h2>
-    <p>Vi bruker dataene til å gi deg personlig coaching, forbedre appen og sikre kvalitet. Vi selger aldri dataene dine til tredjeparter.</p>
+        <section class="section">
+            <h2>2. Hvilke opplysninger vi kan behandle</h2>
+            <div class="grid">
+                <div class="mini-card">
+                    <h3>Konto og profil</h3>
+                    <p>Navn, e-postadresse, bruker-ID, spr&aring;k, innloggingsstatus og profilopplysninger som alder, makspuls og hvilepuls.</p>
+                </div>
+                <div class="mini-card">
+                    <h3>Trening og historikk</h3>
+                    <p>&Oslash;kter, varighet, coach score, pulsdata n&aring;r tilgjengelig, oppsummeringer og treningshistorikk i appen.</p>
+                </div>
+                <div class="mini-card">
+                    <h3>Lyd og interaksjon</h3>
+                    <p>Lyd, transkripsjon og systemgenererte svar n&aring;r du bruker tale- eller AI-funksjoner.</p>
+                </div>
+                <div class="mini-card">
+                    <h3>Teknisk drift</h3>
+                    <p>Appversjon, enhetstype, feillogger, synkstatus og supporthenvendelser du velger &aring; sende inn.</p>
+                </div>
+            </div>
+        </section>
 
-    <h2>4. Lagring og sikkerhet</h2>
-    <p>Data lagres sikkert og kryptert. Lyddata fra treningsøkter behandles i sanntid og lagres ikke permanent.</p>
+        <section class="section">
+            <h2>3. Historikk og data i Coachi</h2>
+            <p>
+                Coachi lagrer treningshistorikk, oppsummeringer og relevante m&aring;linger for &aring; vise fremgang over tid.
+                Dette inkluderer blant annet varighet, pulsdata n&aring;r tilgjengelig, coach score og andre felt som brukes i
+                oppsummeringer og historikkvisninger i appen.
+            </p>
+            <ul>
+                <li>Historikken brukes for &aring; vise deg utvikling, tidligere &oslash;kter og mer relevante innsikter.</li>
+                <li>Noe som vises i appen kan avhenge av kontostatus, sensortilgang og produktniv&aring;.</li>
+                <li>Du kan be om sletting eller innsyn i lagrede opplysninger ved &aring; kontakte oss.</li>
+            </ul>
+        </section>
 
-    <h2>5. Dine rettigheter</h2>
-    <p>Du kan når som helst be om innsyn, retting eller sletting av dine data. Kontakt oss på <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a>.</p>
+        <section class="section">
+            <h2>4. Hvorfor vi bruker opplysningene</h2>
+            <ul>
+                <li>For &aring; levere coaching, struktur og oppsummeringer under og etter trening.</li>
+                <li>For &aring; lagre historikk, vise fremgang og administrere konto og abonnement.</li>
+                <li>For &aring; holde tjenesten stabil, forbedre kvalitet og forebygge misbruk.</li>
+                <li>For &aring; yte support n&aring;r du kontakter oss.</li>
+            </ul>
+        </section>
 
-    <h2>6. Kontakt</h2>
-    <p>Spørsmål om personvern? Send e-post til <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a>.</p>
+        <section class="section">
+            <h2>5. Puls, lyd og AI-funksjoner</h2>
+            <p>
+                Coachi kan bruke puls- og treningsdata for &aring; levere bedre coaching. N&aring;r du bruker tale- eller AI-funksjoner,
+                kan lyd og transkripsjoner behandles av aktiverte leverand&oslash;rer for &aring; levere funksjonen du har startet.
+            </p>
+            <ul>
+                <li>Puls er frivillig, men kan gi mer presis trening.</li>
+                <li>Hvis puls eller sensor mangler, kan Coachi fortsette med andre coachingmoduser.</li>
+                <li>Tale- og AI-funksjoner brukes bare i den grad det er n&oslash;dvendig for funksjonen i appen.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>6. Behandlingsgrunnlag og databehandlere</h2>
+            <p>
+                Coachi behandler personopplysninger p&aring; grunnlag av avtale, samtykke, berettiget interesse eller rettslig
+                forpliktelse, avhengig av funksjonen og typen opplysninger det gjelder.
+            </p>
+            <ul>
+                <li>Hosting og drift: Render</li>
+                <li>Lydlagring og innholdssynk: Cloudflare R2</li>
+                <li>Tale og AI-funksjoner: aktiverte leverand&oslash;rer som ElevenLabs, xAI, Google, OpenAI og Anthropic</li>
+                <li>Analyse og feiloverv&aring;king: PostHog og Sentry n&aring;r disse er aktivert</li>
+                <li>E-post: Resend eller annen konfigurert e-postleverand&oslash;r n&aring;r e-post er aktivert</li>
+                <li>Distribusjon og abonnement: Apple</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>7. Lagringstid, sletting og rettigheter</h2>
+            <p>
+                Opplysninger lagres s&aring; lenge det er n&oslash;dvendig for &aring; levere tjenesten, f&oslash;lge opp support eller oppfylle
+                lovkrav. N&aring;r en konto slettes, vil vi slette eller anonymisere opplysninger s&aring; langt det er mulig og lovlig.
+            </p>
+            <ul>
+                <li>Du kan be om innsyn, retting, sletting, begrensning eller dataportabilitet der loven gir grunnlag.</li>
+                <li>Du kan trekke tilbake samtykke der behandlingen bygger p&aring; samtykke.</li>
+                <li>Du kan kontakte oss p&aring; <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a> dersom du vil bruke rettighetene dine.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>8. Sikkerhet og endringer</h2>
+            <p>
+                Vi bruker tilgangskontroll, begrenset tilgang og andre sikkerhetstiltak der det er relevant. Hvis tjenesten
+                eller regelverket endres vesentlig, kan denne erkl&aelig;ringen bli oppdatert.
+            </p>
+        </section>
+    </main>
 </body>
 </html>
