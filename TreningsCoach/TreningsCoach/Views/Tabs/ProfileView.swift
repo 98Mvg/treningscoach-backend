@@ -1426,17 +1426,15 @@ private struct AudioAndVoicesView: View {
 }
 
 private struct HistoryAndDataView: View {
+    @EnvironmentObject var authManager: AuthManager
     private var isNorwegian: Bool { L10n.current == .no }
+    @State private var workouts: [WorkoutRecord] = []
+    @State private var isLoading = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
-                SupportCard(
-                    title: L10n.trainingHistory,
-                    copyText: isNorwegian
-                        ? "Coachi lagrer økter og oppsummeringer slik at du kan vise fremgang over tid. Hvor mye historikk du ser, kan avhenge av kontostatus og produktnivå."
-                        : "Coachi stores workouts and summaries so you can review progress over time. How much history you see may depend on account status and product tier."
-                )
+                workoutHistorySection
 
                 SupportCard(
                     title: L10n.dataAndPrivacy,
@@ -1446,7 +1444,7 @@ private struct HistoryAndDataView: View {
                 )
 
                 SupportCard(
-                    title: L10n.current == .no ? "Juridisk og personvern" : "Legal and privacy",
+                    title: isNorwegian ? "Juridisk og personvern" : "Legal and privacy",
                     copyText: isNorwegian
                         ? "Personvern og vilkår er tilgjengelig direkte fra hovedinnstillingene, slik at du slipper ekstra trykk her."
                         : "Privacy policy and terms are available directly from the main settings screen, so you do not need extra taps here."
@@ -1459,6 +1457,319 @@ private struct HistoryAndDataView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.historyAndData)
         .navigationBarTitleDisplayMode(.inline)
+        .task { await loadWorkouts() }
+    }
+
+    @ViewBuilder
+    private var workoutHistorySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.trainingHistory)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .tint(CoachiTheme.textSecondary)
+                    Spacer()
+                }
+                .padding(.vertical, 24)
+            } else if workouts.isEmpty {
+                Text(isNorwegian
+                    ? "Ingen lagrede økter ennå. Fullfør en økt for å se den her."
+                    : "No saved workouts yet. Complete a workout to see it here.")
+                    .font(.system(size: 14))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(workouts) { record in
+                        NavigationLink {
+                            WorkoutSessionDetailView(record: record)
+                        } label: {
+                            WorkoutHistoryRow(record: record)
+                        }
+                        .buttonStyle(.plain)
+
+                        if record.id != workouts.last?.id {
+                            Divider()
+                                .background(CoachiTheme.borderSubtle.opacity(0.4))
+                                .padding(.horizontal, 16)
+                        }
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(CoachiTheme.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+                )
+            }
+        }
+    }
+
+    private func loadWorkouts() async {
+        guard authManager.hasUsableSession() else { return }
+        isLoading = true
+        defer { isLoading = false }
+        workouts = (try? await BackendAPIService.shared.getWorkoutHistory(limit: 20)) ?? []
+    }
+}
+
+private struct WorkoutHistoryRow: View {
+    let record: WorkoutRecord
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.dateFormatted)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                Text(record.durationFormatted)
+                    .font(.system(size: 13))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            Spacer()
+
+            if let score = record.coachScore, score > 0 {
+                VStack(spacing: 2) {
+                    Text("\(score)")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(CoachiTheme.textPrimary)
+                    Text("CS")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                }
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(CoachiTheme.textSecondary.opacity(0.5))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct WorkoutSessionDetailView: View {
+    @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
+    @State private var showLiveCoachVoice = false
+    @State private var showLiveVoicePaywall = false
+    let record: WorkoutRecord
+
+    private var isNorwegian: Bool { L10n.current == .no }
+    private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
+    private var hasLiveVoiceAccountAccess: Bool { authManager.hasUsableSession() }
+    private var liveVoiceIsAvailable: Bool {
+        AppConfig.LiveVoice.isEnabled &&
+        hasLiveVoiceAccountAccess &&
+        (hasPremiumAccess || liveVoiceTracker.sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay)
+    }
+    private var remainingLiveSessions: Int? {
+        guard hasLiveVoiceAccountAccess else { return nil }
+        return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
+    }
+    private var liveVoiceStatusText: String {
+        if liveVoiceIsAvailable {
+            if let remaining = remainingLiveSessions {
+                let unit = isNorwegian
+                    ? (remaining == 1 ? "økt igjen i dag" : "økter igjen i dag")
+                    : (remaining == 1 ? "session left today" : "sessions left today")
+                return isNorwegian ? "Gratis: \(remaining) \(unit)" : "Free: \(remaining) \(unit)"
+            }
+            return "Premium"
+        }
+        if !hasLiveVoiceAccountAccess {
+            return isNorwegian ? "Logg inn for å bruke live" : "Sign in to use live"
+        }
+        return isNorwegian ? "Ingen økter igjen i dag" : "No sessions left today"
+    }
+    private var languageCode: String {
+        authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
+    }
+    private var userName: String {
+        authManager.currentUser?.displayName ?? ""
+    }
+    private var summaryContext: PostWorkoutSummaryContext {
+        let label = isNorwegian ? "\(record.durationFormatted) økt" : "\(record.durationFormatted) workout"
+        return PostWorkoutSummaryContext(
+            workoutMode: record.finalPhase,
+            workoutLabel: label,
+            durationText: record.durationFormatted,
+            finalHeartRateText: "—",
+            coachScore: record.coachScore ?? 0,
+            coachScoreSummaryLine: "",
+            zoneTimeInTargetPct: nil,
+            zoneOvershoots: 0,
+            phase: record.finalPhase,
+            elapsedS: record.durationSeconds,
+            timeLeftS: nil,
+            repIndex: nil,
+            repsTotal: nil,
+            repRemainingS: nil,
+            repsRemainingIncludingCurrent: nil,
+            elapsedSource: nil
+        )
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                // Stats grid
+                statsGrid
+
+                if AppConfig.LiveVoice.isEnabled {
+                    Divider()
+                        .background(CoachiTheme.borderSubtle.opacity(0.4))
+
+                    liveCoachSection
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
+        }
+        .background(CoachiTheme.bg.ignoresSafeArea())
+        .navigationTitle(record.dateFormatted)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { liveVoiceTracker.synchronize() }
+        .sheet(isPresented: $showLiveCoachVoice) {
+            LiveCoachConversationView(
+                summaryContext: summaryContext,
+                languageCode: languageCode,
+                userName: userName,
+                isPremium: hasPremiumAccess
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showLiveVoicePaywall) {
+            PaywallView(context: .liveVoice)
+                .environmentObject(subscriptionManager)
+        }
+    }
+
+    private var statsGrid: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                statCell(
+                    title: isNorwegian ? "Varighet" : "Duration",
+                    value: record.durationFormatted
+                )
+                Divider().frame(width: 1)
+                statCell(
+                    title: isNorwegian ? "Coachi Score" : "Coachi Score",
+                    value: record.coachScore.map { $0 > 0 ? "\($0)" : "—" } ?? "—"
+                )
+            }
+            Divider()
+            HStack(spacing: 0) {
+                statCell(
+                    title: isNorwegian ? "Intensitet" : "Intensity",
+                    value: localizedIntensity(record.avgIntensity)
+                )
+                Divider().frame(width: 1)
+                statCell(
+                    title: isNorwegian ? "Fase" : "Phase",
+                    value: localizedPhase(record.finalPhase)
+                )
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(CoachiTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+        )
+    }
+
+    private func statCell(title: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+
+    private var liveCoachSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                Text(isNorwegian
+                    ? "Få tilbakemelding på denne økten fra AI-coachen din."
+                    : "Get feedback on this workout from your AI coach.")
+                    .font(.system(size: 14))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+
+            Button {
+                if liveVoiceIsAvailable {
+                    showLiveCoachVoice = true
+                } else {
+                    showLiveVoicePaywall = true
+                }
+            } label: {
+                Text(isNorwegian ? "Start coaching" : "Start coaching")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(liveVoiceIsAvailable ? .white : CoachiTheme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(liveVoiceIsAvailable
+                                ? CoachiTheme.accent
+                                : CoachiTheme.surfaceElevated)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary.opacity(0.4))
+                    .frame(width: 6, height: 6)
+                Text(liveVoiceStatusText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
+        }
+    }
+
+    private func localizedIntensity(_ intensity: String) -> String {
+        switch intensity {
+        case "calm":    return isNorwegian ? "Rolig" : "Calm"
+        case "moderate": return isNorwegian ? "Moderat" : "Moderate"
+        case "intense":  return isNorwegian ? "Intens" : "Intense"
+        case "critical": return isNorwegian ? "Kritisk" : "Critical"
+        default:         return intensity.capitalized
+        }
+    }
+
+    private func localizedPhase(_ phase: String) -> String {
+        switch phase {
+        case "prep":     return isNorwegian ? "Forberedelse" : "Prep"
+        case "warmup":   return isNorwegian ? "Oppvarming" : "Warm-up"
+        case "intense":  return isNorwegian ? "Intensiv" : "Main set"
+        case "recovery": return isNorwegian ? "Restitusjon" : "Recovery"
+        case "cooldown": return isNorwegian ? "Nedtrapping" : "Cool-down"
+        default:         return phase.capitalized
+        }
     }
 }
 

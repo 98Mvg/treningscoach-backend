@@ -573,14 +573,16 @@ struct WorkoutRecord: Identifiable, Codable {
     let finalPhase: String
     let avgIntensity: String
     let personaUsed: String
+    let coachScore: Int?
 
-    init(id: UUID = UUID(), date: Date = Date(), durationSeconds: Int, finalPhase: String = "cooldown", avgIntensity: String = "moderate", personaUsed: String = "personal_trainer") {
+    init(id: UUID = UUID(), date: Date = Date(), durationSeconds: Int, finalPhase: String = "cooldown", avgIntensity: String = "moderate", personaUsed: String = "personal_trainer", coachScore: Int? = nil) {
         self.id = id
         self.date = date
         self.durationSeconds = durationSeconds
         self.finalPhase = finalPhase
         self.avgIntensity = avgIntensity
         self.personaUsed = personaUsed
+        self.coachScore = coachScore
     }
 
     // Backward compat: init from old WorkoutPhase + intensity String
@@ -591,6 +593,7 @@ struct WorkoutRecord: Identifiable, Codable {
         self.finalPhase = phase.rawValue
         self.avgIntensity = intensity
         self.personaUsed = "personal_trainer"
+        self.coachScore = nil
     }
 
     var durationFormatted: String {
