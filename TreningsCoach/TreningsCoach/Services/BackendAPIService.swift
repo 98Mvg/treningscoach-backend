@@ -600,6 +600,9 @@ class BackendAPIService {
             throw APIError.invalidResponse
         }
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 429 {
+                throw APIError.quotaExceeded
+            }
             let errorMessage = try? jsonDecoder.decode(ErrorResponse.self, from: data)
             if let message = errorMessage?.error, !message.isEmpty {
                 throw APIError.serverError(message: message)
@@ -1184,6 +1187,7 @@ enum APIError: LocalizedError {
     case authenticationRequired
     case downloadFailed
     case networkError(Error)
+    case quotaExceeded
 
     var errorDescription: String? {
         switch self {
@@ -1201,6 +1205,8 @@ enum APIError: LocalizedError {
             return "Failed to resolve audio source"
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .quotaExceeded:
+            return "Daily session limit reached. Try again tomorrow."
         }
     }
 }
