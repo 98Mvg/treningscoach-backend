@@ -68,15 +68,22 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "Text(\"COACH SCORE\")" in text
     assert '@State private var finalBPMText = "0 BPM"' in text
     assert "private var shareSummaryText: String {" in text
+    assert "private var summaryProgressAward: CoachiProgressAward? {" in text
     assert "private var xpAwardForSummary: Int {" in text
-    assert "appViewModel.coachiLevelLabel" in text
+    assert "viewModel.completedWorkoutSnapshot?.coachiProgressAward ?? viewModel.lastCoachiProgressAward" in text
+    assert "private var summaryLevelLabel: String {" in text
+    assert "private var summaryXPProgress: Double {" in text
+    assert 'finalDurationText = viewModel.completedWorkoutSnapshot?.durationText ?? viewModel.elapsedFormatted' in text
+    assert 'finalBPMText = viewModel.completedWorkoutSnapshot?.finalHeartRateText ?? viewModel.watchBPMDisplayText' in text
     assert "showsOuterXPRing: true" in text
     assert "levelColor: CoachiTheme.success" in text
     assert "animateFromOne: false" in text
     assert "fullSweepBeforeSettling: false" in text
     assert "animateXPAward: xpAwardForSummary > 0" in text
-    assert "xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction" in text
-    assert "xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction" in text
+    assert "levelLabel: summaryLevelLabel" in text
+    assert "xpProgress: summaryXPProgress" in text
+    assert "xpAnimationFrom: summaryProgressAward?.xpProgressBeforeFraction" in text
+    assert "xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction" in text
     assert "scoreRingView(ringSize: ringSize)" in text
     assert "progressHighlightsCard" not in text
     assert "I finished \\(workoutLabel) with Coachi." in text

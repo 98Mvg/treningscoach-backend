@@ -5,56 +5,346 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support — Coachi</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f5f4ff;
+            --surface: #ffffff;
+            --surface-soft: #f0edff;
+            --text: #232238;
+            --muted: #5f657c;
+            --line: rgba(72, 63, 156, 0.12);
+            --primary: #5b43d6;
+            --primary-dark: #4329b8;
+            --accent: #67d9d0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0d0d14;
-            color: #e8e8ed;
-            line-height: 1.7;
-            padding: 24px 20px 80px;
-            max-width: 720px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(103, 217, 208, 0.18), transparent 32%),
+                linear-gradient(180deg, #fbfaff 0%, var(--bg) 100%);
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        .shell {
+            width: min(960px, calc(100% - 32px));
             margin: 0 auto;
+            padding: 24px 0 64px;
         }
-        h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-        h2 { font-size: 20px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff; }
-        p, li { font-size: 16px; color: #b0b0bc; margin-bottom: 12px; }
-        a { color: #f06040; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .updated { font-size: 14px; color: #666; margin-bottom: 32px; }
-        .back { display: inline-block; margin-bottom: 24px; font-size: 14px; }
-        .contact-card {
-            background: #1a1a24;
-            border-radius: 16px;
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            color: var(--primary-dark);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .hero,
+        .panel {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            box-shadow: 0 22px 44px rgba(64, 53, 140, 0.08);
+        }
+
+        .hero {
+            padding: 32px 24px;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--surface-soft);
+            color: var(--primary-dark);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            font-size: clamp(34px, 8vw, 56px);
+            line-height: 1.02;
+            margin-bottom: 14px;
+        }
+
+        .lead {
+            color: var(--muted);
+            font-size: 18px;
+            max-width: 650px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .grid.two-up {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .panel {
             padding: 24px;
-            margin-top: 24px;
         }
-        .contact-card h3 { font-size: 17px; color: #fff; margin-bottom: 8px; }
-        .contact-card p { margin-bottom: 8px; }
+
+        .panel h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .panel p {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .contact-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border-radius: 999px;
+            padding: 14px 20px;
+            text-decoration: none;
+            font-weight: 800;
+        }
+
+        .button.primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #fff;
+        }
+
+        .button.secondary {
+            background: var(--surface-soft);
+            color: var(--primary-dark);
+        }
+
+        .faq-list {
+            display: grid;
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .faq-card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 18px;
+        }
+
+        .faq-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .faq-card ul {
+            padding-left: 22px;
+            margin-top: 10px;
+            color: var(--muted);
+        }
+
+        .faq-card li + li {
+            margin-top: 8px;
+        }
+
+        .symbol {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 12px;
+            background: var(--surface-soft);
+            color: var(--primary-dark);
+            font-size: 16px;
+            flex: 0 0 32px;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .meta-pill {
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .link-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        a.inline-link {
+            color: var(--primary-dark);
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            .shell {
+                width: min(100% - 24px, 960px);
+                padding-top: 18px;
+            }
+
+            .hero,
+            .panel {
+                border-radius: 24px;
+            }
+
+            .hero {
+                padding: 26px 20px;
+            }
+
+            .panel {
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back">← Coachi</a>
-    <h1>Support</h1>
-    <p>Trenger du hjelp? Vi er her for deg.</p>
+    <main class="shell">
+        <a class="back" href="/">&#8592; Tilbake til Coachi</a>
 
-    <div class="contact-card">
-        <h3>📧 E-post</h3>
-        <p><a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a></p>
-        <p>Vi svarer vanligvis innen 24 timer.</p>
-    </div>
+        <section class="hero">
+            <div class="eyebrow">&#10003; Coachi Support</div>
+            <h1>Hjelp, FAQ og kontakt</h1>
+            <p class="lead">
+                Her finner du raske forklaringer p&aring; hvordan Coachi fungerer, hvor du h&aring;ndterer abonnement,
+                og hvordan du tar kontakt hvis du fortsatt trenger hjelp.
+            </p>
+            <div class="meta-row">
+                <div class="meta-pill">Svar vanligvis innen 24 timer</div>
+                <div class="meta-pill">FAQ for onboarding, puls og abonnement</div>
+                <div class="meta-pill">Personvern og vilk&aring;r i egne juridiske sider</div>
+                <div class="meta-pill">GAARDER · org.nr. 937 327 412</div>
+            </div>
+        </section>
 
-    <h2>Vanlige spørsmål</h2>
+        <div class="grid two-up">
+            <section class="panel">
+                <h2>Kontakt support</h2>
+                <p>
+                    Finner du ikke svaret i FAQ-en, kan du kontakte Coachi direkte p&aring; e-post. Beskriv gjerne hva
+                    som skjedde, hvilken iPhone eller klokke du bruker, og om problemet gjelder puls, abonnement eller lyd.
+                </p>
+                <div class="contact-actions">
+                    <a class="button primary" href="mailto:AI.Coachi@hotmail.com?subject=Coachi%20support">Send e-post</a>
+                    <a class="button secondary" href="https://coachi.no/privacy">Se personvern</a>
+                </div>
+            </section>
 
-    <h2>Hvordan starter jeg en treningsøkt?</h2>
-    <p>Åpne appen, velg treningstype og trykk start. Coachi guider deg gjennom hele økten med sanntids coaching.</p>
+            <section class="panel">
+                <h2>F&oslash;r du kontakter oss</h2>
+                <p>
+                    Dette hjelper oss med &aring; l&oslash;se saken raskere:
+                </p>
+                <ul style="padding-left: 22px; margin-top: 12px; color: var(--muted);">
+                    <li>Beskriv hvilken funksjon du brukte da feilen skjedde.</li>
+                    <li>Oppgi om du brukte Apple Watch eller annen pulsm&aring;ler.</li>
+                    <li>Ta gjerne med skjermbilde eller kort beskrivelse av hva du forventet.</li>
+                </ul>
+                <div class="link-row">
+                    <a class="inline-link" href="https://coachi.no/terms">Brukervilk&aring;r</a>
+                    <a class="inline-link" href="https://coachi.no/privacy">Personvernerkl&aelig;ring</a>
+                </div>
+            </section>
+        </div>
 
-    <h2>Fungerer appen med Apple Watch?</h2>
-    <p>Ja! Koble til Apple Watch for pulsmåling under trening. Appen finner klokken automatisk.</p>
+        <section class="panel" style="margin-top: 18px;">
+            <h2>Vanlige sp&oslash;rsm&aring;l</h2>
+            <p>
+                Kortversjonen av det brukere oftest trenger hjelp til i Coachi.
+            </p>
+            <div class="faq-list">
+                <article class="faq-card">
+                    <h3><span class="symbol">&#9835;</span>Hvordan Coachi fungerer</h3>
+                    <p>Coachi guider treningen med korte lydsignaler, tydelige overganger og rolig coaching underveis i &oslash;kten.</p>
+                    <ul>
+                        <li>N&aring;r puls er tilgjengelig, kan Coachi hjelpe deg &aring; holde riktig intensitet mer presist.</li>
+                        <li>Hvis puls mangler, fortsetter Coachi med timing, struktur og lydsignaler.</li>
+                    </ul>
+                </article>
 
-    <h2>Kan jeg bytte språk?</h2>
-    <p>Ja, gå til Din profil → trykk på navnet ditt → Språk. Coachi støtter norsk og engelsk.</p>
+                <article class="faq-card">
+                    <h3><span class="symbol">&#8986;</span>Klokke og synkronisering</h3>
+                    <p>Koble til Apple Watch eller annen st&oslash;ttet pulsm&aring;ler fra profilen din for &aring; f&aring; live puls under trening.</p>
+                    <ul>
+                        <li>Start en kort test&oslash;kt for &aring; sjekke at puls kommer inn live.</li>
+                        <li>Hvis synk virker gammel, koble til p&aring; nytt fra Administrer pulsm&aring;lere.</li>
+                    </ul>
+                </article>
 
-    <h2>Hvordan sletter jeg kontoen min?</h2>
-    <p>Gå til Din profil → Slett konto. Alle data slettes permanent.</p>
+                <article class="faq-card">
+                    <h3><span class="symbol">&#63;</span>Brukerprofil</h3>
+                    <p>I Personlig profil finner du navn, e-post, spr&aring;k og andre kontodetaljer.</p>
+                    <ul>
+                        <li>Hvis noe ser feil ut, logg ut og inn igjen.</li>
+                        <li>Kontosletting finnes i profilen din, men ligger nederst for &aring; unng&aring; feiltrykk.</li>
+                    </ul>
+                </article>
+
+                <article class="faq-card">
+                    <h3><span class="symbol">&#10003;</span>Abonnement</h3>
+                    <p>Administrer abonnement viser hva som er inkludert i Gratis og Premium, og om Premium er aktivt p&aring; kontoen din.</p>
+                    <ul>
+                        <li>Bruk Gjenopprett kj&oslash;p hvis App Store-kj&oslash;pet ikke dukker opp.</li>
+                        <li>Aktive abonnement styres videre i App Store p&aring; iPhone.</li>
+                    </ul>
+                </article>
+
+                <article class="faq-card">
+                    <h3><span class="symbol">&#9829;</span>Puls og pulsm&aring;ler</h3>
+                    <p>Makspuls og hvilepuls i Helseprofil hjelper Coachi med &aring; gi mer relevant trening.</p>
+                    <ul>
+                        <li>Sjekk at klokken sitter tett nok under intervaller og kalde &oslash;kter.</li>
+                        <li>Hvis puls faller ut, f&aring;r du fortsatt struktur og timing i &oslash;kten.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top: 18px;">
+            <h2>Historikk og juridisk informasjon</h2>
+            <p>
+                Informasjon om treningshistorikk, lagringstid, databehandlere og rettigheter ligger i Coachis juridiske sider.
+                Der finner du ogs&aring; hvordan treningsdata, puls og AI-funksjoner behandles.
+            </p>
+            <p style="margin-top: 12px;">
+                Coachi leveres av <strong>GAARDER (enkeltpersonforetak)</strong>, org.nr. 937 327 412.
+            </p>
+            <p>Adresse: Brenneribakken 10, 2815 Gj&oslash;vik.</p>
+            <div class="contact-actions">
+                <a class="button secondary" href="https://coachi.no/privacy">Personvernerkl&aelig;ring</a>
+                <a class="button secondary" href="https://coachi.no/terms">Brukervilk&aring;r</a>
+            </div>
+        </section>
+    </main>
 </body>
 </html>

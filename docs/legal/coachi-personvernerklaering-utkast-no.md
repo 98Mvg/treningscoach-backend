@@ -1,6 +1,6 @@
 # Personvernerklæring for Coachi
 
-**Sist oppdatert:** 10. mars 2026
+**Sist oppdatert:** 16. mars 2026
 
 Denne personvernerklæringen beskriver hvordan Coachi behandler personopplysninger når du bruker tjenesten.
 
@@ -9,9 +9,12 @@ Coachi er en treningsapp som tilbyr løpecoaching, lydveiledning, treningshistor
 ## 1. Kontakt for personvern
 Kontaktpunkt for spørsmål om personvern:
 
-**Coachi**  
+**GAARDER (enkeltpersonforetak)**  
+Organisasjonsnummer: 937 327 412  
+Merke/app: Coachi  
+Adresse: Brenneribakken 10, 2815 Gjøvik  
 E-post: AI.Coachi@hotmail.com  
-Nettside: https://coachi.app
+Nettside: https://coachi.no
 
 ## 2. Hvilke opplysninger vi behandler
 Vi kan behandle følgende opplysninger:
@@ -63,6 +66,14 @@ Vi behandler opplysninger for å:
 - yte support
 - forbedre stabilitet, sikkerhet og kvalitet
 - forhindre misbruk
+
+## 3A. Historikk og data i Coachi
+Treningshistorikk, oppsummeringer, coach score og andre treningsrelaterte målinger brukes for at du skal kunne:
+- se fremgang over tid
+- forstå hvordan øktene dine utvikler seg
+- få mer relevante oppsummeringer og anbefalinger
+
+Hvor mye historikk som er synlig i appen kan avhenge av kontostatus, produktnivå og hvilke funksjoner som er aktive.
 
 ## 4. Behandlingsgrunnlag
 Vi behandler personopplysninger på følgende grunnlag, avhengig av situasjonen:
@@ -120,12 +131,15 @@ Du kan også klage til Datatilsynet.
 Vi bruker tekniske og organisatoriske tiltak for å beskytte personopplysninger, inkludert tilgangskontroll, begrensning av tilgang og sikker lagring der det er relevant.
 
 ## 10. Endringer
-Vi kan oppdatere personvernerklæringen ved endringer i tjenesten eller regelverket. Vesentlige endringer varsles i appen eller på https://coachi.app.
+Vi kan oppdatere personvernerklæringen ved endringer i tjenesten eller regelverket. Vesentlige endringer varsles i appen eller på https://coachi.no.
 
 ## 11. Kontakt
 For spørsmål om personvern:
 
-**Coachi**  
+**GAARDER (enkeltpersonforetak)**  
+Organisasjonsnummer: 937 327 412  
+Merke/app: Coachi  
+Adresse: Brenneribakken 10, 2815 Gjøvik  
 E-post: AI.Coachi@hotmail.com  
 Support: AI.Coachi@hotmail.com  
-Nettside: https://coachi.app
+Nettside: https://coachi.no

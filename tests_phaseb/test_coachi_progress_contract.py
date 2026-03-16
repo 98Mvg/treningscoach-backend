@@ -29,16 +29,22 @@ def test_workout_view_model_awards_xp_once_on_completion_path() -> None:
     text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
     config_text = CONFIG.read_text(encoding="utf-8")
     assert "@Published private(set) var lastCoachiProgressAward: CoachiProgressAward?" in text
-    assert "private func applyCoachiProgression(durationSeconds: Int, finalCoachScore: Int)" in text
-    assert "durationSeconds > AppConfig.Progression.minWorkoutSecondsForXPAward" in text
-    assert "finalCoachScore >= AppConfig.Progression.minCoachScoreForXPAward" in text
+    assert "@Published private(set) var completedWorkoutSnapshot: WorkoutCompletionSnapshot?" in text
+    assert "return PostWorkoutSummaryContext(" in text
+    assert "private func applyCoachiProgression(durationSeconds: Int)" in text
+    assert "durationSeconds >= AppConfig.Progression.minWorkoutSecondsForXPAward" in text
     assert "CoachiProgressStore.awardXP(" in text
     assert "AppConfig.Progression.xpAwardPerQualifiedWorkout" in text
     assert "lastCoachiProgressAward = currentState.applyingXPAward(0)" in text
-    assert "applyCoachiProgression(durationSeconds: duration, finalCoachScore: coachScore)" in text
+    assert "captureWorkoutCompletionSnapshot(" in text
+    assert "let finalHeartRateText = watchBPMDisplayText" in text
+    assert "applyCoachiProgression(durationSeconds: duration)" in text
+    assert "completedWorkoutSnapshot = WorkoutCompletionSnapshot(" in text
+    assert "coachiProgressAward: coachiProgressAward" in text
     assert "good_coach_workout_count" not in text
     assert "applyExperienceProgression" not in text
     assert "static let minWorkoutSecondsForXPAward: Int = 10" in config_text
+    assert "minCoachScoreForXPAward" not in config_text
 
 
 def test_app_view_model_reads_coachi_progress_without_overloading_profile_training_level() -> None:

@@ -764,6 +764,13 @@ struct CoachiProgressAward: Equatable {
     }
 }
 
+struct WorkoutCompletionSnapshot: Equatable {
+    let durationText: String
+    let finalHeartRateText: String
+    let summaryContext: PostWorkoutSummaryContext
+    let coachiProgressAward: CoachiProgressAward?
+}
+
 extension Notification.Name {
     static let coachiProgressDidChange = Notification.Name("coachiProgressDidChange")
 }

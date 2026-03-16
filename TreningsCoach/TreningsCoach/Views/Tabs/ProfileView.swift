@@ -37,7 +37,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     profileSection
                     signOutSection
                 }
@@ -134,7 +134,7 @@ struct ProfileView: View {
     }
 
     private var profileSection: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             sectionHeader(L10n.account)
 
             NavigationLink {
@@ -410,6 +410,7 @@ struct ProfileView: View {
             .foregroundColor(CoachiTheme.textPrimary)
             .lineLimit(2)
             .minimumScaleFactor(0.75)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.top, 32)
             .padding(.bottom, 8)
@@ -652,7 +653,7 @@ private struct ManageSubscriptionView: View {
 
     private var subscriptionStatusCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isNorwegian ? "Dine inkluderte elementer" : "Your included items")
+            Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
 
@@ -676,6 +677,8 @@ private struct ManageSubscriptionView: View {
                     tint: Color(hex: "5B4FD1")
                 )
             }
+
+            currentPlanSummary
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
@@ -760,6 +763,28 @@ private struct ManageSubscriptionView: View {
                 premiumValue: "✓"
             ),
         ]
+    }
+
+    private var currentPlanSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(isNorwegian ? "Min plan" : "My plan")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            Text(localizedPlanStatus)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(
+                hasPremiumAccess
+                    ? (isNorwegian ? "Abonnementet ditt administreres i App Store." : "Your subscription is managed in the App Store.")
+                    : (isNorwegian ? "Du kan oppgradere når du vil og sammenligne Gratis og Premium nedenfor." : "You can upgrade any time and compare Free and Premium below.")
+            )
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(CoachiTheme.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
     }
 
     private func planBadge(title: String, isCurrent: Bool, tint: Color) -> some View {
@@ -1171,6 +1196,7 @@ private struct PersonalProfileSettingsView: View {
         Text(title)
             .font(.system(size: 15, weight: .bold))
             .foregroundColor(CoachiTheme.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 10)
@@ -1439,15 +1465,15 @@ private struct HistoryAndDataView: View {
                 SupportCard(
                     title: L10n.dataAndPrivacy,
                     copyText: isNorwegian
-                        ? "Coachi bruker data for å levere coaching, lagre økter, holde tjenesten stabil og gi deg innsikt i treningen. Selskapsdetaljer fylles inn senere."
-                        : "Coachi uses data to deliver coaching, store workouts, keep the service stable, and give you insight into your training. Company details will be filled in later."
+                        ? "Coachi bruker historikk og treningsdata for å vise fremgang, oppsummeringer og mer relevante råd over tid."
+                        : "Coachi uses workout history and training data to show progress, summaries, and more relevant guidance over time."
                 )
 
                 SupportCard(
                     title: isNorwegian ? "Juridisk og personvern" : "Legal and privacy",
                     copyText: isNorwegian
-                        ? "Personvern og vilkår er tilgjengelig direkte fra hovedinnstillingene, slik at du slipper ekstra trykk her."
-                        : "Privacy policy and terms are available directly from the main settings screen, so you do not need extra taps here."
+                        ? "Hvordan historikk og data behandles er også forklart i Personvernerklæring og Vilkår for bruk fra hovedinnstillingene."
+                        : "How history and data are handled is also explained in the Privacy Policy and Terms of Use from the main settings screen."
                 )
             }
             .padding(.horizontal, 20)
@@ -1784,6 +1810,16 @@ private func faqGuideSections(isNorwegian: Bool) -> [FAQGuideSection] {
     if isNorwegian {
         return [
             FAQGuideSection(
+                id: "how_coachi_works",
+                title: "Hvordan Coachi fungerer",
+                body: "Coachi bygger opp økten med tydelige steg, lydsignaler og rolig veiledning underveis.",
+                tips: [
+                    "Velg økt, trykk start, og følg signalene gjennom oppvarming, hoveddel og avslutning.",
+                    "Når puls er tilgjengelig, kan Coachi tilpasse coachingen mer presist til intensiteten din.",
+                    "Hvis puls mangler, fortsetter Coachi med struktur, timing og enkle påminnelser.",
+                ]
+            ),
+            FAQGuideSection(
                 id: "watch_sync",
                 title: "Klokke og synkronisering",
                 body: "Slik kobler du til pulsmåleren din og holder dataene oppdatert i Coachi.",
@@ -1827,6 +1863,16 @@ private func faqGuideSections(isNorwegian: Bool) -> [FAQGuideSection] {
     }
 
     return [
+        FAQGuideSection(
+            id: "how_coachi_works",
+            title: "How Coachi works",
+            body: "Coachi structures your session with clear phases, audio cues, and calm guidance while you train.",
+            tips: [
+                "Choose a workout, press start, and follow the cues through warm-up, main set, and finish.",
+                "When heart rate is available, Coachi can guide your intensity more precisely.",
+                "If heart rate is missing, Coachi continues with workout structure, timing, and simple prompts.",
+            ]
+        ),
         FAQGuideSection(
             id: "watch_sync",
             title: "Watch and sync",
@@ -1951,8 +1997,8 @@ private struct SupportRequestFormView: View {
     @State private var email = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var accountStatus = ""
-    @State private var category = ""
+    @State private var accountStatus: String
+    @State private var category: String
     @State private var watchType = ""
     @State private var phoneType = ""
     @State private var description = ""
@@ -1974,6 +2020,12 @@ private struct SupportRequestFormView: View {
             && !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    init() {
+        let isNorwegian = L10n.current == .no
+        _accountStatus = State(initialValue: Self.defaultAccountStatus(isNorwegian: isNorwegian))
+        _category = State(initialValue: Self.defaultCategory(isNorwegian: isNorwegian))
     }
 
     var body: some View {
@@ -2088,11 +2140,11 @@ private struct SupportRequestFormView: View {
                 lastName = parts.dropFirst().joined(separator: " ")
             }
         }
-        if accountStatus.isEmpty {
-            accountStatus = accountStatusOptions.first ?? ""
+        if accountStatus.isEmpty || !accountStatusOptions.contains(accountStatus) {
+            accountStatus = Self.defaultAccountStatus(isNorwegian: isNorwegian)
         }
-        if category.isEmpty {
-            category = categoryOptions.first ?? ""
+        if category.isEmpty || !categoryOptions.contains(category) {
+            category = Self.defaultCategory(isNorwegian: isNorwegian)
         }
     }
 
@@ -2128,6 +2180,14 @@ private struct SupportRequestFormView: View {
         let defaultValue = isNorwegian ? "Velg" : "Select"
         return value == defaultValue ? (isNorwegian ? "Ikke valgt" : "Not selected") : value
     }
+
+    private static func defaultAccountStatus(isNorwegian: Bool) -> String {
+        isNorwegian ? "Velg" : "Select"
+    }
+
+    private static func defaultCategory(isNorwegian: Bool) -> String {
+        isNorwegian ? "Velg" : "Select"
+    }
 }
 
 struct PrivacyPolicyView: View {
@@ -2148,6 +2208,13 @@ struct PrivacyPolicyView: View {
                     copyText: isNorwegian
                         ? "Coachi kan behandle kontoopplysninger, profil- og treningsdata, lyd- og interaksjonsdata, abonnementsopplysninger, tekniske logger og supporthenvendelser."
                         : "Coachi may process account details, profile and workout data, audio and interaction data, subscription information, technical logs, and support requests."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Historikk og data" : "History and data",
+                    copyText: isNorwegian
+                        ? "Treningshistorikk, varighet, pulsdata når tilgjengelig, coach score og oppsummeringer brukes for å vise fremgang, bygge historikk og gi mer relevant coaching over tid."
+                        : "Workout history, duration, heart-rate data when available, coach score, and summaries are used to show progress, build history, and provide more relevant coaching over time."
                 )
 
                 SupportCard(
@@ -2174,8 +2241,15 @@ struct PrivacyPolicyView: View {
                 SupportCard(
                     title: isNorwegian ? "Databehandlere" : "Processors",
                     copyText: isNorwegian
-                        ? "Hosting og drift: Render\nLydlagring og synk: Cloudflare R2\nTale og lydgenerering: konfigurert stemmetjeneste\nAI-funksjoner: aktiverte coach-tjenester\nAnalyse og feilovervåking: PostHog og Sentry når disse er aktivert\nE-post: Resend eller konfigurert SMTP-leverandør når e-post er aktivert\nDistribusjon og innlogging: Apple"
-                        : "Hosting and operations: Render\nAudio storage and sync: Cloudflare R2\nSpeech and audio generation: configured voice service\nAI features: enabled coach services\nAnalytics and error monitoring: PostHog and Sentry when enabled\nEmail delivery: Resend or a configured SMTP provider when email is enabled\nDistribution and sign-in: Apple"
+                        ? "Hosting og drift: Render\nLydlagring og synk: Cloudflare R2\nTekst-til-tale: ElevenLabs\nAI-funksjoner: xAI, Google, OpenAI og Anthropic når disse er aktivert\nAnalyse og feilovervåking: PostHog og Sentry når disse er aktivert\nE-post: Resend eller konfigurert SMTP-leverandør når e-post er aktivert\nDistribusjon og innlogging: Apple"
+                        : "Hosting and operations: Render\nAudio storage and sync: Cloudflare R2\nText to speech: ElevenLabs\nAI features: xAI, Google, OpenAI, and Anthropic when enabled\nAnalytics and error monitoring: PostHog and Sentry when enabled\nEmail delivery: Resend or a configured SMTP provider when email is enabled\nDistribution and sign-in: Apple"
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "Sikkerhet og lagring" : "Security and retention",
+                    copyText: isNorwegian
+                        ? "Opplysninger lagres bare så lenge det er nødvendig for å levere tjenesten, følge opp support, oppfylle lovkrav eller holde kontoen aktiv. Vi bruker tilgangskontroll og sikker lagring der det er relevant."
+                        : "Data is kept only as long as needed to provide the service, handle support, comply with legal requirements, or keep your account active. We use access controls and secure storage where relevant."
                 )
 
                 SupportCard(
@@ -2225,10 +2299,24 @@ struct TermsOfUseView: View {
                 )
 
                 SupportCard(
+                    title: isNorwegian ? "Historikk og data" : "History and data",
+                    copyText: isNorwegian
+                        ? "Treningshistorikk, oppsummeringer og relaterte målinger er en del av tjenesten. Hva som er tilgjengelig i appen kan avhenge av kontostatus, sensortilgang og produktnivå."
+                        : "Workout history, summaries, and related metrics are part of the service. What is available inside the app may depend on account status, sensor access, and product tier."
+                )
+
+                SupportCard(
                     title: isNorwegian ? "Helseforbehold" : "Health disclaimer",
                     copyText: isNorwegian
                         ? "Coachi er ikke medisinsk rådgivning. Du er selv ansvarlig for å vurdere om trening passer for deg og for å avbryte eller tilpasse aktiviteten ved smerte, svimmelhet eller ubehag."
                         : "Coachi is not medical advice. You remain responsible for deciding whether training is suitable for you and for stopping or adjusting activity if you experience pain, dizziness, or discomfort."
+                )
+
+                SupportCard(
+                    title: isNorwegian ? "AI og Talk to Coach" : "AI and Talk to Coach",
+                    copyText: isNorwegian
+                        ? "AI-funksjoner og Talk to Coach er støtteverktøy. De kan være unøyaktige, ufullstendige eller utilgjengelige, og de erstatter ikke profesjonell eller medisinsk rådgivning."
+                        : "AI features and Talk to Coach are support tools. They may be inaccurate, incomplete, or unavailable, and they do not replace professional or medical advice."
                 )
 
                 SupportCard(

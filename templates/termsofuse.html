@@ -5,51 +5,260 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vilkår for bruk — Coachi</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0d0d14;
-            color: #e8e8ed;
-            line-height: 1.7;
-            padding: 24px 20px 80px;
-            max-width: 720px;
-            margin: 0 auto;
+        :root {
+            --bg: #f7f7fc;
+            --surface: #ffffff;
+            --text: #232238;
+            --muted: #5f657c;
+            --line: rgba(72, 63, 156, 0.12);
+            --primary: #5543d1;
         }
-        h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-        h2 { font-size: 20px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff; }
-        p, li { font-size: 16px; color: #b0b0bc; margin-bottom: 12px; }
-        ul { padding-left: 20px; }
-        a { color: #f06040; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .updated { font-size: 14px; color: #666; margin-bottom: 32px; }
-        .back { display: inline-block; margin-bottom: 24px; font-size: 14px; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(180deg, #fbfbff 0%, var(--bg) 100%);
+            color: var(--text);
+            line-height: 1.72;
+        }
+
+        main {
+            width: min(940px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 24px 0 64px;
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 22px;
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .hero,
+        .section {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            box-shadow: 0 20px 42px rgba(50, 42, 114, 0.07);
+        }
+
+        .hero {
+            padding: 32px 24px;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #efedff;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: clamp(34px, 8vw, 54px);
+            line-height: 1.04;
+            margin-bottom: 10px;
+        }
+
+        .lead,
+        .updated {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .section {
+            padding: 24px;
+            margin-top: 16px;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        p,
+        li {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        ul {
+            padding-left: 22px;
+            margin-top: 12px;
+        }
+
+        li + li {
+            margin-top: 8px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .mini-card {
+            padding: 18px;
+            border-radius: 20px;
+            background: #f7f6ff;
+            border: 1px solid var(--line);
+        }
+
+        .mini-card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            main {
+                width: min(100% - 24px, 940px);
+                padding-top: 18px;
+            }
+
+            .hero,
+            .section {
+                border-radius: 24px;
+            }
+
+            .hero,
+            .section {
+                padding: 22px 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <a href="/" class="back">← Coachi</a>
-    <h1>Vilkår for bruk</h1>
-    <p class="updated">Sist oppdatert: 15. mars 2026</p>
+    <main>
+        <a class="back" href="/">&#8592; Tilbake til Coachi</a>
 
-    <h2>1. Aksept av vilkår</h2>
-    <p>Ved å bruke Coachi-appen godtar du disse vilkårene. Hvis du ikke godtar vilkårene, bør du ikke bruke appen.</p>
+        <section class="hero">
+            <div class="eyebrow">&#9878; Vilk&aring;r</div>
+            <h1>Vilk&aring;r for bruk av Coachi</h1>
+            <p class="lead">
+                Disse vilk&aring;rene beskriver hvordan Coachi kan brukes, hva du er ansvarlig for, og hvilke regler som
+                gjelder for funksjoner som trening, historikk, AI og eventuelle abonnement.
+            </p>
+            <p class="updated" style="margin-top: 14px;">Sist oppdatert: 16. mars 2026</p>
+            <p class="updated">GAARDER · org.nr. 937 327 412</p>
+        </section>
 
-    <h2>2. Tjenestebeskrivelse</h2>
-    <p>Coachi er en AI-drevet treningscoach som gir sanntids veiledning under trening. Appen er ikke medisinsk utstyr og erstatter ikke profesjonell medisinsk rådgivning.</p>
+        <section class="section">
+            <h2>1. Om tjenesten</h2>
+            <p>
+                Coachi er en treningsapp som kan tilby lydcoaching, treningshistorikk, oppsummeringer, kontofunksjoner,
+                eventuelle Premium-funksjoner og stemme- eller AI-baserte funksjoner n&aring;r disse er tilgjengelige.
+            </p>
+            <p style="margin-top: 12px;">
+                Tjenesten leveres av <strong>GAARDER (enkeltpersonforetak)</strong>, org.nr. 937 327 412, under merkenavnet Coachi.
+            </p>
+            <div class="grid" style="margin-top: 16px;">
+                <div class="mini-card">
+                    <h3>Gratis og Premium</h3>
+                    <p>Coachi er gratis &aring; laste ned og kan tilby en gratisversjon og eventuelle Premium-abonnement.</p>
+                </div>
+                <div class="mini-card">
+                    <h3>Funksjoner kan endres</h3>
+                    <p>Vi kan oppdatere, justere eller fjerne funksjoner n&aring;r det er n&oslash;dvendig av tekniske, sikkerhetsmessige eller produktmessige grunner.</p>
+                </div>
+            </div>
+        </section>
 
-    <h2>3. Brukerens ansvar</h2>
-    <ul>
-        <li>Du er ansvarlig for din egen helse og sikkerhet under trening</li>
-        <li>Konsulter lege før du starter nytt treningsprogram</li>
-        <li>Stopp treningen umiddelbart hvis du føler ubehag</li>
-    </ul>
+        <section class="section">
+            <h2>2. Konto og ansvarlig bruk</h2>
+            <p>
+                Noen deler av Coachi kan brukes uten konto, mens andre funksjoner krever innlogging. Du er ansvarlig for at
+                opplysningene du gir er riktige, og for &aring; beskytte enheten og innloggingsinformasjonen din.
+            </p>
+            <ul>
+                <li>Du m&aring; ikke omg&aring; sikkerhetsmekanismer eller misbruke abonnement eller AI-funksjoner.</li>
+                <li>Du m&aring; ikke bruke tjenesten p&aring; en m&aring;te som skader Coachi, andre brukere eller leverand&oslash;rer.</li>
+            </ul>
+        </section>
 
-    <h2>4. Abonnement og betaling</h2>
-    <p>Coachi tilbyr gratis og betalte tjenester. Abonnement administreres gjennom Apple App Store.</p>
+        <section class="section">
+            <h2>3. Trening, helse og sensorer</h2>
+            <p>
+                Coachi er ikke medisinsk r&aring;dgivning og erstatter ikke helsepersonell. Puls, sensorer og treningsm&aring;linger
+                kan v&aelig;re un&oslash;yaktige eller utilgjengelige. Du er selv ansvarlig for &aring; vurdere om treningen passer for deg.
+            </p>
+            <ul>
+                <li>Avbryt eller tilpass aktiviteten hvis du opplever smerte, svimmelhet eller annet ubehag.</li>
+                <li>Hvis du er usikker p&aring; egen helse, b&oslash;r du r&aring;df&oslash;re deg med helsepersonell f&oslash;r bruk.</li>
+            </ul>
+        </section>
 
-    <h2>5. Ansvarsfraskrivelse</h2>
-    <p>Coachi gir treningsråd basert på AI og erstatter ikke profesjonell trening eller medisinsk rådgivning. Bruk appen på eget ansvar.</p>
+        <section class="section">
+            <h2>4. Abonnement og betaling</h2>
+            <p>
+                Hvis Premium tilbys i Coachi, vises pris, eventuelle pr&oslash;veperioder, fornyelse og oppsigelse i appen f&oslash;r kj&oslash;p.
+                Kjøp, betaling, fornyelse og administrasjon skjer gjennom Apple App Store.
+            </p>
+            <ul>
+                <li>Du kan bruke Gjenopprett kj&oslash;p hvis et gyldig App Store-kj&oslash;p ikke vises i appen.</li>
+                <li>Oppsigelse av abonnement h&aring;ndteres i henhold til Apples systemer og vilk&aring;r.</li>
+            </ul>
+        </section>
 
-    <h2>6. Kontakt</h2>
-    <p>Spørsmål? Send e-post til <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a>.</p>
+        <section class="section">
+            <h2>5. AI, lyd og Talk to Coach</h2>
+            <p>
+                Coachi kan tilby AI-baserte funksjoner, inkludert lydcoaching, sp&oslash;rsm&aring;l og svar, og stemmebaserte funksjoner.
+                Disse er st&oslash;tteverkt&oslash;y og kan v&aelig;re un&oslash;yaktige, ufullstendige eller midlertidig utilgjengelige.
+            </p>
+            <ul>
+                <li>AI-funksjoner skal ikke brukes som medisinsk eller annen profesjonell r&aring;dgivning.</li>
+                <li>Opplevelsen kan v&aelig;re begrenset av nettverk, teknisk tilgjengelighet eller produktniv&aring;.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>6. Historikk, oppsummeringer og tilgjengelighet</h2>
+            <p>
+                Treningshistorikk, oppsummeringer og relaterte m&aring;linger er en del av tjenesten. Hva som er tilgjengelig i appen
+                kan avhenge av kontostatus, sensortilgang og produktniv&aring;. Vi fors&oslash;ker &aring; holde Coachi stabil, men kan ikke
+                garantere feilfri eller uavbrutt drift.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>7. Immaterielle rettigheter og ansvarsbegrensning</h2>
+            <p>
+                Appen, innholdet, lydfilene, designet og teknologien tilh&oslash;rer Coachi eller v&aring;re lisensgivere. S&aring; langt loven
+                tillater det, er Coachi ikke ansvarlig for indirekte tap, avbrudd eller tap som skyldes feil bruk, sensorfeil
+                eller tredjepartstjenester.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>8. Lovvalg og kontakt</h2>
+            <p>
+                Vilk&aring;rene reguleres av norsk rett, med mindre annet f&oslash;lger av ufravikelig lov. Sp&oslash;rsm&aring;l om vilk&aring;rene kan
+                sendes til <a href="mailto:AI.Coachi@hotmail.com">AI.Coachi@hotmail.com</a>.
+            </p>
+            <p style="margin-top: 12px;">
+                Virksomhet: GAARDER (enkeltpersonforetak)<br>
+                Organisasjonsnummer: 937 327 412<br>
+                Adresse: Brenneribakken 10, 2815 Gj&oslash;vik<br>
+                Nettside: <a href="https://coachi.no">coachi.no</a>
+            </p>
+        </section>
+    </main>
 </body>
 </html>

@@ -4,7 +4,7 @@
 //
 //  Full onboarding flow:
 //  Welcome -> Auth -> Profile -> explainer -> HR setup -> Habits -> Summary -> Result
-//  -> Sensor connect/no sensor -> watch-connected Premium bridge -> Notifications -> Main app
+//  -> Sensor connect/no sensor -> Premium bridge -> Notifications -> Main app
 //
 
 import SwiftUI
@@ -27,7 +27,7 @@ enum OnboardingStep: Int {
     case result = 13
     case sensorConnect = 14
     case noSensorFallback = 15
-    case watchConnectedOffer = 16
+    case premiumOffer = 16
     case notificationPermission = 17
 }
 
@@ -382,9 +382,9 @@ struct OnboardingContainerView: View {
                         watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .summary) },
                         onContinue: { watchConnected in
-                            if watchConnected && !subscriptionManager.hasPremiumAccess {
-                                notificationBackStep = .watchConnectedOffer
-                                move(to: .watchConnectedOffer)
+                            if !subscriptionManager.hasPremiumAccess {
+                                notificationBackStep = .premiumOffer
+                                move(to: .premiumOffer)
                             } else {
                                 notificationBackStep = .sensorConnect
                                 move(to: .notificationPermission)
@@ -406,11 +406,11 @@ struct OnboardingContainerView: View {
                     )
                     .transition(stepTransition)
 
-                case .watchConnectedOffer:
+                case .premiumOffer:
                     WatchConnectedPremiumOfferStepView(
                         onBack: { move(to: .sensorConnect) },
                         onContinue: {
-                            notificationBackStep = .watchConnectedOffer
+                            notificationBackStep = .premiumOffer
                             move(to: .notificationPermission)
                         }
                     )
@@ -495,8 +495,8 @@ struct OnboardingContainerView: View {
         if formState.doesEnduranceTraining {
             steps.insert(.frequencyAndDuration, at: 5)
         }
-        if currentStep == .watchConnectedOffer {
-            steps.insert(.watchConnectedOffer, at: steps.count - 1)
+        if currentStep == .premiumOffer {
+            steps.insert(.premiumOffer, at: steps.count - 1)
         }
         return steps
     }
@@ -602,7 +602,7 @@ private struct OnboardingAtmosphereView: View {
             return "OnboardingBgOutdoor"
         case .birthAndGender, .bodyMetrics, .maxHeartRate, .restingHeartRate, .enduranceHabits, .frequencyAndDuration, .summary, .result:
             return "OnboardingBgRun"
-        case .sensorConnect, .noSensorFallback, .watchConnectedOffer, .notificationPermission:
+        case .sensorConnect, .noSensorFallback, .premiumOffer, .notificationPermission:
             return "OnboardingBgCalm"
         }
     }

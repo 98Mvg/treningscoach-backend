@@ -43,8 +43,12 @@ def test_launch_settings_and_legal_docs_use_active_support_and_site_details() ->
         REPO_ROOT / "docs" / "legal" / "coachi-vilkar-for-bruk-utkast-no.md",
     ]:
         text = path.read_text(encoding="utf-8")
-        assert "https://coachi.app" in text, f"Missing website in {path.name}"
-        assert "10. mars 2026" in text, f"Missing launch-safe update date in {path.name}"
+        assert "https://coachi.no" in text, f"Missing website in {path.name}"
+        assert "16. mars 2026" in text, f"Missing launch-safe update date in {path.name}"
+        assert "GAARDER" in text, f"Missing legal entity in {path.name}"
+        assert "937 327 412" in text, f"Missing org number in {path.name}"
+        assert "Brenneribakken 10" in text, f"Missing address in {path.name}"
+        assert "2815 Gjøvik" in text, f"Missing city in {path.name}"
 
 
 def test_privacy_and_terms_docs_match_launch_safe_processors_and_billing_copy() -> None:
@@ -54,6 +58,8 @@ def test_privacy_and_terms_docs_match_launch_safe_processors_and_billing_copy() 
     assert "hosting og drift: Render" in privacy
     assert "lydlagring og innholdssynk: Cloudflare R2" in privacy
     assert "tekst-til-tale: ElevenLabs" in privacy
+    assert "Historikk og data i Coachi" in privacy
+    assert "Talk to Coach og AI-funksjoner" in terms
     assert "e-post og support: Resend eller konfigurert SMTP-leverandør" in privacy
     assert "gratis å laste ned" in terms
     assert "månedlig eller årlig abonnement" in terms

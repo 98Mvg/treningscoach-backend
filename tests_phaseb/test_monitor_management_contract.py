@@ -65,6 +65,7 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "private var isGuestMode: Bool" in text
     assert "if authManager.isAuthenticated || isGuestMode" in text
     assert "appViewModel.resetOnboarding()" in text
+    assert '.frame(maxWidth: .infinity, alignment: .leading)' in text
 
 
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
@@ -83,10 +84,12 @@ def test_profile_faq_guide_covers_launch_help_topics() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     assert "private struct FAQGuideView: View" in text
     assert "private struct FAQGuideSection: Identifiable" in text
+    assert 'title: "Hvordan Coachi fungerer"' in text
     assert 'title: "Klokke og synkronisering"' in text
     assert 'title: "Brukerprofil"' in text
     assert 'title: "Abonnement"' in text
     assert 'title: "Puls og pulsmåler"' in text
+    assert 'title: "How Coachi works"' in text
     assert 'title: "Watch and sync"' in text
     assert 'title: "User profile"' in text
     assert 'title: "Subscription"' in text
@@ -121,6 +124,7 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert '"https://coachi.no/privacy"' in text
     assert '"https://coachi.no/terms"' in text
     assert "AI.Coachi@hotmail.com" in text
+    assert "Selskapsdetaljer fylles inn senere." not in text
     assert "showManageSubscription = true" in text
     assert 'title: L10n.manageSubscription' in text
     assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
@@ -139,8 +143,11 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "[PRIVACY_EMAIL]" not in text
     assert "[VERIFY PROCESSOR]" not in text
     assert "Coachi\\nE-post: \\(coachiSupportEmail)\\nNettside: \\(coachiWebsiteURL)" in text
+    assert "Historikk og data" in text
     assert "Hosting og drift: Render" in text
+    assert "Tekst-til-tale: ElevenLabs" in text
     assert "Audio storage and sync: Cloudflare R2" in text
+    assert "Text to speech: ElevenLabs" in text
     assert "Coachi is free to download and includes a free version." in text
     assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
     assert 'Text(L10n.signOut)' in text
@@ -148,6 +155,12 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert '.foregroundColor(CoachiTheme.textPrimary)' in text
     assert '.foregroundColor(CoachiTheme.textSecondary)' in text
     assert 'private let coachiTermsURL = "https://coachi.no/terms"' in text
+    assert "@State private var accountStatus: String" in text
+    assert "@State private var category: String" in text
+    assert "_accountStatus = State(initialValue: Self.defaultAccountStatus(isNorwegian: isNorwegian))" in text
+    assert "_category = State(initialValue: Self.defaultCategory(isNorwegian: isNorwegian))" in text
+    assert "if accountStatus.isEmpty || !accountStatusOptions.contains(accountStatus)" in text
+    assert "if category.isEmpty || !categoryOptions.contains(category)" in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
