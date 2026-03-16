@@ -232,8 +232,9 @@ struct WorkoutCompleteView: View {
                     }
                 }
             )
-            .presentationDetents([.large])
+            .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
         }
         .sheet(isPresented: $showLiveCoachVoice) {
             LiveCoachConversationView(
@@ -744,12 +745,12 @@ private struct WorkoutSummarySheet: View {
                 onStartCoaching()
             } label: {
                 Text(isNorwegian ? "Start coaching" : "Start Coaching")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
+                    .frame(height: 64)
                     .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(liveVoiceIsAvailable
                                 ? CoachiTheme.accent
                                 : CoachiTheme.surfaceElevated)
@@ -766,16 +767,16 @@ private struct WorkoutSummarySheet: View {
                     .foregroundColor(CoachiTheme.textSecondary)
             }
 
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 Button {
                     onHome()
                 } label: {
                     Text(isNorwegian ? "HJEM" : "HOME")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .tracking(0.6)
                         .foregroundColor(Color.white.opacity(0.9))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+                        .frame(height: 44)
                         .background(
                             Capsule(style: .continuous)
                                 .fill(
@@ -793,11 +794,11 @@ private struct WorkoutSummarySheet: View {
                     onShare()
                 } label: {
                     Text(isNorwegian ? "DEL" : "SHARE")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .tracking(0.6)
                         .foregroundColor(Color.white.opacity(0.92))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+                        .frame(height: 44)
                         .background(
                             Capsule(style: .continuous)
                                 .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
