@@ -4,14 +4,14 @@ Use this as the concrete worksheet before you start filling fields in App Store 
 
 ## App Record
 
-- App name: `Coachi`
+- App name: `Coachi AI`
 - Bundle ID: `com.coachi.app`
-- SKU: `[FILL IN]`
-- Primary language: `[FILL IN]`
-- Support URL: `[FILL IN]`
-- Marketing URL: `[OPTIONAL / FILL IN]`
-- Privacy policy URL: `[FILL IN]`
-- Version to submit: `[FILL IN]`
+- SKU: `coachi-ios-001`
+- Primary language: `Norwegian (Bokmål)` (recommended default)
+- Support URL: `https://coachi.no/support`
+- Marketing URL: `https://coachi.no`
+- Privacy policy URL: `https://coachi.no/privacy`
+- Version to submit: `3.0`
 - Build number to submit: `[FILL IN]`
 
 ## Product Truth
@@ -24,7 +24,7 @@ Use this as the concrete worksheet before you start filling fields in App Store 
 
 ## Subscription Group
 
-- Group reference name: `[FILL IN]`
+- Group reference name: `Coachi Premium`
 - Review screenshot ready: `[YES/NO]`
 - Localized group display text ready: `[YES/NO]`
 
@@ -33,20 +33,20 @@ Use this as the concrete worksheet before you start filling fields in App Store 
 - Product ID: `app.coachi.premium.monthly`
 - Suggested reference name: `Coachi Premium Monthly`
 - Duration: `1 month`
-- Display name: `[FILL IN]`
-- Description: `[FILL IN]`
+- Display name: `Coachi Premium Monthly`
+- Description: `Unlock live coach conversations, higher usage limits, and other premium Coachi features.`
 - Price tier: `[FILL IN]`
-- Intro offer / free trial: `[FILL IN IF USED]`
+- Intro offer / free trial: `14-day free trial`
 
 ## Yearly Premium Product
 
 - Product ID: `app.coachi.premium.yearly`
 - Suggested reference name: `Coachi Premium Yearly`
 - Duration: `1 year`
-- Display name: `[FILL IN]`
-- Description: `[FILL IN]`
+- Display name: `Coachi Premium Yearly`
+- Description: `Unlock live coach conversations, higher usage limits, and other premium Coachi features.`
 - Price tier: `[FILL IN]`
-- Intro offer / free trial: `[FILL IN IF USED]`
+- Intro offer / free trial: `14-day free trial`
 
 ## Review Package
 

@@ -240,9 +240,9 @@ PHRASE_CATALOG = [
 
     # interval countdowns
     {"id": "zone.countdown.30", "en": "30 seconds left.", "no": "30 sekunder.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.15", "en": "15!", "no": "15!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.15", "en": "15", "no": "15", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.5", "en": "5!", "no": "fem", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.start", "en": "Go!", "no": "Kjør på nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.start", "en": "Go", "no": "Start", "persona": "personal_trainer", "priority": "core"},
 
     # phase changes
     {"id": "zone.main_started.1", "en": "Main set now.", "no": "Nå er du i hoveddelen.", "persona": "personal_trainer", "priority": "core"},

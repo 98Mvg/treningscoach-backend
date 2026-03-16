@@ -189,6 +189,11 @@ def test_intro_value_carousel_contract() -> None:
     assert "IntensityBarPreviewCard()" in text
     assert "TalkToCoachPreviewCard()" in text
     assert "if activePage.showsCoachScoreCard {" in text
+    assert "FitnessAgePromptCard" not in text
+    assert "FitnessAgeExampleCard" not in text
+    assert "ActivityQuotientPreviewCard" not in text
+    assert "DeviceSupportPreviewCard" not in text
+    assert "Din AQ" not in text
     assert "introTrustBadge(" not in text
     assert 'Logg inn med Apple eller e-post for å fortsette.' not in text
     assert "score: 100" in text

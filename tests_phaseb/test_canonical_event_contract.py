@@ -326,9 +326,9 @@ def test_resolve_unknown_returns_none():
 
 def test_requested_norwegian_phrase_catalog_copy():
     assert get_phrase_text("zone.phase.warmup.1", "no") == "Forbered deg på økten."
-    assert get_phrase_text("zone.countdown.15", "no") == "15!"
+    assert get_phrase_text("zone.countdown.15", "no") == "15"
     assert get_phrase_text("zone.countdown.5", "no") == "fem"
-    assert get_phrase_text("zone.countdown.start", "no") == "Kjør på nå."
+    assert get_phrase_text("zone.countdown.start", "no") == "Start"
     assert get_phrase_text("zone.main_started.1", "no") == "Nå er du i hoveddelen."
     assert get_phrase_text("zone.silence.work.1", "no") == "Hold rytmen."
     assert get_phrase_text("zone.hr_poor_enter.1", "no") == "Pulssignalet er svakt."
@@ -339,9 +339,9 @@ def test_requested_norwegian_phrase_catalog_copy():
 
 
 def test_requested_norwegian_zone_fallback_copy():
-    assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15!"
+    assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15"
     assert _event_text(event_type="interval_countdown_5", language="no", style="normal", target_low=None, target_high=None, segment="work") == "fem"
-    assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Kjør på nå."
+    assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Start"
     assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Nå er du i hoveddelen."
     assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Forbered deg på økten."
     assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."

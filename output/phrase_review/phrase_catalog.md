@@ -250,9 +250,9 @@ Tips:
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
 | 139 | `zone.countdown.30` | progress |  | personal_trainer | core | 30 seconds left. | 30 sekunder. |
-| 140 | `zone.countdown.15` | progress |  | personal_trainer | core | 15! | 15! |
+| 140 | `zone.countdown.15` | progress |  | personal_trainer | core | 15 | 15 |
 | 141 | `zone.countdown.5` | progress |  | personal_trainer | core | 5! | fem |
-| 142 | `zone.countdown.start` | progress |  | personal_trainer | core | Go! | Kjør på nå. |
+| 142 | `zone.countdown.start` | progress |  | personal_trainer | core | Go | Start |
 ## zone.main_started
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |

@@ -25,10 +25,10 @@ zone.phase.rest.1	context	zone.phase.rest	phase_change_rest	BOTH	Recovery now.	P
 zone.phase.warmup.1	context	zone.phase.warmup	warmup	BOTH	Prepare for the session.	Forbered deg på økten.	active	keep	no	yes	yes	shared warmup context
 zone.phase.work.default.1	context	zone.phase.work	phase_change_work	BOTH	Work starts now.	Nå begynner innsatsen.	active	keep	no	yes	yes	shared work transition
 zone.phase.work.motivational.1	context	zone.phase.work	phase_change_work	BOTH	Time to work.	Nå jobber vi.	active	keep	no	yes	yes	shared work transition
-zone.countdown.15	progress	zone.countdown	countdown_15	BOTH	15!	15!	active	keep	no	yes	yes	shared countdown cue
+zone.countdown.15	progress	zone.countdown	countdown_15	BOTH	15	15	active	keep	no	yes	yes	shared countdown cue
 zone.countdown.30	progress	zone.countdown	countdown_30	BOTH	30 seconds left.	30 sekunder.	active	keep	no	yes	yes	shared countdown cue
 zone.countdown.5	progress	zone.countdown	countdown_5	BOTH	5!	fem	active	keep	no	yes	yes	shared countdown cue
-zone.countdown.start	progress	zone.countdown	countdown_start	BOTH	Go!	Kjør på nå.	active	keep	no	yes	yes	shared countdown start cue
+zone.countdown.start	progress	zone.countdown	countdown_start	BOTH	Go	Start	active	keep	no	yes	yes	shared countdown start cue
 zone.workout_finished.1	progress	zone.workout_finished	workout_finish	BOTH	Workout finished. Nice work.	Økten er ferdig. Bra jobbet.	active	keep	no	yes	yes	shared workout closure
 easy_run.motivate.s1.1	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Focus on breath and rhythm.	Fokuser på pust og rytme.	active	keep	no	yes	yes	active easy-run motivation
 easy_run.motivate.s1.2	motivation	easy_run.motivate.s1	easy_run_sustain_stage_1	HR	Settle your pace.	Finn ditt tempo.	active	keep	no	yes	yes	active easy-run motivation

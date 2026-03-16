@@ -54,7 +54,7 @@ def create_web_blueprint(
 
     @web_bp.route("/download")
     def download_page():
-        """Dedicated download page (like Mia Health /download)."""
+        """Dedicated Coachi download page."""
         return render_template("download.html", **landing_link_context_fn())
 
     @web_bp.route("/preview")

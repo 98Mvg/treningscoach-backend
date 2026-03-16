@@ -220,24 +220,11 @@ struct ProfileView: View {
             settingsDivider
 
             NavigationLink {
-                FAQView()
-            } label: {
-                SettingsListRow(
-                    icon: "questionmark.circle",
-                    title: L10n.faqTitle
-                )
-            }
-            .buttonStyle(.plain)
-
-            settingsDivider
-
-            Button {
-                if let url = URL(string: coachiSupportURL) { openURL(url) }
+                ContactSupportView()
             } label: {
                 SettingsListRow(
                     icon: "headphones",
-                    title: L10n.contactSupport,
-                    trailingIcon: "arrow.up.right.square"
+                    title: L10n.contactSupport
                 )
             }
             .buttonStyle(.plain)
@@ -269,8 +256,6 @@ struct ProfileView: View {
                 )
             }
             .buttonStyle(.plain)
-
-            settingsDivider
 
             settingsDivider
 
@@ -383,18 +368,6 @@ struct ProfileView: View {
         .padding(.top, 20)
     }
 
-    // MARK: - Profile helpers
-
-    private var accountStatusSubtitle: String {
-        if authManager.isAuthenticated {
-            if let email = authManager.currentUser?.email, !email.isEmpty {
-                return "\(L10n.signedInAs) \(email)"
-            }
-            return L10n.current == .no ? "Konto tilkoblet." : "Account connected."
-        }
-        return "\(L10n.usingWithoutAccount). \(L10n.connectAccountLaterHint)"
-    }
-
     private var signOutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             if authManager.isAuthenticated || isGuestMode {
@@ -500,29 +473,82 @@ private struct SettingsListRow: View {
     }
 }
 
+private struct ProfileValueRow: View {
+    let title: String
+    let value: String
+    var trailingIcon: String? = nil
+    var valueColor: Color = CoachiTheme.textPrimary
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(title)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            Spacer(minLength: 12)
+
+            Text(value)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(valueColor)
+                .multilineTextAlignment(.trailing)
+
+            if let trailingIcon {
+                Image(systemName: trailingIcon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .contentShape(Rectangle())
+    }
+}
+
 private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
     @State private var showPaywall = false
 
     private var isNorwegian: Bool { L10n.current == .no }
-
-    private let comparisonRows: [(titleNo: String, titleEn: String, free: String, premium: String)] = [
-        ("Live coaching under økten", "Live coaching during workouts", "✓", "✓"),
-        ("Coach Score etter hver økt", "Coach Score after every workout", "✓", "✓"),
-        ("Historikk", "History", "10", "Alle"),
-        ("Snakk med coachen live", "Talk to your coach live", "—", "✓"),
-        ("Flere coach-samtaler", "More coach conversations", "1/økt", "Ubegr."),
+    private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
+    private let freeHighlights: [(String, String)] = [
+        ("Kjernecoaching", "Core coaching"),
+        ("Coach Score og oppsummering", "Coach Score and summary"),
+        ("Nylige økter", "Recent workouts"),
+    ]
+    private let premiumHighlights: [(String, String)] = [
+        ("Live voice med coachen", "Live voice with your coach"),
+        ("Mer historikk og høyere grenser", "More history and higher limits"),
+        ("Måneds- eller årsabonnement", "Monthly or yearly subscription"),
     ]
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 18) {
                 Text(isNorwegian ? "Inkludert i abonnementet" : "Included in subscription")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(CoachiTheme.textPrimary)
 
-                comparisonTable
+                statusCard(
+                    title: isNorwegian ? "Gratis" : "Free",
+                    headline: isNorwegian ? "Kjernecoaching" : "Core coaching",
+                    detailText: isNorwegian ? "Gratis å bruke" : "Free to use",
+                    highlights: freeHighlights,
+                    isSelected: !hasPremiumAccess,
+                    accentColor: CoachiTheme.textSecondary
+                )
+
+                statusCard(
+                    title: "Premium",
+                    headline: localizedPlanStatus,
+                    detailText: hasPremiumAccess
+                        ? (isNorwegian ? "Aktivt i App Store" : "Active in the App Store")
+                        : (isNorwegian ? "Alle Coachi-funksjoner" : "All Coachi features"),
+                    highlights: premiumHighlights,
+                    isSelected: hasPremiumAccess,
+                    accentColor: Color(hex: "8B5CF6"),
+                    ribbonTitle: isNorwegian ? "Populær" : "Popular"
+                )
 
                 Button {
                     showPaywall = true
@@ -582,84 +608,194 @@ private struct ManageSubscriptionView: View {
         }
     }
 
-    private var comparisonTable: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(isNorwegian ? "Gratis" : "Free")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                Text("Premium")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+    private func statusCard(
+        title: String,
+        headline: String,
+        detailText: String,
+        highlights: [(String, String)],
+        isSelected: Bool,
+        accentColor: Color,
+        ribbonTitle: String? = nil
+    ) -> some View {
+        Button {
+            if !isSelected {
+                showPaywall = true
             }
-            .padding(.leading, 190)
-            .padding(.bottom, 10)
-
-            ForEach(Array(comparisonRows.enumerated()), id: \.offset) { index, row in
-                HStack(spacing: 0) {
-                    Text(isNorwegian ? row.titleNo : row.titleEn)
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundColor(CoachiTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(row.free)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .frame(width: 72, alignment: .center)
-
-                    Text(row.premium)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(Color(hex: "5B4FD1"))
-                        .frame(width: 92, alignment: .center)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                if let ribbonTitle {
+                    HStack {
+                        Text(ribbonTitle)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(Color(hex: "A78BFA"))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 15)
-                .background(index.isMultiple(of: 2) ? CoachiTheme.surface : CoachiTheme.surfaceElevated)
+
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(title)
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(headline)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(detailText)
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Text(isSelected ? (isNorwegian ? "Aktiv" : "Current") : title)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(isSelected ? accentColor : CoachiTheme.textPrimary)
+                        if isSelected && ribbonTitle == nil {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(accentColor)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(highlights.indices, id: \.self) { index in
+                        let item = highlights[index]
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(accentColor)
+                            Text(isNorwegian ? item.0 : item.1)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
             }
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(CoachiTheme.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(
+                        isSelected ? accentColor : CoachiTheme.borderSubtle.opacity(0.28),
+                        lineWidth: isSelected ? 3 : 1
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 10)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.32), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+    }
+
+    private var localizedPlanStatus: String {
+        switch subscriptionManager.resolvedPlanLabel {
+        case "Checking":
+            return isNorwegian ? "Sjekker status" : "Checking status"
+        case "Free":
+            return isNorwegian ? "Gratis" : "Free"
+        case "Free Trial":
+            return isNorwegian ? "Gratis prøveperiode" : "Free trial"
+        case "Expired":
+            return isNorwegian ? "Utløpt" : "Expired"
+        default:
+            return subscriptionManager.resolvedPlanLabel
+        }
     }
 }
 
 private struct HealthProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
+    @AppStorage("user_gender") private var storedGender: String = ""
+    @AppStorage("user_height_cm") private var storedHeightCm: Int = 0
+    @AppStorage("user_weight_kg") private var storedWeightKg: Int = 0
+    @AppStorage("hr_max") private var storedMaxHeartRate: Int = 0
+    @AppStorage("resting_hr") private var storedRestingHeartRate: Int = 0
     @State private var showingBirthDateEditor = false
     @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
-                SupportCard(
-                    title: L10n.healthProfile,
-                    copyText: L10n.current == .no
-                        ? "Her ser du bare helseopplysninger Coachi bruker for a gi deg bedre coaching, uten unødvendige mellomsteg."
-                        : "This view shows only the health details Coachi uses for better coaching, without extra navigation."
-                )
-
+            VStack(alignment: .leading, spacing: 12) {
                 VStack(spacing: 0) {
                     Button {
                         draftBirthDate = storedBirthDate
                         showingBirthDateEditor = true
                     } label: {
-                        SettingsListRow(
-                            icon: "calendar",
-                            title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
+                        ProfileValueRow(
+                            title: L10n.dateOfBirth,
+                            value: birthDateDisplayLine,
+                            trailingIcon: "chevron.right"
                         )
                     }
                     .buttonStyle(.plain)
 
                     divider
 
-                    SettingsListRow(
-                        icon: "chart.bar.fill",
-                        title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
+                    ProfileValueRow(
+                        title: L10n.current == .no ? "Kjønn" : "Gender",
+                        value: genderDisplay,
+                        trailingIcon: nil,
+                        valueColor: metricValueColor(for: genderDisplay)
+                    )
+
+                    divider
+
+                    ProfileValueRow(
+                        title: L10n.current == .no ? "Høyde" : "Height",
+                        value: heightDisplay,
+                        trailingIcon: nil,
+                        valueColor: metricValueColor(for: heightDisplay)
+                    )
+
+                    divider
+
+                    ProfileValueRow(
+                        title: L10n.current == .no ? "Vekt" : "Weight",
+                        value: weightDisplay,
+                        trailingIcon: nil,
+                        valueColor: metricValueColor(for: weightDisplay)
+                    )
+
+                    divider
+
+                    ProfileValueRow(
+                        title: L10n.current == .no ? "Makspuls" : "Max heart rate",
+                        value: maxHeartRateDisplay,
+                        trailingIcon: nil,
+                        valueColor: metricValueColor(for: maxHeartRateDisplay)
+                    )
+
+                    divider
+
+                    ProfileValueRow(
+                        title: L10n.current == .no ? "Hvilepuls" : "Resting heart rate",
+                        value: restingHeartRateDisplay,
+                        trailingIcon: nil,
+                        valueColor: metricValueColor(for: restingHeartRateDisplay)
+                    )
+
+                    divider
+
+                    ProfileValueRow(
+                        title: L10n.experienceLevel,
+                        value: appViewModel.trainingLevelDisplayName,
                         trailingIcon: nil
                     )
                 }
@@ -713,6 +849,47 @@ private struct HealthProfileView: View {
         return formatter.string(from: storedBirthDate)
     }
 
+    private var notSetText: String {
+        L10n.current == .no ? "Ikke satt" : "Not set"
+    }
+
+    private var genderDisplay: String {
+        switch storedGender.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "male", "mann", "man":
+            return L10n.current == .no ? "Mann" : "Male"
+        case "female", "kvinne", "woman":
+            return L10n.current == .no ? "Kvinne" : "Female"
+        case "other", "annet", "nonbinary", "non-binary":
+            return L10n.current == .no ? "Annet" : "Other"
+        default:
+            return notSetText
+        }
+    }
+
+    private var heightDisplay: String {
+        storedHeightCm > 0 ? "\(storedHeightCm) cm" : notSetText
+    }
+
+    private var weightDisplay: String {
+        storedWeightKg > 0 ? "\(storedWeightKg) kg" : notSetText
+    }
+
+    private var maxHeartRateDisplay: String {
+        storedMaxHeartRate > 0
+            ? "\(storedMaxHeartRate) \(L10n.current == .no ? "slag/min" : "bpm")"
+            : notSetText
+    }
+
+    private var restingHeartRateDisplay: String {
+        storedRestingHeartRate > 0
+            ? "\(storedRestingHeartRate) \(L10n.current == .no ? "slag/min" : "bpm")"
+            : notSetText
+    }
+
+    private func metricValueColor(for value: String) -> Color {
+        value == notSetText ? CoachiTheme.textSecondary : CoachiTheme.textPrimary
+    }
+
     private func persistBirthDate(_ value: Date) {
         let bounded = min(max(value, minimumBirthDate), Date())
         birthdateTimestamp = bounded.timeIntervalSince1970
@@ -727,9 +904,6 @@ private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @AppStorage("app_language") private var appLanguageCode: String = "en"
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
-    @AppStorage("user_birthdate_ts") private var birthdateTimestamp: Double = 0
-    @State private var showingBirthDateEditor = false
-    @State private var draftBirthDate: Date = Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
     @State private var showingSignOutConfirmation = false
 
     private var isGuestMode: Bool {
@@ -741,20 +915,74 @@ private struct PersonalProfileSettingsView: View {
             VStack(spacing: 0) {
                 sectionHeader(L10n.personalProfile)
 
-                SettingsListRow(
-                    icon: "person.crop.circle.badge.checkmark",
-                    title: L10n.accountStatus,
-                    subtitle: accountStatusSubtitle,
+                HStack(spacing: 16) {
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 28))
+                        .foregroundColor(CoachiTheme.textTertiary)
+                        .frame(width: 76, height: 76)
+                        .background(CoachiTheme.surfaceElevated)
+                        .clipShape(Circle())
+
+                    Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(hex: "8B5CF6"))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 18)
+
+                settingsDivider
+
+                ProfileValueRow(
+                    title: L10n.current == .no ? "Navn" : "Name",
+                    value: appViewModel.userProfile.name,
                     trailingIcon: nil
                 )
 
                 settingsDivider
 
-                SettingsListRow(
-                    icon: "person.text.rectangle",
-                    title: L10n.current == .no ? "Navn: \(appViewModel.userProfile.name)" : "Name: \(appViewModel.userProfile.name)",
-                    trailingIcon: nil
+                ProfileValueRow(
+                    title: L10n.current == .no ? "E-post" : "Email",
+                    value: emailDisplayLine,
+                    trailingIcon: nil,
+                    valueColor: emailDisplayLine == unavailableEmailText ? CoachiTheme.textSecondary : CoachiTheme.textPrimary
                 )
+
+                if authManager.isAuthenticated {
+                    settingsDivider
+
+                    sectionHeader(L10n.account)
+
+                    settingsDivider
+
+                    NavigationLink {
+                        DeleteAccountInfoView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                                .foregroundColor(CoachiTheme.danger)
+                                .frame(width: 30)
+
+                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.danger)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                sectionHeader(L10n.current == .no ? "App" : "App")
 
                 settingsDivider
 
@@ -791,27 +1019,6 @@ private struct PersonalProfileSettingsView: View {
 
                 settingsDivider
 
-                Button {
-                    draftBirthDate = storedBirthDate
-                    showingBirthDateEditor = true
-                } label: {
-                    SettingsListRow(
-                        icon: "calendar",
-                        title: "\(L10n.dateOfBirth): \(birthDateDisplayLine)"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                settingsDivider
-
-                SettingsListRow(
-                    icon: "chart.bar.fill",
-                    title: "\(L10n.experienceLevel): \(appViewModel.trainingLevelDisplayName)",
-                    trailingIcon: nil
-                )
-
-                settingsDivider
-
                 NavigationLink {
                     AboutCoachiView()
                         .environmentObject(appViewModel)
@@ -822,39 +1029,6 @@ private struct PersonalProfileSettingsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-
-                if authManager.isAuthenticated {
-                    sectionHeader(L10n.account)
-
-                    settingsDivider
-
-                    NavigationLink {
-                        DeleteAccountInfoView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16))
-                                .foregroundColor(CoachiTheme.danger)
-                                .frame(width: 30)
-
-                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(CoachiTheme.danger)
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    settingsDivider
-                }
 
                 if authManager.isAuthenticated || isGuestMode {
                     if !authManager.isAuthenticated {
@@ -890,29 +1064,6 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if authManager.isAuthenticated || isGuestMode {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingSignOutConfirmation = true
-                    } label: {
-                        Text(L10n.signOut)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(CoachiTheme.danger)
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showingBirthDateEditor) {
-            BirthDateEditorSheet(
-                selectedDate: draftBirthDate,
-                minDate: minimumBirthDate,
-                maxDate: Date(),
-                onSave: { value in
-                    persistBirthDate(value)
-                }
-            )
-        }
         .confirmationDialog(
             L10n.signOut,
             isPresented: $showingSignOutConfirmation,
@@ -935,6 +1086,19 @@ private struct PersonalProfileSettingsView: View {
         }
     }
 
+    private var emailDisplayLine: String {
+        if let email = authManager.currentUser?.email, !email.isEmpty {
+            return email
+        }
+        return unavailableEmailText
+    }
+
+    private var unavailableEmailText: String {
+        isGuestMode
+            ? (L10n.current == .no ? "Ingen konto tilkoblet" : "No account connected")
+            : (L10n.current == .no ? "Ikke tilgjengelig" : "Not available")
+    }
+
     private var settingsDivider: some View {
         Rectangle()
             .fill(CoachiTheme.borderSubtle.opacity(0.8))
@@ -948,44 +1112,6 @@ private struct PersonalProfileSettingsView: View {
             .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 10)
-    }
-
-    private var minimumBirthDate: Date {
-        Calendar.current.date(byAdding: .year, value: -95, to: Date()) ?? Date()
-    }
-
-    private var fallbackBirthDate: Date {
-        Calendar.current.date(byAdding: .year, value: -28, to: Date()) ?? Date()
-    }
-
-    private var storedBirthDate: Date {
-        guard birthdateTimestamp > 0 else { return fallbackBirthDate }
-        return Date(timeIntervalSince1970: birthdateTimestamp)
-    }
-
-    private var birthDateDisplayLine: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        formatter.dateStyle = .medium
-        return formatter.string(from: storedBirthDate)
-    }
-
-    private var accountStatusSubtitle: String {
-        if authManager.isAuthenticated {
-            if let email = authManager.currentUser?.email, !email.isEmpty {
-                return "\(L10n.signedInAs) \(email)"
-            }
-            return L10n.current == .no ? "Konto tilkoblet." : "Account connected."
-        }
-        return "\(L10n.usingWithoutAccount). \(L10n.connectAccountLaterHint)"
-    }
-
-    private func persistBirthDate(_ value: Date) {
-        let bounded = min(max(value, minimumBirthDate), Date())
-        birthdateTimestamp = bounded.timeIntervalSince1970
-        let years = Calendar.current.dateComponents([.year], from: bounded, to: Date()).year ?? 0
-        let age = max(14, min(95, years))
-        UserDefaults.standard.set(age, forKey: "user_age")
     }
 
     private func exitCurrentMode() {
@@ -1282,140 +1408,106 @@ private struct HistoryAndDataView: View {
     }
 }
 
-private struct FAQView: View {
-    private struct FAQItem: Identifiable {
-        let id: String
-        let question: String
-        let answer: String
-    }
+private struct SupportFAQItem: Identifiable {
+    let id: String
+    let question: String
+    let answer: String
+}
 
-    private var items: [FAQItem] {
-        if L10n.current == .no {
-            return [
-                FAQItem(
-                    id: "how",
-                    question: "Hvordan fungerer Coachi?",
-                    answer: "Coachi guider deg gjennom økter med korte lydsignaler, overganger og tydelige beskjeder underveis."
-                ),
-                FAQItem(
-                    id: "watch",
-                    question: "Trenger jeg Apple Watch eller pulsklokke?",
-                    answer: "Nei. Du kan bruke Coachi uten puls. Hvis puls er tilgjengelig, kan coachingen bli mer presis."
-                ),
-                FAQItem(
-                    id: "no_hr",
-                    question: "Hva skjer hvis puls mangler?",
-                    answer: "Coachi fortsetter med struktur og timing. Du kan fortsatt fullføre økten uten live puls."
-                ),
-                FAQItem(
-                    id: "free",
-                    question: "Hva er inkludert i gratisversjonen?",
-                    answer: "Kjernecoaching, lydsignaler, nedtellinger, enkel oppsummering, coach score og nylige økter er en del av gratisopplevelsen."
-                ),
-                FAQItem(
-                    id: "premium",
-                    question: "Hva er inkludert i Premium?",
-                    answer: "Premium låser opp mer av Coachi, som live voice, høyere grenser og andre abonnementsbaserte funksjoner. Når Premium er tilgjengelig i appen, kan du velge månedlig eller årlig abonnement."
-                ),
-                FAQItem(
-                    id: "subscription",
-                    question: "Hvordan avslutter jeg abonnementet?",
-                    answer: "Hvis du abonnerer gjennom Apple, administrerer eller avslutter du abonnementet i App Store-abonnementene dine. Gjenoppretting av kjøp gjøres i Coachi."
-                ),
-                FAQItem(
-                    id: "delete",
-                    question: "Hvordan sletter jeg kontoen min?",
-                    answer: "Åpne Slett konto i innstillinger for å slette kontoen direkte i appen. Kontakt \(coachiSupportEmail) hvis du trenger hjelp."
-                ),
-                FAQItem(
-                    id: "support",
-                    question: "Hvordan kontakter jeg support?",
-                    answer: "Kontakt oss på \(coachiSupportEmail) og beskriv hva som skjedde, hvilken enhet du bruker og gjerne legg ved skjermbilder."
-                ),
-            ]
-        }
-
+private func supportFAQItems(isNorwegian: Bool) -> [SupportFAQItem] {
+    if isNorwegian {
         return [
-            FAQItem(
+            SupportFAQItem(
                 id: "how",
-                question: "How does Coachi work?",
-                answer: "Coachi guides your workouts with short audio cues, transitions, and clear instructions during the session."
+                question: "Hvordan fungerer Coachi?",
+                answer: "Coachi guider deg gjennom økter med korte lydsignaler, overganger og tydelige beskjeder underveis."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "watch",
-                question: "Do I need Apple Watch or a heart-rate sensor?",
-                answer: "No. You can use Coachi without heart rate. If heart rate is available, coaching can become more precise."
+                question: "Trenger jeg Apple Watch eller pulsklokke?",
+                answer: "Nei. Du kan bruke Coachi uten puls. Hvis puls er tilgjengelig, kan coachingen bli mer presis."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "no_hr",
-                question: "What happens if heart rate is missing?",
-                answer: "Coachi continues with structure and timing cues. You can still complete the workout without live heart rate."
+                question: "Hva skjer hvis puls mangler?",
+                answer: "Coachi fortsetter med struktur og timing. Du kan fortsatt fullføre økten uten live puls."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "free",
-                question: "What is included in the free version?",
-                answer: "Core coaching, audio cues, countdowns, a simple summary, coach score, and recent workouts are part of the free experience."
+                question: "Hva er inkludert i gratisversjonen?",
+                answer: "Kjernecoaching, lydsignaler, nedtellinger, enkel oppsummering, coach score og nylige økter er en del av gratisopplevelsen."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "premium",
-                question: "What is included in Premium?",
-                answer: "Premium unlocks deeper Coachi features like live voice, higher limits, and other subscription-linked features. When Premium is available in the app, you can choose a monthly or yearly subscription."
+                question: "Hva er inkludert i Premium?",
+                answer: "Premium låser opp mer av Coachi, som live voice, høyere grenser og andre abonnementsbaserte funksjoner. Når Premium er tilgjengelig i appen, kan du velge månedlig eller årlig abonnement."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "subscription",
-                question: "How do I cancel my subscription?",
-                answer: "If you subscribe through Apple, you manage or cancel your subscription in your App Store subscriptions. Restore Purchases is available inside Coachi."
+                question: "Hvordan avslutter jeg abonnementet?",
+                answer: "Hvis du abonnerer gjennom Apple, administrerer eller avslutter du abonnementet i App Store-abonnementene dine. Gjenoppretting av kjøp gjøres i Coachi."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "delete",
-                question: "How do I delete my account?",
-                answer: "Open Delete account in settings to delete your account directly in the app. Contact \(coachiSupportEmail) if you need help."
+                question: "Hvordan sletter jeg kontoen min?",
+                answer: "Åpne Slett konto i innstillinger for å slette kontoen direkte i appen. Kontakt \(coachiSupportEmail) hvis du trenger hjelp."
             ),
-            FAQItem(
+            SupportFAQItem(
                 id: "support",
-                question: "How do I contact support?",
-                answer: "Contact us at \(coachiSupportEmail) and include what happened, which device you use, and screenshots if helpful."
+                question: "Hvordan kontakter jeg support?",
+                answer: "Kontakt oss på \(coachiSupportEmail) og beskriv hva som skjedde, hvilken enhet du bruker og gjerne legg ved skjermbilder."
             ),
         ]
     }
 
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(item.question)
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-
-                        Text(item.answer)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(CoachiTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(CoachiTheme.borderSubtle.opacity(0.4), lineWidth: 1)
-                    )
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 32)
-        }
-        .background(CoachiTheme.bg.ignoresSafeArea())
-        .navigationTitle(L10n.faqTitle)
-        .navigationBarTitleDisplayMode(.inline)
-    }
+    return [
+        SupportFAQItem(
+            id: "how",
+            question: "How does Coachi work?",
+            answer: "Coachi guides your workouts with short audio cues, transitions, and clear instructions during the session."
+        ),
+        SupportFAQItem(
+            id: "watch",
+            question: "Do I need Apple Watch or a heart-rate sensor?",
+            answer: "No. You can use Coachi without heart rate. If heart rate is available, coaching can become more precise."
+        ),
+        SupportFAQItem(
+            id: "no_hr",
+            question: "What happens if heart rate is missing?",
+            answer: "Coachi continues with structure and timing cues. You can still complete the workout without live heart rate."
+        ),
+        SupportFAQItem(
+            id: "free",
+            question: "What is included in the free version?",
+            answer: "Core coaching, audio cues, countdowns, a simple summary, coach score, and recent workouts are part of the free experience."
+        ),
+        SupportFAQItem(
+            id: "premium",
+            question: "What is included in Premium?",
+            answer: "Premium unlocks deeper Coachi features like live voice, higher limits, and other subscription-linked features. When Premium is available in the app, you can choose a monthly or yearly subscription."
+        ),
+        SupportFAQItem(
+            id: "subscription",
+            question: "How do I cancel my subscription?",
+            answer: "If you subscribe through Apple, you manage or cancel your subscription in your App Store subscriptions. Restore Purchases is available inside Coachi."
+        ),
+        SupportFAQItem(
+            id: "delete",
+            question: "How do I delete my account?",
+            answer: "Open Delete account in settings to delete your account directly in the app. Contact \(coachiSupportEmail) if you need help."
+        ),
+        SupportFAQItem(
+            id: "support",
+            question: "How do I contact support?",
+            answer: "Contact us at \(coachiSupportEmail) and include what happened, which device you use, and screenshots if helpful."
+        ),
+    ]
 }
 
 private struct ContactSupportView: View {
     @Environment(\.openURL) private var openURL
     private var isNorwegian: Bool { L10n.current == .no }
+    private var faqItems: [SupportFAQItem] { supportFAQItems(isNorwegian: isNorwegian) }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -1429,19 +1521,32 @@ private struct ContactSupportView: View {
 
                 SupportCard(
                     title: isNorwegian ? "Support" : "Support",
-                    copyText: coachiSupportEmail
+                    copyText: "\(coachiSupportEmail)\n\(coachiSupportURL)"
                 )
 
-                Button {
-                    openSupportEmail()
-                } label: {
-                    SettingsActionRow(
-                        icon: "paperplane",
-                        title: isNorwegian ? "Send e-post til support" : "Email support",
-                        tint: CoachiTheme.primary
-                    )
+                HStack(spacing: 12) {
+                    Button {
+                        openSupportEmail()
+                    } label: {
+                        SettingsActionRow(
+                            icon: "paperplane",
+                            title: isNorwegian ? "Send e-post til support" : "Email support",
+                            tint: CoachiTheme.primary
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        openSupportSite()
+                    } label: {
+                        SettingsActionRow(
+                            icon: "arrow.up.right.square",
+                            title: isNorwegian ? "Åpne supportside" : "Open support page",
+                            tint: CoachiTheme.textPrimary
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 SupportCard(
                     title: isNorwegian ? "Ta gjerne med dette" : "Include this if possible",
@@ -1456,6 +1561,18 @@ private struct ContactSupportView: View {
                         ? "Feil under økter, problemer med konto, spørsmål om historikk, lydpakke, abonnement og andre tekniske problemer i Coachi."
                         : "Workout issues, account problems, questions about history, audio packs, subscriptions, and other technical issues in Coachi."
                 )
+
+                Text(L10n.faqTitle)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .padding(.top, 6)
+
+                ForEach(faqItems) { item in
+                    SupportCard(
+                        title: item.question,
+                        copyText: item.answer
+                    )
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -1468,6 +1585,11 @@ private struct ContactSupportView: View {
 
     private func openSupportEmail() {
         guard let url = URL(string: "mailto:\(coachiSupportEmail)") else { return }
+        openURL(url)
+    }
+
+    private func openSupportSite() {
+        guard let url = URL(string: coachiSupportURL) else { return }
         openURL(url)
     }
 }

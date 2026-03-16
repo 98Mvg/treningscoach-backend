@@ -4,7 +4,7 @@
 //
 //  Tracks free-tier Live Voice session usage.
 //  - Daily limit:   AppConfig.LiveVoice.freeSessionsPerDay (3)
-//  - Premium users: no limits enforced; callers pass isPremium = true
+//  - Premium users: no limits enforced and are not counted locally
 //
 //  State is UserDefaults-backed. Daily counter resets automatically on a new calendar day.
 //
@@ -49,7 +49,8 @@ final class LiveVoiceSessionTracker: ObservableObject {
     // MARK: - Mutation
 
     /// Call when a live voice session is successfully started.
-    func recordSession() {
+    func recordSession(isPremium: Bool) {
+        if isPremium { return }
         refreshDailyCount()
         let updated = sessionsUsedToday + 1
         defaults.set(updated, forKey: countKey)

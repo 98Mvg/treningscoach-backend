@@ -41,7 +41,8 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "sectionHeader(L10n.account)" in text
     assert "sectionHeader(L10n.coaching)" in text
     assert "sectionHeader(L10n.helpAndSupport)" in text
-    assert "title: L10n.faqTitle" in text
+    assert "FAQView()" not in text
+    assert "NavigationLink {\n                ContactSupportView()" in text
     assert "title: L10n.contactSupport" in text
     assert "title: L10n.privacyPolicy" in text
     assert "title: L10n.termsOfUse" in text
@@ -63,8 +64,11 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
 
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
-    assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)",\n                    trailingIcon: nil' in text
-    assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)",\n                    trailingIcon: nil' in text
+    assert 'Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")' in text
+    assert 'title: L10n.current == .no ? "Navn" : "Name",' in text
+    assert 'title: L10n.current == .no ? "E-post" : "Email",' in text
+    assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)"' not in text
+    assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)"' not in text
 
 
 def test_profile_faq_covers_launch_critical_questions() -> None:
@@ -90,7 +94,10 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "private struct CoachingSettingsView: View" in text
     assert "private struct AudioAndVoicesView: View" in text
     assert "private struct HistoryAndDataView: View" in text
-    assert 'icon: "questionmark.circle"' in text
+    assert "private struct FAQView: View" not in text
+    assert "private struct ContactSupportView: View" in text
+    assert "SupportFAQItem" in text
+    assert "supportFAQItems(isNorwegian: isNorwegian)" in text
     assert 'icon: "headphones"' in text
     assert 'icon: "hand.raised"' in text
     assert 'icon: "doc.text"' in text
@@ -104,6 +111,8 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'title: L10n.manageSubscription' in text
     assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
     assert "await authManager.deleteAccount()" in text
+    assert 'Text(L10n.faqTitle)' in text
+    assert "openSupportSite()" in text
     assert "[SUPPORT_EMAIL]" not in text
     assert "[COMPANY_NAME]" not in text
     assert "[SUBSCRIPTION_DETAILS]" not in text
@@ -142,8 +151,17 @@ def test_health_profile_is_a_dedicated_surface_not_a_wrapper() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     assert "private struct HealthProfileView: View" in text
     assert "PersonalProfileSettingsView()" not in text[text.index("private struct HealthProfileView: View"):text.index("private struct PersonalProfileSettingsView: View")]
-    assert 'title: L10n.healthProfile' in text
-    assert 'title: "\\(L10n.dateOfBirth): \\(birthDateDisplayLine)"' in text
+    assert '@AppStorage("user_gender") private var storedGender: String = ""' in text
+    assert '@AppStorage("user_height_cm") private var storedHeightCm: Int = 0' in text
+    assert '@AppStorage("user_weight_kg") private var storedWeightKg: Int = 0' in text
+    assert '@AppStorage("hr_max") private var storedMaxHeartRate: Int = 0' in text
+    assert '@AppStorage("resting_hr") private var storedRestingHeartRate: Int = 0' in text
+    assert 'title: L10n.dateOfBirth,' in text
+    assert 'title: L10n.current == .no ? "Kjønn" : "Gender",' in text
+    assert 'title: L10n.current == .no ? "Høyde" : "Height",' in text
+    assert 'title: L10n.current == .no ? "Vekt" : "Weight",' in text
+    assert 'title: L10n.current == .no ? "Makspuls" : "Max heart rate",' in text
+    assert 'title: L10n.current == .no ? "Hvilepuls" : "Resting heart rate",' in text
 
 
 def test_localization_contains_monitor_and_coach_score_strings() -> None:

@@ -19,16 +19,23 @@ final class LiveCoachConversationViewModel: ObservableObject {
     let userName: String
 
     private var hasAutoStarted = false
+    private var hasRecordedSuccessfulStart = false
     private var cancellables = Set<AnyCancellable>()
+    private let isPremium: Bool
+    private let liveVoiceTracker: LiveVoiceSessionTracker
 
     init(
         summaryContext: PostWorkoutSummaryContext,
         languageCode: String,
-        userName: String
+        userName: String,
+        isPremium: Bool,
+        liveVoiceTracker: LiveVoiceSessionTracker? = nil
     ) {
         self.summaryContext = summaryContext
         self.languageCode = languageCode
         self.userName = userName
+        self.isPremium = isPremium
+        self.liveVoiceTracker = liveVoiceTracker ?? .shared
         self.service = XAIRealtimeVoiceService(
             summaryContext: summaryContext,
             languageCode: languageCode,
@@ -38,6 +45,15 @@ final class LiveCoachConversationViewModel: ObservableObject {
         service.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        service.$connectionState
+            .sink { [weak self] state in
+                guard let self else { return }
+                guard case .connected = state, !self.hasRecordedSuccessfulStart else { return }
+                self.hasRecordedSuccessfulStart = true
+                self.liveVoiceTracker.recordSession(isPremium: self.isPremium)
             }
             .store(in: &cancellables)
     }
@@ -170,12 +186,13 @@ struct LiveCoachConversationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: LiveCoachConversationViewModel
 
-    init(summaryContext: PostWorkoutSummaryContext, languageCode: String, userName: String) {
+    init(summaryContext: PostWorkoutSummaryContext, languageCode: String, userName: String, isPremium: Bool) {
         _viewModel = StateObject(
             wrappedValue: LiveCoachConversationViewModel(
                 summaryContext: summaryContext,
                 languageCode: languageCode,
-                userName: userName
+                userName: userName,
+                isPremium: isPremium
             )
         )
     }

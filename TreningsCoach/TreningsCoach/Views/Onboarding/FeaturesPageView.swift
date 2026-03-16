@@ -16,10 +16,6 @@ private enum StoryPresentationStyle {
 
 private enum StoryPreviewKind {
     case none
-    case fitnessAgePrompt
-    case fitnessAgeExample
-    case activityQuotient
-    case deviceSupport
     case watchBPM
     case intensityBar
     case talkToCoach
@@ -679,18 +675,6 @@ struct FeaturesPageView: View {
             } else {
                 EmptyView()
             }
-        case .fitnessAgePrompt:
-            FitnessAgePromptCard()
-                .frame(width: width)
-        case .fitnessAgeExample:
-            FitnessAgeExampleCard()
-                .frame(width: width)
-        case .activityQuotient:
-            ActivityQuotientPreviewCard()
-                .frame(width: width)
-        case .deviceSupport:
-            DeviceSupportPreviewCard(deviceTags: activePage.deviceTags)
-                .frame(width: width)
         case .watchBPM:
             WatchBPMPreviewCard()
                 .frame(width: width)
@@ -706,16 +690,16 @@ struct FeaturesPageView: View {
     @ViewBuilder
     private func introPreviewCard() -> some View {
         switch activePage.previewKind {
+        case .none:
+            if activePage.showsCoachScoreCard {
+                CoachScorePreviewCard()
+            }
         case .watchBPM:
             WatchBPMPreviewCard()
         case .intensityBar:
             IntensityBarPreviewCard()
         case .talkToCoach:
             TalkToCoachPreviewCard()
-        default:
-            if activePage.showsCoachScoreCard {
-                CoachScorePreviewCard()
-            }
         }
     }
 
@@ -800,218 +784,6 @@ struct FeaturesPageView: View {
             }
         }
         .foregroundColor(.white.opacity(0.96))
-    }
-}
-
-private struct FitnessAgePromptCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Din kondisjonsalder")
-                .font(.title3.weight(.bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            VStack(spacing: 10) {
-                Text("?")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundColor(CoachiTheme.primary)
-
-                Image(systemName: "triangle.fill")
-                    .font(.title3.weight(.bold))
-                    .foregroundColor(CoachiTheme.primary)
-                    .offset(y: -10)
-
-                FitnessAgeScaleView()
-            }
-
-            Text("Faktisk alder")
-                .font(.title3.weight(.semibold))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding(22)
-        .background(Color.white.opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-}
-
-private struct FitnessAgeExampleCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Din kondisjonsalder")
-                .font(.title3.weight(.bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            VStack(spacing: 10) {
-                Text("48")
-                    .font(.system(size: 62, weight: .bold, design: .rounded))
-                    .foregroundColor(CoachiTheme.primary)
-
-                Image(systemName: "triangle.fill")
-                    .font(.title3.weight(.bold))
-                    .foregroundColor(CoachiTheme.primary)
-                    .offset(y: -12)
-
-                FitnessAgeScaleView()
-            }
-
-            Text("Eksempel på kondisjonsalder")
-                .font(.title3.weight(.semibold))
-                .foregroundColor(CoachiTheme.textSecondary)
-        }
-        .padding(22)
-        .background(Color.white.opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-}
-
-private struct FitnessAgeScaleView: View {
-    var body: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "6F56D9"), Color(hex: "9D8AF2"), Color(hex: "B9AEFF")],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 22)
-
-            HStack {
-                Spacer()
-                    .frame(width: 96)
-                Rectangle().fill(Color.white.opacity(0.75)).frame(width: 2, height: 32)
-                Spacer()
-                Rectangle().fill(Color.white.opacity(0.75)).frame(width: 2, height: 32)
-                Spacer()
-                    .frame(width: 96)
-            }
-
-            HStack {
-                Text("40")
-                Spacer()
-                Text("50")
-            }
-            .font(.title3.weight(.medium))
-            .foregroundColor(CoachiTheme.textSecondary)
-            .padding(.horizontal, 28)
-            .offset(y: -28)
-        }
-    }
-}
-
-private struct ActivityQuotientPreviewCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Din AQ")
-                .font(.title3.weight(.bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            HStack {
-                Spacer()
-                ZStack {
-                    Circle()
-                        .stroke(Color(hex: "E3E1E8"), lineWidth: 16)
-                        .frame(width: 150, height: 150)
-
-                    Circle()
-                        .trim(from: 0.1, to: 0.72)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color(hex: "D8C9FF"), Color(hex: "79D1C9")],
-                                startPoint: .topTrailing,
-                                endPoint: .bottomLeading
-                            ),
-                            style: StrokeStyle(lineWidth: 16, lineCap: .round)
-                        )
-                        .frame(width: 150, height: 150)
-                        .rotationEffect(.degrees(-90))
-
-                    VStack(spacing: 2) {
-                        Text("52")
-                            .font(.system(size: 50, weight: .bold, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color(hex: "D8C9FF"), Color(hex: "79D1C9")],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                        Text("Totalt")
-                            .font(.title3.weight(.semibold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                    }
-                }
-                Spacer()
-            }
-        }
-        .padding(22)
-        .background(Color.white.opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-}
-
-private struct DeviceSupportPreviewCard: View {
-    let deviceTags: [String]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Kobles til")
-                .font(.title3.weight(.bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    ForEach(deviceTags.prefix(2), id: \.self) { tag in
-                        supportTag(tag)
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    ForEach(deviceTags.dropFirst(2), id: \.self) { tag in
-                        supportTag(tag)
-                    }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Ingen pulsklokke?")
-                    .font(.body.weight(.bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-
-                Text("Alt i orden! Coachi kan fortsatt coache deg på pustanalyse.")
-                    .font(.body.weight(.medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(22)
-        .background(Color.white.opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private func supportTag(_ label: String) -> some View {
-        HStack(spacing: 7) {
-            if label == "Apple Watch" {
-                Image(systemName: "applewatch.side.right")
-                    .font(.caption.weight(.bold))
-            } else if label == "Bluetooth HR" {
-                Image(systemName: "dot.radiowaves.left.and.right")
-                    .font(.caption.weight(.bold))
-            } else {
-                Circle()
-                    .fill(CoachiTheme.primary.opacity(0.85))
-                    .frame(width: 7, height: 7)
-            }
-
-            Text(label)
-                .font(.caption.weight(.semibold))
-        }
-        .foregroundColor(CoachiTheme.textPrimary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color(hex: "F1EDFF"))
-        .clipShape(Capsule())
     }
 }
 

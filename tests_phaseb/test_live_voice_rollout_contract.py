@@ -26,4 +26,12 @@ def test_live_voice_ops_checklist_documents_required_env_and_script():
     assert "XAI_API_KEY" in content
     assert "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS=120" in content
     assert "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS=300" in content
+    assert "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY=3" in content
     assert "./scripts/smoke_live_voice.sh" in content
+
+
+def test_env_example_matches_free_live_voice_session_policy():
+    content = _read_text(".env.example")
+    assert "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS=120" in content
+    assert "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS=300" in content
+    assert "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY=3" in content

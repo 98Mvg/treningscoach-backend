@@ -73,18 +73,19 @@ struct WorkoutCompleteView: View {
     }
     private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
-    private var remainingLiveSessions: Int? { liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess) }
-    private var liveVoiceIsAvailable: Bool { canUseLiveCoachVoice && liveVoiceTracker.canStart(isPremium: hasPremiumAccess) }
+    private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }
+    private var hasLiveVoiceAccountAccess: Bool {
+        authManager.isAuthenticated && authManager.currentUser != nil
+    }
+    private var remainingLiveSessions: Int? {
+        guard hasLiveVoiceAccountAccess else { return nil }
+        return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
+    }
+    private var liveVoiceIsAvailable: Bool {
+        hasLiveVoiceAccountAccess && liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
+    }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
-    private var canUseLiveCoachVoice: Bool {
-        guard AppConfig.LiveVoice.isEnabled,
-              authManager.isAuthenticated,
-              authManager.currentUser != nil else {
-            return false
-        }
-        return true
-    }
     private var liveVoiceLanguageCode: String {
         authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
     }
@@ -145,7 +146,7 @@ struct WorkoutCompleteView: View {
 
                     Spacer()
 
-                    if canUseLiveCoachVoice {
+                    if shouldShowLiveCoachVoiceButton {
                         liveCoachVoiceButton
                             .padding(.horizontal, 30)
                             .padding(.bottom, 14)
@@ -164,7 +165,8 @@ struct WorkoutCompleteView: View {
             LiveCoachConversationView(
                 summaryContext: viewModel.postWorkoutSummaryContext,
                 languageCode: liveVoiceLanguageCode,
-                userName: liveVoiceUserName
+                userName: liveVoiceUserName,
+                isPremium: hasPremiumAccess
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -227,17 +229,17 @@ struct WorkoutCompleteView: View {
 
             // Button
             Button {
+                let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
+                Task {
+                    _ = await BackendAPIService.shared.trackVoiceTelemetry(
+                        event: "voice_cta_tapped",
+                        metadata: metadata
+                    )
+                }
+
                 if liveVoiceIsAvailable {
-                    let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
-                    Task {
-                        _ = await BackendAPIService.shared.trackVoiceTelemetry(
-                            event: "voice_cta_tapped",
-                            metadata: metadata
-                        )
-                    }
-                    liveVoiceTracker.recordSession()
                     showLiveCoachVoice = true
-                } else if canUseLiveCoachVoice {
+                } else {
                     showLiveVoicePaywall = true
                 }
             } label: {
@@ -265,7 +267,10 @@ struct WorkoutCompleteView: View {
             }
             return L10n.current == .no ? "Tilgjengelig" : "Available"
         }
-        return L10n.current == .no ? "Ikke tilgjengelig" : "Unavailable"
+        if !hasLiveVoiceAccountAccess {
+            return L10n.current == .no ? "Logg inn for å bruke live" : "Sign in to use live"
+        }
+        return L10n.current == .no ? "Gratisgrensen er brukt opp i dag" : "Free limit reached today"
     }
 
     private func freezeSummaryValues() {

@@ -29,6 +29,10 @@ Updated: 2026-03-16
 
 ## Progress Log
 
+- 2026-03-16: Kept `Talk to Coach Live` visible on workout summary for all users when live voice is enabled, but moved actual free-session counting from summary tap to the first successful realtime connection so failed starts/timeouts do not burn daily quota.
+- 2026-03-16: Synced free live-voice policy to `3/day` across iOS config, backend defaults, `.env.example`, and launch ops docs, while preserving max-duration caps for both free and premium sessions.
+- 2026-03-16: Cleaned the live website launch surfaces so `/` and `/download` now use `coachi.no` metadata/canonical URLs, real `/privacy` and `/terms` footer links, and free-download + optional Premium copy instead of old beta/onrender wording.
+- 2026-03-16: Fixed iOS compile regression where `WorkoutCompleteView` could not resolve `LiveVoiceSessionTracker` because the new Swift file existed on disk but was missing from the Xcode project file reference + app target sources list.
 - 2026-03-16: Fixed Supabase pooler startup crash by stopping automatic `db.create_all()` on external Postgres in `database.py`; local SQLite still auto-creates schema while production/external databases are now migration-owned.
 - 2026-03-16: Kept the single existing Flask API path and added Supabase-ready backend infrastructure under it instead of introducing direct Supabase calls from SwiftUI.
 - 2026-03-16: Added `CoachingScore` persistence on the existing workout save path plus an Alembic migration and Supabase RLS bootstrap SQL for `users`, `workout_history`, `coaching_scores`, and `user_subscriptions`.
@@ -72,6 +76,34 @@ Updated: 2026-03-16
 
 ## Review Results
 
+- `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_live_voice_rollout_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_config_env_overrides.py`
+  - result: `47 passed`
+- `python3 -m py_compile config.py main.py xai_voice.py`
+  - result: passed
+- `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_launch_page_copy_contract.py tests_phaseb/test_web_blueprint_contract.py tests_phaseb/test_onboarding_theme_contract.py tests_phaseb/test_canonical_event_contract.py`
+  - result: `70 passed`
+- `python3 scripts/generate_codebase_guide.py`
+  - result: `CODEBASE_GUIDE.md` regenerated
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
+- `pytest -q tests_phaseb/test_live_voice_mode_contract.py`
+  - result: `10 passed`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
+- `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py`
+  - result: `12 passed`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
+- `pytest -q tests_phaseb/test_launch_page_copy_contract.py tests_phaseb/test_web_blueprint_contract.py`
+  - result: `4 passed`
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
+- `pytest -q tests_phaseb/test_live_voice_mode_contract.py`
+  - result: `9 passed`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
 - `pytest -q tests_phaseb/test_config_env_overrides.py -k \"database_url or init_db\"`
   - result: `3 passed, 21 deselected`
 - `python3 -m py_compile database.py`

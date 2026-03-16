@@ -2205,13 +2205,13 @@ def _event_text(
         return "30 sekunder." if lang == "no" else "30 seconds left."
 
     if event_type == "interval_countdown_15":
-        return "15!" if lang == "no" else "15!"
+        return "15" if lang == "no" else "15"
 
     if event_type == "interval_countdown_5":
         return "fem" if lang == "no" else "5!"
 
     if event_type == "interval_countdown_start":
-        return "Kjør på nå." if lang == "no" else "Go!"
+        return "Start" if lang == "no" else "Go"
 
     if event_type == "main_started":
         if lang == "no":

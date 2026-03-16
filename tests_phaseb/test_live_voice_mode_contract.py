@@ -28,20 +28,23 @@ INFO_PLIST = (
 PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbxproj"
 
 
-def test_summary_screen_exposes_live_voice_cta_for_authenticated_users_without_live_voice_paywall() -> None:
+def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
     assert "@EnvironmentObject var authManager: AuthManager" in text
-    assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }' in text
-    assert "AppConfig.LiveVoice.isEnabled" in text
-    assert "authManager.isAuthenticated" in text
-    assert "authManager.currentUser != nil" in text
-    assert ".fullScreenCover(isPresented: $showLiveCoachVoice)" in text
+    assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }' in text
+    assert "private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }" in text
+    assert "private var hasLiveVoiceAccountAccess: Bool {" in text
+    assert "authManager.isAuthenticated && authManager.currentUser != nil" in text
+    assert "LiveVoiceSessionTracker.shared" in text
+    assert "showLiveVoicePaywall = true" in text
+    assert ".sheet(isPresented: $showLiveCoachVoice)" in text
+    assert ".sheet(isPresented: $showLiveVoicePaywall)" in text
     assert 'event: "voice_cta_tapped"' in text
-    assert 'Image(systemName: "mic.fill")' in text
-    assert ".frame(height: 64)" in text
-    assert "RoundedRectangle(cornerRadius: 22, style: .continuous)" in text
-    assert "showPaywall" not in text
-    assert "PaywallView(context: .liveVoice)" not in text
+    assert "liveVoiceStatusText" in text
+    assert ".frame(height: 44)" in text
+    assert "RoundedRectangle(cornerRadius: 16, style: .continuous)" in text
+    assert "PaywallView(context: .liveVoice)" in text
+    assert "liveVoiceTracker.recordSession()" not in text
 
 
 def test_auth_manager_fetches_runtime_flags_for_live_voice_policy() -> None:
@@ -62,6 +65,9 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     text = LIVE_VOICE_VIEW.read_text(encoding="utf-8")
     assert "final class LiveCoachConversationViewModel: ObservableObject" in text
     assert "struct LiveCoachConversationView: View" in text
+    assert "service.$connectionState" in text
+    assert "hasRecordedSuccessfulStart" in text
+    assert "liveVoiceTracker.recordSession(isPremium: self.isPremium)" in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead")' in text
@@ -94,10 +100,10 @@ def test_live_voice_view_generates_shareable_insight_card_after_conversation() -
 def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     text = VOICE_SERVICE.read_text(encoding="utf-8")
     assert "final class XAIRealtimeVoiceService: NSObject, ObservableObject" in text
-    assert "URLSession.shared.webSocketTask(with: request)" in text
+    assert "URLSession.shared.webSocketTask(with: url, protocols: protocols)" in text
     assert 'try await socket.send(.string(rawJSON))' in text
     assert "standardFormatWithSampleRate: 24_000" in text
-    assert "input_audio_buffer.append" in text
+    assert 'let payload = "{\\"type\\":\\"input_audio_buffer.append\\",\\"audio\\":\\"\\(encoded)\\"}"' in text
     assert 'event: "voice_session_started"' in text
     assert 'event: "voice_session_failed"' in text
     assert 'event: "voice_session_ended"' in text
@@ -124,6 +130,9 @@ def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     assert "struct LiveVoice" in config_text
     assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)' in config_text
+    assert "static let freeMaxDurationSeconds: Int = 120" in config_text
+    assert "static let premiumMaxDurationSeconds: Int = 300" in config_text
+    assert "static let freeSessionsPerDay: Int = 3" in config_text
     assert "struct Share" in config_text
     assert 'static let coachiWebsiteURLString = "https://coachi.app"' in config_text
     assert 'static let instagramStoriesScheme = "instagram-stories://share"' in config_text
@@ -142,3 +151,11 @@ def test_xcode_project_tracks_new_live_voice_files() -> None:
     text = PBXPROJ.read_text(encoding="utf-8")
     assert "XAIRealtimeVoiceService.swift" in text
     assert "LiveCoachConversationView.swift" in text
+    assert "LiveVoiceSessionTracker.swift" in text
+    assert "LiveVoiceSessionTracker.swift in Sources" in text
+
+
+def test_backend_client_keeps_30_second_live_voice_bootstrap_timeout() -> None:
+    text = (REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "BackendAPIService.swift").read_text(encoding="utf-8")
+    assert 'var request = URLRequest(url: url, timeoutInterval: 30)' in text
+    assert 'let url = URL(string: "\\(baseURL)/voice/session")!' in text

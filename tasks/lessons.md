@@ -36,6 +36,12 @@ Updated: 2026-03-16
 
 ## Session-Specific Lessons
 
+- 2026-03-16: Summary CTA gating and quota accounting are separate concerns; keep `Talk to Coach Live` visible as a discovery surface, but only consume a free daily session after the realtime voice connection actually reaches `.connected`.
+- 2026-03-16: When a live-voice policy exists on both iOS and Flask, sync the numeric defaults (`sessions/day`, free/premium max duration) in code, `.env.example`, and ops docs on the same pass or launch truth drifts immediately.
+- 2026-03-16: When redesigning existing settings/profile surfaces from inspiration screenshots, first map them onto the fields that already live in `UserDefaults`, auth state, and the current SwiftUI path; do not invent a second profile model just to match UI.
+- 2026-03-16: If FAQ content is moved into support, remove the separate runtime entry point and lock the new consolidated support surface with contract tests so profile navigation does not drift back into duplicate help pages.
+- 2026-03-16: Launch-surface cleanup must include metadata and legal anchors, not just visible hero/FAQ copy; stale canonical URLs and `#` footer links are launch bugs too.
+- 2026-03-16: If Swift reports `Cannot find '<type>' in scope` right after a new file lands, check `project.pbxproj` target membership first; the file may exist on disk but still be absent from `PBXFileReference` and `PBXSourcesBuildPhase`.
 - 2026-03-16: When Supabase/Postgres is reached through the pooler (`aws-...pooler.supabase.com`), do not rely on Flask `db.create_all()` at boot; let Alembic own schema changes to avoid PgBouncer/prepared-statement startup crashes.
 - 2026-03-16: For ship-day infrastructure work, keep Flask as the single app-facing API and wrap Supabase/Auth providers behind the existing Coachi routes instead of introducing a parallel client/server auth path.
 - 2026-03-16: When a launch plan requests a simpler schema than the live product already uses, map the plan onto the real runtime tables instead of duplicating `workouts`/`subscriptions` storage.

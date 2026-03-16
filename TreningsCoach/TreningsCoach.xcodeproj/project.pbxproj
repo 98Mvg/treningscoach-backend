@@ -57,6 +57,7 @@
 		CC2001 /* XAIRealtimeVoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2000 /* XAIRealtimeVoiceService.swift */; };
 		CC3001 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3000 /* SubscriptionManager.swift */; };
 		CC3003 /* TalkUsageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3002 /* TalkUsageTracker.swift */; };
+		CC3005 /* LiveVoiceSessionTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3004 /* LiveVoiceSessionTracker.swift */; };
 		HR1001 /* HeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1000 /* HeartRateProvider.swift */; };
 		HR1003 /* AppleWatchWCProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1002 /* AppleWatchWCProvider.swift */; };
 		HR1005 /* BLEHeartRateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = HR1004 /* BLEHeartRateProvider.swift */; };
@@ -150,6 +151,7 @@
 		CC2000 /* XAIRealtimeVoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAIRealtimeVoiceService.swift; sourceTree = "<group>"; };
 		CC3000 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
 		CC3002 /* TalkUsageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkUsageTracker.swift; sourceTree = "<group>"; };
+		CC3004 /* LiveVoiceSessionTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveVoiceSessionTracker.swift; sourceTree = "<group>"; };
 		HR1000 /* HeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateProvider.swift; sourceTree = "<group>"; };
 		HR1002 /* AppleWatchWCProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleWatchWCProvider.swift; sourceTree = "<group>"; };
 		HR1004 /* BLEHeartRateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEHeartRateProvider.swift; sourceTree = "<group>"; };
@@ -265,6 +267,7 @@
 				AA0013 /* BackendAPIService.swift */,
 				CC3000 /* SubscriptionManager.swift */,
 				CC3002 /* TalkUsageTracker.swift */,
+				CC3004 /* LiveVoiceSessionTracker.swift */,
 				CC2000 /* XAIRealtimeVoiceService.swift */,
 				CC1000 /* PhoneWCManager.swift */,
 				AA0021 /* ContinuousRecordingManager.swift */,
@@ -510,6 +513,7 @@
 				AA0014 /* BackendAPIService.swift in Sources */,
 				CC3001 /* SubscriptionManager.swift in Sources */,
 				CC3003 /* TalkUsageTracker.swift in Sources */,
+				CC3005 /* LiveVoiceSessionTracker.swift in Sources */,
 				CC2001 /* XAIRealtimeVoiceService.swift in Sources */,
 				CC1001 /* PhoneWCManager.swift in Sources */,
 				CC1003 /* WCKeys.swift in Sources */,

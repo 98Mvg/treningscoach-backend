@@ -9,13 +9,13 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="Coachi | Din personlige løpecoach">
     <meta property="og:description" content="Løp med en coach som hjelper deg å holde riktig puls. Korte stemmeråd i sanntid.">
-    <meta property="og:url" content="https://treningscoach-backend.onrender.com">
-    <meta property="og:image" content="https://treningscoach-backend.onrender.com/static/site/images/hero-runner.png">
+    <meta property="og:url" content="https://coachi.no">
+    <meta property="og:image" content="https://coachi.no/static/site/images/hero-runner.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Coachi | Din personlige løpecoach">
     <meta name="twitter:description" content="Løp med en coach som hjelper deg å holde riktig puls.">
-    <meta name="twitter:image" content="https://treningscoach-backend.onrender.com/static/site/images/hero-runner.png">
-    <link rel="canonical" href="https://treningscoach-backend.onrender.com/">
+    <meta name="twitter:image" content="https://coachi.no/static/site/images/hero-runner.png">
+    <link rel="canonical" href="https://coachi.no/">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1141,7 +1141,7 @@
                 </div>
                 <div class="faq-item">
                     <button class="faq-q" data-i18n="faq_4_q">Hva koster det?</button>
-                    <div class="faq-a"><p data-i18n="faq_4_a">Appen er gratis mens vi finjusterer coachen. Betalte planer kan komme senere.</p></div>
+                    <div class="faq-a"><p data-i18n="faq_4_a">Coachi er gratis å laste ned. Premium er valgfritt og tilbys som måneds- eller årsabonnement i appen.</p></div>
                 </div>
             </div>
           </div>
@@ -1262,17 +1262,17 @@
                     <ul class="footer-links">
                         <li><a href="#faq" data-i18n="nav_faq">Spørsmål</a></li>
                         <li><a href="mailto:AI.Coachi@hotmail.com" data-i18n="footer_contact">Kontakt oss</a></li>
-                        <li><a href="#" data-i18n="footer_privacy">Personvern</a></li>
-                        <li><a href="#" data-i18n="footer_terms">Vilkår</a></li>
+                        <li><a href="/privacy" data-i18n="footer_privacy">Personvern</a></li>
+                        <li><a href="/terms" data-i18n="footer_terms">Vilkår</a></li>
                     </ul>
                 </div>
             </div>
             <div class="footer-bottom">
                 <span>&copy; 2026 Coachi. <span data-i18n="footer_made">Laget i Norge</span></span>
                 <div class="footer-legal-links">
-                    <a href="#" data-i18n="footer_privacy">Personvern</a>
-                    <a href="#" data-i18n="footer_terms">Vilkår</a>
-                    <a href="#" data-i18n="footer_cookies">Informasjonskapsler</a>
+                    <a href="/privacy" data-i18n="footer_privacy">Personvern</a>
+                    <a href="/terms" data-i18n="footer_terms">Vilkår</a>
+                    <a href="/privacy" data-i18n="footer_cookies">Informasjonskapsler</a>
                 </div>
             </div>
           </div>
@@ -1369,7 +1369,7 @@
                 faq_3_q: "Hvor raskt kan jeg komme i gang?",
                 faq_3_a: "Last ned, velg økt, og løp. Under 2 minutter fra installasjon til første råd fra coachen.",
                 faq_4_q: "Hva koster det?",
-                faq_4_a: "Appen er gratis mens vi finjusterer coachen. Betalte planer kan komme senere.",
+                faq_4_a: "Coachi er gratis å laste ned. Premium er valgfritt og tilbys som måneds- eller årsabonnement i appen.",
                 cta_title: "Klar for en smartere løpetur?",
                 cta_body: "Last ned Coachi og løp med en coach som tilpasser seg deg.",
                 android_early_access: "Android tidlig tilgang",
@@ -1479,7 +1479,7 @@
                 faq_3_q: "How fast can I get started?",
                 faq_3_a: "Download, pick a run, and go. Under 2 minutes from install to your first coach message.",
                 faq_4_q: "What does it cost?",
-                faq_4_a: "The app is free while we keep improving the coach. Paid plans may come later.",
+                faq_4_a: "Coachi is free to download. Premium is optional and available as monthly or yearly plans in the app.",
                 cta_title: "Ready for a smarter run?",
                 cta_body: "Download Coachi and run with a coach that adapts to you.",
                 android_early_access: "Android early access",
@@ -1612,12 +1612,12 @@
         });
 
         /* ── WAITLIST ── */
-        const RENDER_BASE = "https://treningscoach-backend.onrender.com";
+        const COACHI_BASE = "https://coachi.no";
         const API_BASE = (() => {
             try {
-                if (window.location.origin.includes("treningscoach-backend.onrender.com")) return window.location.origin;
+                if (window.location.origin && /^https?:\/\//.test(window.location.origin)) return window.location.origin;
             } catch(e) {}
-            return RENDER_BASE;
+            return COACHI_BASE;
         })();
 
         const trackLandingEvent = (eventName, metadata = {}) => {

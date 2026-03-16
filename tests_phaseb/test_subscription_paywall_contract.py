@@ -31,3 +31,6 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert "showManageSubscription = true" in content
     assert "title: L10n.manageSubscription" in content
     assert '"Se alle tilbudene"' in content
+    assert 'Text(isNorwegian ? "Inkludert i abonnementet" : "Included in subscription")' in content
+    assert 'ribbonTitle: isNorwegian ? "Populær" : "Popular"' in content
+    assert '("Live voice med coachen", "Live voice with your coach")' in content
