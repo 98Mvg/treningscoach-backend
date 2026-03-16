@@ -64,6 +64,12 @@ def get_database_url():
     return f"sqlite:///{sqlite_path.as_posix()}"
 
 
+def should_auto_create_schema(database_url: str | None = None) -> bool:
+    """Only auto-create schema for local SQLite development."""
+    resolved_url = (database_url or get_database_url()).strip().lower()
+    return resolved_url.startswith("sqlite:///")
+
+
 def init_db(app):
     """Initialize database with Flask app"""
     database_url = get_database_url()
@@ -76,7 +82,12 @@ def init_db(app):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
     with app.app_context():
-        db.create_all()
+        if should_auto_create_schema(database_url):
+            db.create_all()
+        else:
+            app.logger.info(
+                "Skipping db.create_all() for external database; schema is expected to be managed by Alembic migrations."
+            )
 
 
 # ============================================

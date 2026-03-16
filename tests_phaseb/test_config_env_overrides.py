@@ -2,6 +2,9 @@ import importlib
 import os
 import sys
 from pathlib import Path
+from unittest.mock import Mock
+
+from flask import Flask
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -365,3 +368,44 @@ def test_database_url_normalizes_postgres_urls_for_psycopg(monkeypatch):
     database_url = database.get_database_url()
 
     assert database_url == "postgresql+psycopg://postgres:secret@db.example.supabase.co:5432/postgres"
+
+
+def test_init_db_auto_creates_schema_for_local_sqlite(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("INSTANCE_DIR", "tmp/test-instance-db-init")
+
+    init_app_mock = Mock()
+    create_all_mock = Mock()
+    monkeypatch.setattr(database.db, "init_app", init_app_mock)
+    monkeypatch.setattr(database.db, "create_all", create_all_mock)
+
+    app = Flask(__name__)
+
+    database.init_db(app)
+
+    init_app_mock.assert_called_once_with(app)
+    create_all_mock.assert_called_once_with()
+    assert app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:////")
+
+
+def test_init_db_skips_auto_create_for_external_postgres(monkeypatch):
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://postgres:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+    )
+
+    init_app_mock = Mock()
+    create_all_mock = Mock()
+    monkeypatch.setattr(database.db, "init_app", init_app_mock)
+    monkeypatch.setattr(database.db, "create_all", create_all_mock)
+
+    app = Flask(__name__)
+
+    database.init_db(app)
+
+    init_app_mock.assert_called_once_with(app)
+    create_all_mock.assert_not_called()
+    assert (
+        app.config["SQLALCHEMY_DATABASE_URI"]
+        == "postgresql+psycopg://postgres:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres"
+    )

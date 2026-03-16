@@ -29,6 +29,7 @@ Updated: 2026-03-16
 
 ## Progress Log
 
+- 2026-03-16: Fixed Supabase pooler startup crash by stopping automatic `db.create_all()` on external Postgres in `database.py`; local SQLite still auto-creates schema while production/external databases are now migration-owned.
 - 2026-03-16: Kept the single existing Flask API path and added Supabase-ready backend infrastructure under it instead of introducing direct Supabase calls from SwiftUI.
 - 2026-03-16: Added `CoachingScore` persistence on the existing workout save path plus an Alembic migration and Supabase RLS bootstrap SQL for `users`, `workout_history`, `coaching_scores`, and `user_subscriptions`.
 - 2026-03-16: Migrated the existing email OTP routes to optional Supabase Auth behind `SUPABASE_AUTH_ENABLED`, while preserving current `/auth/email/request-code` and `/auth/email/verify` contract shapes.
@@ -37,6 +38,7 @@ Updated: 2026-03-16
 - 2026-03-16: Fixed onboarding so the endurance-training "No" path skips frequency/duration cleanly, returns from summary to the correct prior step, and preserves one deterministic onboarding session.
 - 2026-03-16: Reworked the Coachi paywall/manage-subscription/profile/settings/legal surfaces to Coachi-only copy and Coachi URLs, while keeping the same SwiftUI navigation/runtime path.
 - 2026-03-16: Fixed website mobile navigation visibility and interaction on the existing `index_launch.html` path and added a `/terms` alias without breaking `/termsofuse`.
+- 2026-03-16: Removed dead onboarding preview code that still carried stale `AQ` copy, and added a concrete Coachi App Store metadata/review-note draft for submission prep.
 - 2026-02-23: Fixed iPhone 15 intro clipping in `FeaturesPageView` by constraining content-card width to device width and tightening responsive paddings/wrapping; pushed in commit `0b849ca`.
 - 2026-02-23: Validation run after clipping fix: onboarding/speech contract tests passed (`19 passed`) and iOS build succeeded.
 - 2026-02-23: Resumed with workflow-orchestration rules from user-provided image.
@@ -70,6 +72,12 @@ Updated: 2026-03-16
 
 ## Review Results
 
+- `pytest -q tests_phaseb/test_config_env_overrides.py -k \"database_url or init_db\"`
+  - result: `3 passed, 21 deselected`
+- `python3 -m py_compile database.py`
+  - result: passed
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
 - `python3 -m py_compile main.py auth_routes.py database.py config.py launch_integrations.py email_service.py supabase_auth_service.py web_routes.py app_store_runtime.py`
   - result: passed
 - `pytest -q tests_phaseb/test_supabase_auth_contract.py tests_phaseb/test_launch_integrations_contract.py tests_phaseb/test_app_store_runtime_contract.py tests_phaseb/test_app_store_webhook_contract.py tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_web_blueprint_contract.py`
@@ -82,6 +90,8 @@ Updated: 2026-03-16
   - result: `CODEBASE_GUIDE.md is in sync`
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
   - result: `BUILD SUCCEEDED`
+- `pytest -q tests_phaseb/test_onboarding_theme_contract.py tests_phaseb/test_web_blueprint_contract.py`
+  - result: `28 passed`
 - `pytest -q tests_phaseb/test_workout_ui_gesture_contract.py tests_phaseb/test_phase3_hr_quality_contract.py`
   - result: `5 passed`
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`

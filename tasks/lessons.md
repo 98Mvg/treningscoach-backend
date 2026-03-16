@@ -36,10 +36,12 @@ Updated: 2026-03-16
 
 ## Session-Specific Lessons
 
+- 2026-03-16: When Supabase/Postgres is reached through the pooler (`aws-...pooler.supabase.com`), do not rely on Flask `db.create_all()` at boot; let Alembic own schema changes to avoid PgBouncer/prepared-statement startup crashes.
 - 2026-03-16: For ship-day infrastructure work, keep Flask as the single app-facing API and wrap Supabase/Auth providers behind the existing Coachi routes instead of introducing a parallel client/server auth path.
 - 2026-03-16: When a launch plan requests a simpler schema than the live product already uses, map the plan onto the real runtime tables instead of duplicating `workouts`/`subscriptions` storage.
 - 2026-03-16: Treat legal/support/paywall copy drift as a launch bug; fix the live SwiftUI/runtime surfaces and website routes together so Coachi branding and URLs stay consistent.
 - 2026-03-16: If the user removes a scope item mid-plan, remove it from implementation and final reporting instead of quietly carrying the old task forward.
+- 2026-03-16: Stale pre-launch copy often survives inside dead preview/demo components; remove the dead component path, not just the visible string, when cleaning launch surfaces.
 - 2026-02-23: Guard all runtime UI numeric inputs (`NaN`/`Inf`) before CoreGraphics/SwiftUI drawing.
 - 2026-02-23: When logs show `invalid numeric value (NaN) to CoreGraphics`, prioritize finite/clamp guards in `trim`, `Path.addArc`, animated scales, and Canvas rect/opacity math.
 - 2026-02-23: If simulator logs show repeated `RBLayer: full image queue`, treat it as render-pressure/perf issue from continuous animations and reduce background Timeline activity first.
