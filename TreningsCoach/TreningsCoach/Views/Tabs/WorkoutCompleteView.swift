@@ -17,7 +17,9 @@ struct WorkoutCompleteView: View {
     @State private var contentVisible = false
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
+    @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
     @State private var showLiveCoachVoice = false
+    @State private var showLiveVoicePaywall = false
     @State private var showShareOptions = false
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
@@ -69,7 +71,10 @@ struct WorkoutCompleteView: View {
             ? "Velg hvor du vil dele kortet ditt."
             : "Choose where you want to share your card."
     }
-    private var liveCoachVoiceLabel: String { L10n.current == .no ? "SNAKK MED COACH LIVE" : "TALK TO COACH LIVE" }
+    private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }
+    private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
+    private var remainingLiveSessions: Int? { liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess) }
+    private var liveVoiceIsAvailable: Bool { canUseLiveCoachVoice && liveVoiceTracker.canStart(isPremium: hasPremiumAccess) }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
     private var canUseLiveCoachVoice: Bool {
@@ -165,6 +170,10 @@ struct WorkoutCompleteView: View {
             .presentationDragIndicator(.visible)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
+        .sheet(isPresented: $showLiveVoicePaywall) {
+            PaywallView(context: .liveVoice)
+                .environmentObject(subscriptionManager)
+        }
         .sheet(isPresented: $showShareOptions) {
             WorkoutShareDestinationsSheet(
                 title: shareChooserTitle,
@@ -204,33 +213,59 @@ struct WorkoutCompleteView: View {
     }
 
     private var liveCoachVoiceButton: some View {
-        Button {
-            let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
-            Task {
-                _ = await BackendAPIService.shared.trackVoiceTelemetry(
-                    event: "voice_cta_tapped",
-                    metadata: metadata
-                )
+        VStack(spacing: 6) {
+            // Status line
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : Color.white.opacity(0.35))
+                    .frame(width: 6, height: 6)
+                Text(liveVoiceStatusText)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color.white.opacity(0.55))
+                    .lineLimit(1)
             }
-            showLiveCoachVoice = true
-        } label: {
-            HStack(spacing: 9) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 17, weight: .bold))
+
+            // Button
+            Button {
+                if liveVoiceIsAvailable {
+                    let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
+                    Task {
+                        _ = await BackendAPIService.shared.trackVoiceTelemetry(
+                            event: "voice_cta_tapped",
+                            metadata: metadata
+                        )
+                    }
+                    liveVoiceTracker.recordSession()
+                    showLiveCoachVoice = true
+                } else if canUseLiveCoachVoice {
+                    showLiveVoicePaywall = true
+                }
+            } label: {
                 Text(liveCoachVoiceLabel)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(CoachiTheme.textPrimary.opacity(liveVoiceIsAvailable ? 1 : 0.55))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.white.opacity(liveVoiceIsAvailable ? 0.55 : 0.22))
+                    )
             }
-            .foregroundColor(CoachiTheme.textPrimary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 64)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.white.opacity(0.76))
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    private var liveVoiceStatusText: String {
+        if liveVoiceIsAvailable {
+            if let remaining = remainingLiveSessions {
+                let unit = L10n.current == .no ? "igjen i dag" : "remaining today"
+                return (L10n.current == .no ? "Tilgjengelig" : "Available") + " · \(remaining) \(unit)"
+            }
+            return L10n.current == .no ? "Tilgjengelig" : "Available"
+        }
+        return L10n.current == .no ? "Ikke tilgjengelig" : "Unavailable"
     }
 
     private func freezeSummaryValues() {
@@ -264,7 +299,7 @@ struct WorkoutCompleteView: View {
                 labelColor: Color.white.opacity(0.80),
                 levelColor: CoachiTheme.success,
                 levelLabel: appViewModel.coachiLevelLabel,
-                xpProgress: appViewModel.coachiXPProgressFraction,
+                xpProgress: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction ?? appViewModel.coachiXPProgressFraction,
                 showsOuterXPRing: true,
                 animateXPAward: xpAwardForSummary > 0,
                 xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction,

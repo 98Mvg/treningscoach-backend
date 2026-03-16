@@ -304,7 +304,14 @@ def build_post_workout_voice_session_update(
             language=language,
             user_name=user_name,
         ),
-        "turn_detection": {"type": "server_vad"},
+        "turn_detection": {
+            "type": "server_vad",
+            "threshold": float(getattr(config, "XAI_VOICE_AGENT_VAD_THRESHOLD", 0.5) or 0.5),
+            "prefix_padding_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_PREFIX_PADDING_MS", 300) or 300),
+            "silence_duration_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 200) or 200),
+            "create_response": True,
+            "interrupt_response": True,
+        },
         "input_audio_format": {"type": "audio/pcm", "rate": 24000},
         "output_audio_format": {"type": "audio/pcm", "rate": 24000},
     }
@@ -327,6 +334,9 @@ def create_realtime_client_secret(*, max_duration_seconds: int, logger: Any = No
         getattr(config, "XAI_VOICE_AGENT_CLIENT_SECRET_URL", "https://api.x.ai/v1/realtime/client_secrets")
         or "https://api.x.ai/v1/realtime/client_secrets"
     ).strip()
+    client_secret_timeout = float(
+        getattr(config, "XAI_VOICE_AGENT_CLIENT_SECRET_TIMEOUT_SECONDS", 20.0) or 20.0
+    )
     response = requests.post(
         endpoint,
         headers={
@@ -334,7 +344,7 @@ def create_realtime_client_secret(*, max_duration_seconds: int, logger: Any = No
             "Content-Type": "application/json",
         },
         json={"expires_after": {"seconds": expires_after_seconds}},
-        timeout=10,
+        timeout=client_secret_timeout,
     )
     response.raise_for_status()
     payload = response.json()

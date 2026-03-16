@@ -583,7 +583,7 @@ class BackendAPIService {
         }
 
         let url = URL(string: "\(baseURL)/voice/session")!
-        var request = URLRequest(url: url, timeoutInterval: 20)
+        var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &request)
