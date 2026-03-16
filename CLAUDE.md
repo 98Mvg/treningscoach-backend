@@ -108,6 +108,50 @@ Reference commit for this bundle of changes: `87414c6`.
 
 ---
 
+## 0.3) Latest Session Learnings (2026-03-17) — XP Badge, Workout Summary Sheet, Personal Trainer Voice
+
+Reference commit: `9636f7d` (merge of `claude/workout-summary-xp`)
+Design doc: `docs/plans/2026-03-17-xp-badge-workout-summary-sheet-design.md`
+
+### A) Post-workout screen state (WorkoutCompleteView.swift — must preserve)
+
+- `summaryLevelLabel` intentionally returns `""` — level label hidden from score ring by design.
+- `xpBadgeVisible` drives a one-shot "+N XP" float animation (spring in at 0.55s delay, fade out at 2.4s). Do not make it loop.
+- Post-workout CTA label is `"Workout Summary"` / `"Treningsoversikt"` — NOT "Talk to Coach Live".
+- Button tap ALWAYS opens `WorkoutSummarySheet` unconditionally. Paywall/availability gate lives inside the sheet's "Start Coaching" button.
+- `onStartCoaching` callback: dismisses sheet, waits 0.35s, then opens `LiveCoachConversationView`. The 0.35s gap prevents iOS sheet transition overlap.
+
+### B) WorkoutSummarySheet adaptive grid (must preserve)
+
+- `statCells` array built at render time — only appends cells with real data. No empty cells, no "—" values ever.
+- Cell order: XP Gained → XP to Next Level → Heart Rate → Duration → Time in Zone → Coachi Score.
+- XP cells shown only when `xpAwardForSummary > 0` / `xpToNextLevel > 0`.
+- Heart Rate guard: skip if empty, `"0 BPM"`, or `"—"`.
+- Lone cell in a row spans full width (no vertical divider added if `row.count == 1`).
+- Distance field: intentionally absent. Do not add until HealthKit integration is complete.
+
+### C) WorkoutSessionDetailView (ProfileView — must preserve)
+
+- History detail is **read-only**. No coach CTA, no sheets, no `LiveVoiceSessionTracker`.
+- Uses same adaptive grid pattern as `WorkoutSummarySheet` sourced from `WorkoutRecord` + optional `richContext`.
+- `richContext` = `WorkoutViewModel.loadLastWorkoutSummaryContext()` matched by duration ±2s. Used for HR and zone% only.
+- XP cells never appear in history (not stored per-record). Do not add them.
+
+### D) xAI voice persona (xai_voice.py — must preserve)
+
+- `build_post_workout_voice_instructions()` opens with `PersonaManager.get_system_prompt("personal_trainer", language=language, emotional_mode="supportive")`.
+- Gives Grok Rex the same calm/disciplined/short-sentence personality as the workout coaching pipeline.
+- `emotional_mode="supportive"` is always correct for post-workout. Never use "pressing" or "peak" here.
+- Norwegian handled automatically: `language="no"` returns `PERSONAS_NO["personal_trainer"]`.
+
+### E) Pre-existing test failures (do not investigate)
+
+- `pytest -q tests_phaseb` shows ~56 pre-existing failures on `main` unrelated to these changes.
+- Baseline: 733 passed, 56 failed — before and after this session's commits.
+- Affected suites: `test_zone_continuous_contract`, `test_zone_llm_phrase_layer`.
+
+---
+
 ## 0.2) Latest Session Learnings (2026-03-01) — Manifest Sync Audio Pack
 
 Primary source of truth:
