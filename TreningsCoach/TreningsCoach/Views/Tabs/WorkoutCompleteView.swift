@@ -113,7 +113,7 @@ struct WorkoutCompleteView: View {
         authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
     }
     private var liveVoiceUserName: String {
-        authManager.currentUser?.displayName ?? appViewModel.userProfile.name
+        authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name
     }
 
     var body: some View {
@@ -673,22 +673,29 @@ private struct WorkoutSummarySheet: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
     }
 
-    private var statsGrid: some View {
-        let rows = stride(from: 0, to: statCells.count, by: 2).map { i -> [(String, String)] in
+    private var statRows: [[(title: String, value: String)]] {
+        var result: [[(title: String, value: String)]] = []
+        var i = 0
+        while i < statCells.count {
             if i + 1 < statCells.count {
-                return [statCells[i], statCells[i + 1]]
+                result.append([statCells[i], statCells[i + 1]])
             } else {
-                return [statCells[i]]
+                result.append([statCells[i]])
             }
+            i += 2
         }
-        return VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { rowIdx, row in
+        return result
+    }
+
+    private var statsGrid: some View {
+        VStack(spacing: 0) {
+            ForEach(statRows.indices, id: \.self) { rowIdx in
                 if rowIdx > 0 { Divider() }
                 HStack(spacing: 0) {
-                    statCell(title: row[0].title, value: row[0].value)
-                    if row.count > 1 {
+                    statCell(title: statRows[rowIdx][0].title, value: statRows[rowIdx][0].value)
+                    if statRows[rowIdx].count > 1 {
                         Divider().frame(width: 1)
-                        statCell(title: row[1].title, value: row[1].value)
+                        statCell(title: statRows[rowIdx][1].title, value: statRows[rowIdx][1].value)
                     }
                 }
             }
