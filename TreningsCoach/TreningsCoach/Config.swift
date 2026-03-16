@@ -225,6 +225,7 @@ struct AppConfig {
 
         static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)
         static let defaultMaxDurationSeconds: Int = 300
+        static let freeSessionsPerDay: Int = 3
     }
 
     // MARK: - Workout Talk
