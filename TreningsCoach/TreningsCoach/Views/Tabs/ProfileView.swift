@@ -15,6 +15,7 @@ private let coachiPrivacyUpdatedEn = "March 10, 2026"
 private let coachiPrivacyURL = "https://coachi.no/privacy"
 private let coachiTermsURL = "https://coachi.no/terms"
 private let coachiSupportURL = "https://coachi.no/support"
+private let coachiDownloadURL = "https://coachi.no/download"
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
@@ -23,15 +24,14 @@ struct ProfileView: View {
     @Environment(\.openURL) private var openURL
     @Binding var selectedTab: TabItem
     @State private var showingSignOutConfirmation = false
-    @State private var showPaywall = false
     @State private var showManageSubscription = false
+    @State private var showAppUpdatePrompt = false
+    @State private var availableAppVersion: String?
+    @State private var hasCheckedForAppUpdate = false
+    @AppStorage("dismissed_app_update_version") private var dismissedAppUpdateVersion = ""
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
-    }
-
-    private var hasPremiumAccess: Bool {
-        subscriptionManager.hasPremiumAccess
     }
 
     var body: some View {
@@ -39,7 +39,6 @@ struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     profileSection
-                    premiumSection
                     signOutSection
                 }
                 .padding(.top, 12)
@@ -53,12 +52,14 @@ struct ProfileView: View {
             .navigationBarHidden(true)
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(context: .general)
-        }
         .navigationDestination(isPresented: $showManageSubscription) {
             ManageSubscriptionView()
                 .environmentObject(subscriptionManager)
+        }
+        .task {
+            guard !hasCheckedForAppUpdate else { return }
+            hasCheckedForAppUpdate = true
+            await checkForAppUpdateIfNeeded()
         }
         .confirmationDialog(
             L10n.signOut,
@@ -79,6 +80,28 @@ struct ProfileView: View {
                         ? "Du kan logge inn igjen senere."
                         : "You can sign in again later.")
             )
+        }
+        .overlay {
+            if showAppUpdatePrompt, let availableAppVersion {
+                ZStack {
+                    Color.black.opacity(0.42)
+                        .ignoresSafeArea()
+
+                    AppUpdatePromptView(
+                        latestVersion: availableAppVersion,
+                        onUpdate: {
+                            if let url = URL(string: coachiDownloadURL) {
+                                openURL(url)
+                            }
+                        },
+                        onSkip: {
+                            dismissedAppUpdateVersion = availableAppVersion
+                            showAppUpdatePrompt = false
+                        }
+                    )
+                    .padding(.horizontal, 24)
+                }
+            }
         }
     }
 
@@ -271,113 +294,21 @@ struct ProfileView: View {
 
             settingsDivider
 
-            NavigationLink {
-                AboutCoachiView()
-                    .environmentObject(appViewModel)
+            Button {
+                Task {
+                    await checkForAppUpdateIfNeeded(forcePromptWhenAvailable: true)
+                }
             } label: {
                 SettingsListRow(
-                    icon: "info.circle",
-                    title: "\(L10n.aboutCoachi) · v\(AppConfig.version)"
+                    icon: "arrow.down.circle",
+                    title: L10n.current == .no ? "Appoppdateringer" : "App updates",
+                    subtitle: appUpdateStatusText,
+                    trailingIcon: availableAppVersion == nil ? "arrow.clockwise" : "chevron.right"
                 )
             }
             .buttonStyle(.plain)
 
-            if authManager.isAuthenticated {
-                settingsDivider
-
-                NavigationLink {
-                    DeleteAccountInfoView()
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 16))
-                            .foregroundColor(CoachiTheme.danger)
-                            .frame(width: 30)
-
-                        Text(L10n.current == .no ? "Slett konto" : "Delete account")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(CoachiTheme.danger)
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
         }
-    }
-
-    private var premiumSection: some View {
-        VStack(spacing: 12) {
-            if !hasPremiumAccess {
-                Button { showPaywall = true } label: {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(hex: "5B4FD1").opacity(0.10))
-                                .frame(width: 38, height: 38)
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Color(hex: "5B4FD1"))
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.current == .no ? "Se alle tilbudene" : "See all offers")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textPrimary)
-                            Text(L10n.current == .no ? "Velg mellom måneds- eller årsabonnement." : "Choose monthly or yearly premium.")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(CoachiTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(CoachiTheme.surfaceElevated)
-                    )
-                    .padding(.horizontal, 16)
-                }
-                .buttonStyle(.plain)
-            } else {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(hex: "22C55E").opacity(0.12))
-                            .frame(width: 38, height: 38)
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Color(hex: "22C55E"))
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.current == .no ? "Premium er aktivt" : "Premium is active")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text(subscriptionManager.resolvedPlanLabel)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(CoachiTheme.surfaceElevated)
-                )
-                .padding(.horizontal, 16)
-            }
-        }
-        .padding(.top, 20)
     }
 
     private var signOutSection: some View {
@@ -420,6 +351,57 @@ struct ProfileView: View {
         if shouldResetOnboarding {
             appViewModel.resetOnboarding()
         }
+    }
+
+    private var appUpdateStatusText: String {
+        if let availableAppVersion {
+            return L10n.current == .no
+                ? "Ny versjon \(availableAppVersion) er tilgjengelig"
+                : "Version \(availableAppVersion) is available"
+        }
+        return L10n.current == .no
+            ? "Installert versjon: \(AppConfig.version)"
+            : "Installed version: \(AppConfig.version)"
+    }
+
+    private func checkForAppUpdateIfNeeded(forcePromptWhenAvailable: Bool = false) async {
+        do {
+            let runtime = try await BackendAPIService.shared.fetchAppRuntime()
+            guard let latestVersion = normalizedVersion(runtime.version),
+                  isVersion(latestVersion, newerThan: AppConfig.version) else {
+                return
+            }
+
+            await MainActor.run {
+                availableAppVersion = latestVersion
+                if forcePromptWhenAvailable || dismissedAppUpdateVersion != latestVersion {
+                    showAppUpdatePrompt = true
+                }
+            }
+        } catch {
+            // Quiet failure — this is a convenience check, not a critical path.
+        }
+    }
+
+    private func normalizedVersion(_ rawValue: String?) -> String? {
+        guard let rawValue else { return nil }
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func isVersion(_ candidate: String, newerThan current: String) -> Bool {
+        let candidateParts = candidate.split(separator: ".").compactMap { Int($0) }
+        let currentParts = current.split(separator: ".").compactMap { Int($0) }
+        let maxCount = max(candidateParts.count, currentParts.count)
+
+        for index in 0..<maxCount {
+            let candidateValue = index < candidateParts.count ? candidateParts[index] : 0
+            let currentValue = index < currentParts.count ? currentParts[index] : 0
+            if candidateValue != currentValue {
+                return candidateValue > currentValue
+            }
+        }
+        return false
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -485,6 +467,80 @@ private struct SettingsListRow: View {
     }
 }
 
+private struct AppUpdatePromptView: View {
+    let latestVersion: String
+    let onUpdate: () -> Void
+    let onSkip: () -> Void
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(isNorwegian ? "Oppdater appen" : "Update the app")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .multilineTextAlignment(.center)
+
+            Text(
+                isNorwegian
+                    ? "En ny versjon (\(latestVersion)) er tilgjengelig. Oppdater for å få de nyeste forbedringene i Coachi."
+                    : "A new version (\(latestVersion)) is available. Update to get the latest Coachi improvements."
+            )
+            .font(.system(size: 18, weight: .medium))
+            .foregroundColor(CoachiTheme.textSecondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onUpdate) {
+                Text(isNorwegian ? "Oppdater nå" : "Update now")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 17)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onSkip) {
+                Text(isNorwegian ? "Hopp over" : "Skip")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 30)
+        .background(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.95),
+                            Color(hex: "DDD6FE").opacity(0.96),
+                            Color(hex: "A7F3D0").opacity(0.92),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .stroke(Color.white.opacity(0.55), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.18), radius: 28, x: 0, y: 18)
+    }
+}
+
 private struct ProfileValueRow: View {
     let title: String
     let value: String
@@ -520,25 +576,15 @@ private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
     @State private var showPaywall = false
-    @State private var selectedPlan: SubscriptionPlanOption = .yearly
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
 
-    private enum SubscriptionPlanOption {
-        case monthly
-        case yearly
-    }
-
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                if hasPremiumAccess {
-                    currentPlanCard
-                }
-
-                subscriptionPlanCard(option: .monthly)
-                subscriptionPlanCard(option: .yearly)
+                subscriptionStatusCard
+                includedItemsCard
 
                 Button {
                     if hasPremiumAccess {
@@ -604,133 +650,133 @@ private struct ManageSubscriptionView: View {
         }
     }
 
-    private var currentPlanCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(hex: "22C55E").opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color(hex: "22C55E"))
-            }
+    private var subscriptionStatusCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isNorwegian ? "Dine inkluderte elementer" : "Your included items")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(isNorwegian ? "Premium er aktivt" : "Premium is active")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                Text(localizedPlanStatus)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-            }
+            Text(
+                hasPremiumAccess
+                    ? (isNorwegian ? "Premium er aktivt. Du har tilgang til alle Coachi-funksjonene som er inkludert i planen din." : "Premium is active. You have access to the full Coachi set included in your plan.")
+                    : (isNorwegian ? "Gratisversjonen er aktiv. Her ser du hva som er inkludert i Gratis og hva Premium legger til." : "Free is active. Here is what is included in Free and what Premium adds.")
+            )
+            .font(.system(size: 15, weight: .medium))
+            .foregroundColor(CoachiTheme.textSecondary)
 
-            Spacer()
+            HStack(spacing: 10) {
+                planBadge(
+                    title: isNorwegian ? "Gratis" : "Free",
+                    isCurrent: !hasPremiumAccess,
+                    tint: Color(hex: "64748B")
+                )
+                planBadge(
+                    title: "Premium",
+                    isCurrent: hasPremiumAccess,
+                    tint: Color(hex: "5B4FD1")
+                )
+            }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 18)
+        .padding(.vertical, 20)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(CoachiTheme.surface)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 10)
     }
 
-    private func subscriptionPlanCard(option: SubscriptionPlanOption) -> some View {
-        let isSelected = selectedPlan == option
-        let isYearly = option == .yearly
-        let name = isYearly
-            ? (isNorwegian ? "Årsabonnement" : "Yearly plan")
-            : (isNorwegian ? "Månedsabonnement" : "Monthly plan")
-        let subtitle = isNorwegian ? "Kun deg" : "Just you"
-        let trialText = isNorwegian
-            ? "Gratis prøveperiode \(AppConfig.Subscription.trialDurationDays) dager"
-            : "\(AppConfig.Subscription.trialDurationDays)-day free trial"
-        let detailText = isYearly
-            ? (isNorwegian ? "Best verdi for hele året" : "Best value for the full year")
-            : (isNorwegian ? "Betal måned for måned" : "Pay month to month")
-        let accentColor = Color(hex: "8B5CF6")
-        let priceLabel = isYearly ? yearlyPriceLabel : monthlyPriceLabel
+    private var includedItemsCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Text(isNorwegian ? "Inkludert i abonnementet" : "Included in your plan")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-        return Button {
-            selectedPlan = option
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                if isYearly {
-                    HStack {
-                        Text(isNorwegian ? "Populær" : "Popular")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                        Spacer()
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(accentColor.opacity(0.7))
-                }
+                Text(isNorwegian ? "Gratis" : "Free")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .frame(width: 82)
 
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(name)
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text(subtitle)
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        Text(trialText)
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                        Text(detailText)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(accentColor)
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(priceLabel)
-                            .font(.system(size: 19, weight: .bold))
-                            .foregroundColor(CoachiTheme.textPrimary)
-                        if isSelected && !isYearly {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(accentColor)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 18)
-                .padding(.top, 18)
+                Text("Premium")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(Color(hex: "5B4FD1"))
+                    .frame(width: 98)
             }
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(CoachiTheme.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(
-                        isSelected ? accentColor : CoachiTheme.borderSubtle.opacity(0.28),
-                        lineWidth: isSelected ? 3 : 1
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 10)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(CoachiTheme.surfaceElevated)
+
+            ForEach(featureRows) { row in
+                ManageSubscriptionFeatureRow(row: row)
+            }
         }
-        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(CoachiTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
-    private var monthlyPriceLabel: String {
-        subscriptionManager.monthlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackMonthlyPrice
+    private var featureRows: [ManageSubscriptionFeatureRowData] {
+        [
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Guidede økter" : "Guided workouts",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Coachi Score" : "Coachi Score",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Pulssone-coaching" : "HR zone coaching",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
+                freeValue: isNorwegian ? "3/dag" : "3/day",
+                premiumValue: isNorwegian ? "Lengre" : "Longer"
+            ),
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Økthistorikk" : "Workout history",
+                freeValue: isNorwegian ? "10 økter" : "10 workouts",
+                premiumValue: isNorwegian ? "Alle" : "All"
+            ),
+            ManageSubscriptionFeatureRowData(
+                title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights",
+                freeValue: "—",
+                premiumValue: "✓"
+            ),
+        ]
     }
 
-    private var yearlyPriceLabel: String {
-        subscriptionManager.yearlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackYearlyPrice
+    private func planBadge(title: String, isCurrent: Bool, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(isCurrent ? tint : tint.opacity(0.18))
+                .frame(width: 8, height: 8)
+            Text(isCurrent ? "\(title) · \(isNorwegian ? "Din plan" : "Current")" : title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(isCurrent ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(isCurrent ? tint.opacity(0.12) : CoachiTheme.surfaceElevated)
+        )
     }
 
     private var localizedPlanStatus: String {
@@ -745,6 +791,45 @@ private struct ManageSubscriptionView: View {
             return isNorwegian ? "Utløpt" : "Expired"
         default:
             return subscriptionManager.resolvedPlanLabel
+        }
+    }
+}
+
+private struct ManageSubscriptionFeatureRowData: Identifiable {
+    let id = UUID()
+    let title: String
+    let freeValue: String
+    let premiumValue: String
+}
+
+private struct ManageSubscriptionFeatureRow: View {
+    let row: ManageSubscriptionFeatureRowData
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(row.title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(CoachiTheme.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(row.freeValue)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .frame(width: 82)
+
+            Text(row.premiumValue)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(Color(hex: "5B4FD1"))
+                .frame(width: 98)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background(Color.white.opacity(0.0001))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(CoachiTheme.borderSubtle.opacity(0.55))
+                .frame(height: 1)
+                .padding(.horizontal, 18)
         }
     }
 }
@@ -934,7 +1019,6 @@ private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @AppStorage("app_language") private var appLanguageCode: String = "en"
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
-    @State private var showingSignOutConfirmation = false
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
@@ -978,39 +1062,6 @@ private struct PersonalProfileSettingsView: View {
                     trailingIcon: nil,
                     valueColor: emailDisplayLine == unavailableEmailText ? CoachiTheme.textSecondary : CoachiTheme.textPrimary
                 )
-
-                if authManager.isAuthenticated {
-                    settingsDivider
-
-                    sectionHeader(L10n.account)
-
-                    settingsDivider
-
-                    NavigationLink {
-                        DeleteAccountInfoView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16))
-                                .foregroundColor(CoachiTheme.danger)
-                                .frame(width: 30)
-
-                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(CoachiTheme.danger)
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
 
                 sectionHeader(L10n.current == .no ? "App" : "App")
 
@@ -1060,26 +1111,27 @@ private struct PersonalProfileSettingsView: View {
                 }
                 .buttonStyle(.plain)
 
-                if authManager.isAuthenticated || isGuestMode {
-                    if !authManager.isAuthenticated {
-                        sectionHeader(L10n.account)
-                        settingsDivider
-                    }
+                if authManager.isAuthenticated {
+                    settingsDivider
 
-                    Button {
-                        showingSignOutConfirmation = true
+                    NavigationLink {
+                        DeleteAccountInfoView()
                     } label: {
                         HStack(spacing: 14) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Image(systemName: "trash")
                                 .font(.system(size: 16))
                                 .foregroundColor(CoachiTheme.danger)
                                 .frame(width: 30)
 
-                            Text(L10n.signOut)
+                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(CoachiTheme.danger)
 
                             Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
                         }
                         .padding(.horizontal, 24)
                         .padding(.vertical, 16)
@@ -1094,26 +1146,6 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(
-            L10n.signOut,
-            isPresented: $showingSignOutConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button(L10n.signOut, role: .destructive) {
-                exitCurrentMode()
-            }
-            Button(L10n.current == .no ? "Avbryt" : "Cancel", role: .cancel) {}
-        } message: {
-            Text(
-                isGuestMode
-                    ? (L10n.current == .no
-                        ? "Du går tilbake til registrering eller innlogging."
-                        : "You will return to registration or sign-in.")
-                    : (L10n.current == .no
-                        ? "Du kan logge inn igjen senere."
-                        : "You can sign in again later.")
-            )
-        }
     }
 
     private var emailDisplayLine: String {
@@ -1142,14 +1174,6 @@ private struct PersonalProfileSettingsView: View {
             .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 10)
-    }
-
-    private func exitCurrentMode() {
-        let shouldResetOnboarding = isGuestMode
-        authManager.signOut()
-        if shouldResetOnboarding {
-            appViewModel.resetOnboarding()
-        }
     }
 }
 
@@ -1473,7 +1497,7 @@ private func faqGuideSections(isNorwegian: Bool) -> [FAQGuideSection] {
                 title: "Abonnement",
                 body: "Her finner du veien til aktivering, gjenoppretting og håndtering av Premium.",
                 tips: [
-                    "Velg Administrer abonnement for å se månedlig og årlig plan.",
+                    "Velg Administrer abonnement for å se hva som er inkludert i Gratis og Premium.",
                     "Bruk Gjenopprett kjøp hvis App Store-kjøp ikke dukker opp.",
                     "Aktive abonnement håndteres videre i App Store på iPhone.",
                 ]
@@ -1517,7 +1541,7 @@ private func faqGuideSections(isNorwegian: Bool) -> [FAQGuideSection] {
             title: "Subscription",
             body: "Get the basics for starting, restoring, and managing Premium inside Coachi.",
             tips: [
-                "Use Manage subscription to view monthly and yearly plans.",
+                "Use Manage subscription to compare what is included in Free and Premium.",
                 "Tap Restore Purchases if an App Store purchase does not appear.",
                 "Active subscriptions are managed further in the App Store on iPhone.",
             ]

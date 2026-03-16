@@ -12,6 +12,7 @@ struct WorkoutCompleteView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var viewModel: WorkoutViewModel
     @State private var checkmarkScale: CGFloat = 0.65
     @State private var contentVisible = false
@@ -79,10 +80,11 @@ struct WorkoutCompleteView: View {
     }
     private var remainingLiveSessions: Int? {
         guard hasLiveVoiceAccountAccess else { return nil }
-        return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
+        guard !hasPremiumAccess else { return nil }
+        return max(0, AppConfig.LiveVoice.freeSessionsPerDay - liveVoiceTracker.sessionsUsedToday)
     }
     private var liveVoiceIsAvailable: Bool {
-        hasLiveVoiceAccountAccess && liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
+        hasLiveVoiceAccountAccess && (hasPremiumAccess || liveVoiceTracker.sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay)
     }
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
@@ -204,12 +206,18 @@ struct WorkoutCompleteView: View {
             WorkoutSummaryActivityShareSheet(activityItems: shareSheetItems)
         }
         .onAppear {
+            liveVoiceTracker.synchronize()
             freezeSummaryValues()
             withAnimation(.spring(response: 0.72, dampingFraction: 0.65).delay(0.10)) {
                 checkmarkScale = 1
             }
             withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
                 contentVisible = true
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                liveVoiceTracker.synchronize()
             }
         }
     }

@@ -141,6 +141,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             hasConnectedSession = true
             connectionState = .connected
             micState = .capturing
+            try await sendInitialAssistantKickoff()
             startupTimeoutTask?.cancel()
             startupTimeoutTask = nil
             appendSystemMessage(
@@ -266,6 +267,28 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             throw APIError.invalidResponse
         }
         try await socket.send(.string(rawJSON))
+    }
+
+    private func sendInitialAssistantKickoff() async throws {
+        guard let socket = webSocketTask else {
+            throw APIError.invalidResponse
+        }
+
+        let instructions = languageCode == "no"
+            ? "Start med en kort, vennlig hilsen som Coachi på norsk. Nevn én konkret observasjon fra økten hvis den finnes, og inviter brukeren til å stille et spørsmål."
+            : "Start with a short, friendly greeting as Coachi. Mention one concrete observation from the workout if available, then invite the user to ask a question."
+        let payload: [String: Any] = [
+            "type": "response.create",
+            "response": [
+                "modalities": ["audio", "text"],
+                "instructions": instructions,
+            ],
+        ]
+        let jsonData = try JSONSerialization.data(withJSONObject: payload)
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw APIError.invalidResponse
+        }
+        try await socket.send(.string(jsonString))
     }
 
     private func startAudioCapture() throws {

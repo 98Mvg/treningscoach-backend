@@ -27,7 +27,7 @@ final class LiveVoiceSessionTracker: ObservableObject {
     private let dateKey  = "live_voice_daily_date"
 
     private init() {
-        refreshDailyCount()
+        synchronize()
     }
 
     // MARK: - Query
@@ -35,15 +35,18 @@ final class LiveVoiceSessionTracker: ObservableObject {
     /// Whether a free-tier user can start another live voice session today.
     func canStart(isPremium: Bool) -> Bool {
         if isPremium { return true }
-        refreshDailyCount()
-        return sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay
+        return currentStoredCount(resetIfNeeded: false) < AppConfig.LiveVoice.freeSessionsPerDay
     }
 
     /// Remaining sessions today for free-tier users. Returns nil for premium.
     func remainingToday(isPremium: Bool) -> Int? {
         if isPremium { return nil }
-        refreshDailyCount()
-        return max(0, AppConfig.LiveVoice.freeSessionsPerDay - sessionsUsedToday)
+        let used = currentStoredCount(resetIfNeeded: false)
+        return max(0, AppConfig.LiveVoice.freeSessionsPerDay - used)
+    }
+
+    func synchronize() {
+        sessionsUsedToday = currentStoredCount(resetIfNeeded: true)
     }
 
     // MARK: - Mutation
@@ -51,24 +54,25 @@ final class LiveVoiceSessionTracker: ObservableObject {
     /// Call when a live voice session is successfully started.
     func recordSession(isPremium: Bool) {
         if isPremium { return }
-        refreshDailyCount()
-        let updated = sessionsUsedToday + 1
+        let updated = currentStoredCount(resetIfNeeded: true) + 1
         defaults.set(updated, forKey: countKey)
         sessionsUsedToday = updated
     }
 
     // MARK: - Private Helpers
 
-    private func refreshDailyCount() {
+    private func currentStoredCount(resetIfNeeded: Bool) -> Int {
         let today = currentDateString()
         if defaults.string(forKey: dateKey) == today {
-            sessionsUsedToday = defaults.integer(forKey: countKey)
-        } else {
-            // New day — reset counter
-            defaults.set(today, forKey: dateKey)
-            defaults.set(0,     forKey: countKey)
-            sessionsUsedToday = 0
+            return defaults.integer(forKey: countKey)
         }
+
+        if resetIfNeeded {
+            defaults.set(today, forKey: dateKey)
+            defaults.set(0, forKey: countKey)
+        }
+
+        return 0
     }
 
     private func currentDateString() -> String {

@@ -184,3 +184,47 @@ Updated: 2026-03-16
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_onboarding_theme_contract.py` -> `33 passed`
   - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 onboarding/profile/live-voice stability batch
+
+- Updated the onboarding HR explainer copy in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) to the requested English wording for max HR and resting HR, and changed endurance examples to use explicit `✅`/`❌` markers.
+- Made the onboarding summary editable from the existing summary screen by wiring each row back to its source step, so users can fix a wrong value without backing through the whole flow.
+- Reworked `Administrer abonnement` in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) to an included-items comparison between Free and Premium, and added an in-app update prompt tied to runtime version checks.
+- Fixed a SwiftUI state regression in [LiveVoiceSessionTracker.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/LiveVoiceSessionTracker.swift) and [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) by making tracker read methods side-effect free and synchronizing state outside `body` evaluation.
+- Added an explicit initial assistant kickoff in [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift) so live voice sessions do not sit silent after connect.
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `30 passed`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 Render profile persistence crash fix
+
+- Traced the Render `StringDataRightTruncation` crash to [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py), where `/coach/continuous` could treat the iOS-local `profile_<uuid>` personalization key as a database `user_profiles.user_id`.
+- Added a DB-safe persisted user-id guard so local personalization identifiers are never written into the `user_profiles` foreign key column.
+- Changed runtime profile resolution to skip empty profile snapshots, which prevents writing empty `user_profiles` rows that only carry timestamps and no useful HR/profile data.
+- Made `/coach/continuous` prefer the authenticated user ID when resolving a persisted runtime profile, so signed-in users still get their saved DB profile even if the client also sends a local personalization key.
+- Updated regression coverage in [test_profile_runtime_resolution.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_profile_runtime_resolution.py) and synced continuous/rate-limit media tests in [test_rate_limit_verification.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_rate_limit_verification.py) with current auth and upload-signature requirements.
+- Verification:
+  - `pytest -q tests_phaseb/test_profile_runtime_resolution.py tests_phaseb/test_profile_upsert_contract.py tests_phaseb/test_rate_limit_verification.py -k "profile or continuous"` -> `10 passed, 7 deselected`
+  - `python3 -m py_compile main.py` -> passed
+
+## Review — 2026-03-16 profile cleanup for root vs personal settings
+
+- Removed the duplicated premium/offers card from the root [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) so subscription discovery happens through `Administrer abonnement` on the same settings path instead of a second promo surface.
+- Removed the visible root-level `Delete account` entry and the `About Coachi · v...` row from the `Din profil / Your profile` list to keep the top-level settings surface lighter and less destructive.
+- Kept `Delete account` only inside [PersonalProfileSettingsView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift), moved to the bottom of that screen, and removed `Sign out` plus the `Account` section there so destructive actions are less prominent.
+- Updated profile/settings contracts in [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock the new separation between root profile settings and nested personal profile.
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `12 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-16 watch-connected onboarding Premium bridge
+
+- Added a new watch-connected onboarding branch in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so users who successfully connect Apple Watch now see a Coachi-specific Premium explainer before notification permissions.
+- Kept the existing monetization runtime path by opening [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) from the new onboarding step instead of creating a second purchase flow.
+- Kept non-watch or already-premium users on the simpler existing `sensorConnect -> notificationPermission` path, so the upsell is contextual rather than generic.
+- Updated onboarding contracts in [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py) to lock the new branch and the `Continue with Free` fallback.
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py` -> `8 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

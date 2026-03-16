@@ -679,6 +679,43 @@ def _coerce_profile_user_id(value: str | None) -> str | None:
     return candidate
 
 
+def _coerce_persisted_profile_user_id(value: str | None) -> str | None:
+    """
+    Resolve a profile/user identifier that is safe to persist against `users.id`.
+
+    The iOS app also sends local personalization keys such as `profile_<uuid>`.
+    Those are valid runtime identifiers for personalization, but they are not
+    database user IDs and must never be written into `user_profiles.user_id`.
+    """
+    candidate = _coerce_profile_user_id(value)
+    if not candidate:
+        return None
+    if candidate.lower().startswith("profile_"):
+        return None
+    if len(candidate) > 36:
+        return None
+    if db.session.get(User, candidate) is None:
+        return None
+    return candidate
+
+
+def _profile_has_meaningful_values(profile: UserProfilePayload | None) -> bool:
+    if profile is None:
+        return False
+    return any(
+        value not in (None, "")
+        for value in (
+            profile.name,
+            profile.sex,
+            profile.age,
+            profile.height_cm,
+            profile.weight_kg,
+            profile.max_hr_bpm,
+            profile.resting_hr_bpm,
+        )
+    )
+
+
 def _request_ip_fallback_key() -> str:
     forwarded = (request.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
     candidate = forwarded or (request.remote_addr or "").strip() or "unknown"
@@ -799,10 +836,11 @@ def _resolve_runtime_profile(
     """
     snapshot = snapshot_profile if isinstance(snapshot_profile, UserProfilePayload) else None
     snapshot_valid = snapshot is not None and not profile_validation_errors(snapshot)
+    snapshot_meaningful = snapshot_valid and _profile_has_meaningful_values(snapshot)
     snapshot_ts = _parse_profile_timestamp(snapshot.normalized_updated_at() if snapshot else None)
 
     use_db = bool(getattr(config, "PROFILE_DB_ENABLED", True))
-    normalized_user_id = _coerce_profile_user_id(user_id)
+    normalized_user_id = _coerce_persisted_profile_user_id(user_id) if use_db else None
     db_record = None
     db_payload = None
     db_ts = None
@@ -823,7 +861,7 @@ def _resolve_runtime_profile(
     db_epoch = _epoch_or_none(db_ts)
 
     if (
-        snapshot_valid
+        snapshot_meaningful
         and snapshot_epoch is not None
         and db_payload is not None
         and db_epoch is not None
@@ -844,7 +882,7 @@ def _resolve_runtime_profile(
     if db_payload is not None:
         return db_payload, "db"
 
-    if snapshot_valid:
+    if snapshot_meaningful:
         if use_db and normalized_user_id:
             record = UserProfile.query.filter_by(user_id=normalized_user_id).first()
             if record is None:
@@ -3184,10 +3222,8 @@ def coach_continuous():
         session_meta["personalization_user_id"] = personalization_user_id
 
         runtime_profile_user_id = _coerce_profile_user_id(
-            user_profile_id or session_meta.get("user_profile_id") or current_user_id
+            get_request_auth_user_id() or user_profile_id or session_meta.get("user_profile_id") or current_user_id
         )
-        if runtime_profile_user_id:
-            session_meta["user_profile_id"] = runtime_profile_user_id
         profile_snapshot = normalized_contract.get("user_profile")
         resolved_runtime_profile, runtime_profile_source = _resolve_runtime_profile(
             user_id=runtime_profile_user_id,

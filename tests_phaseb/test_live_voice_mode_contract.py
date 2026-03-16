@@ -18,6 +18,9 @@ LIVE_VOICE_VIEW = (
 VOICE_SERVICE = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "XAIRealtimeVoiceService.swift"
 )
+TRACKER = (
+    REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "LiveVoiceSessionTracker.swift"
+)
 XAI_VOICE_HELPER = REPO_ROOT / "xai_voice.py"
 CONFIG_SWIFT = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Config.swift"
@@ -36,6 +39,8 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert "private var hasLiveVoiceAccountAccess: Bool {" in text
     assert "authManager.hasUsableSession()" in text
     assert "LiveVoiceSessionTracker.shared" in text
+    assert "liveVoiceTracker.sessionsUsedToday" in text
+    assert "liveVoiceTracker.synchronize()" in text
     assert "showLiveVoicePaywall = true" in text
     assert ".sheet(isPresented: $showLiveCoachVoice)" in text
     assert ".sheet(isPresented: $showLiveVoicePaywall)" in text
@@ -69,6 +74,7 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "service.$connectionState" in text
     assert "hasRecordedSuccessfulStart" in text
     assert "liveVoiceTracker.recordSession(isPremium: self.isPremium)" in text
+    assert '"Snakk med Coach" : "Talk to Coach"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead")' in text
@@ -103,6 +109,8 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "final class XAIRealtimeVoiceService: NSObject, ObservableObject" in text
     assert "URLSession.shared.webSocketTask(with: url, protocols: protocols)" in text
     assert 'try await socket.send(.string(rawJSON))' in text
+    assert 'try await sendInitialAssistantKickoff()' in text
+    assert '"type": "response.create"' in text
     assert "standardFormatWithSampleRate: 24_000" in text
     assert 'let payload = "{\\"type\\":\\"input_audio_buffer.append\\",\\"audio\\":\\"\\(encoded)\\"}"' in text
     assert 'event: "voice_session_started"' in text
@@ -114,6 +122,14 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "startupTimeoutTask" in text
     assert "Live voice took too long to start" in text
     assert "Task {" in text
+
+
+def test_live_voice_tracker_queries_are_side_effect_free_for_summary_reads() -> None:
+    text = TRACKER.read_text(encoding="utf-8")
+    assert "func synchronize()" in text
+    assert "currentStoredCount(resetIfNeeded: false)" in text
+    assert "sessionsUsedToday = currentStoredCount(resetIfNeeded: true)" in text
+    assert "refreshDailyCount()" not in text
 
 
 def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory() -> None:

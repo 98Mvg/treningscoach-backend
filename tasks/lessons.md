@@ -106,3 +106,13 @@ Updated: 2026-03-16
 - 2026-03-05: BLE live HR reliability improves with explicit scan timeout + reconnect backoff + cancellation of pending reconnect/scan work items during stop/power-state transitions.
 - 2026-03-05: Arbiter edge-case tests should use an injected clock (`nowProvider`) and deterministic evaluate hook to validate freshness/promotion/demotion without timing flakes.
 - 2026-03-05: For iOS 17+, use `AVAudioApplication.shared.recordPermission` instead of deprecated `AVAudioSession.recordPermission` in workout payload preflight checks.
+- 2026-03-16: Treat iOS `profile_<uuid>` personalization IDs as runtime-only keys. Never persist them into DB tables that foreign-key to `users.id`.
+- 2026-03-16: Runtime profile persistence should ignore empty snapshots; if all profile fields are `None`, return defaults instead of creating a blank `user_profiles` row.
+- 2026-03-16: Focused backend route tests for `/coach/continuous` must account for current mobile auth and audio-signature validation, or they will fail for the wrong reason and hide the real regression.
+- 2026-03-16: Do not duplicate subscription entry points between the root profile tab and `Administrer abonnement`; keep offers/discovery on the dedicated subscription screen and keep the root settings list task-focused.
+- 2026-03-16: In nested settings screens, keep destructive actions at the very bottom and avoid colocating them with routine actions like sign-out or language/theme toggles.
+- 2026-03-16: Never let SwiftUI `body` reads call helpers that mutate `@Published` state; live availability/count queries must be side-effect free or they will trigger `Publishing changes from within view updates is not allowed`.
+- 2026-03-16: If users review onboarding data in a summary screen, make each summary row jump back to the owning step instead of forcing linear back-navigation through the whole flow.
+- 2026-03-16: Realtime voice sessions should send an explicit first-response kickoff after connect; relying only on VAD/user speech can leave the coach silent even when the socket is healthy.
+- 2026-03-16: If a monetization surface depends on a user milestone like successful watch connection, insert it on that exact onboarding branch instead of showing a generic upsell earlier or elsewhere in settings.
+- 2026-03-16: New onboarding monetization steps should reuse the existing `PaywallView` purchase path; keep the bridge screen explanatory and let the actual StoreKit handling stay in one place.

@@ -51,6 +51,7 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert "case summary" in text
     assert "case result" in text
     assert "case noSensorFallback" in text
+    assert "case watchConnectedOffer" in text
     assert "case notificationPermission" in text
     assert "OnboardingFlowProgressView(" in text
     assert "Step \\(current) of \\(total)" in text
@@ -60,6 +61,7 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert ".notificationPermission," in guided_block
     assert ".dataPurpose," not in guided_block
     assert "steps.insert(.frequencyAndDuration, at: 5)" in guided_block
+    assert "steps.insert(.watchConnectedOffer, at: steps.count - 1)" in guided_block
     assert "if formState.doesEnduranceTraining" in guided_block
 
 
@@ -103,10 +105,25 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "private var summaryBackStep: OnboardingStep" in text
     assert "onContinue: { move(to: .sensorConnect) }" in text
     assert "onBack: { move(to: summaryBackStep) }" in text
+    assert "onContinue: { watchConnected in" in text
+    assert "if watchConnected && !subscriptionManager.hasPremiumAccess {" in text
+    assert "notificationBackStep = .watchConnectedOffer" in text
+    assert "move(to: .watchConnectedOffer)" in text
+    assert "notificationBackStep = .sensorConnect" in text
     assert "move(to: .notificationPermission)" in text
     assert "case .dataPurpose:" not in text
     assert "let profileDraft = formState.toDraft(" in text
     assert "appViewModel.completeOnboarding(profile: profileDraft)" in text
+
+
+def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None:
+    text = _onboarding_text()
+    assert "private struct WatchConnectedPremiumOfferStepView: View" in text
+    assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' in text
+    assert 'primaryTitle: isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
+    assert 'Text(isNorwegian ? "Gratis \\(trialDays)-dagers prøveperiode" : "Free \\(trialDays)-day trial")' in text
+    assert 'Text(isNorwegian ? "Start gratis prøveperiode" : "Start free trial")' in text
+    assert "PaywallView(context: .general)" in text
 
 
 def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:
@@ -138,18 +155,23 @@ def test_reset_onboarding_clears_profile_and_hr_defaults() -> None:
 
 def test_onboarding_explains_hr_endurance_and_intensity_in_coachi_copy() -> None:
     text = _onboarding_text()
-    assert "Makspuls er det høyeste antall slag hjertet ditt kan slå per minutt." in text
-    assert "Hvilepuls kan anslås når du har sittet rolig i minst 5 minutter og ikke har trent høy intensitet på minst en time." in text
+    assert "Makspuls er det høyeste antallet hjerteslag per minutt du kan nå under hard trening." in text
+    assert "Max HR is the highest number of heart beats per minute your heart can reach during intense exercise." in text
+    assert "Hvilepuls er hvor mange ganger hjertet ditt slår per minutt når du er avslappet og ikke trener." in text
+    assert "Resting HR is how many times your heart beats per minute when you are relaxed and not exercising." in text
     assert "Hva er utholdenhetstrening?" in text
-    assert "🏃 Løping" in text
-    assert "🚶 Gåturer" in text
-    assert "🚴 Sykling" in text
-    assert "🏊 Svømming" in text
-    assert "💃 Dansing" in text
-    assert "🤸 Aerobic" in text
-    assert "🧘 Yoga" in text
-    assert "🏋️ Styrketrening" in text
-    assert "🙆 Pilates" in text
+    assert "✅ 🏃 Løping" in text
+    assert "✅ 🚶 Gåturer" in text
+    assert "✅ 🚴 Sykling" in text
+    assert "✅ 🏊 Svømming" in text
+    assert "✅ 💃 Dansing" in text
+    assert "✅ 🤸 Aerobic" in text
+    assert "❌ 🧘 Yoga" in text
+    assert "❌ 🏋️ Styrketrening" in text
+    assert "❌ 🙆 Pilates" in text
     assert "Du blir bare lett andpusten og kan holde samme tempo lenge uten problemer." in text
     assert "Du puster raskere og kjenner at du jobber, men du har fortsatt kontroll og kan holde på en god stund." in text
     assert "Du blir tydelig andpusten, må jobbe hardt og klarer bare å holde intensiteten i korte drag." in text
+    assert "Tap any value if you want to update it before continuing." in text
+    assert "onEditField: { field in" in text
+    assert "move(to: field.targetStep(doesEnduranceTraining: formState.doesEnduranceTraining))" in text

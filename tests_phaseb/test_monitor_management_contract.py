@@ -38,6 +38,7 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "accountSection" not in text
     assert "legalSection" not in text
     assert "PlaceholderSettingsView" not in text
+    assert "private var premiumSection: some View" not in text
     assert "sectionHeader(L10n.account)" in text
     assert "sectionHeader(L10n.coaching)" in text
     assert "sectionHeader(L10n.helpAndSupport)" in text
@@ -57,6 +58,8 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "HealthProfileView()" in text
     assert "ManageSubscriptionView()" in text
     assert "AboutCoachiView()" in text
+    assert text.count("DeleteAccountInfoView()") == 1
+    assert 'title: "\\(L10n.aboutCoachi) · v\\(AppConfig.version)"' not in text
     assert "confirmationDialog(" in text
     assert 'Text("\\(L10n.appVersionLabel) \\(AppConfig.version)")' in text
     assert "private var isGuestMode: Bool" in text
@@ -66,11 +69,15 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
 
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
+    personal_slice = text[text.index("private struct PersonalProfileSettingsView: View"):text.index("private struct AboutCoachiView: View")]
     assert 'Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")' in text
     assert 'title: L10n.current == .no ? "Navn" : "Name",' in text
     assert 'title: L10n.current == .no ? "E-post" : "Email",' in text
     assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)"' not in text
     assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)"' not in text
+    assert "sectionHeader(L10n.account)" not in personal_slice
+    assert 'Text(L10n.signOut)' not in personal_slice
+    assert "showingSignOutConfirmation" not in personal_slice
 
 def test_profile_faq_guide_covers_launch_help_topics() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
@@ -85,12 +92,15 @@ def test_profile_faq_guide_covers_launch_help_topics() -> None:
     assert 'title: "Subscription"' in text
     assert 'title: "Heart rate and sensors"' in text
     assert "SupportGuideCard(section: section)" in text
+    assert "Velg Administrer abonnement for å se hva som er inkludert i Gratis og Premium." in text
+    assert "Use Manage subscription to compare what is included in Free and Premium." in text
 
 
 def test_profile_support_center_exposes_launch_critical_support_and_legal_surfaces() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     assert "private struct SupportCenterView: View" not in text
     assert "private struct ManageSubscriptionView: View" in text
+    assert "private struct AppUpdatePromptView: View" in text
     assert "private struct AboutCoachiView: View" in text
     assert "private struct CoachingSettingsView: View" in text
     assert "private struct AudioAndVoicesView: View" in text
@@ -107,6 +117,7 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'icon: "doc.text"' in text
     assert "DeleteAccountInfoView()" in text
     assert "coachiSupportURL" in text
+    assert "coachiDownloadURL" in text
     assert '"https://coachi.no/privacy"' in text
     assert '"https://coachi.no/terms"' in text
     assert "AI.Coachi@hotmail.com" in text
@@ -115,6 +126,8 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert 'title: isNorwegian ? "Slett konto nå" : "Delete account now"' in text
     assert "await authManager.deleteAccount()" in text
     assert 'Text(isNorwegian ? "Kontakt support" : "Contact support")' in text
+    assert 'title: L10n.current == .no ? "Appoppdateringer" : "App updates"' in text
+    assert "checkForAppUpdateIfNeeded(" in text
     assert ".navigationTitle(L10n.faqTitle)" in text
     assert 'NavigationLink {\n                    SupportRequestFormView()' in text
     assert 'components.scheme = "mailto"' in text
@@ -131,10 +144,9 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "Coachi is free to download and includes a free version." in text
     assert "Last updated: \\(coachiPrivacyUpdatedEn)" in text
     assert 'Text(L10n.signOut)' in text
-    assert 'Text(L10n.current == .no ? "Se alle tilbudene" : "See all offers")' in text
+    assert 'Text(L10n.current == .no ? "Se alle tilbudene" : "See all offers")' not in text
     assert '.foregroundColor(CoachiTheme.textPrimary)' in text
     assert '.foregroundColor(CoachiTheme.textSecondary)' in text
-    assert '.fill(CoachiTheme.surfaceElevated)' in text
     assert 'private let coachiTermsURL = "https://coachi.no/terms"' in text
 
 

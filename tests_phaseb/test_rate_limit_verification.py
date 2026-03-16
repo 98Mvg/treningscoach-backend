@@ -46,6 +46,7 @@ def _build_media_client(monkeypatch, tmp_path):
     fake_audio.write_bytes(b"ID3")
 
     monkeypatch.setattr(main, "generate_voice", _mock_generate_voice_factory(str(fake_audio)))
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
     monkeypatch.setattr(main, "_analyze_breath_with_timeout", lambda *args, **kwargs: _mock_breath_analysis(""))
     monkeypatch.setattr(main.brain_router, "get_coaching_response", lambda *args, **kwargs: "Keep going!")
     monkeypatch.setattr(main.brain_router, "get_question_response", lambda *args, **kwargs: "Hold this pace.")

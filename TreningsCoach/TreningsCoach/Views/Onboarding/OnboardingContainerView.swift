@@ -4,7 +4,7 @@
 //
 //  Full onboarding flow:
 //  Welcome -> Auth -> Profile -> explainer -> HR setup -> Habits -> Summary -> Result
-//  -> Sensor connect/no sensor -> Notifications -> Main app
+//  -> Sensor connect/no sensor -> watch-connected Premium bridge -> Notifications -> Main app
 //
 
 import SwiftUI
@@ -27,7 +27,8 @@ enum OnboardingStep: Int {
     case result = 13
     case sensorConnect = 14
     case noSensorFallback = 15
-    case notificationPermission = 16
+    case watchConnectedOffer = 16
+    case notificationPermission = 17
 }
 
 private enum OnboardingGender: String, CaseIterable, Identifiable {
@@ -135,6 +136,35 @@ private enum ModerateDurationOption: String, CaseIterable, Identifiable {
     }
 }
 
+private enum OnboardingSummaryField {
+    case identity
+    case birthAndGender
+    case bodyMetrics
+    case maxHeartRate
+    case restingHeartRate
+    case enduranceHabits
+    case frequencyAndDuration
+
+    func targetStep(doesEnduranceTraining: Bool) -> OnboardingStep {
+        switch self {
+        case .identity:
+            return .identity
+        case .birthAndGender:
+            return .birthAndGender
+        case .bodyMetrics:
+            return .bodyMetrics
+        case .maxHeartRate:
+            return .maxHeartRate
+        case .restingHeartRate:
+            return .restingHeartRate
+        case .enduranceHabits:
+            return .enduranceHabits
+        case .frequencyAndDuration:
+            return doesEnduranceTraining ? .frequencyAndDuration : .enduranceHabits
+        }
+    }
+}
+
 private struct OnboardingFormState {
     var firstName: String = ""
     var lastName: String = ""
@@ -188,6 +218,7 @@ private struct OnboardingFormState {
 
 struct OnboardingContainerView: View {
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     @State private var currentStep: OnboardingStep = .welcome
     @State private var formState = OnboardingFormState()
@@ -319,6 +350,9 @@ struct OnboardingContainerView: View {
                     SummaryStepView(
                         state: formState,
                         onBack: { move(to: summaryBackStep) },
+                        onEditField: { field in
+                            move(to: field.targetStep(doesEnduranceTraining: formState.doesEnduranceTraining))
+                        },
                         onContinue: { move(to: .sensorConnect) }
                     )
                     .transition(stepTransition)
@@ -337,9 +371,14 @@ struct OnboardingContainerView: View {
                     SensorConnectOnboardingView(
                         watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .summary) },
-                        onContinue: {
-                            notificationBackStep = .sensorConnect
-                            move(to: .notificationPermission)
+                        onContinue: { watchConnected in
+                            if watchConnected && !subscriptionManager.hasPremiumAccess {
+                                notificationBackStep = .watchConnectedOffer
+                                move(to: .watchConnectedOffer)
+                            } else {
+                                notificationBackStep = .sensorConnect
+                                move(to: .notificationPermission)
+                            }
                         }
                     )
                     .transition(stepTransition)
@@ -350,8 +389,18 @@ struct OnboardingContainerView: View {
                     SensorConnectOnboardingView(
                         watchManager: PhoneWCManager.shared,
                         onBack: { move(to: .sensorConnect) },
-                        onContinue: {
+                        onContinue: { _ in
                             notificationBackStep = .noSensorFallback
+                            move(to: .notificationPermission)
+                        }
+                    )
+                    .transition(stepTransition)
+
+                case .watchConnectedOffer:
+                    WatchConnectedPremiumOfferStepView(
+                        onBack: { move(to: .sensorConnect) },
+                        onContinue: {
+                            notificationBackStep = .watchConnectedOffer
                             move(to: .notificationPermission)
                         }
                     )
@@ -435,6 +484,9 @@ struct OnboardingContainerView: View {
         ]
         if formState.doesEnduranceTraining {
             steps.insert(.frequencyAndDuration, at: 5)
+        }
+        if currentStep == .watchConnectedOffer {
+            steps.insert(.watchConnectedOffer, at: steps.count - 1)
         }
         return steps
     }
@@ -540,7 +592,7 @@ private struct OnboardingAtmosphereView: View {
             return "OnboardingBgOutdoor"
         case .birthAndGender, .bodyMetrics, .maxHeartRate, .restingHeartRate, .enduranceHabits, .frequencyAndDuration, .summary, .result:
             return "OnboardingBgRun"
-        case .sensorConnect, .noSensorFallback, .notificationPermission:
+        case .sensorConnect, .noSensorFallback, .watchConnectedOffer, .notificationPermission:
             return "OnboardingBgCalm"
         }
     }
@@ -971,8 +1023,8 @@ private struct MaxHeartRateStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "Makspuls er det høyeste antall slag hjertet ditt kan slå per minutt."
-                : "Max heart rate is the highest number of beats your heart can reach in one minute.",
+                ? "Makspuls er det høyeste antallet hjerteslag per minutt du kan nå under hard trening."
+                : "Max HR is the highest number of heart beats per minute your heart can reach during intense exercise.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: parsedHRMax != nil,
@@ -1025,10 +1077,10 @@ private struct MaxHeartRateStepView: View {
                 .foregroundColor(CoachiTheme.textSecondary)
 
                 OnboardingExplanationCard(
-                    title: L10n.current == .no ? "Hva betyr makspuls?" : "What does max HR mean?",
+                    title: L10n.current == .no ? "Hva betyr makspuls?" : "What does Max Heart Rate mean?",
                     message: L10n.current == .no
-                        ? "Hvis du vet makspulsen din fra test, løp eller klokke, bruk gjerne den verdien. Hvis ikke starter vi med et forsiktig anslag basert på alder."
-                        : "If you know your max HR from a test, a hard session, or your watch, use that value. If not, we start with a cautious estimate based on age."
+                        ? "Makspuls er det høyeste antallet hjerteslag per minutt hjertet ditt kan nå under hard trening."
+                        : "Max HR is the highest number of heart beats per minute your heart can reach during intense exercise."
                 )
             }
             .onAppear {
@@ -1056,8 +1108,8 @@ private struct RestingHeartRateStepView: View {
         OnboardingScaffold(
             title: L10n.aboutYou,
             subtitle: L10n.current == .no
-                ? "Hvilepuls kan anslås når du har sittet rolig i minst 5 minutter og ikke har trent høy intensitet på minst en time."
-                : "Resting HR can be estimated after you have been seated calmly for at least 5 minutes and avoided high intensity for at least an hour.",
+                ? "Hvilepuls er hvor mange ganger hjertet ditt slår per minutt når du er avslappet og ikke trener."
+                : "Resting HR is how many times your heart beats per minute when you are relaxed and not exercising.",
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: parsedResting != nil,
@@ -1085,10 +1137,10 @@ private struct RestingHeartRateStepView: View {
                 .foregroundColor(CoachiTheme.textSecondary)
 
                 OnboardingExplanationCard(
-                    title: L10n.current == .no ? "Når er målingen nyttig?" : "When is the reading useful?",
+                    title: L10n.current == .no ? "Hva er hvilepuls?" : "What is Resting HR?",
                     message: L10n.current == .no
-                        ? "Hvilepuls er mest nyttig når den tas i en rolig situasjon. Høy puls etter kaffe, stress eller trening gir ofte et mindre presist startpunkt."
-                        : "Resting HR is most useful when measured in a calm setting. A higher pulse after coffee, stress, or training often gives a less precise starting point."
+                        ? "Hvilepuls er hvor mange ganger hjertet ditt slår per minutt når du er avslappet og ikke trener."
+                        : "Resting HR is how many times your heart beats per minute when you are relaxed and not exercising."
                 )
             }
             .onAppear {
@@ -1143,16 +1195,16 @@ private struct EnduranceHabitStepView: View {
                             title: L10n.current == .no ? "Dette teller som utholdenhet" : "This counts as endurance",
                             tint: CoachiTheme.primary,
                             items: L10n.current == .no
-                                ? ["🏃 Løping", "🚶 Gåturer", "🚴 Sykling", "🏊 Svømming", "💃 Dansing", "🤸 Aerobic"]
-                                : ["🏃 Running", "🚶 Walking", "🚴 Cycling", "🏊 Swimming", "💃 Dancing", "🤸 Aerobics"]
+                                ? ["✅ 🏃 Løping", "✅ 🚶 Gåturer", "✅ 🚴 Sykling", "✅ 🏊 Svømming", "✅ 💃 Dansing", "✅ 🤸 Aerobic"]
+                                : ["✅ 🏃 Running", "✅ 🚶 Walking", "✅ 🚴 Cycling", "✅ 🏊 Swimming", "✅ 💃 Dancing", "✅ 🤸 Aerobics"]
                         )
 
                         OnboardingExampleGroup(
                             title: L10n.current == .no ? "Dette teller vanligvis ikke alene" : "This usually does not count on its own",
                             tint: Color.orange,
                             items: L10n.current == .no
-                                ? ["🧘 Yoga", "🏋️ Styrketrening", "🙆 Pilates"]
-                                : ["🧘 Yoga", "🏋️ Strength training", "🙆 Pilates"]
+                                ? ["❌ 🧘 Yoga", "❌ 🏋️ Styrketrening", "❌ 🙆 Pilates"]
+                                : ["❌ 🧘 Yoga", "❌ 🏋️ Strength training", "❌ 🙆 Pilates"]
                         )
                     }
                 }
@@ -1300,6 +1352,7 @@ private struct FrequencyDurationStepView: View {
 private struct SummaryStepView: View {
     let state: OnboardingFormState
     let onBack: () -> Void
+    let onEditField: (OnboardingSummaryField) -> Void
     let onContinue: () -> Void
 
     var body: some View {
@@ -1320,8 +1373,8 @@ private struct SummaryStepView: View {
 
                 Text(
                     L10n.current == .no
-                        ? "Du kan endre alt senere. Nå sjekker vi bare at grunnlaget stemmer."
-                        : "You can change everything later. This is just a quick final check."
+                        ? "Trykk på en verdi hvis du vil oppdatere den før du fortsetter."
+                        : "Tap any value if you want to update it before continuing."
                 )
                 .font(.body.weight(.semibold))
                 .foregroundColor(CoachiTheme.textSecondary)
@@ -1329,16 +1382,38 @@ private struct SummaryStepView: View {
                 Divider()
                     .overlay(CoachiTheme.borderSubtle.opacity(0.55))
 
-                summaryRow(label: L10n.firstNamePlaceholder, value: state.firstName)
-                summaryRow(label: L10n.lastNamePlaceholder, value: state.lastName)
-                summaryRow(label: L10n.current == .no ? "Alder" : "Age", value: "\(state.age)")
-                summaryRow(label: L10n.current == .no ? "Kjønn" : "Gender", value: state.gender.title)
-                summaryRow(label: L10n.current == .no ? "Høyde" : "Height", value: "\(state.heightCm) cm")
-                summaryRow(label: L10n.current == .no ? "Vekt" : "Weight", value: "\(state.weightKg) kg")
-                summaryRow(label: L10n.current == .no ? "Makspuls" : "Max HR", value: "\(state.hrMax) bpm")
-                summaryRow(label: L10n.current == .no ? "Hvilepuls" : "Resting HR", value: "\(state.restingHR) bpm")
-                summaryRow(label: L10n.current == .no ? "Moderat frekvens" : "Moderate frequency", value: state.moderateFrequency.title)
-                summaryRow(label: L10n.current == .no ? "Varighet" : "Duration", value: state.moderateDuration.title)
+                summaryRow(label: L10n.firstNamePlaceholder, value: state.firstName, field: .identity)
+                summaryRow(label: L10n.lastNamePlaceholder, value: state.lastName, field: .identity)
+                summaryRow(label: L10n.current == .no ? "Alder" : "Age", value: "\(state.age)", field: .birthAndGender)
+                summaryRow(label: L10n.current == .no ? "Kjønn" : "Gender", value: state.gender.title, field: .birthAndGender)
+                summaryRow(label: L10n.current == .no ? "Høyde" : "Height", value: "\(state.heightCm) cm", field: .bodyMetrics)
+                summaryRow(label: L10n.current == .no ? "Vekt" : "Weight", value: "\(state.weightKg) kg", field: .bodyMetrics)
+                summaryRow(label: L10n.current == .no ? "Makspuls" : "Max HR", value: "\(state.hrMax) bpm", field: .maxHeartRate)
+                summaryRow(label: L10n.current == .no ? "Hvilepuls" : "Resting HR", value: "\(state.restingHR) bpm", field: .restingHeartRate)
+                summaryRow(
+                    label: L10n.current == .no ? "Utholdenhetstrening" : "Endurance training",
+                    value: state.doesEnduranceTraining
+                        ? (L10n.current == .no ? "Ja" : "Yes")
+                        : (L10n.current == .no ? "Nei" : "No"),
+                    field: .enduranceHabits
+                )
+                if state.doesEnduranceTraining {
+                    summaryRow(
+                        label: L10n.current == .no ? "Hardeste intensitet" : "Hardest intensity",
+                        value: state.hardestIntensity.title,
+                        field: .enduranceHabits
+                    )
+                    summaryRow(
+                        label: L10n.current == .no ? "Moderat frekvens" : "Moderate frequency",
+                        value: state.moderateFrequency.title,
+                        field: .frequencyAndDuration
+                    )
+                    summaryRow(
+                        label: L10n.current == .no ? "Varighet" : "Duration",
+                        value: state.moderateDuration.title,
+                        field: .frequencyAndDuration
+                    )
+                }
             }
             .padding(16)
             .background(CoachiTheme.surface)
@@ -1350,17 +1425,25 @@ private struct SummaryStepView: View {
         }
     }
 
-    private func summaryRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.body.weight(.medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-            Spacer()
-            Text(value.isEmpty ? "-" : value)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .multilineTextAlignment(.trailing)
+    private func summaryRow(label: String, value: String, field: OnboardingSummaryField) -> some View {
+        Button {
+            onEditField(field)
+        } label: {
+            HStack(spacing: 12) {
+                Text(label)
+                    .font(.body.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                Spacer()
+                Text(value.isEmpty ? "-" : value)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .multilineTextAlignment(.trailing)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.bold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+            }
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1426,7 +1509,7 @@ private struct OnboardingResultStepView: View {
 struct SensorConnectOnboardingView: View {
     @ObservedObject var watchManager: PhoneWCManager
     let onBack: () -> Void
-    let onContinue: () -> Void
+    let onContinue: (Bool) -> Void
 
     private var state: PhoneWCManager.WatchCapabilityState {
         watchManager.watchCapabilityState
@@ -1496,7 +1579,7 @@ struct SensorConnectOnboardingView: View {
             onBack: onBack,
             primaryTitle: isConnected ? L10n.watchContinue : L10n.watchContinueWithout,
             canContinue: true,
-            onPrimary: onContinue,
+            onPrimary: { onContinue(isConnected) },
             secondaryTitle: secondaryButtonTitle,
             onSecondary: isConnected ? nil : { secondaryAction() }
         ) {
@@ -1545,6 +1628,205 @@ struct SensorConnectOnboardingView: View {
 }
 
 // NoSensorFallbackStepView removed — content merged into SensorConnectOnboardingView
+
+private struct WatchConnectedPremiumOfferStepView: View {
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @State private var showPaywall = false
+
+    let onBack: () -> Void
+    let onContinue: () -> Void
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    private var yearlyPriceText: String {
+        subscriptionManager.yearlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackYearlyPrice
+    }
+
+    private var trialDays: Int {
+        AppConfig.Subscription.trialDurationDays
+    }
+
+    var body: some View {
+        OnboardingScaffold(
+            title: isNorwegian ? "Klokken er klar" : "Your watch is ready",
+            subtitle: isNorwegian
+                ? "Når Coachi får live puls fra klokken, kan Premium gi deg mer samtale, mer historikk og dypere oppsummeringer."
+                : "When Coachi receives live heart rate from your watch, Premium can unlock longer conversations, more history, and deeper summaries.",
+            onBack: onBack,
+            primaryTitle: isNorwegian ? "Fortsett med Gratis" : "Continue with Free",
+            canContinue: true,
+            onPrimary: onContinue
+        ) {
+            VStack(spacing: 18) {
+                timelineCard
+                includedCard
+                trialCard
+            }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .general)
+        }
+    }
+
+    private var timelineCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(isNorwegian ? "Slik fungerer det" : "How it works")
+                .font(.headline.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 14) {
+                timelineRow(
+                    icon: "applewatch.radiowaves.left.and.right",
+                    tint: CoachiTheme.primary,
+                    title: isNorwegian ? "I dag" : "Today",
+                    body: isNorwegian
+                        ? "Start en gratis prøveperiode og test Premium med live puls fra Apple Watch."
+                        : "Start a free trial and test Premium with live heart rate from Apple Watch."
+                )
+
+                timelineRow(
+                    icon: "calendar.badge.clock",
+                    tint: CoachiTheme.success,
+                    title: isNorwegian ? "Etter \(trialDays) dager" : "After \(trialDays) days",
+                    body: isNorwegian
+                        ? "Abonnementet fortsetter i App Store hvis du ikke avslutter i prøveperioden."
+                        : "The subscription continues in the App Store unless you cancel during the trial."
+                )
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.38), lineWidth: 1)
+        )
+    }
+
+    private var includedCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(isNorwegian ? "Dette får du med Premium" : "What Premium adds")
+                .font(.headline.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            offerBullet(
+                title: isNorwegian ? "Lengre Talk to Coach Live" : "Longer Talk to Coach Live",
+                detail: isNorwegian
+                    ? "Snakk lenger med coachen etter øktene når du vil følge opp hvordan det gikk."
+                    : "Talk longer with your coach after workouts when you want to unpack how the session felt."
+            )
+
+            offerBullet(
+                title: isNorwegian ? "Full økthistorikk" : "Full workout history",
+                detail: isNorwegian
+                    ? "Behold hele historikken din, ikke bare de siste øktene."
+                    : "Keep your full history, not just the latest workouts."
+            )
+
+            offerBullet(
+                title: isNorwegian ? "Dypere øktoppsummeringer" : "Deeper workout insights",
+                detail: isNorwegian
+                    ? "Få mer forklaring på puls, flyt og hva du kan bygge videre på."
+                    : "Get more explanation of heart rate, flow, and what to build on next."
+            )
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CoachiTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.38), lineWidth: 1)
+        )
+    }
+
+    private var trialCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isNorwegian ? "Gratis \(trialDays)-dagers prøveperiode" : "Free \(trialDays)-day trial")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(isNorwegian ? "\(yearlyPriceText)/år etter prøveperioden" : "\(yearlyPriceText) / year after trial")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            Button {
+                showPaywall = true
+            } label: {
+                Text(isNorwegian ? "Start gratis prøveperiode" : "Start free trial")
+                    .font(.headline.weight(.bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(CoachiTheme.primaryGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(hex: "F3EEFF"),
+                    Color(hex: "EEF8FF"),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color(hex: "C7B8FF").opacity(0.8), lineWidth: 1)
+        )
+    }
+
+    private func timelineRow(icon: String, tint: Color, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.14))
+                    .frame(width: 42, height: 42)
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body.weight(.bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                Text(body)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func offerBullet(title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(CoachiTheme.primary)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body.weight(.bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                Text(detail)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
 
 private struct NotificationPermissionStepView: View {
     let isLoading: Bool

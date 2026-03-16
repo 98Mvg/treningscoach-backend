@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
+import auth
 from database import User, UserProfile, db
 from workout_contracts import UserProfilePayload
 
@@ -128,6 +129,7 @@ def test_continuous_uses_db_profile_when_request_fields_missing(monkeypatch, tmp
     monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
     monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
     monkeypatch.setattr(main, "evaluate_zone_tick", _capturing_zone_tick)
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
     monkeypatch.setattr(main.config, "PROFILE_DB_ENABLED", True, raising=False)
     monkeypatch.setattr(main.config, "SERVER_CLOCK_ENABLED", False, raising=False)
 
@@ -135,6 +137,7 @@ def test_continuous_uses_db_profile_when_request_fields_missing(monkeypatch, tmp
     main.session_manager.init_workout_state(session_id, phase="intense")
     state = main.session_manager.get_workout_state(session_id)
     state["is_first_breath"] = False
+    token = auth.create_jwt(user_id, f"{user_id}@example.com")
 
     client = main.app.test_client()
     response = client.post(
@@ -149,6 +152,7 @@ def test_continuous_uses_db_profile_when_request_fields_missing(monkeypatch, tmp
             "workout_mode": "easy_run",
             "user_profile_id": user_id,
         },
+        headers={"Authorization": f"Bearer {token}"},
         content_type="multipart/form-data",
     )
 
@@ -156,3 +160,106 @@ def test_continuous_uses_db_profile_when_request_fields_missing(monkeypatch, tmp
     assert captured["hr_max"] == 188
     assert captured["resting_hr"] == 54
     assert captured["age"] == 34
+
+
+def test_resolve_runtime_profile_does_not_persist_local_personalization_ids():
+    local_profile_id = "profile_008ef136-9114-44ed-bd40-52494d445363"
+
+    with main.app.app_context():
+        snapshot = UserProfilePayload(
+            age=32,
+            max_hr_bpm=189,
+            resting_hr_bpm=57,
+            profile_updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+        resolved, source = main._resolve_runtime_profile(
+            user_id=local_profile_id,
+            snapshot_profile=snapshot,
+        )
+
+        assert source == "snapshot"
+        assert resolved is not None
+        assert resolved.max_hr_bpm == 189
+        assert UserProfile.query.filter_by(user_id=local_profile_id).first() is None
+
+
+def test_resolve_runtime_profile_does_not_persist_empty_snapshot_for_real_user():
+    user_id = "runtime_profile_empty_user"
+    _ensure_user(user_id)
+
+    with main.app.app_context():
+        UserProfile.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+
+        snapshot = UserProfilePayload(
+            profile_updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+        resolved, source = main._resolve_runtime_profile(
+            user_id=user_id,
+            snapshot_profile=snapshot,
+        )
+
+        assert source == "defaults"
+        assert resolved is None
+        assert UserProfile.query.filter_by(user_id=user_id).first() is None
+
+
+def test_continuous_prefers_authenticated_user_profile_over_local_profile_id(monkeypatch):
+    user_id = "runtime_profile_auth_user"
+    _ensure_user(user_id)
+
+    with main.app.app_context():
+        record = UserProfile.query.filter_by(user_id=user_id).first()
+        if record is None:
+            record = UserProfile(user_id=user_id)
+            db.session.add(record)
+        record.max_hr_bpm = 191
+        record.resting_hr_bpm = 53
+        record.age = 33
+        record.profile_updated_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    captured = {}
+
+    def _capturing_zone_tick(**kwargs):
+        captured["hr_max"] = kwargs.get("hr_max")
+        captured["resting_hr"] = kwargs.get("resting_hr")
+        captured["age"] = kwargs.get("age")
+        return _zone_tick_stub(**kwargs)
+
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "evaluate_zone_tick", _capturing_zone_tick)
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
+    monkeypatch.setattr(main.config, "PROFILE_DB_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "SERVER_CLOCK_ENABLED", False, raising=False)
+
+    session_id = main.session_manager.create_session(user_id=user_id, persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    state["is_first_breath"] = False
+
+    token = auth.create_jwt(user_id, f"{user_id}@example.com")
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "42",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "user_profile_id": "profile_008ef136-9114-44ed-bd40-52494d445363",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert captured["hr_max"] == 191
+    assert captured["resting_hr"] == 53
+    assert captured["age"] == 33

@@ -300,7 +300,7 @@ struct LiveCoachConversationView: View {
     private var voiceOrbLabel: String {
         let no = viewModel.languageCode == "no"
         if viewModel.isConnected {
-            return no ? "Snakk med Grok" : "Talk to Grok"
+            return no ? "Snakk med Coach" : "Talk to Coach"
         }
         if viewModel.isConversationEnded {
             return no ? "Samtale avsluttet" : "Conversation ended"
