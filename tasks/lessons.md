@@ -122,3 +122,4 @@ Updated: 2026-03-16
 - 2026-03-16: If onboarding monetization policy changes from "only after watch connected" to "all non-premium users", update the route contract test in the same pass so repo truth matches product intent immediately.
 - 2026-03-16: Subscription screens feel more trustworthy when `Manage subscription` shows the user’s current plan explicitly (`Free`, `Free trial`, `Premium`) in the same screen as the included-items comparison instead of only showing plan badges.
 - 2026-03-16: On paywall-like screens reached from profile/settings, keep the primary CTA anchored in a bottom safe-area action section so the action remains visible even when the plan cards scroll.
+- 2026-03-16: Rename onboarding enum cases when product meaning changes; keeping `watchConnectedOffer` after it became a general Premium bridge created misleading chat answers and weaker code readability.

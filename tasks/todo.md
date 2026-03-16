@@ -219,12 +219,20 @@ Updated: 2026-03-16
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
   - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
 
-## Review — 2026-03-16 watch-connected onboarding Premium bridge
+## Review — 2026-03-16 onboarding Premium bridge
 
-- Added a new watch-connected onboarding branch in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so users who successfully connect Apple Watch now see a Coachi-specific Premium explainer before notification permissions.
+- Added a new onboarding Premium bridge in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so non-premium users now see a Coachi-specific Premium explainer before notification permissions.
 - Kept the existing monetization runtime path by opening [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) from the new onboarding step instead of creating a second purchase flow.
 - Kept non-watch or already-premium users on the simpler existing `sensorConnect -> notificationPermission` path, so the upsell is contextual rather than generic.
 - Updated onboarding contracts in [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py) to lock the new branch and the `Continue with Free` fallback.
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py` -> `8 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-16 onboarding `premiumOffer` naming cleanup
+
+- Renamed the internal onboarding Premium bridge step from `watchConnectedOffer` to `premiumOffer` in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so the enum and routing name match the current product behavior.
+- Synced [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py) to the new internal step name.
 - Verification:
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py` -> `8 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

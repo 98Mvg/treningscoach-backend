@@ -51,7 +51,7 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert "case summary" in text
     assert "case result" in text
     assert "case noSensorFallback" in text
-    assert "case watchConnectedOffer" in text
+    assert "case premiumOffer" in text
     assert "case notificationPermission" in text
     assert "OnboardingFlowProgressView(" in text
     assert "Step \\(current) of \\(total)" in text
@@ -61,7 +61,7 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert ".notificationPermission," in guided_block
     assert ".dataPurpose," not in guided_block
     assert "steps.insert(.frequencyAndDuration, at: 5)" in guided_block
-    assert "steps.insert(.watchConnectedOffer, at: steps.count - 1)" in guided_block
+    assert "steps.insert(.premiumOffer, at: steps.count - 1)" in guided_block
     assert "if formState.doesEnduranceTraining" in guided_block
 
 
@@ -107,8 +107,8 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "onBack: { move(to: summaryBackStep) }" in text
     assert "onContinue: { watchConnected in" in text
     assert "if !subscriptionManager.hasPremiumAccess {" in text
-    assert "notificationBackStep = .watchConnectedOffer" in text
-    assert "move(to: .watchConnectedOffer)" in text
+    assert "notificationBackStep = .premiumOffer" in text
+    assert "move(to: .premiumOffer)" in text
     assert "notificationBackStep = .sensorConnect" in text
     assert "move(to: .notificationPermission)" in text
     assert "case .dataPurpose:" not in text
