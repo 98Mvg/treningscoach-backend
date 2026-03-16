@@ -48,8 +48,26 @@ struct WorkoutCompleteView: View {
         finalBPMText != "0 BPM"
     }
 
+    private var summaryProgressAward: CoachiProgressAward? {
+        viewModel.completedWorkoutSnapshot?.coachiProgressAward ?? viewModel.lastCoachiProgressAward
+    }
+
     private var xpAwardForSummary: Int {
-        viewModel.lastCoachiProgressAward?.xpAwarded ?? 0
+        summaryProgressAward?.xpAwarded ?? 0
+    }
+
+    private var summaryLevelLabel: String {
+        if let awardedLevel = summaryProgressAward?.stateAfterAward.level {
+            if L10n.current == .no {
+                return "Nivå \(awardedLevel)"
+            }
+            return "Level \(awardedLevel)"
+        }
+        return appViewModel.coachiLevelLabel
+    }
+
+    private var summaryXPProgress: Double {
+        summaryProgressAward?.xpProgressAfterFraction ?? appViewModel.coachiXPProgressFraction
     }
 
     private var shareSummaryText: String {
@@ -64,7 +82,7 @@ struct WorkoutCompleteView: View {
         return "I finished \(workoutLabel) with Coachi. \(metrics)"
     }
 
-    private var doneLabel: String { L10n.current == .no ? "FERDIG" : "DONE" }
+    private var doneLabel: String { L10n.current == .no ? "SE ØKTEN" : "VIEW WORKOUT" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
     private var shareChooserTitle: String { L10n.current == .no ? "Del økten" : "Share workout" }
     private var shareChooserSubtitle: String {
@@ -80,8 +98,7 @@ struct WorkoutCompleteView: View {
     }
     private var remainingLiveSessions: Int? {
         guard hasLiveVoiceAccountAccess else { return nil }
-        guard !hasPremiumAccess else { return nil }
-        return max(0, AppConfig.LiveVoice.freeSessionsPerDay - liveVoiceTracker.sessionsUsedToday)
+        return liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)
     }
     private var liveVoiceIsAvailable: Bool {
         hasLiveVoiceAccountAccess && (hasPremiumAccess || liveVoiceTracker.sessionsUsedToday < AppConfig.LiveVoice.freeSessionsPerDay)
@@ -270,20 +287,24 @@ struct WorkoutCompleteView: View {
     private var liveVoiceStatusText: String {
         if liveVoiceIsAvailable {
             if let remaining = remainingLiveSessions {
-                let unit = L10n.current == .no ? "igjen i dag" : "remaining today"
-                return (L10n.current == .no ? "Tilgjengelig" : "Available") + " · \(remaining) \(unit)"
+                // Free user with sessions available
+                let unit = L10n.current == .no
+                    ? (remaining == 1 ? "økt igjen i dag" : "økter igjen i dag")
+                    : (remaining == 1 ? "session left today" : "sessions left today")
+                return L10n.current == .no ? "Gratis: \(remaining) \(unit)" : "Free: \(remaining) \(unit)"
             }
-            return L10n.current == .no ? "Tilgjengelig" : "Available"
+            // Premium — no session counting shown
+            return "Premium"
         }
         if !hasLiveVoiceAccountAccess {
             return L10n.current == .no ? "Logg inn for å bruke live" : "Sign in to use live"
         }
-        return L10n.current == .no ? "Gratisgrensen er brukt opp i dag" : "Free limit reached today"
+        return L10n.current == .no ? "Ingen økter igjen i dag" : "No sessions left today"
     }
 
     private func freezeSummaryValues() {
-        finalDurationText = viewModel.elapsedFormatted
-        finalBPMText = viewModel.watchBPMDisplayText
+        finalDurationText = viewModel.completedWorkoutSnapshot?.durationText ?? viewModel.elapsedFormatted
+        finalBPMText = viewModel.completedWorkoutSnapshot?.finalHeartRateText ?? viewModel.watchBPMDisplayText
     }
 
     private func scoreRingView(ringSize: CGFloat) -> some View {
@@ -311,12 +332,12 @@ struct WorkoutCompleteView: View {
                 valueColor: Color.white.opacity(0.97),
                 labelColor: Color.white.opacity(0.80),
                 levelColor: CoachiTheme.success,
-                levelLabel: appViewModel.coachiLevelLabel,
-                xpProgress: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction ?? appViewModel.coachiXPProgressFraction,
+                levelLabel: summaryLevelLabel,
+                xpProgress: summaryXPProgress,
                 showsOuterXPRing: true,
                 animateXPAward: xpAwardForSummary > 0,
-                xpAnimationFrom: viewModel.lastCoachiProgressAward?.xpProgressBeforeFraction,
-                xpAnimationTo: viewModel.lastCoachiProgressAward?.xpProgressAfterFraction
+                xpAnimationFrom: summaryProgressAward?.xpProgressBeforeFraction,
+                xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction
             )
             .shadow(color: Color.white.opacity(0.12), radius: 16, y: 2)
         }

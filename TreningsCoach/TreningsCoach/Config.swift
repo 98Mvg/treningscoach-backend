@@ -224,10 +224,11 @@ struct AppConfig {
         }
 
         static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)
-        static let freeMaxDurationSeconds: Int = 120
-        static let premiumMaxDurationSeconds: Int = 300
+        static let freeMaxDurationSeconds: Int = 60
+        static let premiumMaxDurationSeconds: Int = 180
         static let defaultMaxDurationSeconds: Int = premiumMaxDurationSeconds
-        static let freeSessionsPerDay: Int = 3
+        static let freeSessionsPerDay: Int = 1
+        static let freeTurnLimit: Int = 3
     }
 
     // MARK: - Workout Talk
@@ -324,7 +325,6 @@ struct AppConfig {
     // MARK: - Experience Progression
     struct Progression {
         static let minWorkoutSecondsForXPAward: Int = 10
-        static let minCoachScoreForXPAward: Int = 50
         static let xpAwardPerQualifiedWorkout: Int = 25
         static let xpPerLevel: Int = CoachiProgressState.xpPerLevel
         static let maxCoachiLevel: Int = CoachiProgressState.maximumLevel

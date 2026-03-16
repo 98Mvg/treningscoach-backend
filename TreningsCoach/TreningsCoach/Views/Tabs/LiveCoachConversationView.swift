@@ -63,6 +63,15 @@ final class LiveCoachConversationViewModel: ObservableObject {
                 self?.liveVoiceTracker.markExhausted()
             }
             .store(in: &cancellables)
+
+        service.$turnCount
+            .sink { [weak self] count in
+                guard let self, !self.isPremium else { return }
+                if count >= AppConfig.LiveVoice.freeTurnLimit {
+                    Task { await self.service.disconnect(reason: .timeLimit) }
+                }
+            }
+            .store(in: &cancellables)
     }
 
     var transcriptEntries: [LiveCoachTranscriptEntry] {
