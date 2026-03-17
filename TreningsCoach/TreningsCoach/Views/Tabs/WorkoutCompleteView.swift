@@ -19,7 +19,6 @@ struct WorkoutCompleteView: View {
     @State private var finalDurationText = "00:00"
     @State private var finalBPMText = "0 BPM"
     @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
-    @State private var showLiveCoachVoice = false
     @State private var showLiveVoicePaywall = false
     @State private var showWorkoutSummary = false
     @State private var summaryDetent: PresentationDetent = .medium
@@ -113,7 +112,7 @@ struct WorkoutCompleteView: View {
     private var liveVoiceIsAvailable: Bool {
         hasLiveVoiceAccountAccess && liveVoiceTracker.canStart(isPremium: hasPremiumAccess)
     }
-    private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 140 : 156 }
+    private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 120 : 136 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
     private var liveVoiceLanguageCode: String {
         authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
@@ -155,20 +154,31 @@ struct WorkoutCompleteView: View {
                     }
                     .scaleEffect(checkmarkScale)
 
-                    Text("COACH SCORE")
-                        .font(.system(size: titleSize, weight: .light, design: .default))
-                        .foregroundColor(Color.white.opacity(0.96))
-                        .tracking(1)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.top, 22)
+                    if targetScore > 0 {
+                        Text("COACH SCORE")
+                            .font(.system(size: titleSize, weight: .light, design: .default))
+                            .foregroundColor(Color.white.opacity(0.96))
+                            .tracking(1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .padding(.top, 22)
+                            .opacity(contentVisible ? 1 : 0)
+
+                        scoreRingView(ringSize: ringSize)
+                        .padding(.top, 26)
                         .opacity(contentVisible ? 1 : 0)
+                    } else {
+                        Text(L10n.current == .no ? "OKT FULLFORT" : "WORKOUT COMPLETE")
+                            .font(.system(size: titleSize, weight: .light, design: .default))
+                            .foregroundColor(Color.white.opacity(0.96))
+                            .tracking(1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .padding(.top, 22)
+                            .opacity(contentVisible ? 1 : 0)
+                    }
 
-                    scoreRingView(ringSize: ringSize)
-                    .padding(.top, 26)
-                    .opacity(contentVisible ? 1 : 0)
-
-                    if !coachScoreSummaryLine.isEmpty {
+                    if targetScore > 0 && !coachScoreSummaryLine.isEmpty {
                         Text(coachScoreSummaryLine)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(Color.white.opacity(0.72))
@@ -205,6 +215,7 @@ struct WorkoutCompleteView: View {
         .sheet(isPresented: $showWorkoutSummary) {
             if let vm = liveCoachVM {
                 WorkoutSummarySheet(
+                    workoutLabel: workoutLabel,
                     xpGained: xpAwardForSummary,
                     xpToNextLevel: xpToNextLevel,
                     heartRateText: finalBPMText,
@@ -248,17 +259,6 @@ struct WorkoutCompleteView: View {
         }
         .onChange(of: showWorkoutSummary) { _, isPresented in
             if !isPresented { summaryDetent = .medium }
-        }
-        .sheet(isPresented: $showLiveCoachVoice) {
-            LiveCoachConversationView(
-                summaryContext: viewModel.postWorkoutSummaryContext,
-                languageCode: liveVoiceLanguageCode,
-                userName: liveVoiceUserName,
-                isPremium: hasPremiumAccess
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showLiveVoicePaywall) {
             PaywallView(context: .liveVoice)
@@ -353,43 +353,29 @@ struct WorkoutCompleteView: View {
     }
 
     private var liveCoachVoiceButton: some View {
-        VStack(spacing: 6) {
-            // Status line
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : Color.white.opacity(0.35))
-                    .frame(width: 6, height: 6)
-                Text(liveVoiceStatusText)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.white.opacity(0.55))
-                    .lineLimit(1)
+        Button {
+            let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
+            Task {
+                _ = await BackendAPIService.shared.trackVoiceTelemetry(
+                    event: "voice_cta_tapped",
+                    metadata: metadata
+                )
             }
-
-            // Button
-            Button {
-                let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
-                Task {
-                    _ = await BackendAPIService.shared.trackVoiceTelemetry(
-                        event: "voice_cta_tapped",
-                        metadata: metadata
-                    )
-                }
-                showWorkoutSummary = true
-            } label: {
-                Text(liveCoachVoiceLabel)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(CoachiTheme.textPrimary.opacity(liveVoiceIsAvailable ? 1 : 0.55))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.white.opacity(liveVoiceIsAvailable ? 0.55 : 0.22))
-                    )
-            }
-            .buttonStyle(.plain)
+            showWorkoutSummary = true
+        } label: {
+            Text(liveCoachVoiceLabel)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(liveVoiceIsAvailable ? CoachiTheme.accent : Color.white.opacity(0.22))
+                )
         }
+        .buttonStyle(.plain)
     }
 
     private var liveVoiceStatusText: String {
@@ -521,38 +507,46 @@ struct WorkoutCompleteView: View {
 
     @ViewBuilder
     private func summaryRow(metricFontSize: CGFloat) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 18) {
-                Label(finalBPMText, systemImage: "heart.fill")
-                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.95))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+        if hasFinalHeartRate {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 18) {
+                    Label(finalBPMText, systemImage: "heart.fill")
+                        .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.95))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
-                Text("•")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color(hex: "67E8F9"))
+                    Text("•")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(Color(hex: "67E8F9"))
 
-                Text(finalDurationText)
-                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.95))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    Text(finalDurationText)
+                        .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.95))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                VStack(spacing: 6) {
+                    Label(finalBPMText, systemImage: "heart.fill")
+                        .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.95))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text(finalDurationText)
+                        .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.95))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
             }
-
-            VStack(spacing: 6) {
-                Label(finalBPMText, systemImage: "heart.fill")
-                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.95))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                Text(finalDurationText)
-                    .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.95))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
+        } else {
+            Text(finalDurationText)
+                .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
+                .foregroundColor(.white.opacity(0.95))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
     }
 
@@ -563,15 +557,15 @@ struct WorkoutCompleteView: View {
             }
         } label: {
             Text(doneLabel)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .tracking(0.8)
-                .foregroundColor(Color.white.opacity(0.95))
-                .frame(width: actionButtonWidth, height: 52)
+                .foregroundColor(Color.white.opacity(0.85))
+                .frame(width: actionButtonWidth, height: 42)
                 .background(
                     Capsule(style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Color(hex: "9FB08C").opacity(0.96), Color(hex: "8CA078").opacity(0.96)],
+                                colors: [Color(hex: "9FB08C").opacity(0.7), Color(hex: "8CA078").opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -585,16 +579,16 @@ struct WorkoutCompleteView: View {
             showShareOptions = true
         } label: {
             Text(shareLabel)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .tracking(0.8)
-                .foregroundColor(Color.white.opacity(0.92))
-                .frame(width: actionButtonWidth, height: 52)
+                .foregroundColor(Color.white.opacity(0.82))
+                .frame(width: actionButtonWidth, height: 42)
                 .background(
                     Capsule(style: .continuous)
-                        .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
+                        .stroke(Color(hex: "A5F3FC").opacity(0.6), lineWidth: 1.5)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(Color.black.opacity(0.14))
+                                .fill(Color.black.opacity(0.1))
                         )
                 )
         }
@@ -700,7 +694,7 @@ private struct WaveformBarsView: View {
     @ObservedObject var service: XAIRealtimeVoiceService
     let isNorwegian: Bool
 
-    @State private var barHeights: [CGFloat] = [8, 8, 8, 8, 8]
+    @State private var barHeights: [CGFloat] = [8, 8, 8, 8, 8, 8, 8]
     @State private var animationTimer: Timer?
 
     private var isConnected: Bool {
@@ -722,7 +716,7 @@ private struct WaveformBarsView: View {
         case .preparing, .connecting:
             return isNorwegian ? "KOBLER TIL..." : "CONNECTING..."
         case .connected:
-            if service.isSpeaking { return "REX" }
+            if service.isSpeaking { return isNorwegian ? "COACH SNAKKER" : "COACH SPEAKING" }
             return isNorwegian ? "HØRER PÅ DEG" : "LISTENING"
         case .ended:
             return isNorwegian ? "SAMTALE AVSLUTTET" : "CONVERSATION ENDED"
@@ -734,20 +728,20 @@ private struct WaveformBarsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             HStack(spacing: 5) {
-                ForEach(0..<5, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                ForEach(0..<7, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(barColor)
-                        .frame(width: 4, height: barHeights[i])
+                        .frame(width: 5, height: barHeights[i])
                         .animation(.easeInOut(duration: 0.08), value: barHeights[i])
                 }
             }
-            .frame(height: 36)
+            .frame(height: 52)
 
             if !statusLabel.isEmpty {
                 Text(statusLabel)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .tracking(0.8)
                     .foregroundColor(service.isSpeaking ? Color(hex: "A5F3EC") : Color.white.opacity(isConnected ? 0.75 : 0.45))
             }
@@ -765,7 +759,7 @@ private struct WaveformBarsView: View {
     private func startAnimating() {
         animationTimer?.invalidate()
         animationTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
-            barHeights = (0..<5).map { _ in CGFloat.random(in: 10...32) }
+            barHeights = (0..<7).map { _ in CGFloat.random(in: 14...44) }
         }
     }
 
@@ -773,7 +767,7 @@ private struct WaveformBarsView: View {
         animationTimer?.invalidate()
         animationTimer = nil
         withAnimation(.easeOut(duration: 0.2)) {
-            barHeights = [8, 8, 8, 8, 8]
+            barHeights = [8, 8, 8, 8, 8, 8, 8]
         }
     }
 }
@@ -783,6 +777,7 @@ private struct WaveformBarsView: View {
 private struct WorkoutSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
 
+    let workoutLabel: String
     let xpGained: Int
     let xpToNextLevel: Int?
     let heartRateText: String
@@ -808,6 +803,7 @@ private struct WorkoutSummarySheet: View {
     }
 
     // Build ordered list of (title, value) cells — only available data
+    // Duration shown in context header, score shown as hero element
     private var statCells: [(title: String, value: String)] {
         var cells: [(String, String)] = []
 
@@ -820,14 +816,16 @@ private struct WorkoutSummarySheet: View {
         if hasHeartRate {
             cells.append((isNorwegian ? "Puls" : "Heart Rate", heartRateText))
         }
-        cells.append((isNorwegian ? "Varighet" : "Duration", durationText))
         if let zone = zoneTimeFormatted {
             cells.append((isNorwegian ? "Tid i sone" : "Time in Zone", zone))
         }
-        if coachScore > 0 {
-            cells.append(("Coachi Score", "\(coachScore)"))
-        }
         return cells
+    }
+
+    private var scoreAccentColor: Color {
+        if coachScore >= 80 { return Color(hex: "A5F3EC") }
+        if coachScore >= 60 { return Color(hex: "F59E0B") }
+        return Color(hex: "4A6FA5")
     }
 
     private var showCoachPanel: Bool {
@@ -850,13 +848,20 @@ private struct WorkoutSummarySheet: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
                     // Title — shrinks when coaching active
                     Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
-                        .font(.system(size: showCoachPanel ? 14 : 22, weight: showCoachPanel ? .medium : .bold))
+                        .font(.system(size: showCoachPanel ? 14 : 18, weight: showCoachPanel ? .medium : .semibold))
                         .foregroundColor(showCoachPanel ? CoachiTheme.textSecondary : CoachiTheme.textPrimary)
                         .padding(.top, 8)
                         .animation(.spring(duration: 0.35), value: showCoachPanel)
+
+                    // Context header: workout label + duration
+                    if !showCoachPanel {
+                        Text("\(workoutLabel) · \(durationText)")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
 
                     if showCoachPanel {
                         // Compact stat chips
@@ -867,7 +872,25 @@ private struct WorkoutSummarySheet: View {
                             .minimumScaleFactor(0.7)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     } else {
-                        // Full stats grid
+                        // Score hero section
+                        if coachScore > 0 {
+                            VStack(spacing: 6) {
+                                Text("\(coachScore)")
+                                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                                    .foregroundColor(CoachiTheme.textPrimary)
+                                Text("Coachi Score")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(scoreAccentColor.opacity(0.08))
+                            )
+                        }
+
+                        // Stats grid
                         if !statCells.isEmpty {
                             statsGrid
                         }
@@ -931,9 +954,9 @@ private struct WorkoutSummarySheet: View {
     }
 
     private func statCell(title: String, value: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             Text(value)
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: 20, weight: .bold))
                 .foregroundColor(CoachiTheme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -944,7 +967,7 @@ private struct WorkoutSummarySheet: View {
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, 16)
     }
 
     private var liveCoachSection: some View {
@@ -992,31 +1015,31 @@ private struct WorkoutSummarySheet: View {
 
     // MARK: - Inline Coach Panel
 
+    private var userTranscriptEntries: [LiveCoachTranscriptEntry] {
+        liveCoachVM.transcriptEntries.filter { $0.role == .user }
+    }
+
     private var inlineCoachPanel: some View {
         VStack(spacing: 16) {
-            // Waveform indicator
+            // Waveform indicator — prominent voice mode orb
             WaveformBarsView(service: liveCoachVM.service, isNorwegian: isNorwegian)
-                .padding(.vertical, 8)
+                .padding(.vertical, 20)
 
-            // Transcript
-            if !liveCoachVM.transcriptEntries.isEmpty {
+            // User messages only (coach speech shown via waveform, not text)
+            if !userTranscriptEntries.isEmpty {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 10) {
-                        ForEach(liveCoachVM.transcriptEntries) { entry in
+                    VStack(spacing: 8) {
+                        ForEach(userTranscriptEntries) { entry in
                             inlineTranscriptBubble(entry: entry)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 220)
-                .padding(12)
+                .frame(maxHeight: 120)
+                .padding(10)
                 .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.black.opacity(0.16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.07), lineWidth: 1)
-                        )
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
                 )
             }
 
@@ -1029,23 +1052,15 @@ private struct WorkoutSummarySheet: View {
     }
 
     private func inlineTranscriptBubble(entry: LiveCoachTranscriptEntry) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(entry.role == .assistant ? "REX" : (isNorwegian ? "DEG" : "YOU"))
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.7)
-                .foregroundColor(Color.white.opacity(0.52))
-            Text(entry.text)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(Color.white.opacity(0.92))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(entry.role == .assistant
-                    ? Color(hex: "113042").opacity(0.86)
-                    : Color.white.opacity(0.07))
-        )
+        Text(entry.text)
+            .font(.system(size: 14, weight: .regular))
+            .foregroundColor(Color.white.opacity(0.82))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
+            )
     }
 
     @ViewBuilder

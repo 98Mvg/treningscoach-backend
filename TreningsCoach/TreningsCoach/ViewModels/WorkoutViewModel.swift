@@ -833,6 +833,8 @@ class WorkoutViewModel: ObservableObject {
     }
 
     func resetWorkout() {
+        stopWatchReconnectionTimer()
+        watchWasPreviouslyConnected = false
         resetGuestBackendSuppression()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
@@ -1207,6 +1209,8 @@ class WorkoutViewModel: ObservableObject {
     private let motionCadenceService = MotionCadenceService()
     private let phoneWCManager = PhoneWCManager.shared
     private let watchHRProvider = AppleWatchWCProvider()
+    private var watchReconnectionTimer: Timer?
+    private var watchWasPreviouslyConnected = false
     private let bleHeartRateProvider = BLEHeartRateProvider()
     private let hkFallbackProvider = HealthKitFallbackProvider()
     private let heartRateArbiter = HeartRateArbiter()
@@ -2265,6 +2269,14 @@ class WorkoutViewModel: ObservableObject {
                 installed: self.phoneWCManager.isWatchAppInstalled
             )
             self.retryDeferredWatchStartIfNeeded(trigger: "reachability_change")
+
+            // Watch reconnection tracking
+            if reachable {
+                self.watchWasPreviouslyConnected = true
+                self.stopWatchReconnectionTimer()
+            } else if self.watchWasPreviouslyConnected && self.workoutState == .active {
+                self.startWatchReconnectionTimer()
+            }
         }
         phoneWCManager.onSessionStateChanged = { [weak self] capabilityState in
             guard let self else { return }
@@ -2290,6 +2302,31 @@ class WorkoutViewModel: ObservableObject {
             self?.handleWatchWorkoutStopped(timestamp: ts, requestID: requestID)
         }
         phoneWCManager.activate()
+    }
+
+    private func startWatchReconnectionTimer() {
+        guard watchReconnectionTimer == nil else { return }
+        print("WATCH_RECONNECT_TIMER start")
+        watchReconnectionTimer = Timer.scheduledTimer(withTimeInterval: 20.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            guard self.workoutState == .active else {
+                self.stopWatchReconnectionTimer()
+                return
+            }
+            let reachable = self.phoneWCManager.isReachable
+            print("WATCH_RECONNECT_TIMER tick reachable=\(reachable)")
+            if reachable {
+                self.stopWatchReconnectionTimer()
+                return
+            }
+            self.phoneWCManager.refreshStateManually()
+            self.retryDeferredWatchStartIfNeeded(trigger: "reconnection_timer")
+        }
+    }
+
+    private func stopWatchReconnectionTimer() {
+        watchReconnectionTimer?.invalidate()
+        watchReconnectionTimer = nil
     }
 
     private var requestedWatchWorkoutType: String {
@@ -2962,6 +2999,7 @@ class WorkoutViewModel: ObservableObject {
 
     func stopContinuousWorkout() {
         guard isContinuousMode else { return }
+        stopWatchReconnectionTimer()
 
         print("⏹️ Stopping continuous workout")
 
