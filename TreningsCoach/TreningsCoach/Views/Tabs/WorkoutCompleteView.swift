@@ -221,6 +221,8 @@ struct WorkoutCompleteView: View {
                     xpGained: xpAwardForSummary,
                     xpToNextLevel: xpToNextLevel,
                     heartRateText: finalBPMText,
+                    averageHeartRate: viewModel.averageHeartRate,
+                    distanceMeters: viewModel.distanceMeters,
                     durationText: finalDurationText,
                     zoneTimePct: viewModel.postWorkoutSummaryContext.zoneTimeInTargetPct,
                     coachScore: targetScore,
@@ -489,11 +491,18 @@ struct WorkoutCompleteView: View {
     }
 
     @ViewBuilder
+    private var displayHeartRateText: String {
+        if let avg = viewModel.averageHeartRate, avg > 0 {
+            return "Avg \(avg) BPM"
+        }
+        return finalBPMText
+    }
+
     private func summaryRow(metricFontSize: CGFloat) -> some View {
-        if hasFinalHeartRate {
+        if hasFinalHeartRate || (viewModel.averageHeartRate ?? 0) > 0 {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 18) {
-                    Label(finalBPMText, systemImage: "heart.fill")
+                    Label(displayHeartRateText, systemImage: "heart.fill")
                         .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
                         .foregroundColor(.white.opacity(0.95))
                         .lineLimit(1)
@@ -511,7 +520,7 @@ struct WorkoutCompleteView: View {
                 }
 
                 VStack(spacing: 6) {
-                    Label(finalBPMText, systemImage: "heart.fill")
+                    Label(displayHeartRateText, systemImage: "heart.fill")
                         .font(.system(size: metricFontSize, weight: .medium, design: .monospaced))
                         .foregroundColor(.white.opacity(0.95))
                         .lineLimit(1)
@@ -766,6 +775,8 @@ private struct WorkoutSummarySheet: View {
     let xpGained: Int
     let xpToNextLevel: Int?
     let heartRateText: String
+    let averageHeartRate: Int?
+    let distanceMeters: Double?
     let durationText: String
     let zoneTimePct: Double?
     let coachScore: Int
@@ -800,8 +811,14 @@ private struct WorkoutSummarySheet: View {
         if let toNext = xpToNextLevel, toNext > 0 {
             cells.append((isNorwegian ? "XP til neste nivå" : "XP to Next Level", "\(toNext)"))
         }
-        if hasHeartRate {
+        if let avgHR = averageHeartRate, avgHR > 0 {
+            cells.append((isNorwegian ? "Snitt puls" : "Avg Heart Rate", "\(avgHR) BPM"))
+        } else if hasHeartRate {
             cells.append((isNorwegian ? "Puls" : "Heart Rate", heartRateText))
+        }
+        if let dist = distanceMeters, dist > 0 {
+            let km = dist / 1000.0
+            cells.append((isNorwegian ? "Distanse" : "Distance", String(format: "%.2f km", km)))
         }
         if let zone = zoneTimeFormatted {
             cells.append((isNorwegian ? "Tid i sone" : "Time in Zone", zone))
@@ -827,7 +844,14 @@ private struct WorkoutSummarySheet: View {
         var parts: [String] = []
         if xpGained > 0 { parts.append("+\(xpGained) XP") }
         parts.append(durationText)
-        if hasHeartRate { parts.append(heartRateText) }
+        if let dist = distanceMeters, dist > 0 {
+            parts.append(String(format: "%.1f km", dist / 1000.0))
+        }
+        if let avgHR = averageHeartRate, avgHR > 0 {
+            parts.append("\(avgHR) BPM")
+        } else if hasHeartRate {
+            parts.append(heartRateText)
+        }
         if coachScore > 0 { parts.append("Score \(coachScore)") }
         return parts.joined(separator: " · ")
     }

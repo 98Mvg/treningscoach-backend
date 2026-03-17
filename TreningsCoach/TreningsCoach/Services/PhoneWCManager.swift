@@ -52,6 +52,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
     var onWorkoutStartFailed: ((String, TimeInterval, String) -> Void)?
     var onWorkoutStopped: ((TimeInterval, String) -> Void)?
     var onHeartRate: ((Double, TimeInterval) -> Void)?
+    var onDistance: ((Double) -> Void)?
     private var lastCapabilitySnapshot: String?
     private var hasActivatedSession = false
 
@@ -237,6 +238,12 @@ final class PhoneWCManager: NSObject, ObservableObject {
         if let hrInt = payload[WCKeys.heartRate] as? Int {
             print("WATCH_HR_RECEIVED transport=\(transport) bpm=\(hrInt)")
             onHeartRate?(Double(hrInt), parseTimestamp(payload[WCKeys.timestamp]))
+            return
+        }
+
+        if let dist = payload[WCKeys.distanceMeters] as? Double {
+            print("WATCH_DIST_RECEIVED transport=\(transport) meters=\(Int(dist))")
+            onDistance?(dist)
             return
         }
 

@@ -6,6 +6,7 @@ enum WCKeys {
     static let workoutType = "workout_type"
     static let timestamp = "ts"
     static let heartRate = "hr"
+    static let distanceMeters = "distance_meters"
     static let error = "error"
     static let warmupSeconds = "warmup_seconds"
     static let mainSeconds = "main_seconds"

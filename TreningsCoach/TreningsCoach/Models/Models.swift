@@ -421,6 +421,9 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
     let repRemainingS: Int?
     let repsRemainingIncludingCurrent: Int?
     let elapsedSource: String?
+    let averageHeartRate: Int?
+    let distanceMeters: Double?
+    let coachingStyle: String?
 
     enum CodingKeys: String, CodingKey {
         case workoutMode = "workout_mode"
@@ -439,6 +442,9 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         case repRemainingS = "rep_remaining_s"
         case repsRemainingIncludingCurrent = "reps_remaining_including_current"
         case elapsedSource = "elapsed_source"
+        case averageHeartRate = "average_heart_rate"
+        case distanceMeters = "distance_meters"
+        case coachingStyle = "coaching_style"
     }
 
     func fallbackPrompt(for question: String, languageCode: String) -> String {
@@ -459,6 +465,20 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         }
 
         lines.append(isNorwegian ? "- Overshoots over malsonen: \(zoneOvershoots)" : "- Zone overshoots: \(zoneOvershoots)")
+
+        if let avgHR = averageHeartRate, avgHR > 0 {
+            lines.append(isNorwegian ? "- Gjennomsnittspuls: \(avgHR) BPM" : "- Average heart rate: \(avgHR) BPM")
+        }
+
+        if let dist = distanceMeters, dist > 0 {
+            let km = dist / 1000.0
+            let distText = String(format: "%.2f km", km)
+            lines.append(isNorwegian ? "- Distanse: \(distText)" : "- Distance: \(distText)")
+        }
+
+        if let style = coachingStyle, !style.isEmpty {
+            lines.append(isNorwegian ? "- Intensitetsniva: \(style)" : "- Intensity level: \(style)")
+        }
 
         if let phase, !phase.isEmpty {
             lines.append(isNorwegian ? "- Siste fase: \(phase)" : "- Last phase: \(phase)")

@@ -207,6 +207,13 @@ class WorkoutViewModel: ObservableObject {
     @Published var liveHRBannerText: String?
     @Published var coachingStatusLine: String?
     @Published var heartRate: Int?
+    private var hrReadingsSum: Int = 0
+    private var hrReadingsCount: Int = 0
+    var averageHeartRate: Int? {
+        guard hrReadingsCount > 0 else { return nil }
+        return hrReadingsSum / hrReadingsCount
+    }
+    @Published var distanceMeters: Double?
     @Published var movementScore: Double?
     @Published var cadenceSPM: Double?
     @Published var movementSource: String = "none"
@@ -453,7 +460,10 @@ class WorkoutViewModel: ObservableObject {
             repsTotal: workoutContextSummary?.repsTotal,
             repRemainingS: workoutContextSummary?.repRemainingS,
             repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
-            elapsedSource: workoutContextSummary?.elapsedSource
+            elapsedSource: workoutContextSummary?.elapsedSource,
+            averageHeartRate: averageHeartRate,
+            distanceMeters: distanceMeters,
+            coachingStyle: coachingStyle.displayName
         )
     }
 
@@ -762,6 +772,9 @@ class WorkoutViewModel: ObservableObject {
         zoneScoreConfidence = "low"
         zoneTimeInTargetPct = nil
         zoneOvershoots = 0
+        hrReadingsSum = 0
+        hrReadingsCount = 0
+        distanceMeters = nil
         personalizationTip = ""
         recoveryLine = ""
         movementScore = nil
@@ -869,6 +882,9 @@ class WorkoutViewModel: ObservableObject {
         zoneScoreConfidence = "low"
         zoneTimeInTargetPct = nil
         zoneOvershoots = 0
+        hrReadingsSum = 0
+        hrReadingsCount = 0
+        distanceMeters = nil
         personalizationTip = ""
         recoveryLine = ""
         movementScore = nil
@@ -1848,7 +1864,10 @@ class WorkoutViewModel: ObservableObject {
             repsTotal: workoutContextSummary?.repsTotal,
             repRemainingS: workoutContextSummary?.repRemainingS,
             repsRemainingIncludingCurrent: workoutContextSummary?.repsRemainingIncludingCurrent,
-            elapsedSource: workoutContextSummary?.elapsedSource
+            elapsedSource: workoutContextSummary?.elapsedSource,
+            averageHeartRate: averageHeartRate,
+            distanceMeters: distanceMeters,
+            coachingStyle: coachingStyle.displayName
         )
         completedWorkoutSnapshot = WorkoutCompletionSnapshot(
             durationText: durationText,
@@ -2243,6 +2262,11 @@ class WorkoutViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.heartRate = output.currentBPM
+                // Accumulate for average HR calculation
+                if let bpm = output.currentBPM, bpm > 0, self.workoutState == .active {
+                    self.hrReadingsSum += bpm
+                    self.hrReadingsCount += 1
+                }
                 self.hrSource = output.hrSource
                 self.hrSignalQuality = output.hrSignalQuality.rawValue
                 self.watchConnected = output.watchConnected
@@ -2299,6 +2323,11 @@ class WorkoutViewModel: ObservableObject {
         }
         phoneWCManager.onHeartRate = { [weak self] bpm, ts in
             self?.handleWCHRUpdate(bpm: bpm, timestamp: ts)
+        }
+        phoneWCManager.onDistance = { [weak self] meters in
+            Task { @MainActor in
+                self?.distanceMeters = meters
+            }
         }
         phoneWCManager.onWorkoutStartedAck = { [weak self] workoutType, ts, requestID in
             self?.handleWatchWorkoutStartedAck(workoutType: workoutType, timestamp: ts, requestID: requestID)
@@ -3686,9 +3715,9 @@ class WorkoutViewModel: ObservableObject {
         let language = normalizedLanguageCode(currentLanguage)
         let resolvedEventType = eventType ?? "unknown"
         let personaKey = activeAudioPersonaKey
-        let shouldBypassLocalPack = (utteranceID?.hasSuffix(".dynamic") == true)
+        let isDynamicPhrase = (utteranceID?.hasSuffix(".dynamic") == true)
 
-        if let utteranceID, !shouldBypassLocalPack {
+        if let utteranceID {
             if isLocalPackAllowed(for: utteranceID) {
                 if let localURL = localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
                     print("🔊 Resolving audio source: cached_local_pack utterance=\(utteranceID) event=\(resolvedEventType)")
@@ -3734,8 +3763,10 @@ class WorkoutViewModel: ObservableObject {
             } else {
                 print("🔇 PACK_SUPPRESSED persona=personal_trainer utterance=\(utteranceID)")
             }
-        } else if let utteranceID, shouldBypassLocalPack {
-            print("🔊 PACK_BYPASS utterance=\(utteranceID) event=\(resolvedEventType) reason=dynamic_phrase")
+        }
+
+        if let utteranceID, isDynamicPhrase {
+            print("🔊 PACK_FALLBACK utterance=\(utteranceID) event=\(resolvedEventType) reason=dynamic_phrase_missing_in_pack")
         }
 
         guard allowBackendTTSFallback, let audioURL else {

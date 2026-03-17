@@ -174,6 +174,22 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
         prefix = "Zone overshoots" if not is_norwegian else "Sone-overshoots"
         lines.append(f"{prefix}: {overshoots}")
 
+    avg_hr = summary_context.get("average_heart_rate")
+    if avg_hr is not None and int(avg_hr) > 0:
+        prefix = "Average heart rate" if not is_norwegian else "Gjennomsnittspuls"
+        lines.append(f"{prefix}: {int(avg_hr)} BPM")
+
+    distance_m = summary_context.get("distance_meters")
+    if distance_m is not None and float(distance_m) > 0:
+        km = float(distance_m) / 1000.0
+        prefix = "Distance" if not is_norwegian else "Distanse"
+        lines.append(f"{prefix}: {km:.2f} km")
+
+    coaching_style = str(summary_context.get("coaching_style") or "").strip()
+    if coaching_style:
+        prefix = "Chosen intensity level" if not is_norwegian else "Valgt intensitetsnivå"
+        lines.append(f"{prefix}: {coaching_style}")
+
     phase = str(summary_context.get("phase") or "").strip()
     if phase:
         prefix = "Last phase" if not is_norwegian else "Siste fase"
@@ -331,7 +347,7 @@ def build_post_workout_voice_instructions(
         f"Speak in {language_name}. "
         "YOUR OPENING MESSAGE is special and must follow these rules:\n"
         "1. Start by acknowledging the specific workout just completed (use the workout label and duration)\n"
-        "2. Mention one standout metric (heart rate, zone time, or coach score)\n"
+        "2. Mention one standout metric (average heart rate, distance, zone time, or coach score)\n"
         "3. Give a brief, specific coaching insight based on the data\n"
         "4. End with an open question about how the athlete felt\n"
         "Your opening message may be up to 40 words and 3 sentences.\n"
@@ -343,7 +359,11 @@ def build_post_workout_voice_instructions(
         "If the label says 'Easy Run', talk about pace, breathing, and aerobic base.\n"
         "If the label says 'Intervals', talk about work/rest ratio, intensity peaks, and recovery.\n"
         "If the label says 'Workout', keep it general to cardio effort and heart rate zones.\n"
-        "Refer to the workout ONLY by its label. Do not invent activity details.\n\n"
+        "Refer to the workout ONLY by its label. Do not invent activity details.\n"
+        "The athlete also chose an intensity level (Easy/Medium/Hard) before starting. "
+        "Use this to gauge whether their heart rate, zone time, and effort match their intent. "
+        "If average heart rate is available, prefer it over final heart rate for overall effort assessment. "
+        "If distance is available, you can compute approximate pace (distance / duration).\n\n"
         "Only reference data explicitly present in the summary below. "
         "Always cite specific numbers when available (score, duration, heart rate, zone %). "
         "Never give generic advice when specific workout data exists in the summary. "

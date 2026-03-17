@@ -28,7 +28,10 @@ final class WatchWorkoutManager: NSObject, ObservableObject {
         // HKLiveWorkoutBuilder requires write permission for workoutType
         // to collect HR data during an active workout session
         let typesToShare: Set<HKSampleType> = [HKQuantityType.workoutType()]
-        let typesToRead: Set<HKObjectType> = [hrType]
+        let distType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)
+        var readTypes: Set<HKObjectType> = [hrType]
+        if let distType { readTypes.insert(distType) }
+        let typesToRead: Set<HKObjectType> = readTypes
         try await healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead)
     }
 
@@ -211,6 +214,25 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
 
 extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        // Distance tracking
+        if let distType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning),
+           collectedTypes.contains(distType),
+           let distStats = workoutBuilder.statistics(for: distType),
+           let sumQuantity = distStats.sumQuantity() {
+            let meters = sumQuantity.doubleValue(for: HKUnit.meter())
+            Task { @MainActor in
+                let payload: [String: Any] = [
+                    WCKeys.distanceMeters: meters,
+                    WCKeys.timestamp: Date().timeIntervalSince1970,
+                ]
+                if WCSession.default.isReachable {
+                    print("WATCH_DIST_SEND meters=\(Int(meters))")
+                    WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+                }
+            }
+        }
+
+        // Heart rate tracking
         guard let hrType = HKQuantityType.quantityType(forIdentifier: .heartRate),
               collectedTypes.contains(hrType),
               let statistics = workoutBuilder.statistics(for: hrType),
