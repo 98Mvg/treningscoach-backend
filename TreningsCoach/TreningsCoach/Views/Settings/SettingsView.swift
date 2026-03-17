@@ -11,7 +11,6 @@ struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
     @ObservedObject private var syncManager = AudioPackSyncManager.shared
-    @ObservedObject private var watchManager = PhoneWCManager.shared
 
     var body: some View {
         ZStack {
@@ -30,9 +29,6 @@ struct SettingsView: View {
 
                     settingsRow(icon: "globe", title: L10n.language, subtitle: (AppLanguage(rawValue: appViewModel.languageCode) ?? .en).displayName)
                     darkModeRow
-
-                    // Apple Watch
-                    watchSection
 
                     // Voice Pack
                     voicePackSection
@@ -90,65 +86,6 @@ struct SettingsView: View {
         }
         .padding(12)
         .cardStyle()
-    }
-
-    // MARK: - Apple Watch Section
-
-    private var watchStatusSubtitle: String {
-        switch watchManager.watchCapabilityState {
-        case .watchReady:
-            return L10n.current == .no ? "Tilkoblet" : "Connected"
-        case .watchInstalledNotReachable:
-            return L10n.current == .no ? "Ikke tilgjengelig" : "Not reachable"
-        case .watchNotInstalled:
-            return L10n.current == .no ? "Klokkappen ikke installert" : "Watch app not installed"
-        case .noWatchSupport:
-            return L10n.current == .no ? "Ingen klokke paret" : "No watch paired"
-        }
-    }
-
-    private var watchStatusColor: Color {
-        switch watchManager.watchCapabilityState {
-        case .watchReady: return CoachiTheme.success
-        case .watchInstalledNotReachable: return Color.yellow
-        default: return CoachiTheme.textSecondary.opacity(0.4)
-        }
-    }
-
-    @State private var showWatchConnect = false
-
-    private var watchSection: some View {
-        NavigationLink(destination: WatchSettingsDestination(watchManager: watchManager)) {
-            HStack(spacing: 12) {
-                Image(systemName: "applewatch")
-                    .font(.body)
-                    .foregroundColor(CoachiTheme.primary)
-                    .frame(width: 36, height: 36)
-                    .background(CoachiTheme.primary.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Apple Watch")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(CoachiTheme.textPrimary)
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(watchStatusColor)
-                            .frame(width: 6, height: 6)
-                        Text(watchStatusSubtitle)
-                            .font(.system(size: 12))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-            }
-            .padding(12)
-            .cardStyle()
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Voice Pack Section
@@ -245,22 +182,5 @@ struct SettingsView: View {
             line += " | \(ago)"
         }
         return line
-    }
-}
-
-// MARK: - Watch Settings Destination
-
-/// Wraps the onboarding SensorConnectOnboardingView for use inside Settings navigation.
-private struct WatchSettingsDestination: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var watchManager: PhoneWCManager
-
-    var body: some View {
-        SensorConnectOnboardingView(
-            watchManager: watchManager,
-            onBack: { dismiss() },
-            onContinue: { _ in dismiss() }
-        )
-        .navigationBarBackButtonHidden(true)
     }
 }

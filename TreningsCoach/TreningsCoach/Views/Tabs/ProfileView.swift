@@ -2739,7 +2739,18 @@ struct HeartRateMonitorsView: View {
     private func monitorRows(for brands: [MonitorBrand]) -> some View {
         VStack(spacing: 0) {
             ForEach(brands) { brand in
-                if isActionableMonitor(brand) {
+                if brand == .appleWatch {
+                    NavigationLink {
+                        SensorConnectOnboardingView(
+                            watchManager: PhoneWCManager.shared,
+                            onBack: {},
+                            onContinue: { _ in }
+                        )
+                    } label: {
+                        monitorRowContent(for: brand, showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                } else if isActionableMonitor(brand) {
                     Button {
                         workoutViewModel.refreshHealthSensors()
                     } label: {
