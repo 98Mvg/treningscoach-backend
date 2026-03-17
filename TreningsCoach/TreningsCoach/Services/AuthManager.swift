@@ -493,10 +493,12 @@ class AuthManager: ObservableObject {
         }
     }
 
-    func fetchRuntimeFlags() async {
+    // nonisolated: network call runs on background thread.
+    // Only the @Published update hops back to MainActor via MainActor.run.
+    nonisolated func fetchRuntimeFlags() async {
         do {
             let runtime = try await BackendAPIService.shared.fetchAppRuntime()
-            productFlags = runtime.productFlags
+            await MainActor.run { self.productFlags = runtime.productFlags }
         } catch {
             authLogger.error("RUNTIME_FLAGS fetch_failed=true")
         }
@@ -671,28 +673,21 @@ class AuthManager: ObservableObject {
             defaults.set(true, forKey: "spotify_prompt_pending")
         }
 
-        Task {
-            await fetchRuntimeFlags()
+        // Run off MainActor so a cold Render backend response doesn't compete
+        // with UI updates while the user is actively interacting with the app.
+        Task.detached(priority: .utility) { [weak self] in
+            await self?.fetchRuntimeFlags()
         }
 
         authLogger.notice("AUTH_SUCCESS session_established=true")
     }
 
     private func performProfileRequest(token: String) async throws -> (Data, URLResponse) {
-        let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        return try await URLSession.shared.data(for: request)
+        try await BackendAPIService.shared.fetchAuthenticatedProfile(token: token)
     }
 
     private func performProfileUpdateRequest(token: String, payload: Data) async throws -> (Data, URLResponse) {
-        let url = URL(string: "\(AppConfig.backendURL)/auth/me")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = payload
-        return try await URLSession.shared.data(for: request)
+        try await BackendAPIService.shared.updateAuthenticatedProfile(token: token, payload: payload)
     }
 
     private func updateProfileFromResponseData(_ data: Data) throws {
@@ -702,7 +697,12 @@ class AuthManager: ObservableObject {
 
     private func applyAuthenticatedProfile(_ user: UserProfile) {
         currentUser = user
-        isAuthenticated = hasUsableSession()
+        // Guard avoids a second @Published fire (and resulting SwiftUI re-render)
+        // when called during background auth retries while the user is typing.
+        let newAuth = hasUsableSession()
+        if isAuthenticated != newAuth {
+            isAuthenticated = newAuth
+        }
         L10n.set(user.language)
         persistIdentityDefaults(from: user)
     }

@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 import zipfile
 from pathlib import Path
@@ -208,3 +209,135 @@ def test_welcome_validation_helper_passes_for_current_catalog():
 def test_welcome_validation_helper_fails_on_errors(monkeypatch):
     monkeypatch.setattr(editor, "validate_welcome_catalog", lambda: ["bad welcome gap"])
     assert editor._validate_welcome_or_fail() == 2
+
+
+def test_export_v2_curation_instruction_writes_markdown_and_json(tmp_path: Path):
+    rows = editor.build_v2_curation_rows("instruction")
+    md_path = tmp_path / "instruction_current.md"
+    json_path = tmp_path / "instruction_working.json"
+
+    editor.export_v2_curation_markdown(md_path, category="instruction", rows=rows)
+    editor.export_v2_curation_json(json_path, category="instruction", rows=rows)
+
+    assert md_path.exists()
+    assert json_path.exists()
+    markdown = md_path.read_text(encoding="utf-8")
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+
+    assert "# V2 Phrase Curation — instruction" in markdown
+    assert "zone.above.default.1" in markdown
+    assert payload["category"] == "instruction"
+    assert payload["rows"][0]["operation"] == "keep"
+    assert "zone.above.default.2" in {row["phrase_id"] for row in payload["rows"]}
+    assert "zone.above.default.3" not in {row["phrase_id"] for row in payload["rows"]}
+
+
+def test_import_v2_curation_edit_updates_phrase_review_source(tmp_path: Path, monkeypatch):
+    source_copy = tmp_path / "phrase_review_v2.py"
+    source_copy.write_text(editor.V2_SOURCE_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(editor, "V2_SOURCE_FILE", source_copy)
+
+    row = editor.build_v2_curation_rows("instruction")[0]
+    json_path = tmp_path / "instruction_working.json"
+    json_path.write_text(
+        json.dumps(
+            {
+                "category": "instruction",
+                "rows": [
+                    {
+                        **row.as_dict(),
+                        "operation": "edit",
+                        "english_proposed": "Ease the effort now.",
+                        "norwegian_proposed": "Demp innsatsen nå.",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    result = editor.import_v2_curation_json(json_path=json_path, apply_changes=True)
+
+    updated = source_copy.read_text(encoding="utf-8")
+    assert result == 0
+    assert "Ease the effort now." in updated
+    assert "Demp innsatsen nå." in updated
+    assert "Ease back slightly." not in updated
+
+
+def test_import_v2_curation_add_variant_appends_future_seed(tmp_path: Path, monkeypatch):
+    source_copy = tmp_path / "phrase_review_v2.py"
+    source_copy.write_text(editor.V2_SOURCE_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(editor, "V2_SOURCE_FILE", source_copy)
+
+    row = editor.build_v2_curation_rows("instruction")[0]
+    expected_id = editor._next_variant_phrase_id(
+        row.phrase_id,
+        row.family,
+        row.event,
+        editor.build_review_rows(),
+    )
+    json_path = tmp_path / "instruction_working.json"
+    json_path.write_text(
+        json.dumps(
+            {
+                "category": "instruction",
+                "rows": [
+                    {
+                        **row.as_dict(),
+                        "operation": "add_variant",
+                        "english_proposed": "Settle down a touch.",
+                        "norwegian_proposed": "Ro litt ned nå.",
+                        "notes": "future HR correction variant",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    result = editor.import_v2_curation_json(json_path=json_path, apply_changes=True)
+
+    updated = source_copy.read_text(encoding="utf-8")
+    assert result == 0
+    assert expected_id in updated
+    assert '"future"' in updated
+    assert "Settle down a touch." in updated
+    assert "Ro litt ned nå." in updated
+
+
+def test_import_v2_curation_rejects_missing_family_metadata(tmp_path: Path):
+    json_path = tmp_path / "instruction_working.json"
+    json_path.write_text(
+        json.dumps(
+            {
+                "category": "instruction",
+                "rows": [
+                    {
+                        "phrase_id": "zone.above.default.1",
+                        "group": "instruction",
+                        "catalog": "instruction",
+                        "family": "",
+                        "event": "above_zone",
+                        "mode": "HR",
+                        "english_current": "Ease back slightly.",
+                        "norwegian_current": "Ro ned litt.",
+                        "operation": "add_variant",
+                        "english_proposed": "Ease it down.",
+                        "norwegian_proposed": "Ro det ned.",
+                        "notes": "",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    result = editor.import_v2_curation_json(json_path=json_path, apply_changes=False)
+    assert result == 2

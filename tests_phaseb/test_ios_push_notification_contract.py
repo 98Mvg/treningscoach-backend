@@ -33,11 +33,17 @@ def test_push_manager_tracks_permission_registration_and_local_reminder() -> Non
     assert 'event: granted ? "push_permission_granted" : "push_permission_denied"' in text
     assert "UIApplication.shared.registerForRemoteNotifications()" in text
     assert "func scheduleOnboardingReminderIfNeeded() async" in text
-    assert 'identifier: reminderRequestIdentifier' in text
+    assert "func scheduleWorkoutReminderIfNeeded() async" in text
+    assert 'private let onboardingReminderRequestIdentifier = "coachi.onboarding.reminder.v1"' in text
+    assert 'private let workoutReminderRequestIdentifier = "coachi.workout.reminder.v1"' in text
+    assert 'private let workoutReminderDeepLink = "coachi://tab/workout"' in text
+    assert 'content.userInfo = [' in text
+    assert 'notificationDeepLinkKey: workoutReminderDeepLink' in text
     assert 'event: "push_local_reminder_scheduled"' in text
     assert 'event: "push_token_registered"' in text
     assert 'event: "push_registration_failed"' in text
     assert 'event: "push_notification_opened"' in text
+    assert 'UIApplication.shared.open(url)' in text
 
 
 def test_onboarding_and_workout_runtime_use_single_push_manager_path() -> None:
@@ -50,3 +56,4 @@ def test_onboarding_and_workout_runtime_use_single_push_manager_path() -> None:
     assert "await pushNotificationManager.scheduleOnboardingReminderIfNeeded()" in app_text
     assert "pushNotificationManager.clearPendingCoachReminders()" in app_text
     assert "PushNotificationManager.shared.clearPendingCoachReminders()" in workout_text
+    assert "await PushNotificationManager.shared.scheduleWorkoutReminderIfNeeded()" in workout_text

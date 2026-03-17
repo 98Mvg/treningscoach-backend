@@ -90,6 +90,12 @@ def test_parser_accepts_review_input_flag():
     assert args.review_input.endswith("phrase_catalog_sorted.csv")
 
 
+def test_parser_accepts_sync_r2_flag():
+    parser = mod._build_parser()
+    args = parser.parse_args(["--version", "v2", "--sync-r2"])
+    assert args.sync_r2 is True
+
+
 def test_pack_persona_policy_non_toxic_ids_are_personal_trainer():
     phrases = mod._build_phrase_list(core_only=False)
     offenders = [
@@ -145,6 +151,38 @@ def test_approved_v2_phrase_ids_include_active_secondary_and_infrastructure(tmp_
     assert "wake_ack.no.default" in approved_ids
 
 
+def test_approved_v2_phrase_ids_ignore_extra_curation_columns(tmp_path: Path):
+    review_path = tmp_path / "phrase_catalog_sorted.csv"
+    with review_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "phrase_id",
+                "active_status",
+                "approved_for_import",
+                "approved_for_recording",
+                "operation",
+                "english_current",
+                "english_proposed",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "phrase_id": "zone.main_started.1",
+                "active_status": "active",
+                "approved_for_import": "yes",
+                "approved_for_recording": "yes",
+                "operation": "edit",
+                "english_current": "Main set now.",
+                "english_proposed": "Main work starts.",
+            }
+        )
+
+    approved_ids = mod._approved_v2_phrase_ids(review_path)
+    assert "zone.main_started.1" in approved_ids
+
+
 def test_filter_phrases_for_v2_forces_language_voice_ids(tmp_path: Path):
     review_path = tmp_path / "phrase_catalog_sorted.csv"
     with review_path.open("w", encoding="utf-8", newline="") as handle:
@@ -182,6 +220,22 @@ def test_filter_phrases_for_v2_forces_language_voice_ids(tmp_path: Path):
     assert ("wake_ack.en.default", "en") in ids
     for phrase in filtered:
         assert phrase.voice_id_override == mod.V2_FORCE_VOICE_IDS[phrase.language]
+
+
+def test_build_v2_phrase_list_uses_runtime_review_rows_as_source_of_truth():
+    phrases = mod._build_v2_phrase_list()
+    by_key = {(phrase.phrase_id, phrase.language): phrase for phrase in phrases}
+
+    assert ("zone.countdown.halfway.dynamic", "en") in by_key
+    assert ("zone.countdown.halfway.dynamic", "no") in by_key
+    assert by_key[("zone.countdown.halfway.dynamic", "en")].text == "You are halfway through"
+    assert by_key[("zone.countdown.halfway.dynamic", "no")].text == "Du er halvveis nå."
+    assert ("zone.main_started.2", "en") in by_key
+    assert by_key[("zone.main_started.2", "en")].text == "Workout starts now"
+    assert ("zone.above.default.2", "en") in by_key
+    assert ("zone.in_zone.default.3", "no") in by_key
+    assert ("wake_ack.en.default", "en") in by_key
+    assert by_key[("wake_ack.en.default", "en")].voice_id_override == mod.V2_FORCE_VOICE_IDS["en"]
 
 
 # ── Build cache (changed-only regeneration) ───────────────────────────

@@ -78,6 +78,29 @@ def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
     assert "private func dataWithAuthRetry(for request: URLRequest)" in text
     assert "let refreshed = await refreshAuthTokenIfNeeded()" in text
     assert "return try await session.data(for: retryRequest)" in text
+    assert "private let backendAvailabilityQueue = DispatchQueue(label: \"BackendAPIService.availability\")" in text
+    assert "private let backendUnavailableCooldownSeconds: TimeInterval = 20" in text
+    assert "private func ensureBackendAvailable(path: String) throws" in text
+    assert "private func markBackendUnavailableIfNeeded(error: Error, path: String)" in text
+    assert "private func clearBackendUnavailableIfNeeded(path: String)" in text
+    assert "private func isTransientBackendNetworkError(_ error: Error) -> Bool" in text
+    assert "private func performRequestWithBackendAvailability(" in text
+    assert "func fetchAuthenticatedProfile(token: String) async throws -> (Data, URLResponse)" in text
+    assert "func updateAuthenticatedProfile(token: String, payload: Data) async throws -> (Data, URLResponse)" in text
+
+
+def test_backend_api_service_guards_best_effort_and_primary_requests_during_backend_cooldown() -> None:
+    text = API.read_text(encoding="utf-8")
+    assert 'guard !shouldSkipBestEffortRequest(path: "/health") else { return }' in text
+    assert 'performRequestWithBackendAvailability(request, path: "/health")' in text
+    assert 'performRequestWithBackendAvailability(request, path: "/app/runtime")' in text
+    assert 'path: "/coach/continuous"' in text
+    assert 'path: "/coach/talk"' in text
+    assert 'path: "/voice/session"' in text
+    assert 'path: "/analytics/mobile"' in text
+    assert 'path: "/voice/telemetry"' in text
+    assert 'path: "/subscription/validate"' in text
+    assert 'catch is BackendAvailabilityError {' in text
 
 
 def test_subscription_validation_skips_without_any_auth_material() -> None:
@@ -126,6 +149,14 @@ def test_auth_manager_supports_passwordless_email_sign_in() -> None:
     assert '"\\(AppConfig.backendURL)/auth/email/request-code"' in text
     assert '"\\(AppConfig.backendURL)/auth/email/verify"' in text
     assert "private func localizedEmailBackendError(errorResponse: ErrorResponse?) -> String" in text
+
+
+def test_auth_manager_routes_profile_reads_and_updates_through_backend_api_service() -> None:
+    text = AUTH_MANAGER.read_text(encoding="utf-8")
+    assert 'try await BackendAPIService.shared.fetchAuthenticatedProfile(token: token)' in text
+    assert 'try await BackendAPIService.shared.updateAuthenticatedProfile(token: token, payload: payload)' in text
+    profile_helpers = text.split("private func performProfileRequest(token: String)", 1)[1]
+    assert 'URLSession.shared.data(for: request)' not in profile_helpers.split("private func updateProfileFromResponseData", 1)[0]
 
 
 def test_workout_view_model_surfaces_backend_backoff_status_line() -> None:

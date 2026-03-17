@@ -680,6 +680,28 @@ struct CoachScoreRecord: Identifiable, Codable {
     }
 }
 
+extension Array where Element == CoachScoreRecord {
+    func currentWorkoutStreak(calendar: Calendar = .autoupdatingCurrent) -> Int {
+        let uniqueDays = Set(map { calendar.startOfDay(for: $0.date) })
+        guard let mostRecentDay = uniqueDays.max() else { return 0 }
+
+        let today = calendar.startOfDay(for: Date())
+        let recency = calendar.dateComponents([.day], from: mostRecentDay, to: today).day ?? 0
+        guard recency <= 1 else { return 0 }
+
+        var streak = 0
+        var cursor = mostRecentDay
+        while uniqueDays.contains(cursor) {
+            streak += 1
+            guard let previousDay = calendar.date(byAdding: .day, value: -1, to: cursor) else {
+                break
+            }
+            cursor = previousDay
+        }
+        return streak
+    }
+}
+
 // MARK: - Coachi Progression
 
 struct CoachiProgressState: Codable, Equatable {

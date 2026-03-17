@@ -47,7 +47,8 @@ struct HomeView: View {
                             CoachScoreSection(
                                 scoreHistory: workoutViewModel.coachScoreHistory,
                                 coachScore: workoutViewModel.homeCoachScore,
-                                xpProgress: appViewModel.coachiXPProgressFraction
+                                xpProgress: appViewModel.coachiXPProgressFraction,
+                                xpLine: appViewModel.coachiXPLine
                             )
                             .frame(maxWidth: .infinity)
                             .padding(.top, 22)
@@ -159,6 +160,11 @@ private struct CoachScoreSection: View {
     let scoreHistory: [CoachScoreRecord]
     let coachScore: Int
     let xpProgress: Double
+    let xpLine: String
+
+    private var streakDays: Int {
+        scoreHistory.currentWorkoutStreak()
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -168,6 +174,20 @@ private struct CoachScoreSection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 16) {
+                HStack(spacing: 10) {
+                    progressPill(
+                        icon: "flame.fill",
+                        title: L10n.streak,
+                        value: "\(streakDays)"
+                    )
+                    progressPill(
+                        icon: "sparkles",
+                        title: "XP",
+                        value: xpLine
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 HStack(spacing: 8) {
                     ForEach(weekSlots) { slot in
                         VStack(spacing: 4) {
@@ -216,6 +236,29 @@ private struct CoachScoreSection: View {
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func progressPill(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(CoachiTheme.primary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(CoachiTheme.surfaceElevated)
+        .clipShape(Capsule(style: .continuous))
     }
 
     private var weekSlots: [CoachScoreWeekSlot] {

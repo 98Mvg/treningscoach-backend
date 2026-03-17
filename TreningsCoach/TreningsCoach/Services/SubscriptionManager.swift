@@ -182,30 +182,34 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Entitlement Verification
 
     func refreshStatus() async {
-        var newStatus: SubscriptionStatus = .free
+        // StoreKit's Transaction.currentEntitlements can trigger network requests
+        // to Apple's servers on first call. Running the iteration off the MainActor
+        // prevents micro-hangs on the UI thread (e.g. during onboarding text input).
+        let newStatus: SubscriptionStatus = await Task.detached(priority: .userInitiated) {
+            var computed: SubscriptionStatus = .free
+            for await result in Transaction.currentEntitlements {
+                guard case .verified(let transaction) = result else { continue }
+                guard AppConfig.Subscription.allProductIDs.contains(transaction.productID) else { continue }
 
-        for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else { continue }
-            guard AppConfig.Subscription.allProductIDs.contains(transaction.productID) else { continue }
-
-            if let expirationDate = transaction.expirationDate {
-                if expirationDate > Date() {
-                    // Active subscription — check if it is still in the trial period
-                    if let offerType = transaction.offerType, offerType == .introductory {
-                        newStatus = .trial
+                if let expirationDate = transaction.expirationDate {
+                    if expirationDate > Date() {
+                        // Active subscription — check if it is still in the trial period
+                        if let offerType = transaction.offerType, offerType == .introductory {
+                            computed = .trial
+                        } else {
+                            computed = .premium
+                        }
                     } else {
-                        newStatus = .premium
+                        computed = .expired
                     }
                 } else {
-                    newStatus = .expired
+                    // Non-consumable (not applicable here, but safe default)
+                    computed = .premium
                 }
-            } else {
-                // Non-consumable (not applicable here, but safe default)
-                newStatus = .premium
             }
-        }
-
-        status = newStatus
+            return computed
+        }.value
+        status = newStatus  // back on @MainActor — single @Published update
     }
 
     // MARK: - Transaction Listener

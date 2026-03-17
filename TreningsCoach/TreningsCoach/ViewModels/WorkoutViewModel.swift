@@ -843,6 +843,9 @@ class WorkoutViewModel: ObservableObject {
                 "coach_persona": activePersonality.rawValue,
             ]
         )
+        Task {
+            await PushNotificationManager.shared.scheduleWorkoutReminderIfNeeded()
+        }
     }
 
     func resetWorkout() {

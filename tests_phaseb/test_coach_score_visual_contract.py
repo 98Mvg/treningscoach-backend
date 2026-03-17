@@ -24,6 +24,7 @@ ONBOARDING_VIEW = (
     / "Onboarding"
     / "OnboardingContainerView.swift"
 )
+MODELS = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Models" / "Models.swift"
 
 
 def test_gamified_ring_component_counts_from_zero_to_target_score() -> None:
@@ -57,8 +58,12 @@ def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     assert "scoreHistory: workoutViewModel.coachScoreHistory" in text
     assert "coachScore: workoutViewModel.homeCoachScore" in text
     assert "xpProgress: appViewModel.coachiXPProgressFraction" in text
+    assert "xpLine: appViewModel.coachiXPLine" in text
     assert "GamifiedCoachScoreRingView(" in text
     assert "showsOuterXPRing: true" in text
+    assert 'title: L10n.streak' in text
+    assert 'title: "XP"' in text
+    assert "scoreHistory.currentWorkoutStreak()" in text
     assert "levelLabel: levelLabel" not in text
 
 
@@ -73,6 +78,8 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "viewModel.completedWorkoutSnapshot?.coachiProgressAward ?? viewModel.lastCoachiProgressAward" in text
     assert "private var summaryLevelLabel: String {" in text
     assert "private var summaryXPProgress: Double {" in text
+    assert "private var summaryStreakDays: Int {" in text
+    assert "private var summaryXPLineText: String {" in text
     assert 'finalDurationText = viewModel.completedWorkoutSnapshot?.durationText ?? viewModel.elapsedFormatted' in text
     assert 'finalBPMText = viewModel.completedWorkoutSnapshot?.finalHeartRateText ?? viewModel.watchBPMDisplayText' in text
     assert "showsOuterXPRing: true" in text
@@ -85,6 +92,9 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "xpAnimationFrom: summaryProgressAward?.xpProgressBeforeFraction" in text
     assert "xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction" in text
     assert "scoreRingView(ringSize: ringSize)" in text
+    assert "summaryProgressPills" in text
+    assert 'title: L10n.streak' in text
+    assert 'title: "XP"' in text
     assert "progressHighlightsCard" not in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
@@ -108,3 +118,10 @@ def test_onboarding_data_and_result_use_gamified_ring() -> None:
     text = ONBOARDING_VIEW.read_text(encoding="utf-8")
     assert "GamifiedCoachScoreRingView(" in text
     assert "score: score" in text
+
+
+def test_models_expose_current_workout_streak_helper_for_score_history() -> None:
+    text = MODELS.read_text(encoding="utf-8")
+    assert "extension Array where Element == CoachScoreRecord" in text
+    assert "func currentWorkoutStreak(calendar: Calendar = .autoupdatingCurrent) -> Int" in text
+    assert "let uniqueDays = Set(map { calendar.startOfDay(for: $0.date) })" in text

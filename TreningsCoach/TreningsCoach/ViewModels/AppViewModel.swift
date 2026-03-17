@@ -49,8 +49,12 @@ final class PushNotificationManager: NSObject, ObservableObject, UNUserNotificat
 
     private let notificationCenter = UNUserNotificationCenter.current()
     private let backendAPI = BackendAPIService.shared
-    private let reminderRequestIdentifier = "coachi.onboarding.reminder.v1"
+    private let onboardingReminderRequestIdentifier = "coachi.onboarding.reminder.v1"
+    private let workoutReminderRequestIdentifier = "coachi.workout.reminder.v1"
     private let deviceTokenDefaultsKey = "apns_device_token_hex"
+    private let notificationDeepLinkKey = "deep_link"
+    private let notificationSourceKey = "source"
+    private let workoutReminderDeepLink = "coachi://tab/workout"
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published private(set) var apnsDeviceToken: String = UserDefaults.standard.string(forKey: "apns_device_token_hex") ?? ""
@@ -107,48 +111,36 @@ final class PushNotificationManager: NSObject, ObservableObject, UNUserNotificat
     func scheduleOnboardingReminderIfNeeded() async {
         await refreshAuthorizationStatus()
         guard hasAuthorizedNotifications else { return }
-
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [reminderRequestIdentifier])
-
-        let content = UNMutableNotificationContent()
-        if L10n.current == .no {
-            content.title = "Coachi er klar"
-            content.body = "Ta en ny økt når du er klar. Coachi coacher deg live underveis."
-        } else {
-            content.title = "Coachi is ready"
-            content.body = "Start another workout when you're ready. Coachi will guide you live."
-        }
-        content.sound = .default
-
-        let tomorrow = Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        var components = Calendar.autoupdatingCurrent.dateComponents([.year, .month, .day], from: tomorrow)
-        components.hour = 18
-        components.minute = 0
-
-        let request = UNNotificationRequest(
-            identifier: reminderRequestIdentifier,
-            content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        await scheduleReminder(
+            identifier: onboardingReminderRequestIdentifier,
+            titleNo: "Coachi er klar",
+            bodyNo: "Ta en ny økt når du er klar. Coachi coacher deg live underveis.",
+            titleEn: "Coachi is ready",
+            bodyEn: "Start another workout when you're ready. Coachi will guide you live.",
+            source: "onboarding"
         )
+    }
 
-        do {
-            try await notificationCenter.add(request)
-            _ = await backendAPI.trackAnalyticsEvent(
-                event: "push_local_reminder_scheduled",
-                metadata: [
-                    "source": "onboarding",
-                    "request_id": reminderRequestIdentifier,
-                ]
-            )
-        } catch {
-            await MainActor.run {
-                lastRegistrationError = error.localizedDescription
-            }
-        }
+    func scheduleWorkoutReminderIfNeeded() async {
+        await refreshAuthorizationStatus()
+        guard hasAuthorizedNotifications else { return }
+        await scheduleReminder(
+            identifier: workoutReminderRequestIdentifier,
+            titleNo: "Hold streaken i gang",
+            bodyNo: "Ta en ny økt i morgen. Coachi er klar til å guide deg live.",
+            titleEn: "Keep your streak going",
+            bodyEn: "Start another workout tomorrow. Coachi is ready to guide you live.",
+            source: "workout"
+        )
     }
 
     func clearPendingCoachReminders() {
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [reminderRequestIdentifier])
+        notificationCenter.removePendingNotificationRequests(
+            withIdentifiers: [
+                onboardingReminderRequestIdentifier,
+                workoutReminderRequestIdentifier,
+            ]
+        )
     }
 
     func handleDidRegisterForRemoteNotifications(deviceToken: Data) {
@@ -207,12 +199,81 @@ final class PushNotificationManager: NSObject, ObservableObject, UNUserNotificat
         didReceive response: UNNotificationResponse
     ) async {
         _ = center
+        let request = response.notification.request
+        let userInfo = request.content.userInfo
+        let deepLink = userInfo[notificationDeepLinkKey] as? String
+        let source = (userInfo[notificationSourceKey] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         _ = await backendAPI.trackAnalyticsEvent(
             event: "push_notification_opened",
             metadata: [
-                "request_id": response.notification.request.identifier,
+                "request_id": request.identifier,
+                "source": source ?? "unknown",
+                "deep_link": deepLink ?? "",
             ]
         )
+        guard let deepLink, let url = URL(string: deepLink) else { return }
+        await MainActor.run {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    private func scheduleReminder(
+        identifier: String,
+        titleNo: String,
+        bodyNo: String,
+        titleEn: String,
+        bodyEn: String,
+        source: String
+    ) async {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let content = UNMutableNotificationContent()
+        if L10n.current == .no {
+            content.title = titleNo
+            content.body = bodyNo
+        } else {
+            content.title = titleEn
+            content.body = bodyEn
+        }
+        content.sound = .default
+        content.userInfo = [
+            notificationDeepLinkKey: workoutReminderDeepLink,
+            notificationSourceKey: source,
+        ]
+
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(
+                dateMatching: nextReminderComponents(after: Date()),
+                repeats: false
+            )
+        )
+
+        do {
+            try await notificationCenter.add(request)
+            _ = await backendAPI.trackAnalyticsEvent(
+                event: "push_local_reminder_scheduled",
+                metadata: [
+                    "source": source,
+                    "request_id": identifier,
+                    "deep_link": workoutReminderDeepLink,
+                ]
+            )
+        } catch {
+            await MainActor.run {
+                lastRegistrationError = error.localizedDescription
+            }
+        }
+    }
+
+    private func nextReminderComponents(after date: Date) -> DateComponents {
+        let calendar = Calendar.autoupdatingCurrent
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: date) ?? date
+        var components = calendar.dateComponents([.year, .month, .day], from: nextDay)
+        components.hour = 18
+        components.minute = 0
+        return components
     }
 }
 

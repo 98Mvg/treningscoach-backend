@@ -241,11 +241,12 @@ PHRASE_CATALOG = [
     # interval countdowns
     {"id": "zone.countdown.30", "en": "30 seconds left.", "no": "30 sekunder.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.15", "en": "15", "no": "15", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.5", "en": "5!", "no": "fem", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.5", "en": "Five.", "no": "fem", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.start", "en": "Go", "no": "Start", "persona": "personal_trainer", "priority": "core"},
 
     # phase changes
     {"id": "zone.main_started.1", "en": "Main set now.", "no": "Nå er du i hoveddelen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.main_started.2", "en": "Workout starts now", "no": "Treningen starter nå.", "persona": "personal_trainer", "priority": "extended"},
     {"id": "zone.workout_finished.1", "en": "Workout finished. Nice work.", "no": "Økten er ferdig. Bra jobbet.", "persona": "personal_trainer", "priority": "core"},
 
     # HR signal
@@ -256,6 +257,7 @@ PHRASE_CATALOG = [
     # above zone
     {"id": "zone.above.minimal.1", "en": "Ease off 10-15 seconds.", "no": "Litt ned 10-15 sekunder.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.above.default.1", "en": "Ease back slightly.", "no": "Ro ned litt.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.above.default.2", "en": "Heart rate slightly above target.", "no": "Pulsen er litt høy.", "persona": "personal_trainer", "priority": "extended"},
     {"id": "zone.above_ease.minimal.1", "en": "HR still climbing. Ease down.", "no": "Pulsen stiger. Rolig ned.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.above_ease.default.1", "en": "Still high. Ease down 20 seconds.", "no": "Fortsatt høy. Ro ned 20 sekunder.", "persona": "personal_trainer", "priority": "core"},
 
@@ -268,17 +270,19 @@ PHRASE_CATALOG = [
     # in zone
     {"id": "zone.in_zone.minimal.1", "en": "Good. Stay here.", "no": "Bli her.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.in_zone.default.1", "en": "Stay right here.", "no": "Bli her.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.in_zone.default.2", "en": "You are in correct zone.", "no": "Hold tempoet.", "persona": "personal_trainer", "priority": "extended"},
+    {"id": "zone.in_zone.default.3", "en": "Hold this phase.", "no": "Hold dette tempoet.", "persona": "personal_trainer", "priority": "extended"},
 
     # phase transitions
-    {"id": "zone.phase.work.default.1", "en": "Work starts now.", "no": "Nå begynner innsatsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.work.default.1", "en": "Work starts now.", "no": "Nå begynner vi.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.phase.work.motivational.1", "en": "Time to work.", "no": "Nå jobber vi.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.phase.rest.1", "en": "Recovery now.", "no": "Pause nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.warmup.1", "en": "Prepare for the session.", "no": "Forbered deg på økten.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.cooldown.1", "en": "Cooldown now.", "no": "Nå roer vi ned.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.warmup.1", "en": "Warmup started", "no": "Oppvarming startet", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.cooldown.1", "en": "Cooldown now.", "no": "Nå roer vi ned pulsen.", "persona": "personal_trainer", "priority": "core"},
 
     # pause detection
-    {"id": "zone.pause.detected.1", "en": "Paused session", "no": "Pauset økten.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.pause.resumed.1", "en": "You're moving again.", "no": "Du er i gang igjen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.detected.1", "en": "Workout paused", "no": "Du har pauset økten", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.resumed.1", "en": "Workout has resumed", "no": "Økten fortsetter.", "persona": "personal_trainer", "priority": "core"},
 
     # structure-driven instruction (no live HR)
     {"id": "zone.structure.work.1", "en": "Pick it up now.", "no": "Kjør på nå.", "persona": "personal_trainer", "priority": "core"},

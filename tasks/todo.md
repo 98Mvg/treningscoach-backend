@@ -29,6 +29,8 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-17: Fixed iOS/backend timeout noise on the single existing runtime path by adding a short backend-unavailable cooldown in `BackendAPIService`, routing `/auth/me` through the same guarded service instead of `URLSession.shared`, and fast-failing best-effort + primary calls (`/health`, `/analytics/mobile`, `/subscription/validate`, `/voice/session`, `/coach/continuous`, `/coach/talk`) when Render is already known unavailable.
+- 2026-03-17: Updated stale source contracts around workout-summary live-voice UI to match the current `WorkoutSummarySheet` implementation instead of removed internal properties/CTA event names.
 - 2026-03-17: Promoted new V2 runtime phrases for `zone.above.default.2`, `zone.in_zone.default.2`, `zone.in_zone.default.3`, and `zone.main_started.2`, synced the changed `countdown/work/cooldown` copy across `phrase_review_v2.py`, `tts_phrase_catalog.py`, and `zone_event_motor.py`, and kept the single existing V2->R2/app path intact.
 - 2026-03-17: Ran `python3 tools/generate_audio_pack.py --version v2 --changed-only --sync-r2` with local `.env` sourcing; the tool regenerated only changed/new phrases (`16 changed`, `12 new`, `88 unchanged skipped`), wrote `v2/manifest.json` + `latest.json`, uploaded the updated V2 pack to R2, and pruned `0` stale MP3 objects.
 - 2026-03-17: Ran `python3 tools/select_core_bundle.py --version v2` so the app’s bundled offline `CoreAudioPack` now mirrors the current V2 manifest (`58` IDs / `116` MP3s), including the newly added V2 phrases like `zone.main_started.2`, `zone.above.default.2`, `zone.in_zone.default.2`, `zone.in_zone.default.3`, and `zone.countdown.session_halfway.dynamic`.
@@ -535,3 +537,52 @@ Updated: 2026-03-17
   - `PYTHONPATH=. pytest -q tests_phaseb/test_r2_audio_pack_contract.py tests_phaseb/test_launch_integrations_contract.py tests_phaseb/test_config_env_overrides.py` -> `45 passed`
   - `python3 -m py_compile tools/generate_audio_pack.py` -> passed
   - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 Phase 2 runtime polish on the existing app path
+
+- Kept the single existing runtime path and closed three remaining Phase 2 gaps without introducing parallel systems:
+  - push reminder flow now has a real post-workout reminder and deep link routing in [AppViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/AppViewModel.swift)
+  - mobile analytics allowlist in [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) now accepts the push/returning-user events the iOS app actually emits
+  - CoachScore polish now surfaces streak + XP context on the existing home and workout summary views in [HomeView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/HomeView.swift) and [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift)
+- Extended [PushNotificationManager](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/AppViewModel.swift) so it schedules:
+  - the existing onboarding reminder
+  - a new workout reminder after workout completion
+  - deep-link payloads back into `coachi://tab/workout`
+  - analytics for notification opens on the same existing push path
+- Wired the workout runtime to schedule the workout reminder on completion in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift), while still clearing pending reminders when a new workout starts.
+- Added a small maintainability/runtime win in [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift) with `currentWorkoutStreak()` so streak logic is shared instead of duplicated in the views.
+- Fixed two existing SwiftUI compile issues on the same runtime path in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) while landing the summary polish:
+  - invalid `@ViewBuilder` use on a `String` property
+  - mismatched return branches in `summaryRow(...)`
+- Updated source contracts in:
+  - [test_ios_push_notification_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_push_notification_contract.py)
+  - [test_app_store_webhook_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_app_store_webhook_contract.py)
+  - [test_coach_score_visual_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_coach_score_visual_contract.py)
+  - [test_ios_app_router_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_app_router_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_ios_push_notification_contract.py tests_phaseb/test_app_store_webhook_contract.py tests_phaseb/test_coach_score_visual_contract.py tests_phaseb/test_ios_app_router_contract.py` -> `21 passed`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-17 Landing navigation overflow + email/auth verification
+
+- Kept the active website path on the default `codex` variant in [templates/index_codex.html](/Users/mariusgaarder/Documents/treningscoach/templates/index_codex.html) and added a responsive hamburger flow instead of introducing a second navigation system.
+- Navigation behavior now matches the requested priority:
+  - primary CTA stays visible as long as possible
+  - regular site navigation links collapse into a hamburger menu when width is tight
+  - mobile forces the collapsed navigation state
+  - language switch and non-navigation actions stay outside the hamburger path
+- Implemented runtime overflow detection in the existing page script by measuring the nav width after language changes and window resizes, rather than using only a hard screen-width breakpoint.
+- Verified the current email/auth status instead of guessing:
+  - local `.env` has `EMAIL_PROVIDER=resend`, `EMAIL_SENDING_ENABLED=true`, `RESEND_API_KEY` present, and `EMAIL_FROM` configured
+  - backend auth/email routes already use the existing [email_sender.py](/Users/mariusgaarder/Documents/treningscoach/email_sender.py) path for passwordless email auth and welcome emails
+  - iOS auth persistence still uses keychain-backed access + refresh tokens on the existing [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) path
+- The reported Xcode error in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) is not reproducing on the current runtime path; the app builds successfully with the current file state.
+- Added a source contract in [test_landing_navigation_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_landing_navigation_contract.py) so the codex landing page keeps:
+  - the primary CTA outside the hamburger
+  - a nav toggle + overflow menu
+  - resize/language-triggered overflow recalculation
+- Verification:
+  - `PYTHONPATH=. pytest -q tests_phaseb/test_landing_navigation_contract.py tests_phaseb/test_web_blueprint_contract.py tests_phaseb/test_auth_email_contract.py tests_phaseb/test_waitlist_persistence.py tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_ios_auth_refresh_contract.py tests_phaseb/test_launch_integrations_contract.py` -> `30 passed`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

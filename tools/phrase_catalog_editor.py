@@ -33,8 +33,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from tts_phrase_catalog import PHRASE_CATALOG, validate_welcome_catalog  # noqa: E402
 from phrase_review_v2 import (  # noqa: E402
+    CURATION_CATEGORY_FAMILIES,
     REVIEW_COLUMNS as V2_REVIEW_COLUMNS,
     ReviewRow as V2ReviewRow,
+    build_curation_rows,
     build_review_rows,
     filter_approved_import_rows,
     rows_from_dicts as v2_rows_from_dicts,
@@ -50,8 +52,11 @@ from workout_cue_catalog import (  # noqa: E402
 
 
 SOURCE_FILE = PROJECT_ROOT / "tts_phrase_catalog.py"
+V2_SOURCE_FILE = PROJECT_ROOT / "phrase_review_v2.py"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "output" / "phrase_review"
 DEFAULT_V2_OUTPUT_DIR = PROJECT_ROOT / "output" / "spreadsheet"
+DEFAULT_CURATION_OUTPUT_DIR = PROJECT_ROOT / "output" / "phrase_curation"
+CURATION_OPERATIONS = {"keep", "edit", "add_variant"}
 
 XLSX_COLUMNS = [
     "index",
@@ -131,6 +136,38 @@ class PhraseRow:
     workout_catalog: str
     motivation_stage: str
     instruction_urgency: str
+
+
+@dataclass(frozen=True)
+class V2CurationRow:
+    phrase_id: str
+    group: str
+    catalog: str
+    family: str
+    event: str
+    mode: str
+    english_current: str
+    norwegian_current: str
+    operation: str = "keep"
+    english_proposed: str = ""
+    norwegian_proposed: str = ""
+    notes: str = ""
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "phrase_id": self.phrase_id,
+            "group": self.group,
+            "catalog": self.catalog,
+            "family": self.family,
+            "event": self.event,
+            "mode": self.mode,
+            "english_current": self.english_current,
+            "norwegian_current": self.norwegian_current,
+            "operation": self.operation,
+            "english_proposed": self.english_proposed,
+            "norwegian_proposed": self.norwegian_proposed,
+            "notes": self.notes,
+        }
 
 
 def _rows() -> list[PhraseRow]:
@@ -777,6 +814,310 @@ def export_v2_review_xlsx(path: Path, rows: list[V2ReviewRow]) -> None:
         handle.writestr("xl/worksheets/sheet2.xml", _build_v2_summary_sheet(summary))
 
 
+def build_v2_curation_rows(category: str) -> list[V2CurationRow]:
+    return [
+        V2CurationRow(
+            phrase_id=row.phrase_id,
+            group=row.group,
+            catalog=row.catalog,
+            family=row.family,
+            event=row.event,
+            mode=row.mode,
+            english_current=row.english_locked,
+            norwegian_current=row.norwegian_locked,
+        )
+        for row in build_curation_rows(category)
+    ]
+
+
+def export_v2_curation_markdown(path: Path, *, category: str, rows: list[V2CurationRow]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    lines.append(f"# V2 Phrase Curation — {category}")
+    lines.append("")
+    lines.append("Current active phrases only.")
+    lines.append("")
+
+    current_family = None
+    for row in rows:
+        if row.family != current_family:
+            current_family = row.family
+            lines.append(f"## {current_family}")
+            lines.append("")
+        lines.append(f"- `{row.phrase_id}`")
+        lines.append(f"  - EN: {row.english_current}")
+        lines.append(f"  - NO: {row.norwegian_current}")
+        lines.append(f"  - event={row.event} mode={row.mode}")
+    lines.append("")
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def export_v2_curation_json(path: Path, *, category: str, rows: list[V2CurationRow]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "category": category,
+        "families": sorted(CURATION_CATEGORY_FAMILIES[category]),
+        "rows": [row.as_dict() for row in rows],
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def load_v2_curation_rows(path: Path) -> tuple[str | None, list[V2CurationRow]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    category = None
+    raw_rows: Any = payload
+    if isinstance(payload, dict):
+        category = str(payload.get("category") or "").strip() or None
+        raw_rows = payload.get("rows", [])
+    if not isinstance(raw_rows, list):
+        raise ValueError("Curation JSON must contain a list of rows")
+
+    rows: list[V2CurationRow] = []
+    for raw in raw_rows:
+        if not isinstance(raw, dict):
+            raise ValueError("Each curation row must be an object")
+        rows.append(
+            V2CurationRow(
+                phrase_id=str(raw.get("phrase_id") or "").strip(),
+                group=str(raw.get("group") or "").strip(),
+                catalog=str(raw.get("catalog") or "").strip(),
+                family=str(raw.get("family") or "").strip(),
+                event=str(raw.get("event") or "").strip(),
+                mode=str(raw.get("mode") or "").strip(),
+                english_current=str(raw.get("english_current") or "").strip(),
+                norwegian_current=str(raw.get("norwegian_current") or "").strip(),
+                operation=str(raw.get("operation") or "keep").strip(),
+                english_proposed=str(raw.get("english_proposed") or "").strip(),
+                norwegian_proposed=str(raw.get("norwegian_proposed") or "").strip(),
+                notes=str(raw.get("notes") or "").strip(),
+            )
+        )
+    return category, rows
+
+
+def _review_seed_line(
+    *,
+    group: str,
+    phrase_id: str,
+    catalog: str,
+    family: str,
+    event: str,
+    mode: str,
+    english_locked: str,
+    norwegian_locked: str,
+    active_status: str,
+    notes: str,
+) -> str:
+    parts = [
+        json.dumps(group, ensure_ascii=False),
+        json.dumps(phrase_id, ensure_ascii=False),
+        json.dumps(catalog, ensure_ascii=False),
+        json.dumps(family, ensure_ascii=False),
+        json.dumps(event, ensure_ascii=False),
+        json.dumps(mode, ensure_ascii=False),
+        json.dumps(english_locked, ensure_ascii=False),
+        json.dumps(norwegian_locked, ensure_ascii=False),
+        json.dumps(active_status, ensure_ascii=False),
+        json.dumps(notes, ensure_ascii=False),
+    ]
+    return f"    ReviewSeed({', '.join(parts)}),"
+
+
+def _review_seed_line_from_row(
+    row: V2ReviewRow,
+    *,
+    english_locked: str | None = None,
+    norwegian_locked: str | None = None,
+    active_status: str | None = None,
+    notes: str | None = None,
+) -> str:
+    return _review_seed_line(
+        group=row.group,
+        phrase_id=row.phrase_id,
+        catalog=row.catalog,
+        family=row.family,
+        event=row.event,
+        mode=row.mode,
+        english_locked=english_locked if english_locked is not None else row.english_locked,
+        norwegian_locked=norwegian_locked if norwegian_locked is not None else row.norwegian_locked,
+        active_status=active_status if active_status is not None else row.active_status,
+        notes=notes if notes is not None else row.notes,
+    )
+
+
+def _next_variant_phrase_id(anchor_phrase_id: str, family: str, event: str, rows: list[V2ReviewRow]) -> str:
+    related_ids = [row.phrase_id for row in rows if row.family == family and row.event == event]
+    numeric_anchor = re.match(r"^(.*)\.(\d+)$", anchor_phrase_id)
+
+    if numeric_anchor:
+        stripped_prefix = numeric_anchor.group(1)
+        numbered_related = [
+            int(match.group(1))
+            for phrase_id in related_ids
+            if (match := re.match(rf"^{re.escape(stripped_prefix)}\.(\d+)$", phrase_id))
+        ]
+        if any(phrase_id != anchor_phrase_id for phrase_id in related_ids if re.match(rf"^{re.escape(stripped_prefix)}\.(\d+)$", phrase_id)):
+            return f"{stripped_prefix}.{max(numbered_related) + 1}"
+
+    anchored_numbers: list[int] = []
+    for phrase_id in related_ids:
+        if phrase_id == anchor_phrase_id:
+            anchored_numbers.append(1)
+            continue
+        match = re.match(rf"^{re.escape(anchor_phrase_id)}\.(\d+)$", phrase_id)
+        if match:
+            anchored_numbers.append(int(match.group(1)))
+    if anchored_numbers:
+        return f"{anchor_phrase_id}.{max(anchored_numbers) + 1}"
+
+    return f"{anchor_phrase_id}.2"
+
+
+def _validate_curation_entry(row: V2CurationRow) -> list[str]:
+    errors: list[str] = []
+    if row.operation not in CURATION_OPERATIONS:
+        errors.append(f"{row.phrase_id or '<missing>'}: invalid operation '{row.operation}'")
+    if row.operation in {"edit", "add_variant"}:
+        for field_name, value in (
+            ("group", row.group),
+            ("catalog", row.catalog),
+            ("family", row.family),
+            ("event", row.event),
+            ("mode", row.mode),
+        ):
+            if not value:
+                errors.append(f"{row.phrase_id or '<missing>'}: missing {field_name}")
+        if not row.english_proposed:
+            errors.append(f"{row.phrase_id or '<missing>'}: missing english_proposed")
+        if not row.norwegian_proposed:
+            errors.append(f"{row.phrase_id or '<missing>'}: missing norwegian_proposed")
+    return errors
+
+
+def import_v2_curation_json(*, json_path: Path, apply_changes: bool) -> int:
+    if not json_path.exists():
+        print(f"File not found: {json_path}")
+        return 2
+
+    category, rows = load_v2_curation_rows(json_path)
+    if category and category not in CURATION_CATEGORY_FAMILIES:
+        print(f"Unsupported curation category: {category}")
+        return 2
+
+    validation_errors: list[str] = []
+    actionable_rows = [row for row in rows if row.operation != "keep"]
+    for row in actionable_rows:
+        validation_errors.extend(_validate_curation_entry(row))
+    if validation_errors:
+        print("V2 curation import failed:")
+        for error in validation_errors:
+            print(f"  - {error}")
+        return 2
+
+    current_rows = build_review_rows()
+    current_by_id = {row.phrase_id: row for row in current_rows}
+    source = V2_SOURCE_FILE.read_text(encoding="utf-8")
+    updated_source = source
+    working_rows = list(current_rows)
+    edits: list[str] = []
+    additions: list[str] = []
+
+    for row in actionable_rows:
+        current = current_by_id.get(row.phrase_id)
+        if current is None:
+            print(f"Unknown phrase_id in curation file: {row.phrase_id}")
+            return 2
+
+        if row.operation == "edit":
+            old_line = _review_seed_line_from_row(current)
+            new_line = _review_seed_line_from_row(
+                current,
+                english_locked=row.english_proposed,
+                norwegian_locked=row.norwegian_proposed,
+            )
+            if old_line not in updated_source:
+                print(f"Could not locate review seed for edit: {row.phrase_id}")
+                return 2
+            updated_source = updated_source.replace(old_line, new_line, 1)
+            current_by_id[row.phrase_id] = V2ReviewRow(
+                group=current.group,
+                phrase_id=current.phrase_id,
+                catalog=current.catalog,
+                family=current.family,
+                event=current.event,
+                mode=current.mode,
+                english_locked=row.english_proposed,
+                norwegian_locked=row.norwegian_proposed,
+                active_status=current.active_status,
+                action=current.action,
+                record_now=current.record_now,
+                approved_for_import=current.approved_for_import,
+                approved_for_recording=current.approved_for_recording,
+                notes=current.notes,
+            )
+            edits.append(row.phrase_id)
+            continue
+
+        next_phrase_id = _next_variant_phrase_id(row.phrase_id, row.family, row.event, working_rows)
+        future_note = row.notes or f"future curated {row.catalog} variant"
+        new_line = _review_seed_line(
+            group="future additions",
+            phrase_id=next_phrase_id,
+            catalog=row.catalog,
+            family=row.family,
+            event=row.event,
+            mode=row.mode,
+            english_locked=row.english_proposed,
+            norwegian_locked=row.norwegian_proposed,
+            active_status="future",
+            notes=future_note,
+        )
+        marker = "\n)\n\nCOMPATIBILITY_METADATA"
+        insert_at = updated_source.find(marker)
+        if insert_at == -1:
+            print("Could not locate FUTURE_SEEDS insertion point in phrase_review_v2.py")
+            return 2
+        updated_source = updated_source[:insert_at] + f"\n{new_line}" + updated_source[insert_at:]
+        new_row = V2ReviewRow(
+            group="future additions",
+            phrase_id=next_phrase_id,
+            catalog=row.catalog,
+            family=row.family,
+            event=row.event,
+            mode=row.mode,
+            english_locked=row.english_proposed,
+            norwegian_locked=row.norwegian_proposed,
+            active_status="future",
+            action="future_add",
+            record_now="yes",
+            notes=future_note,
+        )
+        working_rows.append(new_row)
+        current_by_id[next_phrase_id] = new_row
+        additions.append(next_phrase_id)
+
+    print(f"V2 curation import: {json_path.name}")
+    print(f"  Category: {category or 'unspecified'}")
+    print(f"  Rows read: {len(rows)}")
+    print(f"  Edits: {len(edits)}")
+    print(f"  Additions: {len(additions)}")
+    if edits:
+        for phrase_id in edits[:10]:
+            print(f"    edit: {phrase_id}")
+    if additions:
+        for phrase_id in additions[:10]:
+            print(f"    add: {phrase_id}")
+
+    if not apply_changes:
+        print("\nDry run only. Re-run with --apply to write changes.")
+        return 0
+
+    V2_SOURCE_FILE.write_text(updated_source, encoding="utf-8")
+    print(f"\nApplied changes to {V2_SOURCE_FILE}")
+    return 0
+
+
 def read_v2_review_xlsx(path: Path) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     with zipfile.ZipFile(path, "r") as zf:
@@ -1243,6 +1584,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory to write phrase_catalog_sorted review artifacts.",
     )
 
+    export_curation_cmd = sub.add_parser("export-v2-curation", help="Export category-first V2 phrase curation files.")
+    export_curation_cmd.add_argument(
+        "--category",
+        choices=sorted(CURATION_CATEGORY_FAMILIES.keys()),
+        required=True,
+        help="Curation category to export.",
+    )
+    export_curation_cmd.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_CURATION_OUTPUT_DIR),
+        help="Directory to write phrase curation artifacts.",
+    )
+
     validate_v2_cmd = sub.add_parser("validate-v2-review", help="Validate a V2 review artifact.")
     validate_v2_cmd.add_argument(
         "--input",
@@ -1260,6 +1614,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "--output",
         default=str(DEFAULT_V2_OUTPUT_DIR / "phrase_catalog_promoted.csv"),
         help="Output CSV path for approved import rows.",
+    )
+
+    import_curation_cmd = sub.add_parser("import-v2-curation", help="Import category-first V2 curation JSON.")
+    import_curation_cmd.add_argument(
+        "--json",
+        required=True,
+        help="Path to working curation JSON file.",
+    )
+    import_curation_cmd.add_argument(
+        "--apply",
+        action="store_true",
+        help="Write changes to phrase_review_v2.py (default is dry run).",
     )
 
     import_cmd = sub.add_parser("import", help="Import edited XLSX back into phrase catalog.")
@@ -1375,6 +1741,24 @@ def main() -> int:
         )
         return 0
 
+    if args.command == "export-v2-curation":
+        output_dir = Path(args.output_dir)
+        if not output_dir.is_absolute():
+            output_dir = PROJECT_ROOT / output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        rows = build_v2_curation_rows(args.category)
+        md_path = output_dir / f"{args.category}_current.md"
+        json_path = output_dir / f"{args.category}_working.json"
+
+        export_v2_curation_markdown(md_path, category=args.category, rows=rows)
+        export_v2_curation_json(json_path, category=args.category, rows=rows)
+
+        print(f"Wrote {md_path}")
+        print(f"Wrote {json_path}")
+        print(f"Rows exported: {len(rows)}")
+        return 0
+
     if args.command == "validate-v2-review":
         input_path = Path(args.input)
         if not input_path.is_absolute():
@@ -1415,6 +1799,12 @@ def main() -> int:
         print(f"Wrote {output_path}")
         print(f"Approved import rows: {promoted_count}")
         return 0
+
+    if args.command == "import-v2-curation":
+        json_path = Path(args.json)
+        if not json_path.is_absolute():
+            json_path = PROJECT_ROOT / json_path
+        return import_v2_curation_json(json_path=json_path, apply_changes=args.apply)
 
     if args.command == "import":
         validation_status = _validate_welcome_or_fail()

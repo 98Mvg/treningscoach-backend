@@ -13,6 +13,17 @@ private let backendLogger = Logger(
     category: "BackendAPIService"
 )
 
+private enum BackendAvailabilityError: LocalizedError {
+    case cooldownActive(path: String, remainingSeconds: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .cooldownActive:
+            return "Backend temporarily unavailable."
+        }
+    }
+}
+
 struct WorkoutTalkContext {
     let phase: String?
     let heartRate: Int?
@@ -91,6 +102,9 @@ class BackendAPIService {
     private let session: URLSession
     private let jsonDecoder = JSONDecoder()
     private let jsonEncoder = JSONEncoder()
+    private let backendAvailabilityQueue = DispatchQueue(label: "BackendAPIService.availability")
+    private let backendUnavailableCooldownSeconds: TimeInterval = 20
+    private var backendUnavailableUntil: Date?
 
     private init() {
         let configuration = URLSessionConfiguration.default
@@ -105,8 +119,15 @@ class BackendAPIService {
     /// Call early (app launch) so the backend is warm by the time real requests arrive.
     func wakeBackend() {
         guard let url = URL(string: "\(baseURL)/health") else { return }
+        guard !shouldSkipBestEffortRequest(path: "/health") else { return }
         let request = URLRequest(url: url, timeoutInterval: 30)
-        session.dataTask(with: request) { _, _, _ in }.resume()
+        session.dataTask(with: request) { [weak self] _, _, error in
+            if let error {
+                self?.markBackendUnavailableIfNeeded(error: error, path: "/health")
+            } else {
+                self?.clearBackendUnavailableIfNeeded(path: "/health")
+            }
+        }.resume()
     }
 
     // MARK: - Auth Header
@@ -322,6 +343,132 @@ class BackendAPIService {
         return try await session.data(for: retryRequest)
     }
 
+    private func backendUnavailableRemainingSeconds() -> Int? {
+        backendAvailabilityQueue.sync {
+            guard let unavailableUntil = backendUnavailableUntil else {
+                return nil
+            }
+            let remaining = unavailableUntil.timeIntervalSinceNow
+            if remaining <= 0 {
+                backendUnavailableUntil = nil
+                return nil
+            }
+            return Int(ceil(remaining))
+        }
+    }
+
+    private func ensureBackendAvailable(path: String) throws {
+        if let remaining = backendUnavailableRemainingSeconds() {
+            backendLogger.notice("BACKEND_COOLDOWN skip path=\(path, privacy: .public) remaining_s=\(remaining)")
+            throw BackendAvailabilityError.cooldownActive(path: path, remainingSeconds: remaining)
+        }
+    }
+
+    private func shouldSkipBestEffortRequest(path: String) -> Bool {
+        do {
+            try ensureBackendAvailable(path: path)
+            return false
+        } catch {
+            return true
+        }
+    }
+
+    private func clearBackendUnavailableIfNeeded(path: String) {
+        let restored = backendAvailabilityQueue.sync { () -> Bool in
+            guard backendUnavailableUntil != nil else {
+                return false
+            }
+            backendUnavailableUntil = nil
+            return true
+        }
+        if restored {
+            backendLogger.notice("BACKEND_RESTORED path=\(path, privacy: .public)")
+        }
+    }
+
+    private func markBackendUnavailableIfNeeded(error: Error, path: String) {
+        guard isTransientBackendNetworkError(error) else {
+            return
+        }
+
+        let existingRemaining = backendUnavailableRemainingSeconds()
+        backendAvailabilityQueue.sync {
+            backendUnavailableUntil = Date().addingTimeInterval(backendUnavailableCooldownSeconds)
+        }
+
+        if existingRemaining == nil {
+            backendLogger.notice(
+                "BACKEND_UNAVAILABLE path=\(path, privacy: .public) cooldown_s=\(Int(self.backendUnavailableCooldownSeconds))"
+            )
+        }
+    }
+
+    private func isTransientBackendNetworkError(_ error: Error) -> Bool {
+        if error is BackendAvailabilityError {
+            return false
+        }
+        if let apiError = error as? APIError,
+           case .networkError(let wrapped) = apiError {
+            return isTransientBackendNetworkError(wrapped)
+        }
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return false
+        }
+        let code = URLError.Code(rawValue: nsError.code)
+        switch code {
+        case .timedOut,
+             .cannotFindHost,
+             .cannotConnectToHost,
+             .dnsLookupFailed,
+             .networkConnectionLost,
+             .notConnectedToInternet,
+             .cannotLoadFromNetwork,
+             .resourceUnavailable:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func performRequestWithBackendAvailability(
+        _ request: URLRequest,
+        path: String,
+        useAuthRetry: Bool = false
+    ) async throws -> (Data, URLResponse) {
+        try ensureBackendAvailable(path: path)
+        do {
+            let result: (Data, URLResponse)
+            if useAuthRetry {
+                result = try await dataWithAuthRetry(for: request)
+            } else {
+                result = try await session.data(for: request)
+            }
+            clearBackendUnavailableIfNeeded(path: path)
+            return result
+        } catch {
+            markBackendUnavailableIfNeeded(error: error, path: path)
+            throw error
+        }
+    }
+
+    func fetchAuthenticatedProfile(token: String) async throws -> (Data, URLResponse) {
+        let url = URL(string: "\(baseURL)/auth/me")!
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return try await performRequestWithBackendAvailability(request, path: "/auth/me")
+    }
+
+    func updateAuthenticatedProfile(token: String, payload: Data) async throws -> (Data, URLResponse) {
+        let url = URL(string: "\(baseURL)/auth/me")!
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = payload
+        return try await performRequestWithBackendAvailability(request, path: "/auth/me")
+    }
+
     // MARK: - API Methods
 
     /// Check backend health
@@ -329,13 +476,14 @@ class BackendAPIService {
         let url = URL(string: "\(baseURL)/health")!
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.httpMethod = "GET"
-        let (data, _) = try await session.data(for: request)
+        let (data, _) = try await performRequestWithBackendAvailability(request, path: "/health")
         return try JSONDecoder().decode(HealthResponse.self, from: data)
     }
 
     func fetchAppRuntime() async throws -> AppRuntimeResponse {
         let url = URL(string: "\(baseURL)/app/runtime")!
-        let (data, response) = try await session.data(from: url)
+        let request = URLRequest(url: url, timeoutInterval: 15)
+        let (data, response) = try await performRequestWithBackendAvailability(request, path: "/app/runtime")
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
             throw APIError.invalidResponse
@@ -349,7 +497,11 @@ class BackendAPIService {
         var request = try createMultipartRequest(url: url, audioURL: audioURL, phase: nil)
         addAuthHeader(to: &request)
 
-        let (data, response) = try await dataWithAuthRetry(for: request)
+        let (data, response) = try await performRequestWithBackendAvailability(
+            request,
+            path: "/coach/continuous",
+            useAuthRetry: true
+        )
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -455,7 +607,11 @@ class BackendAPIService {
             micPermissionGranted: micPermissionGranted
         )
 
-        let (data, response) = try await dataWithAuthRetry(for: request)
+        let (data, response) = try await performRequestWithBackendAvailability(
+            request,
+            path: "/coach/talk",
+            useAuthRetry: true
+        )
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -539,7 +695,11 @@ class BackendAPIService {
                 userName: userName
             )
 
-            let (data, response) = try await dataWithAuthRetry(for: request)
+            let (data, response) = try await performRequestWithBackendAvailability(
+                request,
+                path: "/coach/talk",
+                useAuthRetry: true
+            )
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200 else {
                 throw APIError.invalidResponse
@@ -599,7 +759,25 @@ class BackendAPIService {
             )
         )
 
-        let (data, response) = try await dataWithAuthRetry(for: request)
+        let localizedBackendUnavailableMessage = language == "no"
+            ? "Serveren svarer ikke akkurat na. Prov igjen om litt."
+            : "The server is not responding right now. Try again in a moment."
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await performRequestWithBackendAvailability(
+                request,
+                path: "/voice/session",
+                useAuthRetry: true
+            )
+        } catch is BackendAvailabilityError {
+            throw APIError.serverError(message: localizedBackendUnavailableMessage)
+        } catch {
+            if isTransientBackendNetworkError(error) {
+                throw APIError.serverError(message: localizedBackendUnavailableMessage)
+            }
+            throw error
+        }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -645,12 +823,19 @@ class BackendAPIService {
                 ]
             )
 
-            let (_, response) = try await dataWithAuthRetry(for: request)
+            let (_, response) = try await performRequestWithBackendAvailability(
+                request,
+                path: "/analytics/mobile",
+                useAuthRetry: true
+            )
             guard let httpResponse = response as? HTTPURLResponse else {
                 return false
             }
             return httpResponse.statusCode == 200
+        } catch is BackendAvailabilityError {
+            return false
         } catch {
+            markBackendUnavailableIfNeeded(error: error, path: "/analytics/mobile")
             backendLogger.error("ANALYTICS_EVENT failed event=\(event)")
             return false
         }
@@ -679,12 +864,19 @@ class BackendAPIService {
                 ]
             )
 
-            let (_, response) = try await dataWithAuthRetry(for: request)
+            let (_, response) = try await performRequestWithBackendAvailability(
+                request,
+                path: "/voice/telemetry",
+                useAuthRetry: true
+            )
             guard let httpResponse = response as? HTTPURLResponse else {
                 return false
             }
             return httpResponse.statusCode == 200
+        } catch is BackendAvailabilityError {
+            return false
         } catch {
+            markBackendUnavailableIfNeeded(error: error, path: "/voice/telemetry")
             backendLogger.error("VOICE_TELEMETRY failed event=\(event)")
             return false
         }
@@ -834,11 +1026,16 @@ class BackendAPIService {
                 body["signed_transaction_info"] = signedTransactionInfo
             }
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await dataWithAuthRetry(for: request)
+            let (data, _) = try await performRequestWithBackendAvailability(
+                request,
+                path: "/subscription/validate",
+                useAuthRetry: true
+            )
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let tier = json["tier"] as? String {
                 return tier
             }
+        } catch is BackendAvailabilityError {
         } catch {
             // Best-effort — subscription state is StoreKit-authoritative on iOS
         }

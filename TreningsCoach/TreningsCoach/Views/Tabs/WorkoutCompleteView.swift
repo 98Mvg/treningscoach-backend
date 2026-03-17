@@ -80,6 +80,20 @@ struct WorkoutCompleteView: View {
         summaryProgressAward?.xpProgressAfterFraction ?? appViewModel.coachiXPProgressFraction
     }
 
+    private var summaryStreakDays: Int {
+        viewModel.coachScoreHistory.currentWorkoutStreak()
+    }
+
+    private var summaryXPLineText: String {
+        if let xpToNextLevel {
+            if xpToNextLevel == 0 {
+                return L10n.maxLevelReached
+            }
+            return "\(xpToNextLevel) \(L10n.xpToNextLevel)"
+        }
+        return appViewModel.coachiXPLine
+    }
+
     private var shareSummaryText: String {
         let metrics = hasFinalHeartRate
             ? "\(targetScore) CS • \(finalDurationText) • \(finalBPMText)"
@@ -167,6 +181,10 @@ struct WorkoutCompleteView: View {
                     scoreRingView(ringSize: ringSize)
                     .padding(.top, 26)
                     .opacity(contentVisible ? 1 : 0)
+
+                    summaryProgressPills
+                        .padding(.top, 18)
+                        .opacity(contentVisible ? 1 : 0)
 
                     if targetScore > 0 && !coachScoreSummaryLine.isEmpty {
                         Text(coachScoreSummaryLine)
@@ -490,14 +508,54 @@ struct WorkoutCompleteView: View {
         }
     }
 
-    @ViewBuilder
-    private var displayHeartRateText: String {
-        if let avg = viewModel.averageHeartRate, avg > 0 {
-            return "Avg \(avg) BPM"
+    private var summaryProgressPills: some View {
+        HStack(spacing: 10) {
+            progressPill(
+                icon: "flame.fill",
+                title: L10n.streak,
+                value: "\(summaryStreakDays)"
+            )
+            progressPill(
+                icon: "sparkles",
+                title: "XP",
+                value: summaryXPLineText
+            )
         }
-        return finalBPMText
+        .frame(maxWidth: .infinity)
     }
 
+    private func progressPill(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color(hex: "A5F3EC"))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white.opacity(0.72))
+                Text(value)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.96))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.08))
+        .clipShape(Capsule(style: .continuous))
+    }
+
+    private var displayHeartRateText: String {
+        if let avg = viewModel.averageHeartRate, avg > 0 {
+            "Avg \(avg) BPM"
+        } else {
+            finalBPMText
+        }
+    }
+
+    @ViewBuilder
     private func summaryRow(metricFontSize: CGFloat) -> some View {
         if hasFinalHeartRate || (viewModel.averageHeartRate ?? 0) > 0 {
             ViewThatFits(in: .horizontal) {

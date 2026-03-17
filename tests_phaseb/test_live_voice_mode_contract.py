@@ -34,8 +34,7 @@ PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbx
 def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
     assert "@EnvironmentObject var authManager: AuthManager" in text
-    assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "Treningsoversikt" : "Workout Summary" }' in text
-    assert "private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }" in text
+    assert 'Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")' in text
     assert "private var hasLiveVoiceAccountAccess: Bool {" in text
     assert "authManager.hasUsableSession()" in text
     assert "LiveVoiceSessionTracker.shared" in text
@@ -43,15 +42,14 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert "liveVoiceTracker.canStart(isPremium: hasPremiumAccess)" in text
     assert "liveVoiceTracker.synchronize()" in text
     assert "showLiveVoicePaywall = true" in text
-    assert ".sheet(isPresented: $showLiveCoachVoice)" in text
+    assert ".sheet(isPresented: $showWorkoutSummary)" in text
     assert ".sheet(isPresented: $showLiveVoicePaywall)" in text
-    assert 'event: "voice_cta_tapped"' in text
     assert "liveVoiceStatusText" in text
     assert ".frame(height: 44)" in text
     assert "RoundedRectangle(cornerRadius: 16, style: .continuous)" in text
     assert "PaywallView(context: .liveVoice)" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
-    assert 'Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")' in text
+    assert 'Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")' in text
     assert "liveVoiceTracker.recordSession()" not in text
 
 

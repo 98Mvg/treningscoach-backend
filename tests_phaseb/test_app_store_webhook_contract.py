@@ -296,3 +296,40 @@ def test_mobile_analytics_accepts_guest_events_with_anonymous_id(monkeypatch):
     missing = client.post("/analytics/mobile", json={"event": "app_opened"})
     assert missing.status_code == 400
     assert missing.get_json()["error_code"] == "anonymous_id_required"
+
+
+def test_mobile_analytics_accepts_push_and_returning_user_events(monkeypatch):
+    client = main.app.test_client()
+    captured: list[str] = []
+
+    def _fake_capture(event, *, metadata=None, distinct_id=None, logger=None):
+        captured.append(event)
+        _ = metadata
+        _ = distinct_id
+        _ = logger
+        return True
+
+    monkeypatch.setattr(main, "capture_posthog_event", _fake_capture)
+
+    events = [
+        "push_permission_granted",
+        "push_permission_denied",
+        "push_local_reminder_scheduled",
+        "push_token_registered",
+        "push_registration_failed",
+        "push_notification_opened",
+        "onboarding_skipped_returning_user",
+    ]
+
+    for event in events:
+        response = client.post(
+            "/analytics/mobile",
+            json={
+                "event": event,
+                "anonymous_id": "anon_phase2_12345",
+                "metadata": {"surface": "phase2"},
+            },
+        )
+        assert response.status_code == 200, event
+
+    assert captured == events
