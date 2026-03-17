@@ -42,6 +42,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var isQuotaExhausted: Bool = false
     @Published private(set) var isSpeaking: Bool = false
+    @Published private(set) var lastDisconnectReason: LiveVoiceDisconnectReason?
 
     private let apiService: BackendAPIService
     private let summaryContext: PostWorkoutSummaryContext
@@ -95,6 +96,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
 
         connectionState = .preparing
         lastErrorMessage = nil
+        lastDisconnectReason = nil
         transcriptEntries = []
         turnCount = 0
         sessionDurationSeconds = 0
@@ -203,6 +205,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             ]
         )
         cleanupRealtimeRuntime()
+        lastDisconnectReason = reason
         connectionState = .ended
         micState = .idle
 

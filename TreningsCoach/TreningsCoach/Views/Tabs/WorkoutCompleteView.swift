@@ -100,7 +100,7 @@ struct WorkoutCompleteView: View {
             ? "Velg hvor du vil dele kortet ditt."
             : "Choose where you want to share your card."
     }
-    // liveCoachVoiceLabel removed — replaced by seeWorkoutButton
+    // liveCoachVoiceLabel removed — replaced by getFeedbackButton
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     // shouldShowLiveCoachVoiceButton removed — voice coach lives inside WorkoutSummarySheet
     private var hasLiveVoiceAccountAccess: Bool {
@@ -187,8 +187,8 @@ struct WorkoutCompleteView: View {
 
                     Spacer()
 
-                    // Primary CTA — "See Workout" opens summary sheet (voice coach inside)
-                    seeWorkoutButton
+                    // Primary CTA — "Get Feedback" opens session summary sheet
+                    getFeedbackButton
                         .padding(.horizontal, 30)
                         .padding(.bottom, 8)
                         .opacity(contentVisible ? 1 : 0)
@@ -226,8 +226,10 @@ struct WorkoutCompleteView: View {
                     coachScore: targetScore,
                     liveVoiceIsAvailable: liveVoiceIsAvailable,
                     liveVoiceStatusText: liveVoiceStatusText,
+                    isPremium: hasPremiumAccess,
                     isNorwegian: L10n.current == .no,
                     liveCoachVM: vm,
+                    subscriptionManager: subscriptionManager,
                     onStartCoaching: {
                         if liveVoiceIsAvailable {
                             summaryDetent = .large
@@ -354,24 +356,31 @@ struct WorkoutCompleteView: View {
         }
     }
 
-    // Primary CTA: opens workout summary sheet (voice coach lives inside)
-    private var seeWorkoutButton: some View {
+    // Primary CTA: opens session summary sheet
+    private var getFeedbackButton: some View {
         Button {
             showWorkoutSummary = true
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "list.bullet.rectangle.portrait")
+                Image(systemName: "chart.bar.doc.horizontal")
                     .font(.system(size: 16, weight: .semibold))
-                Text(L10n.current == .no ? "Se treningsøkt" : "See Workout")
+                Text(L10n.current == .no ? "Få tilbakemelding" : "Get Feedback")
                     .font(.system(size: 17, weight: .bold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(hex: "1B7A8E"))
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "1B7A8E"), Color(hex: "166A7C")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
             )
+            .shadow(color: Color(hex: "1B7A8E").opacity(0.3), radius: 12, y: 4)
         }
         .buttonStyle(.plain)
     }
@@ -750,6 +759,7 @@ private struct WaveformBarsView: View {
 
 private struct WorkoutSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showTimeLimitPaywall = false
 
     let workoutLabel: String
     let xpGained: Int
@@ -760,8 +770,10 @@ private struct WorkoutSummarySheet: View {
     let coachScore: Int
     let liveVoiceIsAvailable: Bool
     let liveVoiceStatusText: String
+    let isPremium: Bool
     let isNorwegian: Bool
     @ObservedObject var liveCoachVM: LiveCoachConversationViewModel
+    @ObservedObject var subscriptionManager: SubscriptionManager
     let onStartCoaching: () -> Void
     let onHome: () -> Void
     let onShare: () -> Void
@@ -888,6 +900,15 @@ private struct WorkoutSummarySheet: View {
             }
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
+        .onChange(of: liveCoachVM.service.lastDisconnectReason) { _, reason in
+            if reason == .timeLimit && !isPremium {
+                showTimeLimitPaywall = true
+            }
+        }
+        .sheet(isPresented: $showTimeLimitPaywall) {
+            PaywallView(context: .liveVoice)
+                .environmentObject(subscriptionManager)
+        }
     }
 
     private var statRows: [[(title: String, value: String)]] {
@@ -956,11 +977,11 @@ private struct WorkoutSummarySheet: View {
                     .foregroundColor(liveVoiceIsAvailable ? Color(hex: "34D399") : CoachiTheme.textSecondary)
             }
 
-            // Primary CTA — "Get feedback"
+            // Primary CTA — "Talk to Coach"
             Button {
                 onStartCoaching()
             } label: {
-                Text(isNorwegian ? "Få tilbakemelding" : "Get Feedback")
+                Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -1073,7 +1094,7 @@ private struct WorkoutSummarySheet: View {
                 }
                 Text(isActive
                     ? (isNorwegian ? "Avslutt samtalen" : "End Conversation")
-                    : (isNorwegian ? "Få tilbakemelding" : "Get Feedback"))
+                    : (isNorwegian ? "Snakk med Coach" : "Talk to Coach"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.white)
             }
