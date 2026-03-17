@@ -7,7 +7,7 @@
     "no"
   ],
   "total_files": 118,
-  "total_size_bytes": 2353242,
+  "total_size_bytes": 2337778,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -772,8 +772,8 @@
       },
       "no": {
         "file": "no/voice.preview.free_limit.1.mp3",
-        "size": 55633,
-        "sha256": "91a34cdfc82589f3d2d360d1972957a2033965472722f7f85290d903ebcddf06"
+        "size": 40169,
+        "sha256": "37682160679d0aee8d3017189a44f60f3069f4a2f36bd86a2086359d64c41101"
       }
     }
   ]
