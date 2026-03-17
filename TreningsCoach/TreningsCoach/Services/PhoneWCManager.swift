@@ -28,6 +28,11 @@ final class PhoneWCManager: NSObject, ObservableObject {
     @Published private(set) var isPaired: Bool = false
     @Published private(set) var isWatchAppInstalled: Bool = false
     private let healthStore = HKHealthStore()
+    private let reachabilityDowngradeGraceSeconds: TimeInterval = 4.0
+    private var pendingReachabilityDowngradeWorkItem: DispatchWorkItem?
+    private var latestRawReachable: Bool = false
+    private var latestRawPaired: Bool = false
+    private var latestRawWatchAppInstalled: Bool = false
 
     var watchCapabilityState: WatchCapabilityState {
         if !WCSession.isSupported() || !isPaired {
@@ -100,8 +105,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
         ]
         context.forEach { payload[$0.key] = $0.value }
 
-        switch watchCapabilityState {
-        case .watchReady:
+        if session.isReachable {
             do {
                 try session.updateApplicationContext(payload)
             } catch {
@@ -115,7 +119,10 @@ final class PhoneWCManager: NSObject, ObservableObject {
                 }
             }
             return .liveRequestSent
-        case .watchInstalledNotReachable:
+        }
+
+        switch watchCapabilityState {
+        case .watchReady, .watchInstalledNotReachable:
             do {
                 try session.updateApplicationContext(payload)
                 return .deferredAwaitingReachability
@@ -138,7 +145,8 @@ final class PhoneWCManager: NSObject, ObservableObject {
         let session = WCSession.default
         refreshState(from: session)
 
-        guard watchCapabilityState == .watchReady else { return false }
+        guard canUseWatchTransport else { return false }
+        guard session.isReachable else { return false }
 
         var payload: [String: Any] = [
             WCKeys.cmd: WCKeys.Command.requestStartWorkout,
@@ -199,7 +207,7 @@ final class PhoneWCManager: NSObject, ObservableObject {
             WCKeys.timestamp: timestamp,
         ]
 
-        if watchCapabilityState == .watchReady {
+        if session.isReachable {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
         }
 
@@ -212,11 +220,66 @@ final class PhoneWCManager: NSObject, ObservableObject {
     }
 
     private func refreshState(from session: WCSession = .default) {
-        isReachable = session.isReachable
-        isPaired = session.isPaired
-        isWatchAppInstalled = session.isWatchAppInstalled
-        onReachabilityChanged?(isReachable)
-        emitCapabilityState(from: watchCapabilityState)
+        latestRawReachable = session.isReachable
+        latestRawPaired = session.isPaired
+        latestRawWatchAppInstalled = session.isWatchAppInstalled
+
+        if !latestRawPaired || !latestRawWatchAppInstalled {
+            cancelPendingReachabilityDowngrade()
+            publishEffectiveSessionState(
+                reachable: false,
+                paired: latestRawPaired,
+                installed: latestRawWatchAppInstalled
+            )
+            return
+        }
+
+        if latestRawReachable {
+            cancelPendingReachabilityDowngrade()
+            publishEffectiveSessionState(reachable: true, paired: true, installed: true)
+            return
+        }
+
+        publishEffectiveSessionState(reachable: isReachable, paired: true, installed: true)
+        scheduleReachabilityDowngradeIfNeeded()
+    }
+
+    private func publishEffectiveSessionState(reachable: Bool, paired: Bool, installed: Bool) {
+        let priorCapabilityState = watchCapabilityState
+        let reachabilityChanged = isReachable != reachable
+        isReachable = reachable
+        isPaired = paired
+        isWatchAppInstalled = installed
+        if reachabilityChanged {
+            onReachabilityChanged?(reachable)
+        }
+        let nextCapabilityState = watchCapabilityState
+        if nextCapabilityState != priorCapabilityState || lastCapabilitySnapshot == nil {
+            emitCapabilityState(from: nextCapabilityState)
+        }
+    }
+
+    private func scheduleReachabilityDowngradeIfNeeded() {
+        guard isReachable else { return }
+        guard pendingReachabilityDowngradeWorkItem == nil else { return }
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingReachabilityDowngradeWorkItem = nil
+            guard !self.latestRawReachable else { return }
+            guard self.latestRawPaired, self.latestRawWatchAppInstalled else { return }
+            self.publishEffectiveSessionState(reachable: false, paired: true, installed: true)
+        }
+        pendingReachabilityDowngradeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + reachabilityDowngradeGraceSeconds,
+            execute: workItem
+        )
+    }
+
+    private func cancelPendingReachabilityDowngrade() {
+        pendingReachabilityDowngradeWorkItem?.cancel()
+        pendingReachabilityDowngradeWorkItem = nil
     }
 
     private func emitCapabilityState(from state: WatchCapabilityState) {

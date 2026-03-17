@@ -858,6 +858,8 @@ class WorkoutViewModel: ObservableObject {
         clearWatchHRStartupGrace(reason: "reset_workout")
         watchStartStatusLine = nil
         coachingStatusLine = nil
+        liveHRBannerText = nil
+        liveHRBannerDegradedSince = nil
         workoutState = .idle
         showComplete = false
         elapsedTime = 0
@@ -1249,6 +1251,8 @@ class WorkoutViewModel: ObservableObject {
     private var watchStartAckTimeoutTask: Task<Void, Never>?
     private var watchLaunchTask: Task<Void, Never>?
     private let watchStartAckTimeoutSeconds: TimeInterval = 12.0
+    private var liveHRBannerDegradedSince: Date?
+    private let liveHRBannerGraceSeconds: TimeInterval = 6.0
     private var latestMovementSampleDate: Date?
     private var latestMovementSource: String = "none"
     private let eventSpeechCollisionWindowSeconds: TimeInterval = 2.0
@@ -2276,9 +2280,6 @@ class WorkoutViewModel: ObservableObject {
                 self.bleConnected = output.bleConnected
                 self.latestWatchStatusForBackend = output.watchStatus
                 self.latestHeartRateSampleDate = output.lastSampleAt
-                self.liveHRBannerText = output.hrSignalQuality == .degraded || output.hrSource == .none
-                    ? (self.currentLanguage == "no" ? "Live puls utilgjengelig / degradert" : "Live HR unavailable / degraded")
-                    : nil
 
                 switch output.hrSource {
                 case .wc:
@@ -2290,6 +2291,8 @@ class WorkoutViewModel: ObservableObject {
                 case .none:
                     break
                 }
+
+                self.refreshLiveHRBanner()
             }
         }
     }
@@ -2412,10 +2415,11 @@ class WorkoutViewModel: ObservableObject {
             isWaitingForWatchStart = true
             isWatchBackedContinuousSession = false
             watchStartStatusLine = currentLanguage == "no"
-                ? "Starter Coachi på Apple Watch…"
-                : "Opening Coachi on Apple Watch..."
+                ? "Starter på iPhone mens Apple Watch kobler til…"
+                : "Starting on iPhone while Apple Watch connects..."
             requestSystemWatchLaunch(workoutType: workoutType, requestID: requestID)
             scheduleWatchStartAckTimeout(requestTimestamp: requestTimestamp, requestID: requestID)
+            startContinuousWorkoutInternal(preservePendingWatchStart: true)
         case .failed(let reason):
             print(
                 "START_REQUEST request_id=\(requestID) workout_type=\(workoutType) path=local reason=\(reason) capability=\(watchCapabilityState.rawValue)"
@@ -2451,14 +2455,19 @@ class WorkoutViewModel: ObservableObject {
                 guard self.isWaitingForWatchStart else { return }
                 guard self.pendingWatchRequestTimestamp == requestTimestamp else { return }
                 guard self.pendingWatchRequestId == requestID else { return }
-                self.isWaitingForWatchStart = false
+                let isAlreadyRunningLocally = self.isContinuousMode
+                self.clearWatchStartPendingState()
                 self.isWatchBackedContinuousSession = false
-                self.pendingWatchRequestTimestamp = nil
-                self.pendingWatchRequestId = nil
                 self.watchStartStatusLine = self.currentLanguage == "no"
-                    ? "Ingen svar fra Watch. Starter på iPhone."
-                    : "No Watch response. Starting on iPhone."
-                self.startContinuousWorkoutInternal()
+                    ? (isAlreadyRunningLocally
+                        ? "Ingen svar fra Watch. Fortsetter på iPhone."
+                        : "Ingen svar fra Watch. Starter på iPhone.")
+                    : (isAlreadyRunningLocally
+                        ? "No Watch response. Continuing on iPhone."
+                        : "No Watch response. Starting on iPhone.")
+                if !isAlreadyRunningLocally {
+                    self.startContinuousWorkoutInternal()
+                }
             }
         }
     }
@@ -2554,13 +2563,20 @@ class WorkoutViewModel: ObservableObject {
         guard !requestID.isEmpty else { return }
         guard requestID == pendingWatchRequestId else { return }
 
+        let isAlreadyRunningLocally = isContinuousMode
         clearWatchStartPendingState()
         isWatchBackedContinuousSession = false
         watchStartStatusLine = currentLanguage == "no"
-            ? "Watch-feil (\(error)). Starter på iPhone."
-            : "Watch failed (\(error)). Starting on iPhone."
+            ? (isAlreadyRunningLocally
+                ? "Watch-feil (\(error)). Fortsetter på iPhone."
+                : "Watch-feil (\(error)). Starter på iPhone.")
+            : (isAlreadyRunningLocally
+                ? "Watch failed (\(error)). Continuing on iPhone."
+                : "Watch failed (\(error)). Starting on iPhone.")
         print("WATCH_ACK request_id=\(requestID) status=failed")
-        startContinuousWorkoutInternal()
+        if !isAlreadyRunningLocally {
+            startContinuousWorkoutInternal()
+        }
     }
 
     private func handleWatchWorkoutStopped(timestamp _: TimeInterval, requestID: String) {
@@ -2698,6 +2714,7 @@ class WorkoutViewModel: ObservableObject {
     private func refreshHeartRateSignalQualityFromAge() {
         heartRateArbiter.refreshLiveness()
         expireWatchHRStartupGraceIfNeeded()
+        refreshLiveHRBanner()
     }
 
     private func resolvedHRQualityForRequest(
@@ -2734,11 +2751,42 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func resolvedWatchStatusForBackend(now: Date = Date()) -> String {
+        if isWaitingForWatchStart {
+            return "watch_starting"
+        }
         expireWatchHRStartupGraceIfNeeded(now: now)
         if watchHRStartupGraceDeadline != nil {
             return "watch_starting"
         }
         return latestWatchStatusForBackend
+    }
+
+    private func refreshLiveHRBanner(now: Date = Date()) {
+        let shouldSuppressBanner = workoutState != .active || isWaitingForWatchStart || watchHRStartupGraceDeadline != nil
+        let isDegraded = hrSignalQuality == HRQuality.degraded.rawValue || hrSource == .none
+
+        guard !shouldSuppressBanner, isDegraded else {
+            liveHRBannerDegradedSince = nil
+            liveHRBannerText = nil
+            return
+        }
+
+        if liveHRBannerDegradedSince == nil {
+            liveHRBannerDegradedSince = now
+        }
+
+        guard let degradedSince = liveHRBannerDegradedSince else {
+            liveHRBannerText = nil
+            return
+        }
+
+        if now.timeIntervalSince(degradedSince) >= liveHRBannerGraceSeconds {
+            liveHRBannerText = currentLanguage == "no"
+                ? "Live puls utilgjengelig / degradert"
+                : "Live HR unavailable / degraded"
+        } else {
+            liveHRBannerText = nil
+        }
     }
 
     private func applyMotionUpdate(_ update: MotionCadenceService.Update) {
@@ -2773,13 +2821,17 @@ class WorkoutViewModel: ObservableObject {
         startContinuousWorkoutInternal()
     }
 
-    private func startContinuousWorkoutInternal() {
+    private func startContinuousWorkoutInternal(preservePendingWatchStart: Bool = false) {
         guard !isContinuousMode else { return }
         resetGuestBackendSuppression()
         primeGuestBackendSuppressionIfNeeded()
-        clearWatchStartPendingState()
+        if !preservePendingWatchStart {
+            clearWatchStartPendingState()
+        }
         PushNotificationManager.shared.clearPendingCoachReminders()
-        watchStartStatusLine = nil
+        if !preservePendingWatchStart {
+            watchStartStatusLine = nil
+        }
         workoutState = .active
 
         print("🎯 Starting continuous workout")
@@ -2806,6 +2858,7 @@ class WorkoutViewModel: ObservableObject {
             heartRate = nil
             hrSignalQuality = HRQuality.none.rawValue
             liveHRBannerText = nil
+            liveHRBannerDegradedSince = nil
             coachingStatusLine = nil
             latestWatchStatusForBackend = isWatchBackedContinuousSession ? "watch_starting" : "no_live_hr"
             lastWCHRSampleAt = nil
@@ -3121,6 +3174,7 @@ class WorkoutViewModel: ObservableObject {
         heartRate = nil
         hrSignalQuality = HRQuality.none.rawValue
         liveHRBannerText = nil
+        liveHRBannerDegradedSince = nil
         coachingStatusLine = nil
         latestWatchStatusForBackend = "no_live_hr"
         lastWCHRSampleAt = nil
