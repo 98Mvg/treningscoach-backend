@@ -32,6 +32,7 @@ struct WorkoutCompleteView: View {
     @State private var particlesDone = false
     @State private var particles: [SummaryParticle] = SummaryParticle.make()
     @State private var liveCoachVM: LiveCoachConversationViewModel? = nil
+    @State private var inlineCoachActive = false
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -186,14 +187,38 @@ struct WorkoutCompleteView: View {
 
                     Spacer()
 
-                    if shouldShowLiveCoachVoiceButton {
-                        liveCoachVoiceButton
+                    // Inline voice coach area
+                    if inlineCoachActive, let vm = liveCoachVM {
+                        inlineVoiceCoachArea(vm: vm)
                             .padding(.horizontal, 30)
-                            .padding(.bottom, 14)
+                            .padding(.bottom, 8)
                             .opacity(contentVisible ? 1 : 0)
                     }
 
-                    buttonGroup
+                    if shouldShowLiveCoachVoiceButton && !inlineCoachActive {
+                        talkToCoachButton
+                            .padding(.horizontal, 30)
+                            .padding(.bottom, 8)
+                            .opacity(contentVisible ? 1 : 0)
+                    }
+
+                    // Secondary actions row
+                    VStack(spacing: 6) {
+                        HStack(spacing: 14) {
+                            if !inlineCoachActive {
+                                workoutSummaryTextButton
+                            }
+                            doneButton
+                            shareButton
+                        }
+
+                        if copiedLink {
+                            Text(L10n.current == .no ? "Lenke kopiert." : "Link copied.")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(Color(hex: "A5F3EC"))
+                                .transition(.opacity)
+                        }
+                    }
                     .padding(.horizontal, 30)
                     .padding(.bottom, max(geo.safeAreaInsets.bottom + 12, 26))
                     .opacity(contentVisible ? 1 : 0)
@@ -341,7 +366,7 @@ struct WorkoutCompleteView: View {
         }
     }
 
-    private var liveCoachVoiceButton: some View {
+    private var talkToCoachButton: some View {
         Button {
             let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
             Task {
@@ -350,21 +375,76 @@ struct WorkoutCompleteView: View {
                     metadata: metadata
                 )
             }
+            if liveVoiceIsAvailable {
+                inlineCoachActive = true
+                if let vm = liveCoachVM {
+                    Task { await vm.startIfNeeded() }
+                }
+            } else if !hasLiveVoiceAccountAccess {
+                showLiveVoicePaywall = true
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(L10n.current == .no ? "Snakk med Coach" : "Talk to Coach")
+                    .font(.system(size: 17, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(liveVoiceIsAvailable ? Color(hex: "1B7A8E") : Color.white.opacity(0.22))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var workoutSummaryTextButton: some View {
+        Button {
             showWorkoutSummary = true
         } label: {
             Text(liveCoachVoiceLabel)
-                .font(.system(size: 17, weight: .bold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .font(.system(size: 13, weight: .medium))
+                .tracking(0.8)
+                .foregroundColor(Color.white.opacity(0.82))
+                .frame(width: actionButtonWidth, height: 42)
                 .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(liveVoiceIsAvailable ? Color(hex: "1B7A8E") : Color.white.opacity(0.22))
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func inlineVoiceCoachArea(vm: LiveCoachConversationViewModel) -> some View {
+        VStack(spacing: 12) {
+            // Waveform + status
+            WaveformBarsView(service: vm.service, isNorwegian: L10n.current == .no)
+
+            // End conversation button
+            Button {
+                Task { await vm.disconnect() }
+                inlineCoachActive = false
+            } label: {
+                Text(L10n.current == .no ? "Avslutt" : "End")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.75))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule(style: .continuous)
+                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var liveVoiceStatusText: String {
@@ -466,30 +546,6 @@ struct WorkoutCompleteView: View {
                     .shadow(color: Color(hex: "A5F3EC").opacity(0.5), radius: 8, y: 0)
                     .offset(y: xpBadgeVisible ? -(ringSize / 2 + 20) : -(ringSize / 2 + 10))
                     .opacity(xpBadgeVisible ? 1 : 0)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var buttonGroup: some View {
-        VStack(spacing: 10) {
-            if UIScreen.main.bounds.width < 335 {
-                VStack(spacing: 10) {
-                    doneButton
-                    shareButton
-                }
-            } else {
-                HStack(spacing: 14) {
-                    doneButton
-                    shareButton
-                }
-            }
-
-            if copiedLink {
-                Text(L10n.current == .no ? "Lenke kopiert." : "Link copied.")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "A5F3EC"))
-                    .transition(.opacity)
             }
         }
     }

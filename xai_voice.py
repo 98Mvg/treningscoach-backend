@@ -289,6 +289,8 @@ def build_post_workout_voice_instructions(
         "Your opening message may be up to 40 words and 3 sentences.\n"
         "After the opening, return to the normal limit of 25 words / 2 sentences.\n\n"
         "Only reference data explicitly present in the summary below. "
+        "NEVER mention specific exercises (squats, lunges, push-ups, etc.) unless the workout label explicitly names them. "
+        "The workout types are running-based (Easy Run, Intervals, Workout). Refer to the workout by its label only. "
         "Do not invent movements, exercises, or effort types not mentioned in the summary. "
         "Always cite specific numbers when available (score, duration, heart rate, zone %). "
         "Never give generic advice when specific workout data exists in the summary. "
