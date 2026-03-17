@@ -2828,6 +2828,7 @@ private struct WatchConnectFromProfileView: View {
             onBack: { dismiss() },
             onContinue: { _ in dismiss() }
         )
-        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
