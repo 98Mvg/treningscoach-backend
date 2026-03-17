@@ -361,3 +361,20 @@ Updated: 2026-03-16
   - `shasum TreningsCoach/TreningsCoach/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png TreningsCoach/TreningsCoachWatchApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png` -> hashes match, so the watch icon now reuses the same Coachi logo asset as iPhone
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -showBuildSettings -target TreningsCoachWatchApp | rg "ASSETCATALOG_COMPILER_APPICON_NAME|INFOPLIST_FILE|PRODUCT_BUNDLE_IDENTIFIER"` -> watch target still resolves `AppIcon`, `TreningsCoachWatchApp/Info.plist`, and `com.coachi.app.watchapp`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> blocked by an existing unrelated compile error in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift), after the watch asset/plist steps already resolved correctly
+
+## Review — 2026-03-17 Guest auth guard before watch-HR troubleshooting
+
+- Fixed the highest-impact auth/runtime issue on the single existing guest-capable workout path instead of changing the product model:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) now pre-arms guest backend suppression at workout start when `requireSignInForWorkoutStart == false` and no usable session exists, so `/coach/continuous` no longer needs to fail once with `Missing or invalid Authorization header` before the app realizes it should stay local.
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift) now skips `/subscription/validate` entirely when neither an access token nor a refresh token exists, instead of generating predictable 401/retry noise from guest mode.
+- This keeps the supported guest-mode runtime intact:
+  - workouts still start locally without sign-in
+  - protected backend calls are simply short-circuited earlier when there is no auth material
+  - watch-HR startup behavior can now be evaluated without auth noise masking the logs
+- Added/updated source-contract tests in:
+  - [test_ios_continuous_auth_guard_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_continuous_auth_guard_contract.py)
+  - [test_ios_auth_refresh_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_refresh_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_ios_continuous_auth_guard_contract.py tests_phaseb/test_ios_auth_refresh_contract.py` -> `13 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`

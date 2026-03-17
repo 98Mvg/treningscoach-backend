@@ -146,6 +146,10 @@ class BackendAPIService {
         return token
     }
 
+    private func hasAuthMaterial() -> Bool {
+        currentAuthToken() != nil || currentRefreshToken() != nil
+    }
+
     private func isExpired(expiresAtKey: String) -> Bool {
         guard let raw = KeychainHelper.readString(key: expiresAtKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -815,6 +819,10 @@ class BackendAPIService {
         signedTransactionInfo: String? = nil
     ) async -> String? {
         guard let url = URL(string: "\(baseURL)/subscription/validate") else { return nil }
+        guard hasAuthMaterial() else {
+            backendLogger.notice("SUB_VALIDATE skipped reason=missing_auth_material")
+            return nil
+        }
         do {
             var request = URLRequest(url: url, timeoutInterval: 10)
             request.httpMethod = "POST"

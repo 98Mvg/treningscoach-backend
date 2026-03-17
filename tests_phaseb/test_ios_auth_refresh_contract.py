@@ -80,6 +80,14 @@ def test_backend_api_service_refreshes_and_retries_on_unauthorized() -> None:
     assert "return try await session.data(for: retryRequest)" in text
 
 
+def test_subscription_validation_skips_without_any_auth_material() -> None:
+    text = API.read_text(encoding="utf-8")
+    assert "private func hasAuthMaterial() -> Bool {" in text
+    validate_block = text.split("func validateSubscription(", 1)[1].split("// MARK: - Helper Methods", 1)[0]
+    assert "guard hasAuthMaterial() else {" in validate_block
+    assert 'backendLogger.notice("SUB_VALIDATE skipped reason=missing_auth_material")' in validate_block
+
+
 def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     view_text = AUTH_VIEW.read_text(encoding="utf-8")

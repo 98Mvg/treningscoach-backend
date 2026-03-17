@@ -30,10 +30,19 @@ def test_guest_mode_suppresses_further_backend_calls_after_auth_failure() -> Non
     assert "private var guestBackendSuppressed = false" in text
     assert "private func shouldSuppressProtectedBackendRequests() -> Bool {" in text
     assert "private func suppressProtectedBackendRequestsForGuest() {" in text
+    assert "private func primeGuestBackendSuppressionIfNeeded() {" in text
     assert "suppressProtectedBackendRequestsForGuest()" in text
     assert "print(\"⚠️ TALK_BACKEND_SUPPRESSED" in text
     assert "print(\"⚠️ COACHING_BACKEND_SUPPRESSED" in text
     assert "if !AppConfig.Auth.requireSignInForWorkoutStart, !authManager.hasUsableSession() {" in text
+
+
+def test_continuous_start_prearms_guest_backend_suppression_without_session() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    start_block = text.split("private func startContinuousWorkoutInternal() {", 1)[1].split("do {", 1)[0]
+    assert "resetGuestBackendSuppression()" in start_block
+    assert "primeGuestBackendSuppressionIfNeeded()" in start_block
+    assert 'print("⚠️ GUEST_BACKEND_PRESET active=true")' in text
 
 
 def test_backend_continuous_request_allows_missing_auth_header() -> None:

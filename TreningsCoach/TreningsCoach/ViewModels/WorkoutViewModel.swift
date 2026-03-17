@@ -2673,6 +2673,7 @@ class WorkoutViewModel: ObservableObject {
     private func startContinuousWorkoutInternal() {
         guard !isContinuousMode else { return }
         resetGuestBackendSuppression()
+        primeGuestBackendSuppressionIfNeeded()
         clearWatchStartPendingState()
         PushNotificationManager.shared.clearPendingCoachReminders()
         watchStartStatusLine = nil
@@ -2823,6 +2824,15 @@ class WorkoutViewModel: ObservableObject {
             ? "Backend krever innlogging nå. Fortsetter lokalt."
             : "Backend currently requires sign-in. Continuing locally."
         print("⚠️ GUEST_BACKEND_SUPPRESSED active=true")
+    }
+
+    private func primeGuestBackendSuppressionIfNeeded() {
+        guard !AppConfig.Auth.requireSignInForWorkoutStart,
+              !authManager.hasUsableSession() else {
+            return
+        }
+        suppressProtectedBackendRequestsForGuest()
+        print("⚠️ GUEST_BACKEND_PRESET active=true")
     }
 
     private func resetGuestBackendSuppression() {
