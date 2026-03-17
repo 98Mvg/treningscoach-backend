@@ -11,6 +11,7 @@ struct SettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
     @ObservedObject private var syncManager = AudioPackSyncManager.shared
+    @State private var showAdvancedVoiceOptions = false
 
     var body: some View {
         ZStack {
@@ -92,62 +93,76 @@ struct SettingsView: View {
 
     private var voicePackSection: some View {
         VStack(spacing: 8) {
-            // Status row
-            HStack(spacing: 12) {
-                Image(systemName: "speaker.wave.3.fill")
-                    .font(.body)
-                    .foregroundColor(CoachiTheme.primary)
-                    .frame(width: 36, height: 36)
-                    .background(CoachiTheme.primary.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.voicePackTitle)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(CoachiTheme.textPrimary)
-                    Text(voicePackSubtitle)
-                        .font(.system(size: 12))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if syncManager.syncState == .downloading || syncManager.syncState == .checking {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                }
-            }
-            .padding(12)
-            .cardStyle()
-
-            // Reset Voice Pack
             Button {
-                Task { await syncManager.resetAndResync() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.clockwise")
-                    Text(L10n.current == .no ? "Oppdater lydinnhold" : "Refresh audio content")
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showAdvancedVoiceOptions.toggle()
                 }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.red)
-                .frame(maxWidth: .infinity)
-                .padding(10)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.body)
+                        .foregroundColor(CoachiTheme.primary)
+                        .frame(width: 36, height: 36)
+                        .background(CoachiTheme.primary.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.voicePackTitle)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(CoachiTheme.textPrimary)
+                        Text(voicePackSubtitle)
+                            .font(.system(size: 12))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                    if syncManager.syncState == .downloading || syncManager.syncState == .checking {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textTertiary)
+                            .rotationEffect(.degrees(showAdvancedVoiceOptions ? 180 : 0))
+                            .animation(.easeInOut(duration: 0.2), value: showAdvancedVoiceOptions)
+                    }
+                }
+                .padding(12)
+                .cardStyle()
             }
-            .cardStyle()
-            .disabled(syncManager.syncState == .downloading)
+            .buttonStyle(.plain)
 
-            // Purge Stale Files
-            Button {
-                syncManager.purgeStaleFiles()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "trash")
-                    Text(L10n.current == .no ? "Rydd lokale lydfiler" : "Clean local audio files")
+            if showAdvancedVoiceOptions {
+                Button {
+                    Task { await syncManager.resetAndResync() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                        Text(L10n.current == .no ? "Oppdater lydinnhold" : "Refresh audio content")
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(10)
                 }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .frame(maxWidth: .infinity)
-                .padding(10)
+                .cardStyle()
+                .disabled(syncManager.syncState == .downloading)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+
+                Button {
+                    syncManager.purgeStaleFiles()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash")
+                        Text(L10n.current == .no ? "Rydd lokale lydfiler" : "Clean local audio files")
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(10)
+                }
+                .cardStyle()
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .cardStyle()
         }
     }
 

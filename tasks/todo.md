@@ -29,6 +29,7 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-17: Moved the responsive overflow/hamburger navigation to the actual `coachi.no` runtime path in `templates/index_launch.html`/`backend/templates/index_launch.html`, and changed `main.py` default web variant fallback from `codex` to `launch` so preview/default truth matches the live site.
 - 2026-03-17: Fixed iOS/backend timeout noise on the single existing runtime path by adding a short backend-unavailable cooldown in `BackendAPIService`, routing `/auth/me` through the same guarded service instead of `URLSession.shared`, and fast-failing best-effort + primary calls (`/health`, `/analytics/mobile`, `/subscription/validate`, `/voice/session`, `/coach/continuous`, `/coach/talk`) when Render is already known unavailable.
 - 2026-03-17: Updated stale source contracts around workout-summary live-voice UI to match the current `WorkoutSummarySheet` implementation instead of removed internal properties/CTA event names.
 - 2026-03-17: Promoted new V2 runtime phrases for `zone.above.default.2`, `zone.in_zone.default.2`, `zone.in_zone.default.3`, and `zone.main_started.2`, synced the changed `countdown/work/cooldown` copy across `phrase_review_v2.py`, `tts_phrase_catalog.py`, and `zone_event_motor.py`, and kept the single existing V2->R2/app path intact.
@@ -586,3 +587,34 @@ Updated: 2026-03-17
   - `PYTHONPATH=. pytest -q tests_phaseb/test_landing_navigation_contract.py tests_phaseb/test_web_blueprint_contract.py tests_phaseb/test_auth_email_contract.py tests_phaseb/test_waitlist_persistence.py tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_ios_auth_refresh_contract.py tests_phaseb/test_launch_integrations_contract.py` -> `30 passed`
   - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-17 Claude worktree harvest + sensor tab-bar clearance
+
+- Reviewed the Claude worktrees against current `main` and kept the pass selective on the single runtime path instead of merging stale branches.
+- Ported the one remaining high-signal worktree improvement into [SettingsView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Settings/SettingsView.swift):
+  - the voice-pack status row stays visible
+  - destructive maintenance actions now sit behind an expandable advanced toggle
+  - existing `AudioPackSyncManager` actions and behavior stay unchanged
+- Reconciled the old `determined-sinoussi` monetization work and confirmed the valuable parts were already in `main`:
+  - post-workout text coach remaining-free hint already exists
+  - profile subscription comparison surface already exists
+  - onboarding premium offer already uses the newer trial-oriented copy and current paywall path
+- Fixed the runtime layout issue shown in the screenshots by adding explicit tab-bar clearance to the sensor management screens in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift):
+  - [HeartRateMonitorsView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) now reserves space for the floating tab bar
+  - [WatchConnectFromProfileView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) now reserves the same bottom clearance so the Apple Watch CTA stack no longer sits behind the tab bar
+- Updated the source contract in [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock:
+  - the expandable advanced voice-pack controls
+  - the shared floating tab-bar clearance on the two sensor/watch surfaces
+
+## Review — 2026-03-17 Profile Apple Watch flow polish
+
+- Fixed the Apple Watch detail path opened from Profile so it behaves like the onboarding version without creating a second sensor UI.
+- In [SensorConnectOnboardingView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift), added opt-in layout overrides for:
+  - a more compact top inset
+  - extra bottom action clearance above the floating tab bar
+- [WatchConnectFromProfileView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) now uses those overrides, so:
+  - the `Apple Watch` title sits higher on screen
+  - `Continue without watch` and `Check again` stay visible and tappable above the floating tab bar
+  - the view still reuses the same existing `PhoneWCManager` and onboarding button logic
+- Simplified [HeartRateMonitorsView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) by removing the redundant top instruction card, `Sounds good!` button, and helper line from the screenshots. The screen now goes straight into the Live / History monitor list.
+- Updated [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock the new profile-watch layout contract and the removal of the extra top copy.

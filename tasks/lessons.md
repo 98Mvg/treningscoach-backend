@@ -36,6 +36,8 @@ Updated: 2026-03-17
 
 ## Session-Specific Lessons
 
+- 2026-03-17: For Coachi web changes, verify the live route before editing by checking `web_routes.py`. `coachi.no` runs through `index_launch.html`; `index_codex.html` is a preview variant and should not receive launch-default fixes by accident.
+- 2026-03-17: When root and `backend/` both carry the launch template, sync both in the same pass or the launch-template parity tests will fail and local/backend web behavior will drift.
 - 2026-03-17: When Render/backend timeouts appear across many iOS endpoints at once, treat it as one shared availability problem. Fix it in `BackendAPIService` with a small cooldown/circuit-breaker on the existing runtime path instead of patching each endpoint separately.
 - 2026-03-17: Do not let `/auth/me` bypass the shared backend service; if profile hydration uses `URLSession.shared` directly, it will miss the same timeout/backoff policy as analytics, subscription, coaching, and voice.
 - 2026-03-17: Keep source-contract tests aligned to current SwiftUI structure, not removed internal computed properties or old CTA analytics names; otherwise verification fails on test drift instead of real regressions.
@@ -170,3 +172,6 @@ Updated: 2026-03-17
 - 2026-03-17: The active marketing site currently serves the `codex` variant by default. If a web-nav request is about the live landing page, patch `templates/index_codex.html` first instead of assuming `index_launch.html` is the production truth just because it already has a hamburger.
 - 2026-03-17: Responsive navigation overflow should not rely only on viewport breakpoints when the page supports multiple languages. Recalculate collapse state after language changes and on resize so longer English/Norwegian labels do not wrap or clip.
 - 2026-03-17: When the user asks whether Resend/auth are “working,” verify both configuration and runtime contracts. Local env presence alone is not enough, but source tests plus keychain/refresh-token persistence checks give a launch-safe answer without inventing a second auth story.
+- 2026-03-17: When harvesting from Claude worktrees, reconcile against `main` before porting anything. Old monetization/paywall branches can already be partially or fully landed, so the right move is often to lift one small UX improvement and drop the rest.
+- 2026-03-17: Reusing onboarding scaffolds inside tabbed runtime surfaces needs explicit bottom clearance if the app uses a floating overlay tab bar. Screens like watch/sensor setup can look correct in onboarding but still end up underneath the tab bar when opened from Home/Profile.
+- 2026-03-17: When a screen from onboarding is reused inside Profile or another tabbed stack, keep the same runtime component but add context-specific layout overrides instead of cloning the UI. Small overrides like compact top spacing and extra bottom action clearance are safer than maintaining a second watch-connect screen.

@@ -16,6 +16,7 @@ private let coachiPrivacyURL = "https://coachi.no/privacy"
 private let coachiTermsURL = "https://coachi.no/terms"
 private let coachiSupportURL = "https://coachi.no/support"
 private let coachiDownloadURL = "https://coachi.no/download"
+private let floatingTabBarContentClearance: CGFloat = 96
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
@@ -2675,30 +2676,6 @@ struct HeartRateMonitorsView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 12) {
-                    SupportCard(
-                        title: L10n.current == .no ? "Gi Coachi tilgang til pulsdata" : "Give Coachi access to your heart-rate data",
-                        copyText: L10n.current == .no
-                            ? "Trykk én gang for å oppdatere Apple Health og sensorer. Coachi bruker dette for live coaching når puls er tilgjengelig."
-                            : "Tap once to refresh Apple Health and sensor access. Coachi uses this for live coaching when heart rate is available."
-                    )
-
-                    Button {
-                        workoutViewModel.refreshHealthSensors()
-                    } label: {
-                        SettingsActionRow(
-                            icon: "heart.fill",
-                            title: L10n.current == .no ? "Den er grei!" : "Sounds good!",
-                            tint: CoachiTheme.primary
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Text(L10n.liveCoachingSourceHint)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-
                 sectionHeader(label: L10n.liveCapability)
                 monitorRows(for: [.appleWatch, .bluetoothSensor])
 
@@ -2712,9 +2689,12 @@ struct HeartRateMonitorsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 80)
+            .padding(.bottom, 24)
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: floatingTabBarContentClearance)
+        }
         .navigationTitle(L10n.manageHeartRateMonitors)
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -2826,7 +2806,9 @@ private struct WatchConnectFromProfileView: View {
         SensorConnectOnboardingView(
             watchManager: PhoneWCManager.shared,
             onBack: { dismiss() },
-            onContinue: { _ in dismiss() }
+            onContinue: { _ in dismiss() },
+            contentTopInsetOverride: 16,
+            bottomActionClearance: floatingTabBarContentClearance
         )
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)

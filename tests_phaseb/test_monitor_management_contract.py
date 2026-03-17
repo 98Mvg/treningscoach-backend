@@ -9,6 +9,9 @@ PROFILE_VIEW = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Views" / "Tabs" / "ProfileView.swift"
 )
 MONITORS_VIEW = PROFILE_VIEW
+SETTINGS_VIEW = (
+    REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Views" / "Settings" / "SettingsView.swift"
+)
 L10N_FILE = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Localization" / "L10n.swift"
 )
@@ -31,6 +34,17 @@ def test_profile_manage_monitors_row_uses_manage_monitors_view() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     assert "title: L10n.manageHeartRateMonitors" in text
     assert "NavigationLink {\n                HeartRateMonitorsView()" in text
+
+
+def test_settings_hides_audio_maintenance_actions_behind_expandable_toggle() -> None:
+    text = SETTINGS_VIEW.read_text(encoding="utf-8")
+    assert "@State private var showAdvancedVoiceOptions = false" in text
+    assert "showAdvancedVoiceOptions.toggle()" in text
+    assert 'Image(systemName: "chevron.down")' in text
+    assert "if showAdvancedVoiceOptions {" in text
+    assert "Task { await syncManager.resetAndResync() }" in text
+    assert "syncManager.purgeStaleFiles()" in text
+    assert ".buttonStyle(.plain)" in text
 
 
 def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None:
@@ -174,10 +188,15 @@ def test_manage_monitors_screen_matches_provider_list_contract() -> None:
     assert 'case withings = "Withings"' in text
     assert "navigationTitle(L10n.manageHeartRateMonitors)" in text
     assert "L10n.notConnected" in text
-    assert 'title: L10n.current == .no ? "Gi Coachi tilgang til pulsdata" : "Give Coachi access to your heart-rate data"' in text
-    assert 'title: L10n.current == .no ? "Den er grei!" : "Sounds good!"' in text
+    assert 'title: L10n.current == .no ? "Gi Coachi tilgang til pulsdata" : "Give Coachi access to your heart-rate data"' not in text
+    assert 'title: L10n.current == .no ? "Den er grei!" : "Sounds good!"' not in text
+    assert "L10n.liveCoachingSourceHint" not in text
     assert "if isActionableMonitor(brand)" in text
     assert "monitorRowContent(for: brand, showsChevron: false)" in text
+    assert "private let floatingTabBarContentClearance: CGFloat = 96" in text
+    assert text.count("Color.clear.frame(height: floatingTabBarContentClearance)") == 1
+    assert "contentTopInsetOverride: 16" in text
+    assert "bottomActionClearance: floatingTabBarContentClearance" in text
 
 
 def test_health_profile_is_a_dedicated_surface_not_a_wrapper() -> None:

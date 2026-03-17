@@ -1520,6 +1520,8 @@ struct SensorConnectOnboardingView: View {
     @ObservedObject var watchManager: PhoneWCManager
     let onBack: () -> Void
     let onContinue: (Bool) -> Void
+    var contentTopInsetOverride: CGFloat? = nil
+    var bottomActionClearance: CGFloat = 0
 
     private var state: PhoneWCManager.WatchCapabilityState {
         watchManager.watchCapabilityState
@@ -1591,7 +1593,9 @@ struct SensorConnectOnboardingView: View {
             canContinue: true,
             onPrimary: { onContinue(isConnected) },
             secondaryTitle: secondaryButtonTitle,
-            onSecondary: isConnected ? nil : { secondaryAction() }
+            onSecondary: isConnected ? nil : { secondaryAction() },
+            contentTopInsetOverride: contentTopInsetOverride,
+            additionalBottomSafeArea: bottomActionClearance
         ) {
             VStack(spacing: 16) {
                 // State icon with color ring
@@ -1888,6 +1892,8 @@ private struct OnboardingScaffold<Content: View>: View {
     let onPrimary: () -> Void
     let secondaryTitle: String?
     let onSecondary: (() -> Void)?
+    let contentTopInsetOverride: CGFloat?
+    let additionalBottomSafeArea: CGFloat
     let content: Content
 
     init(
@@ -1899,6 +1905,8 @@ private struct OnboardingScaffold<Content: View>: View {
         onPrimary: @escaping () -> Void,
         secondaryTitle: String? = nil,
         onSecondary: (() -> Void)? = nil,
+        contentTopInsetOverride: CGFloat? = nil,
+        additionalBottomSafeArea: CGFloat = 0,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -1909,6 +1917,8 @@ private struct OnboardingScaffold<Content: View>: View {
         self.onPrimary = onPrimary
         self.secondaryTitle = secondaryTitle
         self.onSecondary = onSecondary
+        self.contentTopInsetOverride = contentTopInsetOverride
+        self.additionalBottomSafeArea = additionalBottomSafeArea
         self.content = content()
     }
 
@@ -1920,8 +1930,8 @@ private struct OnboardingScaffold<Content: View>: View {
             let layoutWidth = min(min(renderWidth, deviceWidth), 500)
             let sidePadding = layoutWidth < 390 ? 16.0 : 22.0
             let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))
-            let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))
-            let contentTopInset = max(renderHeight * 0.08, 24.0)
+            let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0)) + additionalBottomSafeArea
+            let contentTopInset = contentTopInsetOverride ?? max(renderHeight * 0.08, 24.0)
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
