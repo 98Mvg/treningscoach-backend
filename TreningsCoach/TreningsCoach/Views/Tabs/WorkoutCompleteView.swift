@@ -154,29 +154,18 @@ struct WorkoutCompleteView: View {
                     }
                     .scaleEffect(checkmarkScale)
 
-                    if targetScore > 0 {
-                        Text("COACH SCORE")
-                            .font(.system(size: titleSize, weight: .light, design: .default))
-                            .foregroundColor(Color.white.opacity(0.96))
-                            .tracking(1)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .padding(.top, 22)
-                            .opacity(contentVisible ? 1 : 0)
-
-                        scoreRingView(ringSize: ringSize)
-                        .padding(.top, 26)
+                    Text("COACH SCORE")
+                        .font(.system(size: titleSize, weight: .light, design: .default))
+                        .foregroundColor(Color.white.opacity(0.96))
+                        .tracking(1)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.top, 22)
                         .opacity(contentVisible ? 1 : 0)
-                    } else {
-                        Text(L10n.current == .no ? "OKT FULLFORT" : "WORKOUT COMPLETE")
-                            .font(.system(size: titleSize, weight: .light, design: .default))
-                            .foregroundColor(Color.white.opacity(0.96))
-                            .tracking(1)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .padding(.top, 22)
-                            .opacity(contentVisible ? 1 : 0)
-                    }
+
+                    scoreRingView(ringSize: ringSize)
+                    .padding(.top, 26)
+                    .opacity(contentVisible ? 1 : 0)
 
                     if targetScore > 0 && !coachScoreSummaryLine.isEmpty {
                         Text(coachScoreSummaryLine)
@@ -372,7 +361,7 @@ struct WorkoutCompleteView: View {
                 .frame(height: 56)
                 .background(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(liveVoiceIsAvailable ? CoachiTheme.accent : Color.white.opacity(0.22))
+                        .fill(liveVoiceIsAvailable ? Color(hex: "1B7A8E") : Color.white.opacity(0.22))
                 )
         }
         .buttonStyle(.plain)
@@ -990,11 +979,11 @@ private struct WorkoutSummarySheet: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 64)
+                    .frame(height: 56)
                     .background(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(liveVoiceIsAvailable
-                                ? CoachiTheme.accent
+                                ? Color(hex: "1B7A8E")
                                 : CoachiTheme.surfaceElevated)
                     )
             }
@@ -1099,7 +1088,7 @@ private struct WorkoutSummarySheet: View {
                     ? (isNorwegian ? "Avslutt samtalen" : "End Conversation")
                     : (isNorwegian ? "Start coaching" : "Start Coaching"))
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(isActive ? Color.white.opacity(0.92) : Color.black.opacity(0.85))
+                    .foregroundColor(.white)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 52)
@@ -1114,7 +1103,7 @@ private struct WorkoutSummarySheet: View {
                             )
                     } else {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(CoachiTheme.accent)
+                            .fill(Color(hex: "1B7A8E"))
                     }
                 }
             )

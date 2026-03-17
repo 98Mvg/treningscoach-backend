@@ -115,8 +115,10 @@ struct SettingsView: View {
         }
     }
 
+    @State private var showWatchConnect = false
+
     private var watchSection: some View {
-        VStack(spacing: 8) {
+        NavigationLink(destination: WatchSettingsDestination(watchManager: watchManager)) {
             HStack(spacing: 12) {
                 Image(systemName: "applewatch")
                     .font(.body)
@@ -139,29 +141,14 @@ struct SettingsView: View {
                     }
                 }
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textTertiary)
             }
             .padding(12)
             .cardStyle()
-
-            if watchManager.watchCapabilityState != .watchReady {
-                Button {
-                    watchManager.activate()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        watchManager.refreshStateManually()
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                        Text(L10n.current == .no ? "Koble til igjen" : "Reconnect")
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(CoachiTheme.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(10)
-                }
-                .cardStyle()
-            }
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Voice Pack Section
@@ -258,5 +245,22 @@ struct SettingsView: View {
             line += " | \(ago)"
         }
         return line
+    }
+}
+
+// MARK: - Watch Settings Destination
+
+/// Wraps the onboarding SensorConnectOnboardingView for use inside Settings navigation.
+private struct WatchSettingsDestination: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var watchManager: PhoneWCManager
+
+    var body: some View {
+        SensorConnectOnboardingView(
+            watchManager: watchManager,
+            onBack: { dismiss() },
+            onContinue: { _ in dismiss() }
+        )
+        .navigationBarBackButtonHidden(true)
     }
 }
