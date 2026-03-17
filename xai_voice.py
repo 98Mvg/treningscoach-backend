@@ -239,6 +239,49 @@ def _history_lines(history_context: Mapping[str, Any], language: str) -> list[st
     return lines
 
 
+def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegian: bool) -> str:
+    """Return a context paragraph that tells the AI exactly what kind of workout this was."""
+    label = workout_label or workout_mode or ""
+    label_lower = label.lower()
+
+    if "easy" in label_lower or "rolig" in label_lower:
+        if is_norwegian:
+            return (
+                f"Utøveren valgte '{label}' — en rolig løpetur med lavt tempo. "
+                "Fokuser på aerob base, pustekontroll, og jevn innsats. "
+                "Ikke nevn intervaller, sprints, eller høy intensitet."
+            )
+        return (
+            f"The athlete chose '{label}' — a low-effort easy run. "
+            "Focus on aerobic base building, breathing control, and steady effort. "
+            "Do not mention intervals, sprints, or high intensity."
+        )
+
+    if "interval" in label_lower:
+        if is_norwegian:
+            return (
+                f"Utøveren valgte '{label}' — intervalltrening med vekslende høy- og lavinnsats. "
+                "Fokuser på jobb/hvile-forhold, intensitetstopper, og restitusjon mellom intervallene."
+            )
+        return (
+            f"The athlete chose '{label}' — interval training with alternating high/low effort. "
+            "Focus on work/rest ratio, intensity peaks, and recovery between intervals."
+        )
+
+    # Generic "Workout" or unknown mode
+    if is_norwegian:
+        return (
+            f"Utøveren valgte '{label}' — en generell treningsøkt. "
+            "Fokuser på kardio-innsats, pulssoner, og total varighet. "
+            "Ikke anta spesifikke øvelser eller bevegelser."
+        )
+    return (
+        f"The athlete chose '{label}' — a general workout session. "
+        "Focus on cardio effort, heart rate zones, and total duration. "
+        "Do not assume any specific exercises or movements."
+    )
+
+
 def build_post_workout_voice_instructions(
     *,
     summary_context: Mapping[str, Any] | None,
@@ -275,11 +318,16 @@ def build_post_workout_voice_instructions(
         safety_override=False,
     )
 
+    # Build workout-mode awareness block
+    workout_mode = str(context.get("workout_mode") or "").strip().lower()
+    mode_awareness = _workout_mode_description(workout_mode, workout_label, is_norwegian)
+
     activity_anchor = f"{activity_line}\n" if activity_line else ""
     common_intro = (
         f"{persona_text}\n\n"
         "You are now in post-workout review mode. "
         f"{activity_anchor}"
+        f"{mode_awareness}\n"
         f"Speak in {language_name}. "
         "YOUR OPENING MESSAGE is special and must follow these rules:\n"
         "1. Start by acknowledging the specific workout just completed (use the workout label and duration)\n"
@@ -288,10 +336,15 @@ def build_post_workout_voice_instructions(
         "4. End with an open question about how the athlete felt\n"
         "Your opening message may be up to 40 words and 3 sentences.\n"
         "After the opening, return to the normal limit of 25 words / 2 sentences.\n\n"
+        "CRITICAL — Workout type awareness:\n"
+        "The athlete CHOSE this workout type before starting. Tailor ALL feedback to it.\n"
+        "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.).\n"
+        "NEVER guess what the athlete did physically — only reference the workout label and the data below.\n"
+        "If the label says 'Easy Run', talk about pace, breathing, and aerobic base.\n"
+        "If the label says 'Intervals', talk about work/rest ratio, intensity peaks, and recovery.\n"
+        "If the label says 'Workout', keep it general to cardio effort and heart rate zones.\n"
+        "Refer to the workout ONLY by its label. Do not invent activity details.\n\n"
         "Only reference data explicitly present in the summary below. "
-        "NEVER mention specific exercises (squats, lunges, push-ups, etc.) unless the workout label explicitly names them. "
-        "The workout types are running-based (Easy Run, Intervals, Workout). Refer to the workout by its label only. "
-        "Do not invent movements, exercises, or effort types not mentioned in the summary. "
         "Always cite specific numbers when available (score, duration, heart rate, zone %). "
         "Never give generic advice when specific workout data exists in the summary. "
         "After your opening message, keep responses under 2 sentences and never exceed 25 words per reply. "

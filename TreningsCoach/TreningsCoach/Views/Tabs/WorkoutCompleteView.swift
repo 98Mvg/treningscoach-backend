@@ -32,7 +32,7 @@ struct WorkoutCompleteView: View {
     @State private var particlesDone = false
     @State private var particles: [SummaryParticle] = SummaryParticle.make()
     @State private var liveCoachVM: LiveCoachConversationViewModel? = nil
-    @State private var inlineCoachActive = false
+    // inlineCoachActive removed — voice coach lives inside WorkoutSummarySheet
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -100,9 +100,9 @@ struct WorkoutCompleteView: View {
             ? "Velg hvor du vil dele kortet ditt."
             : "Choose where you want to share your card."
     }
-    private var liveCoachVoiceLabel: String { L10n.current == .no ? "Treningsoversikt" : "Workout Summary" }
+    // liveCoachVoiceLabel removed — replaced by seeWorkoutButton
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
-    private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }
+    // shouldShowLiveCoachVoiceButton removed — voice coach lives inside WorkoutSummarySheet
     private var hasLiveVoiceAccountAccess: Bool {
         authManager.hasUsableSession()
     }
@@ -187,27 +187,15 @@ struct WorkoutCompleteView: View {
 
                     Spacer()
 
-                    // Inline voice coach area
-                    if inlineCoachActive, let vm = liveCoachVM {
-                        inlineVoiceCoachArea(vm: vm)
-                            .padding(.horizontal, 30)
-                            .padding(.bottom, 8)
-                            .opacity(contentVisible ? 1 : 0)
-                    }
-
-                    if shouldShowLiveCoachVoiceButton && !inlineCoachActive {
-                        talkToCoachButton
-                            .padding(.horizontal, 30)
-                            .padding(.bottom, 8)
-                            .opacity(contentVisible ? 1 : 0)
-                    }
+                    // Primary CTA — "See Workout" opens summary sheet (voice coach inside)
+                    seeWorkoutButton
+                        .padding(.horizontal, 30)
+                        .padding(.bottom, 8)
+                        .opacity(contentVisible ? 1 : 0)
 
                     // Secondary actions row
                     VStack(spacing: 6) {
                         HStack(spacing: 14) {
-                            if !inlineCoachActive {
-                                workoutSummaryTextButton
-                            }
                             doneButton
                             shareButton
                         }
@@ -366,28 +354,15 @@ struct WorkoutCompleteView: View {
         }
     }
 
-    private var talkToCoachButton: some View {
+    // Primary CTA: opens workout summary sheet (voice coach lives inside)
+    private var seeWorkoutButton: some View {
         Button {
-            let metadata = viewModel.postWorkoutSummaryContext.telemetryMetadata()
-            Task {
-                _ = await BackendAPIService.shared.trackVoiceTelemetry(
-                    event: "voice_cta_tapped",
-                    metadata: metadata
-                )
-            }
-            if liveVoiceIsAvailable {
-                inlineCoachActive = true
-                if let vm = liveCoachVM {
-                    Task { await vm.startIfNeeded() }
-                }
-            } else if !hasLiveVoiceAccountAccess {
-                showLiveVoicePaywall = true
-            }
+            showWorkoutSummary = true
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "mic.fill")
+                Image(systemName: "list.bullet.rectangle.portrait")
                     .font(.system(size: 16, weight: .semibold))
-                Text(L10n.current == .no ? "Snakk med Coach" : "Talk to Coach")
+                Text(L10n.current == .no ? "Se treningsøkt" : "See Workout")
                     .font(.system(size: 17, weight: .bold))
             }
             .foregroundColor(.white)
@@ -395,56 +370,10 @@ struct WorkoutCompleteView: View {
             .frame(height: 56)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(liveVoiceIsAvailable ? Color(hex: "1B7A8E") : Color.white.opacity(0.22))
+                    .fill(Color(hex: "1B7A8E"))
             )
         }
         .buttonStyle(.plain)
-    }
-
-    private var workoutSummaryTextButton: some View {
-        Button {
-            showWorkoutSummary = true
-        } label: {
-            Text(liveCoachVoiceLabel)
-                .font(.system(size: 13, weight: .medium))
-                .tracking(0.8)
-                .foregroundColor(Color.white.opacity(0.82))
-                .frame(width: actionButtonWidth, height: 42)
-                .background(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.white.opacity(0.08))
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private func inlineVoiceCoachArea(vm: LiveCoachConversationViewModel) -> some View {
-        VStack(spacing: 12) {
-            // Waveform + status
-            WaveformBarsView(service: vm.service, isNorwegian: L10n.current == .no)
-
-            // End conversation button
-            Button {
-                Task { await vm.disconnect() }
-                inlineCoachActive = false
-            } label: {
-                Text(L10n.current == .no ? "Avslutt" : "End")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.white.opacity(0.75))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule(style: .continuous)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     private var liveVoiceStatusText: String {
