@@ -618,3 +618,27 @@ Updated: 2026-03-17
   - the view still reuses the same existing `PhoneWCManager` and onboarding button logic
 - Simplified [HeartRateMonitorsView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) by removing the redundant top instruction card, `Sounds good!` button, and helper line from the screenshots. The screen now goes straight into the Live / History monitor list.
 - Updated [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py) to lock the new profile-watch layout contract and the removal of the extra top copy.
+
+## Review — 2026-03-17 Apple Watch stability + WorkoutSummarySheet polish
+
+- Kept the single existing runtime path and improved the current watch/sheet flow only. No parallel watch-connect system, no duplicate summary flow, and no second button architecture were introduced.
+- Apple Watch startup stability on the existing path:
+  - [PhoneWCManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/PhoneWCManager.swift) now keeps `updateApplicationContext` as the required backup path and treats `sendMessage` failure as transport degradation instead of an immediate workout-start failure.
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) now uses a `12.0s` watch ACK window, stops forcing a stop message on timeout fallback, and accepts a matching late `workout_started` ACK on the same request id so a phone-started workout can be upgraded into the watch-backed session without restarting the workout.
+  - [WatchWorkoutManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/WatchWorkoutManager.swift) still sends live HR over `sendMessage`, but now reuses the existing throttled `transferUserInfo` fallback when `sendMessage` errors mid-workout.
+- Watch disconnect notice stability on the existing backend path:
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) now gates `watch_disconnected_notice` and `watch_restored_notice` on real watch availability transitions, instead of treating any temporary `FULL_HR -> fallback` downgrade as a watch disconnect.
+- WorkoutSummarySheet polish on the existing post-workout surface:
+  - [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) now uses one shared `SummarySurfaceButtonStyle` for `Get Feedback`, `Talk to Coach`, `End Conversation`, `HOME`, and `SHARE`.
+  - The summary sheet uses adaptive `CoachiTheme` colors for the live coach state, fixes the washed-out light/dark mode issue, constrains the content into a lifted Coachi insight card, and keeps the current sheet/detent flow intact.
+  - XP is now a temporary celebration only: the XP badge, outer XP ring, and XP pill last about `1.5s`, then the persistent result settles on Coachi Score. Persistent XP rows were removed from the summary sheet.
+- Updated source contracts in:
+  - [test_watch_connectivity_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_watch_connectivity_contract.py)
+  - [test_watch_request_id_correlation_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_watch_request_id_correlation_contract.py)
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_coach_score_visual_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_coach_score_visual_contract.py)
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_watch_connectivity_contract.py tests_phaseb/test_watch_request_id_correlation_contract.py tests_phaseb/test_zone_event_motor.py tests_phaseb/test_coach_score_visual_contract.py tests_phaseb/test_live_voice_mode_contract.py` -> `67 passed`
+  - `python3 -m py_compile zone_event_motor.py` -> `passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

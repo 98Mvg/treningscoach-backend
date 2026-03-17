@@ -72,9 +72,11 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "@EnvironmentObject var appViewModel: AppViewModel" in text
     assert "Text(\"COACH SCORE\")" in text
     assert '@State private var finalBPMText = "0 BPM"' in text
+    assert "@State private var xpCelebrationFinished = false" in text
     assert "private var shareSummaryText: String {" in text
     assert "private var summaryProgressAward: CoachiProgressAward? {" in text
     assert "private var xpAwardForSummary: Int {" in text
+    assert "private var showXPCelebration: Bool {" in text
     assert "viewModel.completedWorkoutSnapshot?.coachiProgressAward ?? viewModel.lastCoachiProgressAward" in text
     assert "private var summaryLevelLabel: String {" in text
     assert "private var summaryXPProgress: Double {" in text
@@ -82,19 +84,24 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "private var summaryXPLineText: String {" in text
     assert 'finalDurationText = viewModel.completedWorkoutSnapshot?.durationText ?? viewModel.elapsedFormatted' in text
     assert 'finalBPMText = viewModel.completedWorkoutSnapshot?.finalHeartRateText ?? viewModel.watchBPMDisplayText' in text
-    assert "showsOuterXPRing: true" in text
+    assert "xpCelebrationFinished = true" in text
+    assert "try? await Task.sleep(nanoseconds: 1_500_000_000)" in text
+    assert "showsOuterXPRing: showXPCelebration" in text
     assert "levelColor: CoachiTheme.success" in text
     assert "animateFromOne: false" in text
     assert "fullSweepBeforeSettling: false" in text
-    assert "animateXPAward: xpAwardForSummary > 0" in text
+    assert "animateXPAward: showXPCelebration" in text
     assert "levelLabel: summaryLevelLabel" in text
-    assert "xpProgress: summaryXPProgress" in text
+    assert "xpProgress: showXPCelebration ? summaryXPProgress : nil" in text
     assert "xpAnimationFrom: summaryProgressAward?.xpProgressBeforeFraction" in text
     assert "xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction" in text
     assert "scoreRingView(ringSize: ringSize)" in text
     assert "summaryProgressPills" in text
     assert 'title: L10n.streak' in text
     assert 'title: "XP"' in text
+    assert "if showXPCelebration {" in text
+    assert "XP Gained" not in text
+    assert "XP to Next Level" not in text
     assert "progressHighlightsCard" not in text
     assert "I finished \\(workoutLabel) with Coachi." in text
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
@@ -108,6 +115,9 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert 'shareButton(label: "X"' in text
     assert 'shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
     assert "WorkoutSummaryShareCardView(" in text
+    assert "SummarySurfaceButtonStyle(variant: .primary)" in text
+    assert "SummarySurfaceButtonStyle(variant: .utility)" in text
+    assert "SummarySurfaceButtonStyle(variant: .outline)" in text
     assert "showProgressToast" not in text
     assert "trainingLevelDisplayName" not in text
     assert "levelProgressFraction" not in text

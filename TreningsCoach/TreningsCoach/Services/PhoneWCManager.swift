@@ -102,10 +102,16 @@ final class PhoneWCManager: NSObject, ObservableObject {
 
         switch watchCapabilityState {
         case .watchReady:
-            try? session.updateApplicationContext(payload)
+            do {
+                try session.updateApplicationContext(payload)
+            } catch {
+                return .failed(error.localizedDescription)
+            }
             session.sendMessage(payload, replyHandler: nil) { error in
                 Task { @MainActor in
-                    self.onWorkoutStartFailed?(error.localizedDescription, timestamp, requestID)
+                    print(
+                        "WATCH_START_TRANSPORT_DEGRADED request_id=\(requestID) transport=message error=\(error.localizedDescription)"
+                    )
                 }
             }
             return .liveRequestSent

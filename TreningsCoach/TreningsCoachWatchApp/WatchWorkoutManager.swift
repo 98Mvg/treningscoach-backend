@@ -252,12 +252,16 @@ extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
 
             if WCSession.default.isReachable {
                 print("WATCH_HR_SEND transport=message bpm=\(roundedBPM)")
-                WCSession.default.sendMessage(payload, replyHandler: nil, errorHandler: nil)
-            } else if self.shouldQueueFallbackHeartRatePayload(bpm: roundedBPM, at: sampleDate) {
-                print("WATCH_HR_SEND transport=userInfo bpm=\(roundedBPM)")
-                WCSession.default.transferUserInfo(payload)
-                self.lastQueuedHRTransferAt = sampleDate
-                self.lastQueuedHRBPM = roundedBPM
+                WCSession.default.sendMessage(payload, replyHandler: nil) { error in
+                    Task { @MainActor in
+                        print(
+                            "WATCH_HR_SEND_FAILED transport=message bpm=\(roundedBPM) error=\(error.localizedDescription)"
+                        )
+                        self.queueFallbackHeartRatePayload(payload, bpm: roundedBPM, at: sampleDate)
+                    }
+                }
+            } else {
+                self.queueFallbackHeartRatePayload(payload, bpm: roundedBPM, at: sampleDate)
             }
         }
     }
@@ -277,5 +281,13 @@ extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
 
         guard let lastQueuedHRBPM else { return true }
         return abs(bpm - lastQueuedHRBPM) >= queuedHRTransferMinDeltaBPM
+    }
+
+    private func queueFallbackHeartRatePayload(_ payload: [String: Any], bpm: Int, at sampleDate: Date) {
+        guard shouldQueueFallbackHeartRatePayload(bpm: bpm, at: sampleDate) else { return }
+        print("WATCH_HR_SEND transport=userInfo bpm=\(bpm)")
+        WCSession.default.transferUserInfo(payload)
+        lastQueuedHRTransferAt = sampleDate
+        lastQueuedHRBPM = bpm
     }
 }

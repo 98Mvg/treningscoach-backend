@@ -47,13 +47,22 @@ def test_watch_ack_fail_stop_payloads_include_request_id() -> None:
     assert "WCKeys.Command.workoutStopped" in text
 
 
-def test_view_model_accepts_watch_start_ack_only_for_matching_pending_request_id() -> None:
+def test_view_model_accepts_pending_ack_and_matching_late_ack_for_same_request_id() -> None:
     text = WORKOUT_VM.read_text(encoding="utf-8")
+    ack_section = text.split("private func handleWatchWorkoutStartedAck(")[1].split(
+        "private func handleWatchWorkoutStartFailed("
+    )[0]
     assert "private var pendingWatchRequestId: String?" in text
     assert "private var activeWatchRequestId: String?" in text
     assert "private var isPendingWatchStartDeferred = false" in text
     assert "private var didRetryPendingWatchStartAfterReachability = false" in text
-    assert "guard requestID == pendingWatchRequestId else { return }" in text
+    assert "guard requestID == pendingWatchRequestId else { return }" in ack_section
+    assert "guard requestID == activeWatchRequestId else { return }" in ack_section
+    assert "guard isContinuousMode else { return }" in ack_section
+    assert "guard !isWatchBackedContinuousSession else { return }" in ack_section
+    assert "adoptWatchBackedSession(" in ack_section
+    assert "WATCH_ACK request_id=\\(requestID) status=late_started" in ack_section
+    assert "guard isWaitingForWatchStart else { return }" not in ack_section
     assert "guard let pendingTimestamp = pendingWatchRequestTimestamp" not in text
 
 

@@ -45,8 +45,13 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert ".sheet(isPresented: $showWorkoutSummary)" in text
     assert ".sheet(isPresented: $showLiveVoicePaywall)" in text
     assert "liveVoiceStatusText" in text
+    assert "private var sheetCardMaxWidth: CGFloat { 430 }" in text
+    assert "private var summaryCardBackground: some View {" in text
+    assert 'Text(isNorwegian ? "Coachi innsikt" : "Coachi Insight")' in text
+    assert 'Text(isNorwegian ? "Coachi samtale" : "Coachi Conversation")' in text
+    assert "SummarySurfaceButtonStyle(" in text
+    assert ".background(summaryCardBackground)" in text
     assert ".frame(height: 44)" in text
-    assert "RoundedRectangle(cornerRadius: 16, style: .continuous)" in text
     assert "PaywallView(context: .liveVoice)" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
     assert 'Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")' in text

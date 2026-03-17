@@ -592,6 +592,7 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     state.setdefault("notice_watch_disconnected_sent", False)
     state.setdefault("notice_no_sensors_sent", False)
     state.setdefault("notice_watch_restored_sent", False)
+    state.setdefault("watch_disconnect_pending_restore", False)
     state.setdefault("countdown_fired_map", {})
     state.setdefault("session_finished", False)
     state.setdefault("main_started_emitted", False)
@@ -1205,6 +1206,8 @@ def _resolve_sensor_mode(
     breath_reliable: bool,
     movement_available: bool,
     elapsed_seconds: int,
+    watch_connected: Optional[bool],
+    watch_status: Optional[str],
     config_module,
 ) -> List[str]:
     events: List[str] = []
@@ -1256,14 +1259,22 @@ def _resolve_sensor_mode(
                 state["sensor_mode"] = desired
                 state["sensor_mode_candidate"] = desired
                 state["sensor_mode_candidate_since"] = float(elapsed_seconds)
+                watch_state = (watch_status or "").strip().lower()
+                watch_starting = watch_state == "watch_starting"
+                watch_unavailable = (
+                    (watch_connected is False and not watch_starting)
+                    or watch_state in {"disconnected", "workout_not_running", "not_worn", "no_permission"}
+                )
 
                 if (
                     previous_mode == "FULL_HR"
                     and desired in {"BREATH_FALLBACK", "NO_SENSORS"}
+                    and watch_unavailable
                     and not bool(state.get("notice_watch_disconnected_sent"))
                 ):
                     events.append("watch_disconnected_notice")
                     state["notice_watch_disconnected_sent"] = True
+                    state["watch_disconnect_pending_restore"] = True
 
                 if (
                     desired == "NO_SENSORS"
@@ -1276,10 +1287,12 @@ def _resolve_sensor_mode(
                 if (
                     previous_mode != "FULL_HR"
                     and desired == "FULL_HR"
+                    and bool(state.get("watch_disconnect_pending_restore"))
                     and not bool(state.get("notice_watch_restored_sent"))
                 ):
                     events.append("watch_restored_notice")
                     state["notice_watch_restored_sent"] = True
+                    state["watch_disconnect_pending_restore"] = False
     else:
         state["sensor_mode_candidate"] = current_mode
         state["sensor_mode_candidate_since"] = float(elapsed_seconds)
@@ -2559,6 +2572,8 @@ def evaluate_zone_tick(
         breath_reliable=breath_reliable,
         movement_available=movement_available,
         elapsed_seconds=int(elapsed_seconds),
+        watch_connected=_safe_bool(watch_connected),
+        watch_status=(str(watch_status).strip().lower() if watch_status is not None else None),
         config_module=config_module,
     )
     sensor_mode = str(state.get("sensor_mode") or "NO_SENSORS")

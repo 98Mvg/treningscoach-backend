@@ -1248,7 +1248,7 @@ class WorkoutViewModel: ObservableObject {
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
     private var watchLaunchTask: Task<Void, Never>?
-    private let watchStartAckTimeoutSeconds: TimeInterval = 5.0
+    private let watchStartAckTimeoutSeconds: TimeInterval = 12.0
     private var latestMovementSampleDate: Date?
     private var latestMovementSource: String = "none"
     private let eventSpeechCollisionWindowSeconds: TimeInterval = 2.0
@@ -2455,12 +2455,6 @@ class WorkoutViewModel: ObservableObject {
                 self.isWatchBackedContinuousSession = false
                 self.pendingWatchRequestTimestamp = nil
                 self.pendingWatchRequestId = nil
-                if self.phoneWCManager.canUseWatchTransport {
-                    self.phoneWCManager.sendWorkoutStopped(
-                        timestamp: Date().timeIntervalSince1970,
-                        requestID: requestID
-                    )
-                }
                 self.watchStartStatusLine = self.currentLanguage == "no"
                     ? "Ingen svar fra Watch. Starter på iPhone."
                     : "No Watch response. Starting on iPhone."
@@ -2525,17 +2519,34 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func handleWatchWorkoutStartedAck(workoutType _: String, timestamp _: TimeInterval, requestID: String) {
-        guard isWaitingForWatchStart else { return }
         guard !requestID.isEmpty else { return }
-        guard requestID == pendingWatchRequestId else { return }
+        if isWaitingForWatchStart {
+            guard requestID == pendingWatchRequestId else { return }
 
-        clearWatchStartPendingState()
-        isWatchBackedContinuousSession = true
-        watchStartStatusLine = currentLanguage == "no"
-            ? "Watch startet økten."
-            : "Workout started on Watch."
-        print("WATCH_ACK request_id=\(requestID) status=started")
-        startContinuousWorkoutInternal()
+            adoptWatchBackedSession(
+                requestID: requestID,
+                statusLine: currentLanguage == "no"
+                    ? "Watch startet økten."
+                    : "Workout started on Watch.",
+                graceReason: "watch_start_ack"
+            )
+            print("WATCH_ACK request_id=\(requestID) status=started")
+            startContinuousWorkoutInternal()
+            return
+        }
+
+        guard requestID == activeWatchRequestId else { return }
+        guard isContinuousMode else { return }
+        guard !isWatchBackedContinuousSession else { return }
+
+        adoptWatchBackedSession(
+            requestID: requestID,
+            statusLine: currentLanguage == "no"
+                ? "Watch koblet seg til økten."
+                : "Watch joined the workout.",
+            graceReason: "late_watch_start_ack"
+        )
+        print("WATCH_ACK request_id=\(requestID) status=late_started")
     }
 
     private func handleWatchWorkoutStartFailed(error: String, timestamp _: TimeInterval, requestID: String) {
@@ -2563,6 +2574,19 @@ class WorkoutViewModel: ObservableObject {
         print("WATCH_ACK request_id=\(requestID) status=stopped")
         if isContinuousMode {
             stopWorkout(notifyWatch: false)
+        }
+    }
+
+    private func adoptWatchBackedSession(requestID: String, statusLine: String, graceReason: String) {
+        clearWatchStartPendingState()
+        activeWatchRequestId = requestID
+        isWatchBackedContinuousSession = true
+        latestWatchStatusForBackend = "watch_starting"
+        watchStartStatusLine = statusLine
+        beginWatchHRStartupGrace(reason: graceReason)
+        if phoneWCManager.isReachable {
+            watchWasPreviouslyConnected = true
+            stopWatchReconnectionTimer()
         }
     }
 

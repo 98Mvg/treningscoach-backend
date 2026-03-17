@@ -143,6 +143,175 @@ def test_watch_starting_allows_structure_notice_after_grace_expires() -> None:
     assert "hr_structure_mode_notice" in later_events
 
 
+def test_attached_watch_hr_dip_does_not_emit_disconnect_or_restore_notices() -> None:
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=True,
+            watch_status="no_live_hr",
+            breath_signal_quality=None,
+        )
+    )
+
+    dipped = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=True,
+            watch_status="no_live_hr",
+            breath_signal_quality=None,
+        )
+    )
+    dipped_events = [item.get("event_type") for item in dipped.get("events", []) if isinstance(item, dict)]
+    assert dipped["sensor_mode"] in {"BREATH_FALLBACK", "NO_SENSORS"}
+    assert "watch_disconnected_notice" not in dipped_events
+    assert state["zone_engine"]["watch_disconnect_pending_restore"] is False
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=16,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=19,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    restored = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=22,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+    restored_events = [item.get("event_type") for item in restored.get("events", []) if isinstance(item, dict)]
+    assert restored["sensor_mode"] == "FULL_HR"
+    assert "watch_restored_notice" not in restored_events
+    assert state["zone_engine"]["watch_disconnect_pending_restore"] is False
+
+
+def test_real_watch_disconnect_emits_restore_only_after_recovery() -> None:
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=9,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+
+    disconnected = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=13,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    disconnected_events = [item.get("event_type") for item in disconnected.get("events", []) if isinstance(item, dict)]
+    assert disconnected["sensor_mode"] in {"BREATH_FALLBACK", "NO_SENSORS"}
+    assert "watch_disconnected_notice" not in disconnected_events
+    assert state["zone_engine"]["watch_disconnect_pending_restore"] is True
+    assert state["zone_engine"]["notice_watch_disconnected_sent"] is True
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=16,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=19,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+
+    restored = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=22,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+            breath_signal_quality=None,
+        )
+    )
+    restored_events = [item.get("event_type") for item in restored.get("events", []) if isinstance(item, dict)]
+    assert restored["sensor_mode"] == "FULL_HR"
+    assert "watch_restored_notice" in restored_events
+    assert state["zone_engine"]["watch_disconnect_pending_restore"] is False
+
+
 def test_style_matrix_blocks_too_frequent_corrective_cues():
     state = {}
 

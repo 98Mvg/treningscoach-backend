@@ -33,6 +33,7 @@ def test_wc_keys_define_required_commands_on_both_sides() -> None:
 
 def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     text = PHONE_WC.read_text(encoding="utf-8")
+    watch_ready_section = text.split("case .watchReady:")[1].split("case .watchInstalledNotReachable:")[0]
     assert "enum WatchCapabilityState: String" in text
     assert "enum WatchLaunchOutcome: Equatable" in text
     assert "case noWatchSupport" in text
@@ -58,7 +59,10 @@ def test_phone_wc_manager_uses_dual_delivery_path() -> None:
     assert "private let healthStore = HKHealthStore()" in text
     assert "func launchWatchAppForWorkout(workoutType: String) async -> WatchLaunchOutcome" in text
     assert "try await healthStore.startWatchApp(toHandle: configuration)" in text
-    assert "case .watchReady:\n            try? session.updateApplicationContext(payload)\n            session.sendMessage(payload" in text
+    assert "try session.updateApplicationContext(payload)" in watch_ready_section
+    assert "session.sendMessage(payload, replyHandler: nil)" in watch_ready_section
+    assert "WATCH_START_TRANSPORT_DEGRADED request_id=" in watch_ready_section
+    assert "onWorkoutStartFailed?" not in watch_ready_section
 
 
 def test_phone_wc_manager_activates_once_after_callbacks_are_wired() -> None:
@@ -72,13 +76,16 @@ def test_phone_wc_manager_activates_once_after_callbacks_are_wired() -> None:
 
 def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     text = WORKOUT_VM.read_text(encoding="utf-8")
+    timeout_section = text.split("private func scheduleWatchStartAckTimeout(")[1].split(
+        "private func requestSystemWatchLaunch("
+    )[0]
     assert "@Published var isWaitingForWatchStart: Bool = false" in text
     assert "private var pendingWatchRequestTimestamp: TimeInterval?" in text
     assert "private var pendingWatchRequestId: String?" in text
     assert "private var activeWatchRequestId: String?" in text
     assert "private var isWatchBackedContinuousSession = false" in text
     assert "private var watchLaunchTask: Task<Void, Never>?" in text
-    assert "private let watchStartAckTimeoutSeconds: TimeInterval = 5.0" in text
+    assert "private let watchStartAckTimeoutSeconds: TimeInterval = 12.0" in text
     assert "requestWatchStartOrFallback()" in text
     assert "requestSystemWatchLaunch(workoutType: workoutType, requestID: requestID)" in text
     assert "scheduleWatchStartAckTimeout(requestTimestamp:" in text
@@ -86,8 +93,13 @@ def test_workout_view_model_has_watch_gated_start_and_ack_handlers() -> None:
     assert "handleWatchWorkoutStartFailed(error:" in text
     assert "handleWatchWorkoutStopped(timestamp:" in text
     assert "guard requestID == pendingWatchRequestId else { return }" in text
+    assert "guard requestID == activeWatchRequestId else { return }" in text
+    assert "guard isContinuousMode else { return }" in text
     assert "guard isWatchBackedContinuousSession," in text
-    assert "self.phoneWCManager.sendWorkoutStopped(" in text
+    assert "adoptWatchBackedSession(" in text
+    assert "status=late_started" in text
+    assert "self.startContinuousWorkoutInternal()" in timeout_section
+    assert "self.phoneWCManager.sendWorkoutStopped(" not in timeout_section
     assert "func startWorkout()" in text
     assert "func startWorkout() {\n        activeSessionPlan = buildSessionPlanFromSelections()" in text
     assert "watchStartStatusLine = launchAuthRequirementText" not in text
@@ -128,4 +140,6 @@ def test_watch_workout_ack_and_failure_semantics() -> None:
     assert "WCKeys.requestId: requestID ?? \"\"" in text
     assert "WCSession.default.transferUserInfo(payload)" in text
     assert "private func shouldQueueFallbackHeartRatePayload(bpm: Int, at sampleDate: Date) -> Bool" in text
+    assert "WATCH_HR_SEND_FAILED transport=message" in text
+    assert "self.queueFallbackHeartRatePayload(payload, bpm: roundedBPM, at: sampleDate)" in text
     assert "private let queuedHRTransferIntervalSeconds: TimeInterval = 2.0" in text
