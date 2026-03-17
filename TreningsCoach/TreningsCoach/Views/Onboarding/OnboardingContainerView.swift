@@ -273,7 +273,7 @@ struct OnboardingContainerView: View {
                     AuthView(mode: authMode) {
                         if authMode == .login {
                             // Returning user — skip profile setup and go straight to main app.
-                            let displayName = authManager.currentUser?.displayName ?? ""
+                            let displayName = authManager.currentUser?.resolvedDisplayName ?? ""
                             appViewModel.completeOnboardingForReturningUser(
                                 displayName: displayName,
                                 languageCode: L10n.current.rawValue

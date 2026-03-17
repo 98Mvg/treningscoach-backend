@@ -34,12 +34,13 @@ PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbx
 def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating() -> None:
     text = WORKOUT_COMPLETE.read_text(encoding="utf-8")
     assert "@EnvironmentObject var authManager: AuthManager" in text
-    assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "Snakk med Coach Live" : "Talk to Coach Live" }' in text
+    assert 'private var liveCoachVoiceLabel: String { L10n.current == .no ? "Treningsoversikt" : "Workout Summary" }' in text
     assert "private var shouldShowLiveCoachVoiceButton: Bool { AppConfig.LiveVoice.isEnabled }" in text
     assert "private var hasLiveVoiceAccountAccess: Bool {" in text
     assert "authManager.hasUsableSession()" in text
     assert "LiveVoiceSessionTracker.shared" in text
-    assert "liveVoiceTracker.sessionsUsedToday" in text
+    assert "liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess)" in text
+    assert "liveVoiceTracker.canStart(isPremium: hasPremiumAccess)" in text
     assert "liveVoiceTracker.synchronize()" in text
     assert "showLiveVoicePaywall = true" in text
     assert ".sheet(isPresented: $showLiveCoachVoice)" in text
@@ -49,7 +50,8 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert ".frame(height: 44)" in text
     assert "RoundedRectangle(cornerRadius: 16, style: .continuous)" in text
     assert "PaywallView(context: .liveVoice)" in text
-    assert "authManager.currentUser?.displayName ?? appViewModel.userProfile.name" in text
+    assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
+    assert 'Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")' in text
     assert "liveVoiceTracker.recordSession()" not in text
 
 
@@ -139,7 +141,7 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     text = XAI_VOICE_HELPER.read_text(encoding="utf-8")
     assert "Use the just-finished workout summary first." in text
     assert "sanitize_workout_history_context" in text
-    assert "full-history aggregates and recent workout entries" in text
+    assert "You may also reference the workout history overview for pattern, progress, and consistency questions." in text
     assert "Do not claim to remember prior conversations" in text
     assert "sanitize_post_workout_summary_context" in text
     assert "conversation_history" not in text
@@ -150,9 +152,9 @@ def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     assert "struct LiveVoice" in config_text
     assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)' in config_text
-    assert "static let freeMaxDurationSeconds: Int = 120" in config_text
-    assert "static let premiumMaxDurationSeconds: Int = 300" in config_text
-    assert "static let freeSessionsPerDay: Int = 3" in config_text
+    assert "static let freeMaxDurationSeconds: Int = 60" in config_text
+    assert "static let premiumMaxDurationSeconds: Int = 180" in config_text
+    assert "static let freeSessionsPerDay: Int = 1" in config_text
     assert "struct Share" in config_text
     assert 'static let coachiWebsiteURLString = "https://coachi.app"' in config_text
     assert 'static let instagramStoriesScheme = "instagram-stories://share"' in config_text

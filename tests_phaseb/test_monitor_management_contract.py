@@ -161,6 +161,7 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "_category = State(initialValue: Self.defaultCategory(isNorwegian: isNorwegian))" in text
     assert "if accountStatus.isEmpty || !accountStatusOptions.contains(accountStatus)" in text
     assert "if category.isEmpty || !categoryOptions.contains(category)" in text
+    assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:

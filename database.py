@@ -136,6 +136,7 @@ class User(db.Model):
             "id": self.id,
             "email": self.email,
             "display_name": self.display_name,
+            "profile_name": self.profile.name if self.profile is not None else None,
             "avatar_url": self.avatar_url,
             "auth_provider": self.auth_provider,
             "language": self.language,

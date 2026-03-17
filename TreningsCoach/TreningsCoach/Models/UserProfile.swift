@@ -79,6 +79,7 @@ struct UserProfile: Codable {
     let id: String
     let email: String
     var displayName: String?
+    var profileName: String?
     var avatarURL: String?
     var language: AppLanguage
     var trainingLevel: TrainingLevel
@@ -88,6 +89,7 @@ struct UserProfile: Codable {
     enum CodingKeys: String, CodingKey {
         case id, email
         case displayName = "display_name"
+        case profileName = "profile_name"
         case avatarURL = "avatar_url"
         case language
         case trainingLevel = "training_level"
@@ -95,11 +97,19 @@ struct UserProfile: Codable {
         case subscriptionTier = "subscription_tier"
     }
 
+    var resolvedDisplayName: String? {
+        let candidates = [profileName, displayName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return candidates.first
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         email = try container.decode(String.self, forKey: .email)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        profileName = try container.decodeIfPresent(String.self, forKey: .profileName)
         avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL)
 
         let langString = try container.decodeIfPresent(String.self, forKey: .language) ?? "en"

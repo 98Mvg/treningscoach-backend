@@ -93,6 +93,7 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "authMode = .register" in text
     assert "authMode = .login" in text
     assert "AuthView(mode: authMode)" in text
+    assert "authManager.currentUser?.resolvedDisplayName ?? \"\"" in text
     assert "move(to: .identity)" in text
     assert "} onContinueWithoutAccount: {" in text
     assert "onBack: { move(to: .auth) }" in text
@@ -129,6 +130,12 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
 def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:
     text = _app_viewmodel_text()
     assert "func completeOnboarding(profile: OnboardingProfileDraft)" in text
+    assert "func completeOnboardingForReturningUser(displayName: String, languageCode: String)" in text
+    assert 'defaults.string(forKey: "user_first_name")' in text
+    assert 'defaults.string(forKey: "user_last_name")' in text
+    assert 'defaults.string(forKey: "user_display_name")' in text
+    assert "let preferredDisplayName = [storedCombinedName, storedDisplayName, incomingDisplayName]" in text
+    assert 'defaults.set(preferredDisplayName, forKey: "user_display_name")' in text
     assert 'defaults.set(profile.hrMax, forKey: "hr_max")' in text
     assert 'defaults.set(profile.restingHR, forKey: "resting_hr")' in text
     assert 'defaults.set(profile.age, forKey: "user_age")' in text

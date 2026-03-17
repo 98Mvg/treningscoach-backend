@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Coachi Watch</string>
+	<string>Coachi</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>We read heart rate during workouts to coach you live.</string>
 	<key>WKBackgroundModes</key>

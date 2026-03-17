@@ -219,6 +219,18 @@ Updated: 2026-03-16
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
   - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
 
+## Review — 2026-03-17 returning-user name persistence fix
+
+- Fixed the returning-user auth/onboarding path so existing users keep the real onboarding name instead of falling back to a random auth-provider `display_name`.
+- Backend `/auth/me` now includes `profile_name` from `user_profiles.name` in [database.py](/Users/mariusgaarder/Documents/treningscoach/database.py), and the Swift auth model in [UserProfile.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/UserProfile.swift) now exposes `resolvedDisplayName` that prefers `profile_name` over `display_name`.
+- Centralized authenticated profile hydration in [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) so successful login/profile refresh persists `user_first_name`, `user_last_name`, and `user_display_name` from the backend profile when available, while refusing to overwrite a good stored onboarding name with a weaker fallback.
+- Updated the existing runtime callsites in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift), [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift), and [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) to read `resolvedDisplayName` on the same path instead of introducing a second name source.
+- Verification:
+  - `pytest -q tests_phaseb/test_ios_auth_refresh_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_voice_session_contract.py` -> `46 passed`
+  - `python3 scripts/generate_codebase_guide.py` -> `[OK] Wrote CODEBASE_GUIDE.md`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
 ## Review — 2026-03-16 onboarding Premium bridge
 
 - Added a new onboarding Premium bridge in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so non-premium users now see a Coachi-specific Premium explainer before notification permissions.
@@ -330,3 +342,14 @@ Updated: 2026-03-16
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
   - `python3 -m py_compile zone_event_motor.py` -> passed
   - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 Apple Watch branding in iPhone Watch app
+
+- Updated the watch target display name in [TreningsCoachWatchApp/Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Info.plist) from `Coachi Watch` to `Coachi`, so the iPhone Watch app shows the same product name as the main app.
+- Reused the existing centered Coachi iPhone app icon for the watch target by replacing [TreningsCoachWatchApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png) with the current Coachi-branded logo treatment from the iPhone asset catalog, instead of keeping the cropped watch-only variant.
+- Kept the current single watch target/runtime path intact: no bundle identifiers, target names, asset-catalog structure, or watch connectivity behavior were changed.
+- Verification:
+  - `plutil -p TreningsCoach/TreningsCoachWatchApp/Info.plist` -> `CFBundleDisplayName => Coachi`
+  - `shasum TreningsCoach/TreningsCoach/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png TreningsCoach/TreningsCoachWatchApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png` -> hashes match, so the watch icon now reuses the same Coachi logo asset as iPhone
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -showBuildSettings -target TreningsCoachWatchApp | rg "ASSETCATALOG_COMPILER_APPICON_NAME|INFOPLIST_FILE|PRODUCT_BUNDLE_IDENTIFIER"` -> watch target still resolves `AppIcon`, `TreningsCoachWatchApp/Info.plist`, and `com.coachi.app.watchapp`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> blocked by an existing unrelated compile error in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift), after the watch asset/plist steps already resolved correctly

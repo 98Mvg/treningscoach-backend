@@ -101,6 +101,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         hasConnectedSession = false
         assistantDraftID = nil
 
+        print("🎙️ [XAIVoice] start() — requesting mic permission")
         micState = .requestingPermission
         let microphoneGranted = await ensureMicrophonePermission()
         guard microphoneGranted else {
@@ -125,22 +126,26 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
                 )
             }
 
+            print("🎙️ [XAIVoice] createLiveVoiceSession — calling /voice/session")
             let bootstrap = try await apiService.createLiveVoiceSession(
                 summaryContext: summaryContext,
                 language: languageCode,
                 userName: userName
             )
+            print("🎙️ [XAIVoice] session bootstrap OK — voiceSessionId=\(bootstrap.voiceSessionId) voice=\(bootstrap.voice)")
             self.sessionBootstrap = bootstrap
             self.voiceSessionId = bootstrap.voiceSessionId
 
             try configureAudioSession()
             try preparePlaybackGraphIfNeeded()
+            print("🎙️ [XAIVoice] openRealtimeSocket")
             try openRealtimeSocket(using: bootstrap)
             try await sendSessionUpdate(bootstrap.sessionUpdateJSON)
             try startAudioCapture()
 
             hasConnectedSession = true
             connectionState = .connected
+            print("🎙️ [XAIVoice] connected ✅")
             micState = .capturing
             try await sendInitialAssistantKickoff()
             startupTimeoutTask?.cancel()
@@ -175,8 +180,10 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
                     : "You've used today's free sessions. Come back tomorrow!"
             )
         } catch let apiError as APIError {
+            print("🔴 [XAIVoice] APIError: \(apiError.localizedDescription)")
             await handleFailure(apiError.localizedDescription)
         } catch {
+            print("🔴 [XAIVoice] Error: \(error.localizedDescription)")
             await handleFailure(error.localizedDescription)
         }
     }
@@ -545,6 +552,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     }
 
     private func handleFailure(_ message: String) async {
+        print("🔴 [XAIVoice] handleFailure: \(message)")
         cleanupRealtimeRuntime()
         lastErrorMessage = message
         appendSystemMessage(message)

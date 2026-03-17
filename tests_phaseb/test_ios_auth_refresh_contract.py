@@ -26,6 +26,8 @@ def test_auth_response_supports_refresh_token_bundle_fields() -> None:
     assert 'case refreshToken = "refresh_token"' in text
     assert 'case expiresIn = "expires_in"' in text
     assert 'case refreshExpiresIn = "refresh_expires_in"' in text
+    assert 'case profileName = "profile_name"' in text
+    assert "var resolvedDisplayName: String?" in text
     assert "var resolvedAccessToken: String {" in text
 
 
@@ -51,6 +53,14 @@ def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     assert 'AUTH_PROFILE_UPDATE stale_session=true status=404 action=sign_out' in text
     assert 'AUTH_SIGN_OUT action=guest_mode' in text
     assert 'AUTH_SUCCESS session_established=true' in text
+    assert "applyAuthenticatedProfile(response.user)" in text
+    assert "applyAuthenticatedProfile(profileResponse.user)" in text
+    assert "private func applyAuthenticatedProfile(_ user: UserProfile)" in text
+    assert "private func persistIdentityDefaults(from user: UserProfile)" in text
+    assert "private func persistResolvedName(_ fullName: String, defaults: UserDefaults = .standard)" in text
+    assert 'defaults.set(trimmed, forKey: "user_display_name")' in text
+    assert 'defaults.set(first, forKey: "user_first_name")' in text
+    assert 'defaults.set(parts.dropFirst().joined(separator: " "), forKey: "user_last_name")' in text
     assert "signOut()" in text
     assert 'UserDefaults.standard.removeObject(forKey: "has_completed_onboarding")' not in text
 

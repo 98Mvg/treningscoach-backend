@@ -663,11 +663,7 @@ class AuthManager: ObservableObject {
         saveTokenBundle(response)
 
         // Update state
-        currentUser = response.user
-        isAuthenticated = true
-
-        // Sync language
-        L10n.set(response.user.language)
+        applyAuthenticatedProfile(response.user)
 
         // First-time Spotify prompt after account creation/sign-in (one-time per install)
         let defaults = UserDefaults.standard
@@ -701,9 +697,56 @@ class AuthManager: ObservableObject {
 
     private func updateProfileFromResponseData(_ data: Data) throws {
         let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
-        currentUser = profileResponse.user
+        applyAuthenticatedProfile(profileResponse.user)
+    }
+
+    private func applyAuthenticatedProfile(_ user: UserProfile) {
+        currentUser = user
         isAuthenticated = hasUsableSession()
-        L10n.set(profileResponse.user.language)
+        L10n.set(user.language)
+        persistIdentityDefaults(from: user)
+    }
+
+    private func persistIdentityDefaults(from user: UserProfile) {
+        let defaults = UserDefaults.standard
+        let existingFirst = defaults.string(forKey: "user_first_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let existingLast = defaults.string(forKey: "user_last_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let existingDisplayName = defaults.string(forKey: "user_display_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let existingCombined = [existingFirst, existingLast]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        if let profileName = user.profileName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !profileName.isEmpty {
+            persistResolvedName(profileName, defaults: defaults)
+            return
+        }
+
+        guard existingCombined.isEmpty, existingDisplayName.isEmpty,
+              let displayName = user.displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !displayName.isEmpty else {
+            return
+        }
+
+        persistResolvedName(displayName, defaults: defaults)
+    }
+
+    private func persistResolvedName(_ fullName: String, defaults: UserDefaults = .standard) {
+        let trimmed = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        defaults.set(trimmed, forKey: "user_display_name")
+        let parts = trimmed
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .map(String.init)
+
+        if let first = parts.first {
+            defaults.set(first, forKey: "user_first_name")
+            defaults.set(parts.dropFirst().joined(separator: " "), forKey: "user_last_name")
+        }
     }
 
     private func saveTokenBundle(_ response: AuthResponse) {

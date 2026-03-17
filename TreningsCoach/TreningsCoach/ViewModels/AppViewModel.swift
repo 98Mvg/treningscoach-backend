@@ -409,9 +409,31 @@ class AppViewModel: ObservableObject {
     /// Any existing backend profile data is re-synced in the background after the transition.
     func completeOnboardingForReturningUser(displayName: String, languageCode: String) {
         let defaults = UserDefaults.standard
-        if !displayName.isEmpty {
-            userName = displayName
-            defaults.set(displayName, forKey: "user_display_name")
+        let storedFirst = defaults.string(forKey: "user_first_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storedLast = defaults.string(forKey: "user_last_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storedCombinedName = [storedFirst, storedLast]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let storedDisplayName = defaults.string(forKey: "user_display_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let incomingDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preferredDisplayName = [storedCombinedName, storedDisplayName, incomingDisplayName]
+            .first(where: { !$0.isEmpty }) ?? ""
+
+        if !preferredDisplayName.isEmpty {
+            userName = preferredDisplayName
+            defaults.set(preferredDisplayName, forKey: "user_display_name")
+            if storedCombinedName.isEmpty {
+                let parts = preferredDisplayName
+                    .split(separator: " ", omittingEmptySubsequences: true)
+                    .map(String.init)
+                if let first = parts.first {
+                    defaults.set(first, forKey: "user_first_name")
+                    defaults.set(parts.dropFirst().joined(separator: " "), forKey: "user_last_name")
+                }
+            }
         }
         if !languageCode.isEmpty {
             self.languageCode = languageCode
