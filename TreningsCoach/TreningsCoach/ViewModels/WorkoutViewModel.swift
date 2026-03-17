@@ -1885,6 +1885,10 @@ class WorkoutViewModel: ObservableObject {
             return 94
         case "interval_countdown_30":
             return 93
+        case "interval_countdown_halfway":
+            return 92
+        case "interval_countdown_session_halfway":
+            return 91
         case "warmup_started", "main_started", "cooldown_started", "workout_finished":
             return 90
         case "pause_detected":
@@ -1959,6 +1963,10 @@ class WorkoutViewModel: ObservableObject {
             return "zone.countdown.5"
         case "interval_countdown_start":
             return "zone.countdown.start"
+        case "interval_countdown_halfway":
+            return "zone.countdown.halfway.dynamic"
+        case "interval_countdown_session_halfway":
+            return "zone.countdown.session_halfway.dynamic"
         case "max_silence_override":
             if phase == "work" {
                 return "zone.silence.work.1"
@@ -3676,8 +3684,9 @@ class WorkoutViewModel: ObservableObject {
         let language = normalizedLanguageCode(currentLanguage)
         let resolvedEventType = eventType ?? "unknown"
         let personaKey = activeAudioPersonaKey
+        let shouldBypassLocalPack = (utteranceID?.hasSuffix(".dynamic") == true)
 
-        if let utteranceID {
+        if let utteranceID, !shouldBypassLocalPack {
             if isLocalPackAllowed(for: utteranceID) {
                 if let localURL = localPackFileURL(for: utteranceID, language: language, personaKey: personaKey) {
                     print("🔊 Resolving audio source: cached_local_pack utterance=\(utteranceID) event=\(resolvedEventType)")
@@ -3723,6 +3732,8 @@ class WorkoutViewModel: ObservableObject {
             } else {
                 print("🔇 PACK_SUPPRESSED persona=personal_trainer utterance=\(utteranceID)")
             }
+        } else if let utteranceID, shouldBypassLocalPack {
+            print("🔊 PACK_BYPASS utterance=\(utteranceID) event=\(resolvedEventType) reason=dynamic_phrase")
         }
 
         guard allowBackendTTSFallback, let audioURL else {

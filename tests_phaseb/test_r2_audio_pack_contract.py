@@ -52,6 +52,12 @@ def test_workout_event_router_is_local_first_not_audio_url_gated():
     assert "downloadAudioPackFileIfNeeded(" in content
 
 
+def test_dynamic_countdown_phrase_ids_bypass_local_pack_and_use_backend_tts():
+    content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
+    assert 'utteranceID?.hasSuffix(".dynamic") == true' in content
+    assert 'reason=dynamic_phrase' in content
+
+
 def test_workout_event_mapping_uses_phrase_catalog_ids():
     content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
     expected_ids = [
@@ -66,6 +72,8 @@ def test_workout_event_mapping_uses_phrase_catalog_ids():
         "zone.countdown.15",
         "zone.countdown.5",
         "zone.countdown.start",
+        "zone.countdown.halfway.dynamic",
+        "zone.countdown.session_halfway.dynamic",
         "zone.hr_poor_timing.1",
         "zone.structure.work.1",
         "zone.structure.recovery.1",

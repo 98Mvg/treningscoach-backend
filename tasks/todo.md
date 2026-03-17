@@ -378,3 +378,58 @@ Updated: 2026-03-16
   - `pytest -q tests_phaseb/test_ios_continuous_auth_guard_contract.py tests_phaseb/test_ios_auth_refresh_contract.py` -> `13 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
   - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 V2 phrase curation workflow
+
+- Added category-first phrase-curation support on the existing V2 review path instead of creating a third workflow:
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) now exposes explicit curation categories for `instruction` and `context_progress`, filtered down to current active rows only.
+  - [tools/phrase_catalog_editor.py](/Users/mariusgaarder/Documents/treningscoach/tools/phrase_catalog_editor.py) now exports category-first curation artifacts under `output/phrase_curation/` as:
+    - human-readable Markdown with current active phrases only
+    - structured JSON working files with `keep` / `edit` / `add_variant`
+  - The same editor now imports those JSON files back into [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py), where:
+    - `edit` updates the existing `ReviewSeed`
+    - `add_variant` appends a new `future` seed with the next family/event-specific variant id
+- Kept pack/runtime behavior unchanged:
+  - [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) still keys off approved active review rows only
+  - candidate queue remains a side tool and was not merged into the runtime V2 curation path
+- Added/updated tests in:
+  - [tests_phaseb/test_phrase_catalog_editor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_editor.py)
+  - [tests_phaseb/test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py)
+  - [tests_phaseb/test_generate_audio_pack_sample_and_latest.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_generate_audio_pack_sample_and_latest.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_phrase_catalog_editor.py tests_phaseb/test_phrase_catalog_v2_review.py tests_phaseb/test_generate_audio_pack_sample_and_latest.py` -> `52 passed`
+  - `python3 -m py_compile phrase_review_v2.py tools/phrase_catalog_editor.py` -> passed
+  - `python3 tools/phrase_catalog_editor.py export-v2-curation --category instruction --output-dir /tmp/phrase_curation_smoke` -> wrote markdown + JSON
+  - `python3 tools/phrase_catalog_editor.py import-v2-curation --json /private/tmp/phrase_curation_smoke/instruction_working_edited.json` -> dry-run showed `1` edit + `1` addition with no repo write
+
+## Review — 2026-03-17 Halfway countdown integration
+
+- Added halfway countdown support on the existing deterministic zone-event path instead of creating a second timing/coaching path:
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) now emits:
+    - `interval_countdown_halfway` for timed warmup, interval work, and timed easy-run main segments
+    - `interval_countdown_session_halfway` once per interval main block
+  - `30 seconds left` still wins when it collides with halfway, so 60-second warmups keep the existing `interval_countdown_30` behavior and suppress a duplicate halfway cue.
+- Kept the runtime split explicit:
+  - segment halfway uses the same deterministic countdown family and progress catalog
+  - interval-session halfway uses dynamic text on the same path so the coach can say progress like `2 of 4 done`
+- Updated iOS routing in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift):
+  - new priorities for halfway events
+  - `.dynamic` countdown phrase IDs now bypass local pack resolution and intentionally use backend TTS, so dynamic interval progress is spoken correctly instead of falling back to static pack audio
+- Updated/added source-contract tests in:
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+  - [test_workout_cue_catalog_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_cue_catalog_contract.py)
+  - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_zone_event_motor.py tests_phaseb/test_canonical_event_contract.py tests_phaseb/test_workout_cue_catalog_contract.py tests_phaseb/test_r2_audio_pack_contract.py` -> `81 passed`
+  - `python3 -m py_compile zone_event_motor.py workout_cue_catalog.py` -> passed
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 Halfway countdown copy simplification
+
+- Kept the new halfway event ids and `.dynamic` routing, but simplified both spoken variants to the same temporary copy approved by the user:
+  - EN: `You are halfway through`
+  - NO: `Du er halvveis nå.`
+- Deferred richer session-progress wording like `2/4 done` without undoing the session-halfway event itself, so future copy iteration can stay on the same deterministic countdown path.
+- Re-locked the wording in [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py) and [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py).

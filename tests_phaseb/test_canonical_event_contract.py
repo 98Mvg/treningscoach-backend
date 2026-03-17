@@ -287,6 +287,8 @@ def test_resolve_countdowns():
     assert _resolve_phrase_id("interval_countdown_15", "work") == "zone.countdown.15"
     assert _resolve_phrase_id("interval_countdown_5", "work") == "zone.countdown.5"
     assert _resolve_phrase_id("interval_countdown_start", "work") == "zone.countdown.start"
+    assert _resolve_phrase_id("interval_countdown_halfway", "work") == "zone.countdown.halfway.dynamic"
+    assert _resolve_phrase_id("interval_countdown_session_halfway", "work") == "zone.countdown.session_halfway.dynamic"
 
 
 def test_resolve_max_silence_override_by_phase():
@@ -342,6 +344,8 @@ def test_requested_norwegian_zone_fallback_copy():
     assert _event_text(event_type="interval_countdown_15", language="no", style="normal", target_low=None, target_high=None, segment="work") == "15"
     assert _event_text(event_type="interval_countdown_5", language="no", style="normal", target_low=None, target_high=None, segment="work") == "fem"
     assert _event_text(event_type="interval_countdown_start", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Start"
+    assert _event_text(event_type="interval_countdown_halfway", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Du er halvveis nå."
+    assert _event_text(event_type="interval_countdown_session_halfway", language="no", style="normal", target_low=None, target_high=None, segment="work", workout_context_summary={"reps_total": 4}) == "Du er halvveis nå."
     assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Nå er du i hoveddelen."
     assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Forbered deg på økten."
     assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."

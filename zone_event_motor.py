@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -214,6 +215,8 @@ def _event_priority(event_type: str) -> int:
         "interval_countdown_5": 95,
         "interval_countdown_15": 94,
         "interval_countdown_30": 93,
+        "interval_countdown_halfway": 92,
+        "interval_countdown_session_halfway": 91,
 
         # Tier B — phase transitions
         "warmup_started": 90,
@@ -325,6 +328,8 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
         "interval_countdown_15": "zone.countdown.15",
         "interval_countdown_5": "zone.countdown.5",
         "interval_countdown_start": "zone.countdown.start",
+        "interval_countdown_halfway": "zone.countdown.halfway.dynamic",
+        "interval_countdown_session_halfway": "zone.countdown.session_halfway.dynamic",
         "pause_detected": "zone.pause.detected.1",
         "pause_resumed": "zone.pause.resumed.1",
         "hr_structure_mode_notice": "zone.hr_poor_timing.1",
@@ -1253,6 +1258,25 @@ def _countdown_thresholds(recovery_seconds: int) -> List[int]:
     return [30, 15, 5, 0]
 
 
+def _segment_halfway_remaining_threshold(total_seconds: Optional[int]) -> Optional[int]:
+    total = _safe_int(total_seconds)
+    if total is None or total <= 1:
+        return None
+    return max(0, total // 2)
+
+
+def _interval_session_halfway_text(
+    *,
+    language: str,
+    workout_context_summary: Optional[Dict[str, Any]],
+) -> str:
+    _ = workout_context_summary
+    lang = (language or "en").strip().lower()
+    if lang == "no":
+        return "Du er halvveis nå."
+    return "You are halfway through"
+
+
 def _evaluate_hr_quality(
     *,
     hr_bpm: Optional[int],
@@ -2165,6 +2189,7 @@ def _event_text(
     target_low: Optional[int],
     target_high: Optional[int],
     segment: str,
+    workout_context_summary: Optional[Dict[str, Any]] = None,
 ) -> str:
     lang = "no" if language == "no" else "en"
     tone = style
@@ -2213,6 +2238,15 @@ def _event_text(
 
     if event_type == "interval_countdown_start":
         return "Start" if lang == "no" else "Go"
+
+    if event_type == "interval_countdown_halfway":
+        return "Du er halvveis nå." if lang == "no" else "You are halfway through"
+
+    if event_type == "interval_countdown_session_halfway":
+        return _interval_session_halfway_text(
+            language=lang,
+            workout_context_summary=workout_context_summary,
+        )
 
     if event_type == "main_started":
         if lang == "no":
@@ -2489,6 +2523,12 @@ def evaluate_zone_tick(
         request_phase=phase,
         segment=str(target.get("segment", "")),
     )
+    workout_context_summary = _build_workout_context_summary(
+        workout_type=canonical_workout_type,
+        phase=canonical_phase,
+        elapsed_seconds=int(elapsed_seconds),
+        target=target,
+    )
 
     phase_events: List[str] = []
     if int(state.get("phase_id", 0)) <= 0:
@@ -2686,6 +2726,90 @@ def evaluate_zone_tick(
                         phase_id,
                         remaining,
                     )
+
+    if not pause_flag:
+        fired = state.setdefault("countdown_fired_map", {})
+        phase_id = int(state.get("phase_id", 1))
+
+        halfway_phase_key: Optional[str] = None
+        halfway_total_seconds: Optional[int] = None
+        halfway_remaining_seconds: Optional[int] = None
+
+        if canonical_phase == "warmup" and target.get("segment_remaining_seconds") is not None:
+            halfway_phase_key = "warmup"
+            halfway_total_seconds = _safe_int(target.get("warmup_seconds"))
+            halfway_remaining_seconds = int(max(0, target.get("segment_remaining_seconds") or 0))
+        elif canonical_workout_type == "intervals" and canonical_phase == "work" and target.get("segment_remaining_seconds") is not None:
+            halfway_phase_key = "work"
+            halfway_total_seconds = _safe_int(target.get("work_seconds"))
+            halfway_remaining_seconds = int(max(0, target.get("segment_remaining_seconds") or 0))
+        elif canonical_workout_type == "easy_run" and canonical_phase == "main" and target.get("segment_remaining_seconds") is not None:
+            halfway_phase_key = "main"
+            elapsed_segment = _safe_int(target.get("segment_elapsed_seconds"))
+            remaining_segment = _safe_int(target.get("segment_remaining_seconds"))
+            if elapsed_segment is not None and remaining_segment is not None:
+                halfway_total_seconds = max(0, int(elapsed_segment) + int(remaining_segment))
+                halfway_remaining_seconds = int(max(0, remaining_segment))
+
+        halfway_threshold = _segment_halfway_remaining_threshold(halfway_total_seconds)
+        if (
+            halfway_phase_key is not None
+            and halfway_threshold is not None
+            and halfway_remaining_seconds is not None
+        ):
+            event_key = f"{phase_id}:{halfway_phase_key}:countdown_halfway"
+            if halfway_remaining_seconds <= halfway_threshold and not bool(fired.get(event_key)):
+                if "interval_countdown_30" not in event_types:
+                    event_types.append("interval_countdown_halfway")
+                    logger.info(
+                        "COUNTDOWN_EMIT phase=%s threshold=halfway phase_id=%s remaining=%s total=%s",
+                        halfway_phase_key,
+                        phase_id,
+                        halfway_remaining_seconds,
+                        halfway_total_seconds,
+                    )
+                else:
+                    logger.info(
+                        "COUNTDOWN_SUPPRESS phase=%s threshold=halfway reason=countdown_30 phase_id=%s remaining=%s total=%s",
+                        halfway_phase_key,
+                        phase_id,
+                        halfway_remaining_seconds,
+                        halfway_total_seconds,
+                    )
+                fired[event_key] = True
+
+        if canonical_workout_type == "intervals" and canonical_phase in {"work", "recovery"}:
+            warmup_seconds_total = _safe_int(target.get("warmup_seconds")) or 0
+            work_seconds_total = _safe_int(target.get("work_seconds")) or 0
+            rest_seconds_total = _safe_int(target.get("rest_seconds")) or 0
+            reps_total = _safe_int(target.get("reps")) or 0
+            cycle_seconds = max(0, work_seconds_total + rest_seconds_total)
+            main_set_total_seconds = max(0, reps_total * cycle_seconds)
+            main_set_elapsed_seconds = max(0, int(elapsed_seconds) - warmup_seconds_total)
+            main_set_elapsed_seconds = min(main_set_total_seconds, main_set_elapsed_seconds)
+            main_halfway_threshold = int(math.ceil(float(main_set_total_seconds) / 2.0)) if main_set_total_seconds > 0 else None
+            event_key = "session:countdown_session_halfway"
+            if (
+                main_halfway_threshold is not None
+                and main_set_elapsed_seconds >= main_halfway_threshold
+                and not bool(fired.get(event_key))
+            ):
+                if "interval_countdown_30" not in event_types:
+                    event_types.append("interval_countdown_session_halfway")
+                    logger.info(
+                        "COUNTDOWN_EMIT phase=interval_session threshold=halfway elapsed=%s total=%s reps=%s",
+                        main_set_elapsed_seconds,
+                        main_set_total_seconds,
+                        reps_total,
+                    )
+                else:
+                    logger.info(
+                        "COUNTDOWN_SUPPRESS phase=interval_session threshold=halfway reason=countdown_30 elapsed=%s total=%s reps=%s",
+                        main_set_elapsed_seconds,
+                        main_set_total_seconds,
+                        reps_total,
+                    )
+                fired[event_key] = True
 
     if not pause_flag and target_enforced and hr_ok_for_zone_events and sensor_mode == "FULL_HR":
         if transition_event == "above_zone":
@@ -2919,6 +3043,7 @@ def evaluate_zone_tick(
             target_low=target.get("target_low"),
             target_high=target.get("target_high"),
             segment=str(target.get("segment", "")),
+            workout_context_summary=workout_context_summary,
         )
         if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
             pending_structure_phrase_id = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(primary_event, canonical_phase)
@@ -2933,6 +3058,7 @@ def evaluate_zone_tick(
                 target_low=target.get("target_low"),
                 target_high=target.get("target_high"),
                 segment=str(target.get("segment", "")),
+                workout_context_summary=workout_context_summary,
             )
         if not coach_text:
             # Motivation events use phrase_id-based cached audio on iOS.
@@ -2948,6 +3074,7 @@ def evaluate_zone_tick(
         target_low=target.get("target_low"),
         target_high=target.get("target_high"),
         segment=str(target.get("segment", "")),
+        workout_context_summary=workout_context_summary,
     )
 
     zone_duration_seconds = None
@@ -2982,12 +3109,6 @@ def evaluate_zone_tick(
     )
     remaining_phase_seconds = _safe_int(target.get("segment_remaining_seconds"))
     phase_id_value = int(state.get("phase_id", 1))
-    workout_context_summary = _build_workout_context_summary(
-        workout_type=canonical_workout_type,
-        phase=canonical_phase,
-        elapsed_seconds=int(elapsed_seconds),
-        target=target,
-    )
     now_ts = time.time()
     event_payload_base = {
         "session_id": session_identifier,
@@ -3075,6 +3196,7 @@ def evaluate_zone_tick(
                 target_low=target.get("target_low"),
                 target_high=target.get("target_high"),
                 segment=str(target.get("segment", "")),
+                workout_context_summary=workout_context_summary,
             )
             if fallback_priority > 0 and fallback_phrase and fallback_text:
                 primary_event = fallback_event

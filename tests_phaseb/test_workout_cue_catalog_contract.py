@@ -24,6 +24,7 @@ def test_phrase_catalog_maps_representative_ids_to_four_catalogs():
     assert get_workout_cue_catalog("zone.hr_poor_timing.1") == "context"
     assert get_workout_cue_catalog("zone.main_started.1") == "context"
     assert get_workout_cue_catalog("zone.countdown.15") == "progress"
+    assert get_workout_cue_catalog("zone.countdown.halfway.dynamic") == "progress"
     assert get_workout_cue_catalog("zone.workout_finished.1") == "progress"
     assert get_workout_cue_catalog("interval.motivate.s3.1") == "motivation"
     assert get_workout_cue_catalog("easy_run.motivate.s4.2") == "motivation"
@@ -60,6 +61,8 @@ def test_event_catalogs_match_runtime_contract():
     assert get_event_catalog("max_silence_motivation") == "motivation"
     assert get_event_catalog("warmup_started") == "context"
     assert get_event_catalog("interval_countdown_start") == "progress"
+    assert get_event_catalog("interval_countdown_halfway") == "progress"
+    assert get_event_catalog("interval_countdown_session_halfway") == "progress"
 
 
 def test_all_active_deterministic_workout_phrases_meet_catalog_word_caps():

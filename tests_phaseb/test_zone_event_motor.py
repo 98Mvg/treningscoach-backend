@@ -1185,6 +1185,112 @@ def test_easy_run_warmup_countdown_uses_workout_state_warmup_seconds_without_kwa
     assert "interval_countdown_30" in events_30
 
 
+def test_warmup_halfway_is_suppressed_when_it_collides_with_30_seconds_left():
+    state = {}
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="warmup",
+            warmup_seconds=60,
+            elapsed_seconds=30,
+            heart_rate=135,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_30" in events
+    assert "interval_countdown_halfway" not in events
+
+
+def test_interval_work_halfway_emits_once_for_long_work_segments():
+    state = {}
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=720,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_halfway" in events
+
+    later = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=730,
+            heart_rate=146,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    later_events = [item.get("event_type") for item in later.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_halfway" not in later_events
+
+
+def test_easy_run_main_halfway_emits_once_for_timed_main_segment():
+    state = {
+        "plan_warmup_s": 0,
+        "plan_main_s": 3600,
+        "plan_cooldown_s": 0,
+    }
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=1800,
+            heart_rate=140,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_halfway" in events
+
+
+def test_interval_session_halfway_emits_dynamic_progress_text():
+    state = {
+        "plan_warmup_s": 0,
+        "plan_interval_work_s": 240,
+        "plan_interval_recovery_s": 180,
+        "plan_interval_repeats": 4,
+        "plan_cooldown_s": 0,
+    }
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=840,
+            heart_rate=145,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_session_halfway" in events
+    assert tick["event_type"] == "interval_countdown_session_halfway"
+    assert tick["phrase_id"] == "zone.countdown.session_halfway.dynamic"
+    assert tick["coach_text"] == "You are halfway through"
+
+
 def test_countdown_fired_keys_are_namespaced_by_phase_kind():
     state = {
         "phase_id": 7,

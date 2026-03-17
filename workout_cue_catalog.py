@@ -131,6 +131,8 @@ def get_event_catalog(event_type: str) -> Optional[str]:
         "interval_countdown_15",
         "interval_countdown_5",
         "interval_countdown_start",
+        "interval_countdown_halfway",
+        "interval_countdown_session_halfway",
         "workout_finished",
     }:
         return "progress"
