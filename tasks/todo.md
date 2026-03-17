@@ -231,6 +231,14 @@ Updated: 2026-03-16
   - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 
+## Review — 2026-03-17 watch app list branding correction
+
+- Kept the watch target display name as `Coachi` in [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Info.plist), which is the field that controls the iPhone Watch app list label.
+- Reverted the watch target icon catalog in [AppIcon.appiconset](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Assets.xcassets/AppIcon.appiconset) back to the older per-size watch assets after the user clarified the icon on Apple Watch was already visually correct and only the `Coachi Watch` label needed fixing.
+- Verification:
+  - `plutil -p TreningsCoach/TreningsCoachWatchApp/Info.plist` -> `CFBundleDisplayName = Coachi`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
 ## Review — 2026-03-16 onboarding Premium bridge
 
 - Added a new onboarding Premium bridge in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so non-premium users now see a Coachi-specific Premium explainer before notification permissions.
