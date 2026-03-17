@@ -1,11 +1,25 @@
 import os
+import pytest
 import re
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import auth
 import main
+
+
+def _auth_headers(user_id: str | None = None) -> dict:
+    resolved_user_id = user_id or f"talk_context_user_{uuid.uuid4().hex}"
+    token = auth.create_jwt(resolved_user_id, f"{resolved_user_id}@example.com")
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def _disable_talk_rate_limits(monkeypatch):
+    monkeypatch.setattr(main, "_enforce_coach_talk_rate_limits", lambda **kwargs: None)
 
 
 def test_workout_talk_never_claims_hr_when_hr_is_invalid(monkeypatch, tmp_path):
@@ -49,6 +63,7 @@ def test_workout_talk_never_claims_hr_when_hr_is_invalid(monkeypatch, tmp_path):
                 "target_hr_high": 165,
             },
         },
+        headers=_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -97,6 +112,7 @@ def test_workout_talk_can_reference_hr_when_hr_is_valid(monkeypatch, tmp_path):
                 "target_hr_high": 160,
             },
         },
+        headers=_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -149,6 +165,7 @@ def test_workout_talk_replaces_generic_qa_fallback_with_short_workout_fallback(m
                 "zone_state": "hr_missing",
             },
         },
+        headers=_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -198,6 +215,7 @@ def test_workout_talk_replaces_non_grok_provider_with_short_workout_fallback(mon
                 "zone_state": "hr_missing",
             },
         },
+        headers=_auth_headers(),
     )
 
     assert response.status_code == 200
@@ -210,21 +228,22 @@ def test_workout_talk_replaces_non_grok_provider_with_short_workout_fallback(mon
 def test_workout_talk_uses_session_history_and_recent_zone_events(monkeypatch, tmp_path):
     fake_audio = tmp_path / "talk.wav"
     fake_audio.write_bytes(b"RIFF")
+    user_id = f"talk_context_user_{uuid.uuid4().hex}"
 
     session_id = main.session_manager.create_session(
-        user_id="talk_context_user",
+        user_id=user_id,
         persona="personal_trainer",
     )
     main.session_manager.init_workout_state(session_id, phase="work")
     main.session_manager.add_message(session_id, "user", "How many intervals are left?")
     main.session_manager.add_message(session_id, "assistant", "Two intervals left.")
-    main.session_manager.sessions[session_id]["metadata"]["recent_zone_events"] = [
-        {
-            "event_type": "above_zone",
-            "text": "Ease off a touch.",
-            "timestamp": (datetime.now(timezone.utc) - timedelta(seconds=7)).isoformat(),
-        }
-    ]
+    main._append_recent_zone_event(
+        session_id,
+        {"event_type": "above_zone"},
+        "Ease off a touch.",
+    )
+    # Simulate a request landing on a different worker with an empty local cache.
+    main.session_manager.sessions.clear()
 
     captured = {}
 
@@ -261,6 +280,7 @@ def test_workout_talk_uses_session_history_and_recent_zone_events(monkeypatch, t
                 "zone_state": "hr_missing",
             },
         },
+        headers=_auth_headers(user_id),
     )
 
     assert response.status_code == 200
@@ -284,6 +304,7 @@ def test_workout_talk_fast_falls_back_when_stt_errors(monkeypatch, tmp_path):
         "transcribe_talk_audio",
         lambda filepath, language, timeout_seconds: (None, "stt_error"),
     )
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
 
     def _unexpected_router(*args, **kwargs):
         called["router"] = True
@@ -304,6 +325,7 @@ def test_workout_talk_fast_falls_back_when_stt_errors(monkeypatch, tmp_path):
                 "audio": (audio_handle, "talk.wav"),
             },
             content_type="multipart/form-data",
+            headers=_auth_headers("talk_stt_error_user"),
         )
 
     assert response.status_code == 200
@@ -327,6 +349,7 @@ def test_workout_talk_fast_falls_back_when_stt_is_disabled(monkeypatch, tmp_path
         "transcribe_talk_audio",
         lambda filepath, language, timeout_seconds: (None, "stt_disabled"),
     )
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
 
     def _unexpected_router(*args, **kwargs):
         called["router"] = True
@@ -347,6 +370,7 @@ def test_workout_talk_fast_falls_back_when_stt_is_disabled(monkeypatch, tmp_path
                 "audio": (audio_handle, "talk.wav"),
             },
             content_type="multipart/form-data",
+            headers=_auth_headers("talk_stt_disabled_user"),
         )
 
     assert response.status_code == 200
@@ -370,6 +394,7 @@ def test_workout_talk_fast_falls_back_when_stt_is_quota_limited(monkeypatch, tmp
         "transcribe_talk_audio",
         lambda filepath, language, timeout_seconds: (None, "stt_quota_limited"),
     )
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
 
     def _unexpected_router(*args, **kwargs):
         called["router"] = True
@@ -390,6 +415,7 @@ def test_workout_talk_fast_falls_back_when_stt_is_quota_limited(monkeypatch, tmp
                 "audio": (audio_handle, "talk.wav"),
             },
             content_type="multipart/form-data",
+            headers=_auth_headers("talk_stt_quota_user"),
         )
 
     assert response.status_code == 200
@@ -435,6 +461,7 @@ def test_workout_talk_forces_grok_only_for_button_and_wake_word(monkeypatch, tmp
                 "reps_remaining_including_current": 2,
             },
         },
+        headers=_auth_headers("talk_button_trigger_user"),
     )
 
     assert response.status_code == 200
@@ -453,6 +480,7 @@ def test_workout_talk_forces_grok_only_for_button_and_wake_word(monkeypatch, tmp
                 "reps_remaining_including_current": 1,
             },
         },
+        headers=_auth_headers("talk_wake_trigger_user"),
     )
 
     assert wake_response.status_code == 200

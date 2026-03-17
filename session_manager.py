@@ -3,10 +3,14 @@
 # Manages conversation sessions and message history
 #
 
-from typing import Dict, List, Optional
-from datetime import datetime
-from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from dataclasses import dataclass, asdict
 import json
+
+from flask import has_app_context
+
+from breathing_timeline import BreathingTimeline
 
 
 @dataclass
@@ -150,17 +154,187 @@ class SessionManager:
     - Manage context windows
     """
 
-    def __init__(self, storage_backend="memory"):
+    def __init__(self, storage_backend="memory", app=None):
         """
         Initialize session manager.
 
         Args:
-            storage_backend: "memory" (default), "redis", or "postgres"
+            storage_backend: "memory" (default) or "database"
+            app: Optional Flask app used to resolve a DB engine outside request/app context
         """
-        # For MVP: in-memory storage
-        # For production: Use Redis or PostgreSQL
         self.sessions: Dict[str, Dict] = {}
-        self.storage_backend = storage_backend
+        normalized_backend = str(storage_backend or "memory").strip().lower()
+        self.storage_backend = normalized_backend if normalized_backend in {"memory", "database"} else "memory"
+        self.app = app
+
+    @staticmethod
+    def _utcnow_naive() -> datetime:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    def _uses_database_storage(self) -> bool:
+        return self.storage_backend == "database"
+
+    def _database_bind(self):
+        if not self._uses_database_storage():
+            return None
+
+        from database import db
+
+        def _resolve_bind():
+            try:
+                return db.session.get_bind()
+            except RuntimeError:
+                return None
+
+        if has_app_context():
+            return _resolve_bind()
+
+        if self.app is None:
+            return None
+
+        try:
+            with self.app.app_context():
+                return _resolve_bind()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _normalize_session_id(session_id: str) -> str:
+        return str(session_id or "").strip()
+
+    def _encode_special_types(self, value: Any):
+        if isinstance(value, BreathingTimeline):
+            return {
+                "__type__": "BreathingTimeline",
+                "payload": value.to_dict(),
+            }
+        raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+    def _decode_special_types(self, value: Any):
+        if isinstance(value, list):
+            return [self._decode_special_types(item) for item in value]
+        if isinstance(value, dict):
+            marker = str(value.get("__type__") or "").strip()
+            if marker == "BreathingTimeline":
+                return BreathingTimeline.from_dict(value.get("payload"))
+            return {key: self._decode_special_types(item) for key, item in value.items()}
+        return value
+
+    def _persist_session_record(self, session_id: str, session: Dict) -> None:
+        if not self._uses_database_storage():
+            return
+
+        from database import RuntimeSessionState
+
+        normalized_session_id = self._normalize_session_id(session_id)
+        if not normalized_session_id:
+            return
+
+        now = self._utcnow_naive()
+        payload_json = json.dumps(session, default=self._encode_special_types, ensure_ascii=True)
+        user_id = str(session.get("user_id") or "").strip() or None
+        values = {
+            "session_id": normalized_session_id,
+            "user_id": user_id,
+            "payload_json": payload_json,
+            "created_at": now,
+            "updated_at": now,
+        }
+        table = RuntimeSessionState.__table__
+        bind = self._database_bind()
+        if bind is None:
+            return
+        dialect_name = bind.dialect.name if bind is not None else ""
+
+        try:
+            if dialect_name == "sqlite":
+                from sqlalchemy.dialects.sqlite import insert as dialect_insert
+            elif dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as dialect_insert
+            else:
+                raise RuntimeError("dialect_fallback")
+
+            stmt = dialect_insert(table).values(**values)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["session_id"],
+                set_={
+                    "user_id": user_id,
+                    "payload_json": payload_json,
+                    "updated_at": now,
+                },
+            )
+            with bind.begin() as connection:
+                connection.execute(stmt)
+            return
+        except Exception:
+            pass
+
+        with bind.begin() as connection:
+            updated = connection.execute(
+                table.update()
+                .where(table.c.session_id == normalized_session_id)
+                .values(
+                    user_id=user_id,
+                    payload_json=payload_json,
+                    updated_at=now,
+                )
+            ).rowcount
+            if not updated:
+                connection.execute(table.insert().values(**values))
+
+    def _load_session_record(self, session_id: str) -> Optional[Dict]:
+        if not self._uses_database_storage():
+            return None
+
+        from database import RuntimeSessionState
+        from sqlalchemy import select
+
+        normalized_session_id = self._normalize_session_id(session_id)
+        if not normalized_session_id:
+            return None
+
+        table = RuntimeSessionState.__table__
+        bind = self._database_bind()
+        if bind is None:
+            return self.sessions.get(normalized_session_id)
+        with bind.connect() as connection:
+            row = connection.execute(
+                select(table.c.payload_json).where(table.c.session_id == normalized_session_id)
+            ).first()
+        if row is None:
+            self.sessions.pop(normalized_session_id, None)
+            return None
+
+        try:
+            payload = json.loads(row[0])
+        except (TypeError, json.JSONDecodeError):
+            self.sessions.pop(normalized_session_id, None)
+            return None
+
+        session = self._decode_special_types(payload)
+        if not isinstance(session, dict):
+            self.sessions.pop(normalized_session_id, None)
+            return None
+        self.sessions[normalized_session_id] = session
+        return session
+
+    def save_session(self, session_id: str, session: Dict) -> None:
+        normalized_session_id = self._normalize_session_id(session_id)
+        if not normalized_session_id:
+            return
+        self.sessions[normalized_session_id] = session
+        self._persist_session_record(normalized_session_id, session)
+
+    def save_workout_state(self, session_id: str, workout_state: Optional[Dict]) -> None:
+        session = self.get_session(session_id)
+        if session is None:
+            return
+        if workout_state is None:
+            session.pop("workout_state", None)
+        else:
+            session["workout_state"] = workout_state
+        session["updated_at"] = datetime.now().isoformat()
+        self.save_session(session_id, session)
 
     def create_session(
         self,
@@ -182,7 +356,7 @@ class SessionManager:
         timestamp = int(datetime.now().timestamp())
         session_id = f"session_{user_id}_{timestamp}"
 
-        self.sessions[session_id] = {
+        session = {
             "session_id": session_id,
             "user_id": user_id,
             "persona": persona,
@@ -191,17 +365,23 @@ class SessionManager:
             "updated_at": datetime.now().isoformat(),
             "metadata": metadata or {}
         }
+        self.save_session(session_id, session)
 
         print(f"✅ Created session: {session_id} (persona: {persona})")
         return session_id
 
-    def get_session(self, session_id: str) -> Optional[Dict]:
+    def get_session(self, session_id: str, *, refresh: bool = False) -> Optional[Dict]:
         """Get session data."""
-        return self.sessions.get(session_id)
+        normalized_session_id = self._normalize_session_id(session_id)
+        if not normalized_session_id:
+            return None
+        if self._uses_database_storage() and (refresh or normalized_session_id not in self.sessions):
+            return self._load_session_record(normalized_session_id)
+        return self.sessions.get(normalized_session_id)
 
     def session_exists(self, session_id: str) -> bool:
         """Check if session exists."""
-        return session_id in self.sessions
+        return self.get_session(session_id, refresh=self._uses_database_storage()) is not None
 
     def add_message(
         self,
@@ -217,15 +397,17 @@ class SessionManager:
             role: "user" or "assistant"
             content: Message content
         """
-        if session_id not in self.sessions:
+        session = self.get_session(session_id)
+        if session is None:
             raise ValueError(f"Session {session_id} not found")
 
-        self.sessions[session_id]["messages"].append({
+        session.setdefault("messages", []).append({
             "role": role,
             "content": content,
             "timestamp": datetime.now().isoformat()
         })
-        self.sessions[session_id]["updated_at"] = datetime.now().isoformat()
+        session["updated_at"] = datetime.now().isoformat()
+        self.save_session(session_id, session)
 
     def get_messages(
         self,
@@ -242,10 +424,11 @@ class SessionManager:
         Returns:
             List of messages: [{"role": "user", "content": "..."}, ...]
         """
-        if session_id not in self.sessions:
+        session = self.get_session(session_id, refresh=self._uses_database_storage())
+        if session is None:
             return []
 
-        messages = self.sessions[session_id]["messages"]
+        messages = session.get("messages", [])
 
         if limit:
             messages = messages[-limit:]
@@ -255,21 +438,38 @@ class SessionManager:
 
     def get_persona(self, session_id: str) -> str:
         """Get session persona."""
-        if session_id not in self.sessions:
+        session = self.get_session(session_id, refresh=self._uses_database_storage())
+        if session is None:
             return "personal_trainer"  # Default
-        return self.sessions[session_id].get("persona", "personal_trainer")
+        return session.get("persona", "personal_trainer")
 
     def set_persona(self, session_id: str, persona: str):
         """Change session persona."""
-        if session_id in self.sessions:
-            self.sessions[session_id]["persona"] = persona
-            self.sessions[session_id]["updated_at"] = datetime.now().isoformat()
+        session = self.get_session(session_id)
+        if session is not None:
+            session["persona"] = persona
+            session["updated_at"] = datetime.now().isoformat()
+            self.save_session(session_id, session)
 
     def delete_session(self, session_id: str):
         """Delete session and all messages."""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
-            print(f"🗑️  Deleted session: {session_id}")
+        normalized_session_id = self._normalize_session_id(session_id)
+        if not normalized_session_id:
+            return
+        self.sessions.pop(normalized_session_id, None)
+        if self._uses_database_storage():
+            from database import RuntimeSessionState
+
+            table = RuntimeSessionState.__table__
+            bind = self._database_bind()
+            if bind is None:
+                print(f"🗑️  Deleted session: {normalized_session_id}")
+                return
+            with bind.begin() as connection:
+                connection.execute(
+                    table.delete().where(table.c.session_id == normalized_session_id)
+                )
+        print(f"🗑️  Deleted session: {normalized_session_id}")
 
     def list_sessions(self, user_id: Optional[str] = None) -> List[Dict]:
         """
@@ -281,33 +481,77 @@ class SessionManager:
         Returns:
             List of session summaries
         """
-        sessions = []
-        for session_id, session in self.sessions.items():
-            if user_id and session["user_id"] != user_id:
-                continue
+        if not self._uses_database_storage():
+            sessions = []
+            for session_id, session in self.sessions.items():
+                if user_id and session["user_id"] != user_id:
+                    continue
 
+                sessions.append({
+                    "session_id": session_id,
+                    "user_id": session["user_id"],
+                    "persona": session["persona"],
+                    "message_count": len(session["messages"]),
+                    "created_at": session["created_at"],
+                    "updated_at": session["updated_at"]
+                })
+            return sessions
+
+        from database import RuntimeSessionState
+        from sqlalchemy import select
+
+        table = RuntimeSessionState.__table__
+        stmt = select(table.c.session_id)
+        if user_id:
+            stmt = stmt.where(table.c.user_id == user_id)
+
+        bind = self._database_bind()
+        if bind is None:
+            sessions = []
+            for session_id, session in self.sessions.items():
+                if user_id and session["user_id"] != user_id:
+                    continue
+                sessions.append({
+                    "session_id": session_id,
+                    "user_id": session["user_id"],
+                    "persona": session["persona"],
+                    "message_count": len(session["messages"]),
+                    "created_at": session["created_at"],
+                    "updated_at": session["updated_at"]
+                })
+            return sessions
+        with bind.connect() as connection:
+            session_ids = [row[0] for row in connection.execute(stmt)]
+
+        sessions = []
+        for session_id in session_ids:
+            session = self.get_session(session_id, refresh=True)
+            if session is None:
+                continue
             sessions.append({
                 "session_id": session_id,
-                "user_id": session["user_id"],
-                "persona": session["persona"],
-                "message_count": len(session["messages"]),
-                "created_at": session["created_at"],
-                "updated_at": session["updated_at"]
+                "user_id": session.get("user_id"),
+                "persona": session.get("persona", "personal_trainer"),
+                "message_count": len(session.get("messages", [])),
+                "created_at": session.get("created_at"),
+                "updated_at": session.get("updated_at"),
             })
-
         return sessions
 
     def clear_messages(self, session_id: str):
         """Clear all messages from session but keep session."""
-        if session_id in self.sessions:
-            self.sessions[session_id]["messages"] = []
-            self.sessions[session_id]["updated_at"] = datetime.now().isoformat()
+        session = self.get_session(session_id)
+        if session is not None:
+            session["messages"] = []
+            session["updated_at"] = datetime.now().isoformat()
+            self.save_session(session_id, session)
 
     def export_session(self, session_id: str) -> str:
         """Export session as JSON."""
-        if session_id not in self.sessions:
+        session = self.get_session(session_id, refresh=self._uses_database_storage())
+        if session is None:
             return "{}"
-        return json.dumps(self.sessions[session_id], indent=2)
+        return json.dumps(session, default=self._encode_special_types, indent=2)
 
     # ============================================
     # CONTINUOUS COACHING STATE MANAGEMENT
@@ -322,10 +566,11 @@ class SessionManager:
             phase: Starting phase ("warmup", "intense", "cooldown")
             training_level: User's training level for emotional escalation tuning
         """
-        if session_id not in self.sessions:
+        session = self.get_session(session_id)
+        if session is None:
             raise ValueError(f"Session {session_id} not found")
 
-        self.sessions[session_id]["workout_state"] = {
+        session["workout_state"] = {
             "current_phase": phase,
             "breath_history": [],
             "coaching_history": [],
@@ -344,6 +589,8 @@ class SessionManager:
                 "last_latency_provider": None,
             },
         }
+        session["updated_at"] = datetime.now().isoformat()
+        self.save_session(session_id, session)
 
     def update_workout_state(
         self,
@@ -363,14 +610,18 @@ class SessionManager:
             phase: Updated workout phase
             elapsed_seconds: Total workout time
         """
-        if session_id not in self.sessions:
+        session = self.get_session(session_id)
+        if session is None:
             return
 
         # Initialize if not exists
-        if "workout_state" not in self.sessions[session_id]:
+        if "workout_state" not in session:
             self.init_workout_state(session_id)
+            session = self.get_session(session_id)
+            if session is None:
+                return
 
-        workout_state = self.sessions[session_id]["workout_state"]
+        workout_state = session["workout_state"]
 
         # Update breath history
         if breath_analysis:
@@ -419,7 +670,8 @@ class SessionManager:
         if breath_analysis:
             self._update_emotional_state(session_id, breath_analysis, coaching_output is None)
 
-        self.sessions[session_id]["updated_at"] = datetime.now().isoformat()
+        session["updated_at"] = datetime.now().isoformat()
+        self.save_session(session_id, session)
 
     def _update_emotional_state(
         self,
@@ -432,7 +684,10 @@ class SessionManager:
 
         Determines if user is struggling based on phase-intensity mismatch.
         """
-        workout_state = self.sessions[session_id].get("workout_state", {})
+        session = self.get_session(session_id)
+        if session is None:
+            return
+        workout_state = session.get("workout_state", {})
 
         # Get or create emotional state
         emotional_data = workout_state.get("emotional_state", {})
@@ -497,10 +752,11 @@ class SessionManager:
         Returns:
             Workout state dict or None if not found
         """
-        if session_id not in self.sessions:
+        session = self.get_session(session_id, refresh=self._uses_database_storage())
+        if session is None:
             return None
 
-        return self.sessions[session_id].get("workout_state")
+        return session.get("workout_state")
 
     def get_coaching_context(self, session_id: str) -> Dict:
         """

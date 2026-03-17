@@ -103,6 +103,18 @@ def test_backend_api_service_guards_best_effort_and_primary_requests_during_back
     assert 'catch is BackendAvailabilityError {' in text
 
 
+def test_backend_api_service_uses_matching_paths_for_analyze_and_continuous_requests() -> None:
+    text = API.read_text(encoding="utf-8")
+    analyze_block = text.split("func analyzeAudio(_ audioURL: URL) async throws -> BreathAnalysis {", 1)[1]
+    analyze_block = analyze_block.split("func downloadVoiceAudio(", 1)[0]
+    assert 'path: "/analyze"' in analyze_block
+
+    continuous_block = text.split("func getContinuousCoachFeedback(", 1)[1]
+    continuous_block = continuous_block.split("func talkToCoach(", 1)[0]
+    assert 'path: "/coach/continuous"' in continuous_block
+    assert 'path: "/coach/talk"' not in continuous_block
+
+
 def test_subscription_validation_skips_without_any_auth_material() -> None:
     text = API.read_text(encoding="utf-8")
     assert "private func hasAuthMaterial() -> Bool {" in text

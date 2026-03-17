@@ -315,6 +315,28 @@ class BreathingTimeline:
             "last_cue_time_seconds": last_cue,
         }
 
+    def to_dict(self) -> Dict:
+        """Serialize runtime state for worker-shared session persistence."""
+        return {
+            "last_cue_time": int(self.last_cue_time or 0),
+            "cues_given": int(self.cues_given or 0),
+            "current_phase": str(self.current_phase or "prep"),
+            "prep_safety_given": bool(self.prep_safety_given),
+            "prep_start_time": int(self.prep_start_time or 0),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Optional[Dict]) -> "BreathingTimeline":
+        timeline = cls()
+        if not isinstance(data, dict):
+            return timeline
+        timeline.last_cue_time = int(data.get("last_cue_time") or 0)
+        timeline.cues_given = int(data.get("cues_given") or 0)
+        timeline.current_phase = str(data.get("current_phase") or "prep")
+        timeline.prep_safety_given = bool(data.get("prep_safety_given"))
+        timeline.prep_start_time = int(data.get("prep_start_time") or 0)
+        return timeline
+
     def reset(self):
         """Reset for a new session."""
         self.last_cue_time = 0

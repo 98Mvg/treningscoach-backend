@@ -499,7 +499,7 @@ class BackendAPIService {
 
         let (data, response) = try await performRequestWithBackendAvailability(
             request,
-            path: "/coach/continuous",
+            path: "/analyze",
             useAuthRetry: true
         )
 
@@ -609,7 +609,7 @@ class BackendAPIService {
 
         let (data, response) = try await performRequestWithBackendAvailability(
             request,
-            path: "/coach/talk",
+            path: "/coach/continuous",
             useAuthRetry: true
         )
 

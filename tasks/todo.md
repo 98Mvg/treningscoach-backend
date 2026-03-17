@@ -670,3 +670,28 @@ Updated: 2026-03-17
   - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_audio_pack_manifest_coverage.py tests_phaseb/test_select_core_bundle.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
   - `python3 -m py_compile main.py config.py` -> `passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Risk list fixes: session persistence, trusted identity, iOS path mapping
+
+- Kept the single existing runtime path and reduced the top Phase-1 risks without introducing parallel session or API flows.
+- Backend runtime hardening:
+  - [session_manager.py](/Users/mariusgaarder/Documents/treningscoach/session_manager.py) now supports database-backed session persistence with safe in-memory fallback when no Flask DB bind is available, so worker-local cache misses can recover session state instead of dropping talk/workout context.
+  - [database.py](/Users/mariusgaarder/Documents/treningscoach/database.py) and [20260318_0004_add_runtime_session_states.py](/Users/mariusgaarder/Documents/treningscoach/alembic/versions/20260318_0004_add_runtime_session_states.py) add the `runtime_session_states` table for persisted runtime session payloads.
+  - [breathing_timeline.py](/Users/mariusgaarder/Documents/treningscoach/breathing_timeline.py) now serializes/deserializes timeline state so persisted sessions keep deterministic breathing-timeline context across workers.
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) now instantiates the global `SessionManager` with DB storage, reloads session metadata through the manager instead of raw in-memory dict access, persists recent zone events/timeline updates, and bootstraps missing `/coach/continuous` sessions from authenticated user identity instead of parsing `user_id` out of client-supplied `session_id`.
+- iOS client correctness:
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift) now tags `/analyze` and `/coach/continuous` with their correct backend-availability paths, so request suppression/failure tracking is applied to the right endpoint.
+- Test coverage:
+  - [test_latency_strategy_state.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_latency_strategy_state.py) adds a DB-backed session-manager round-trip test across instances.
+  - [test_profile_runtime_resolution.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_profile_runtime_resolution.py) now verifies that missing-session bootstrap uses authenticated user identity, not a forged `session_id`.
+  - [test_talk_to_coach_runtime_context.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_talk_to_coach_runtime_context.py) now exercises authenticated `/coach/talk` requests and verifies recent zone-event/session-history recovery after local cache loss.
+  - [test_ios_auth_refresh_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_refresh_contract.py) now locks the corrected analyze/continuous path mapping.
+  - [conftest.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/conftest.py) adds shared authenticated-route test support for `/coach/continuous` and `/coach/talk`, plus synthetic-audio signature bypass for tests that intentionally use dummy bytes.
+- Verification:
+  - `pytest -q tests_phaseb/test_latency_strategy_state.py tests_phaseb/test_profile_runtime_resolution.py tests_phaseb/test_talk_to_coach_runtime_context.py tests_phaseb/test_ios_auth_refresh_contract.py tests_phaseb/test_rate_limit_verification.py` -> `37 passed`
+  - `pytest -q tests_phaseb/test_zone_continuous_contract.py tests_phaseb/test_workout_context_summary_contract.py tests_phaseb/test_server_authoritative_clock.py tests_phaseb/test_contract_version_schema.py tests_phaseb/test_zone_llm_phrase_layer.py tests_phaseb/test_phase2_quality_floor.py tests_phaseb/test_persona_event_motor_contract.py` -> `26 passed, 5 failed`
+  - Residual wider-suite failures are stale expectations outside this risk-fix scope:
+    - [test_zone_continuous_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_continuous_contract.py) still expects older `decision_reason` / `breath_quality_state` / max-silence behavior than the current zone-event motor returns
+    - [test_phase2_quality_floor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phase2_quality_floor.py) uses a timeline stub that no longer matches the runtime `BreathingTimeline` interface
+    - [test_persona_event_motor_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_persona_event_motor_contract.py) assumes persona text variance on a path now owned by deterministic zone-event templates
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

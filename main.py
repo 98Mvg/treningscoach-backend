@@ -136,7 +136,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Initialize Brain Router and Managers
 brain_router = BrainRouter()
-session_manager = SessionManager()
+session_manager = SessionManager(storage_backend="database", app=app)
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
 breath_analyzer = BreathAnalyzer(
@@ -750,7 +750,8 @@ def _mobile_rate_limit_subject_from_request() -> str | None:
         or ""
     ).strip()
     if session_id and session_manager.session_exists(session_id):
-        metadata = session_manager.sessions.get(session_id, {}).get("metadata", {})
+        session = session_manager.get_session(session_id, refresh=True) or {}
+        metadata = session.get("metadata", {})
         session_user_id = _coerce_profile_user_id(
             metadata.get("user_profile_id") or metadata.get("user_id")
         )
@@ -771,7 +772,8 @@ def _coach_talk_rate_limit_subject(
 
     normalized_session_id = str(talk_session_id or "").strip()
     if normalized_session_id and session_manager.session_exists(normalized_session_id):
-        metadata = session_manager.sessions.get(normalized_session_id, {}).get("metadata", {})
+        session = session_manager.get_session(normalized_session_id, refresh=True) or {}
+        metadata = session.get("metadata", {})
         session_user_id = _coerce_profile_user_id(
             metadata.get("user_profile_id") or metadata.get("user_id")
         )
@@ -1089,7 +1091,10 @@ def _append_recent_zone_event(session_id: str, zone_tick: dict | None, coach_tex
     if not isinstance(zone_tick, dict):
         return
 
-    metadata = session_manager.sessions.setdefault(normalized_session, {}).setdefault("metadata", {})
+    session = session_manager.get_session(normalized_session)
+    if session is None:
+        return
+    metadata = session.setdefault("metadata", {})
     history = metadata.setdefault("recent_zone_events", [])
     if not isinstance(history, list):
         history = []
@@ -1104,13 +1109,15 @@ def _append_recent_zone_event(session_id: str, zone_tick: dict | None, coach_tex
     )
     max_items = max(1, int(getattr(config, "TALK_RECENT_ZONE_EVENT_LIMIT", 3)))
     metadata["recent_zone_events"] = history[-max_items:]
+    session_manager.save_session(normalized_session, session)
 
 
 def _recent_zone_event_context(session_id: str, limit: int = 3) -> list[dict]:
     normalized_session = str(session_id or "").strip()
     if not normalized_session or not session_manager.session_exists(normalized_session):
         return []
-    metadata = session_manager.sessions.get(normalized_session, {}).get("metadata", {})
+    session = session_manager.get_session(normalized_session, refresh=True) or {}
+    metadata = session.get("metadata", {})
     raw_items = metadata.get("recent_zone_events", [])
     if not isinstance(raw_items, list):
         return []
@@ -2565,16 +2572,21 @@ def _extract_recent_spoken_cues(coaching_history, limit: int = 4) -> list:
 
 
 def _get_or_create_session_timeline(session_id: str):
-    """Return per-session breathing timeline state (in-memory)."""
-    session = session_manager.sessions.get(session_id)
+    """Return per-session breathing timeline state."""
+    session = session_manager.get_session(session_id)
     if not session:
         return None
 
     metadata = session.setdefault("metadata", {})
     timeline = metadata.get("breathing_timeline")
+    if isinstance(timeline, dict):
+        timeline = BreathingTimeline.from_dict(timeline)
+        metadata["breathing_timeline"] = timeline
+        session_manager.save_session(session_id, session)
     if timeline is None:
         timeline = BreathingTimeline()
         metadata["breathing_timeline"] = timeline
+        session_manager.save_session(session_id, session)
     return timeline
 
 
@@ -3172,19 +3184,14 @@ def coach_continuous():
             contract_version,
         )
 
+        auth_user_id = _coerce_profile_user_id(get_request_auth_user_id())
+        bootstrap_user_id = auth_user_id or _coerce_persisted_profile_user_id(user_profile_id) or "unknown"
+
         # Create session if doesn't exist
         if not session_manager.session_exists(session_id):
-            # Extract user_id from session_id or use a default
-            try:
-                parts = session_id.replace("session_", "").split("_")
-                user_id = parts[0] if parts else "unknown"
-            except:
-                user_id = "unknown"
-
-            # Create session manually with the provided session_id
-            session_manager.sessions[session_id] = {
+            session_manager.save_session(session_id, {
                 "session_id": session_id,
-                "user_id": user_id,
+                "user_id": bootstrap_user_id,
                 "persona": persona,
                 "messages": [],
                 "created_at": datetime.now().isoformat(),
@@ -3194,23 +3201,28 @@ def coach_continuous():
                     "coaching_style": coaching_style,
                     "interval_template": interval_template,
                     "user_name": user_name,
-                    "user_id": user_id,
+                    "user_id": bootstrap_user_id,
                     "user_profile_id": user_profile_id,
                 }
-            }
+            })
             logger.info(f"✅ Created session: {session_id}")
             session_manager.init_workout_state(session_id, phase=phase)
 
             # STEP 5: Inject user memory at session start (once)
-            memory_summary = user_memory.get_memory_summary(user_id)
+            memory_summary = user_memory.get_memory_summary(bootstrap_user_id)
             logger.info(f"Memory: {memory_summary}")
-            session_manager.sessions[session_id]["metadata"]["memory"] = memory_summary
+            session = session_manager.get_session(session_id) or {}
+            session.setdefault("metadata", {})["memory"] = memory_summary
+            session_manager.save_session(session_id, session)
 
             # Mark that this is the first breath of the workout
             workout_state = session_manager.get_workout_state(session_id)
-            workout_state["is_first_breath"] = True
+            if workout_state is not None:
+                workout_state["is_first_breath"] = True
+                session_manager.save_workout_state(session_id, workout_state)
 
-        session_meta = session_manager.sessions.get(session_id, {}).setdefault("metadata", {})
+        session = session_manager.get_session(session_id) or {}
+        session_meta = session.setdefault("metadata", {})
         session_meta["workout_mode"] = workout_mode
         session_meta["coaching_style"] = coaching_style
         session_meta["interval_template"] = interval_template
@@ -3220,6 +3232,8 @@ def coach_continuous():
             user_name = session_meta.get("user_name", "")
         if user_profile_id:
             session_meta["user_profile_id"] = user_profile_id
+        if auth_user_id:
+            session_meta["user_id"] = auth_user_id
         current_user_id = session_meta.get("user_id", "unknown")
         personalization_user_id = _normalize_personalization_user_id(
             explicit_profile_id=session_meta.get("user_profile_id", ""),
@@ -3227,6 +3241,7 @@ def coach_continuous():
             user_name=user_name,
         )
         session_meta["personalization_user_id"] = personalization_user_id
+        session_manager.save_session(session_id, session)
 
         runtime_profile_user_id = _coerce_profile_user_id(
             get_request_auth_user_id() or user_profile_id or session_meta.get("user_profile_id") or current_user_id
@@ -3924,6 +3939,9 @@ def coach_continuous():
                         personalization_tip,
                     )
 
+        if workout_state is not None:
+            session_manager.save_workout_state(session_id, workout_state)
+
         # Response
         response_data = {
             "contract_version": contract_version,
@@ -4162,7 +4180,7 @@ def switch_persona():
 
         # Update session persona
         if session_manager.session_exists(session_id):
-            session_manager.sessions[session_id]["persona"] = persona
+            session_manager.set_persona(session_id, persona)
             logger.info(f"Persona switched to '{persona}' for session {session_id}")
 
         return jsonify({
@@ -4815,7 +4833,8 @@ def coach_talk():
             or payload.get("user_id")
         )
         if not talk_profile_user_id and talk_session_id and session_manager.session_exists(talk_session_id):
-            talk_meta = session_manager.sessions.get(talk_session_id, {}).get("metadata", {})
+            talk_session = session_manager.get_session(talk_session_id, refresh=True) or {}
+            talk_meta = talk_session.get("metadata", {})
             talk_profile_user_id = _coerce_profile_user_id(
                 (talk_meta.get("user_profile_id") or talk_meta.get("user_id"))
             )

@@ -1,6 +1,7 @@
 import io
 import os
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -263,3 +264,55 @@ def test_continuous_prefers_authenticated_user_profile_over_local_profile_id(mon
     assert captured["hr_max"] == 191
     assert captured["resting_hr"] == 53
     assert captured["age"] == 33
+
+
+def test_missing_continuous_session_bootstraps_from_authenticated_user_not_session_id(monkeypatch):
+    auth_user_id = "runtime_session_owner_user"
+    forged_user_id = "runtime_session_forged_user"
+    _ensure_user(auth_user_id)
+    _ensure_user(forged_user_id)
+
+    captured = {}
+
+    def _capturing_zone_tick(**kwargs):
+        captured["session_user_id"] = kwargs.get("workout_state", {}).get("user_id")
+        return _zone_tick_stub(**kwargs)
+
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "evaluate_zone_tick", _capturing_zone_tick)
+    monkeypatch.setattr(main, "_validate_audio_upload_signature", lambda _file: True)
+    monkeypatch.setattr(main.config, "PROFILE_DB_ENABLED", True, raising=False)
+    monkeypatch.setattr(main.config, "SERVER_CLOCK_ENABLED", False, raising=False)
+    monkeypatch.setattr(
+        main.user_memory,
+        "get_memory_summary",
+        lambda user_id: captured.setdefault("memory_user_id", user_id) or "memory",
+    )
+
+    forged_session_id = f"session_{forged_user_id}_{uuid.uuid4().hex}"
+    token = auth.create_jwt(auth_user_id, f"{auth_user_id}@example.com")
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": forged_session_id,
+            "phase": "intense",
+            "elapsed_seconds": "42",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "user_profile_id": f"profile_{forged_user_id}",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert captured["memory_user_id"] == auth_user_id
+    session = main.session_manager.get_session(forged_session_id, refresh=True)
+    assert session is not None
+    assert session["user_id"] == auth_user_id
+    assert session["metadata"]["user_id"] == auth_user_id

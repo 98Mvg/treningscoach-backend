@@ -382,6 +382,20 @@ class RateLimitCounter(db.Model):
 
 
 # ============================================
+# RUNTIME SESSION STATE MODEL
+# ============================================
+
+class RuntimeSessionState(db.Model):
+    __tablename__ = "runtime_session_states"
+
+    session_id = db.Column(db.String(128), primary_key=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True, index=True)
+    payload_json = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_utcnow_naive, onupdate=_utcnow_naive, index=True)
+
+
+# ============================================
 # WAITLIST SIGNUP MODEL
 # ============================================
 
