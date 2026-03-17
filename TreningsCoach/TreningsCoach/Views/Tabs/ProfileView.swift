@@ -2741,11 +2741,7 @@ struct HeartRateMonitorsView: View {
             ForEach(brands) { brand in
                 if brand == .appleWatch {
                     NavigationLink {
-                        SensorConnectOnboardingView(
-                            watchManager: PhoneWCManager.shared,
-                            onBack: {},
-                            onContinue: { _ in }
-                        )
+                        WatchConnectFromProfileView()
                     } label: {
                         monitorRowContent(for: brand, showsChevron: true)
                     }
@@ -2818,5 +2814,20 @@ struct HeartRateMonitorsView: View {
         case .garmin, .polar, .suunto:
             return L10n.historyViaBroadcastHint
         }
+    }
+}
+
+// MARK: - Watch Connect (from Profile)
+
+private struct WatchConnectFromProfileView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        SensorConnectOnboardingView(
+            watchManager: PhoneWCManager.shared,
+            onBack: { dismiss() },
+            onContinue: { _ in dismiss() }
+        )
+        .navigationBarHidden(true)
     }
 }
