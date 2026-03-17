@@ -832,74 +832,61 @@ private struct WorkoutSummarySheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Title — shrinks when coaching active
-                    Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
-                        .font(.system(size: showCoachPanel ? 14 : 18, weight: showCoachPanel ? .medium : .semibold))
-                        .foregroundColor(showCoachPanel ? CoachiTheme.textSecondary : CoachiTheme.textPrimary)
-                        .padding(.top, 8)
-                        .animation(.spring(duration: 0.35), value: showCoachPanel)
+        Group {
+            if showCoachPanel {
+                // Voice coach takes over the full sheet
+                fullScreenCoachPanel
+            } else {
+                // Normal summary view
+                VStack(spacing: 0) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .padding(.top, 8)
 
-                    // Context header: workout label + duration
-                    if !showCoachPanel {
-                        Text("\(workoutLabel) · \(durationText)")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                    }
+                            Text("\(workoutLabel) · \(durationText)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(CoachiTheme.textSecondary)
 
-                    if showCoachPanel {
-                        // Compact stat chips
-                        Text(compactStatsLine)
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(CoachiTheme.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    } else {
-                        // Score hero section
-                        if coachScore > 0 {
-                            VStack(spacing: 6) {
-                                Text("\(coachScore)")
-                                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                                    .foregroundColor(CoachiTheme.textPrimary)
-                                Text("Coachi Score")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(CoachiTheme.textSecondary)
+                            // Score hero section
+                            if coachScore > 0 {
+                                VStack(spacing: 6) {
+                                    Text("\(coachScore)")
+                                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                                        .foregroundColor(CoachiTheme.textPrimary)
+                                    Text("Coachi Score")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(CoachiTheme.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(scoreAccentColor.opacity(0.08))
+                                )
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(scoreAccentColor.opacity(0.08))
-                            )
-                        }
 
-                        // Stats grid
-                        if !statCells.isEmpty {
-                            statsGrid
-                        }
-                    }
+                            // Stats grid
+                            if !statCells.isEmpty {
+                                statsGrid
+                            }
 
-                    if AppConfig.LiveVoice.isEnabled {
-                        Divider()
-                            .background(CoachiTheme.borderSubtle.opacity(0.4))
-
-                        if showCoachPanel {
-                            inlineCoachPanel
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                        } else {
-                            liveCoachSection
+                            if AppConfig.LiveVoice.isEnabled {
+                                Divider()
+                                    .background(CoachiTheme.borderSubtle.opacity(0.4))
+                                liveCoachSection
+                            }
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 32)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
-                .animation(.spring(duration: 0.35), value: showCoachPanel)
             }
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
+        .animation(.spring(duration: 0.35), value: showCoachPanel)
         .onChange(of: liveCoachVM.service.lastDisconnectReason) { _, reason in
             if reason == .timeLimit && !isPremium {
                 showTimeLimitPaywall = true
@@ -1016,13 +1003,26 @@ private struct WorkoutSummarySheet: View {
         liveCoachVM.transcriptEntries.filter { $0.role == .user }
     }
 
-    private var inlineCoachPanel: some View {
-        VStack(spacing: 16) {
-            // Waveform indicator — prominent voice mode orb
-            WaveformBarsView(service: liveCoachVM.service, isNorwegian: isNorwegian)
-                .padding(.vertical, 20)
+    // Full-sheet voice coach — waveform centered, minimal chrome
+    private var fullScreenCoachPanel: some View {
+        VStack(spacing: 0) {
+            // Compact workout context at top
+            Text(compactStatsLine)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.top, 16)
+                .padding(.horizontal, 20)
 
-            // User messages only (coach speech shown via waveform, not text)
+            Spacer()
+
+            // Waveform — main focus, centered
+            WaveformBarsView(service: liveCoachVM.service, isNorwegian: isNorwegian)
+                .scaleEffect(1.3)
+                .padding(.vertical, 24)
+
+            // User transcript bubbles (if any)
             if !userTranscriptEntries.isEmpty {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 8) {
@@ -1032,19 +1032,19 @@ private struct WorkoutSummarySheet: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 120)
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
+                .frame(maxHeight: 100)
+                .padding(.horizontal, 20)
             }
 
-            // Toggle button
-            toggleCoachingButton
+            Spacer()
 
-            // Home/Share
-            bottomButtons
+            // End button + home/share at bottom
+            VStack(spacing: 12) {
+                toggleCoachingButton
+                bottomButtons
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
     }
 
