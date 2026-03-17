@@ -945,43 +945,45 @@ private struct WorkoutSummarySheet: View {
     }
 
     private var liveCoachSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(isNorwegian ? "Snakk med Coach Live" : "Talk to Coach Live")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                Text(isNorwegian
-                    ? "Still spørsmål om denne økten"
-                    : "Ask questions about this workout")
-                    .font(.system(size: 14))
-                    .foregroundColor(CoachiTheme.textSecondary)
+        VStack(spacing: 16) {
+            // Status badge: green dot + "Premium" OR clicks left
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(liveVoiceIsAvailable ? Color(hex: "34D399") : CoachiTheme.textSecondary.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                Text(liveVoiceStatusText)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(liveVoiceIsAvailable ? Color(hex: "34D399") : CoachiTheme.textSecondary)
             }
 
+            // Primary CTA — "Get feedback"
             Button {
                 onStartCoaching()
             } label: {
-                Text(isNorwegian ? "Start coaching" : "Start Coaching")
+                Text(isNorwegian ? "Få tilbakemelding" : "Get Feedback")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
                     .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(liveVoiceIsAvailable
-                                ? Color(hex: "1B7A8E")
-                                : CoachiTheme.surfaceElevated)
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(
+                                liveVoiceIsAvailable
+                                    ? LinearGradient(
+                                        colors: [Color(hex: "1B7A8E"), Color(hex: "166A7C")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                    : LinearGradient(
+                                        colors: [CoachiTheme.surfaceElevated, CoachiTheme.surfaceElevated],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                            )
                     )
+                    .shadow(color: liveVoiceIsAvailable ? Color(hex: "1B7A8E").opacity(0.3) : .clear, radius: 12, y: 4)
             }
             .buttonStyle(.plain)
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary.opacity(0.4))
-                    .frame(width: 6, height: 6)
-                Text(liveVoiceStatusText)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-            }
 
             bottomButtons
         }
@@ -1071,7 +1073,7 @@ private struct WorkoutSummarySheet: View {
                 }
                 Text(isActive
                     ? (isNorwegian ? "Avslutt samtalen" : "End Conversation")
-                    : (isNorwegian ? "Start coaching" : "Start Coaching"))
+                    : (isNorwegian ? "Få tilbakemelding" : "Get Feedback"))
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.white)
             }
@@ -1080,18 +1082,25 @@ private struct WorkoutSummarySheet: View {
             .background(
                 Group {
                     if isActive {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
                             .fill(Color.white.opacity(0.06))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                RoundedRectangle(cornerRadius: 26, style: .continuous)
                                     .stroke(Color.white.opacity(0.28), lineWidth: 1.5)
                             )
                     } else {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color(hex: "1B7A8E"))
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "1B7A8E"), Color(hex: "166A7C")],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                     }
                 }
             )
+            .shadow(color: isActive ? .clear : Color(hex: "1B7A8E").opacity(0.3), radius: 12, y: 4)
         }
         .buttonStyle(.plain)
         .disabled(isConnecting)
