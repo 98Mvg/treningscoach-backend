@@ -2897,7 +2897,7 @@ WEB_VARIANT_TEMPLATES = {
     "codex": "index_codex.html",
     "launch": "index_launch.html",
 }
-DEFAULT_WEB_VARIANT = getattr(config, "WEB_UI_VARIANT", "codex")
+DEFAULT_WEB_VARIANT = getattr(config, "WEB_UI_VARIANT", "launch")
 APP_STORE_URL = (os.getenv("APP_STORE_URL") or "").strip()
 GOOGLE_PLAY_URL = (os.getenv("GOOGLE_PLAY_URL") or "").strip()
 ANDROID_EARLY_ACCESS_URL = (os.getenv("ANDROID_EARLY_ACCESS_URL") or "").strip()
@@ -2905,9 +2905,9 @@ ANDROID_EARLY_ACCESS_URL = (os.getenv("ANDROID_EARLY_ACCESS_URL") or "").strip()
 
 def _resolve_web_variant(raw_variant: str = None):
     """Resolve requested web variant to a known template with safe fallback."""
-    candidate = (raw_variant or DEFAULT_WEB_VARIANT or "codex").strip().lower()
+    candidate = (raw_variant or DEFAULT_WEB_VARIANT or "launch").strip().lower()
     if candidate not in WEB_VARIANT_TEMPLATES:
-        candidate = "codex"
+        candidate = "launch"
     return candidate, WEB_VARIANT_TEMPLATES[candidate]
 
 

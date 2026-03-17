@@ -84,11 +84,18 @@
         .brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; flex-shrink: 0; cursor: pointer; }
         .brand-logo { width: 30px; height: 30px; flex-shrink: 0; }
         .brand-text { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.04em; color: #8f97ff; }
-        .nav-right { display: flex; align-items: center; gap: 16px; }
-        .nav-links { display: flex; align-items: center; gap: 28px; }
+        .nav-right {
+            display: flex; align-items: center; justify-content: flex-end;
+            gap: 14px; flex: 1; min-width: 0;
+        }
+        .nav-links {
+            display: flex; align-items: center; gap: 28px;
+            min-width: 0; flex-wrap: nowrap;
+        }
         .nav-links a {
             color: rgba(182,190,223,0.8); text-decoration: none; font-size: 0.88rem;
             font-weight: 600; transition: color 0.16s; cursor: pointer;
+            white-space: nowrap;
         }
         .nav-links a:hover, .nav-links a.active { color: #8f97ff; }
         .lang-switch { display: inline-flex; align-items: center; gap: 2px; }
@@ -109,6 +116,7 @@
         .pill:hover { transform: translateY(-1px); }
         .pill-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 16px rgba(47, 53, 177, 0.25); }
         .pill-primary:hover { box-shadow: 0 6px 24px rgba(47, 53, 177, 0.35); }
+        .nav-primary-cta { display: inline-flex; flex-shrink: 0; min-height: 42px; padding: 0 24px; }
 
         /* ── HAMBURGER ── */
         .hamburger {
@@ -125,6 +133,10 @@
         .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
         .hamburger.open span:nth-child(2) { opacity: 0; }
         .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+        .nav.nav-collapsed .nav-links,
+        .nav.nav-collapsed .lang-switch { display: none; }
+        .nav.nav-collapsed .hamburger { display: flex; }
+        .nav:not(.nav-collapsed) .hamburger { display: none; }
         .mobile-menu {
             display: none; position: fixed; top: 61px; left: 0; right: 0;
             background: rgba(12, 16, 32, 0.97); padding: 20px 28px 28px;
@@ -839,6 +851,7 @@
         @media (max-width: 900px) {
             .nav-links { display: none; }
             .nav-right .lang-switch { display: none; }
+            .nav-primary-cta { display: inline-flex; padding: 0 18px; }
             .hamburger { display: flex; }
             .hero { min-height: auto; }
             .hero-inner {
@@ -922,6 +935,10 @@
             .dl-phone-right { transform: translateX(-18px) scale(0.88) rotate(3deg); }
             .dl-stores .store-badge-black { padding: 10px 18px; }
         }
+        @media (max-width: 560px) {
+            .nav { padding: 0 18px; }
+            .nav-primary-cta { display: none; }
+        }
         @media (max-width: 480px) {
             .hero-inner { padding: 60px 18px 40px; }
             .hero-devices { width: 180px; height: 280px; }
@@ -971,7 +988,7 @@
 
         <!-- NAV -->
         <div class="nav-wrap">
-            <nav class="nav">
+            <nav class="nav" id="siteNav">
                 <a class="brand" data-nav-page="home">
                     <svg class="brand-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                         <defs><linearGradient id="navGrad" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stop-color="#FF8A5A"/><stop offset="100%" stop-color="#FF5E6C"/></linearGradient></defs>
@@ -985,16 +1002,16 @@
                     <span class="brand-text">Coachi</span>
                 </a>
                 <div class="nav-right">
-                    <div class="nav-links">
+                    <div class="nav-links" id="navLinks">
                         <a data-nav-page="home" class="active" data-i18n="nav_home">Hjem</a>
                         <a data-nav-page="how" data-i18n="nav_how">Slik fungerer det</a>
                         <a href="#faq" data-i18n="nav_faq">Sp&oslash;rsm&aring;l</a>
-                        <a data-nav-page="download" class="pill pill-primary" data-i18n="nav_download">Last ned</a>
                     </div>
                     <div class="lang-switch">
                         <button class="lang-btn active" data-lang-btn="no" aria-pressed="true">NO</button>
                         <button class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
                     </div>
+                    <a data-nav-page="download" class="pill pill-primary nav-primary-cta" data-i18n="nav_download">Last ned</a>
                     <button class="hamburger" id="hamburger" aria-label="Meny" aria-expanded="false" aria-controls="mobileMenu">
                         <span></span><span></span><span></span>
                     </button>
@@ -1638,6 +1655,7 @@
             document.title = t("meta_title");
             const desc = document.querySelector('meta[name="description"]');
             if (desc) desc.setAttribute("content", t("meta_description"));
+            requestAnimationFrame(updateNavigationLayout);
         }
 
         /* ══════════════════════════════════════════
@@ -1723,12 +1741,27 @@
         });
 
         /* ── HAMBURGER ── */
+        const siteNav = document.getElementById("siteNav");
+        const navLinks = document.getElementById("navLinks");
         const hamburger = document.getElementById("hamburger");
         const mobileMenu = document.getElementById("mobileMenu");
         function setMobileMenuOpen(isOpen) {
             hamburger.classList.toggle("open", isOpen);
             hamburger.setAttribute("aria-expanded", isOpen ? "true" : "false");
             mobileMenu.classList.toggle("open", isOpen);
+        }
+
+        function updateNavigationLayout() {
+            if (!siteNav || !navLinks) return;
+            const forceCollapsed = window.innerWidth <= 900;
+            if (!forceCollapsed) {
+                siteNav.classList.remove("nav-collapsed");
+            }
+            const needsCollapse = forceCollapsed || siteNav.scrollWidth > siteNav.clientWidth + 2;
+            siteNav.classList.toggle("nav-collapsed", needsCollapse);
+            if (!needsCollapse) {
+                setMobileMenuOpen(false);
+            }
         }
 
         hamburger.addEventListener("click", () => {
@@ -1739,11 +1772,8 @@
             el.addEventListener("click", () => setMobileMenuOpen(false));
         });
 
-        window.addEventListener("resize", () => {
-            if (window.innerWidth > 900) {
-                setMobileMenuOpen(false);
-            }
-        });
+        window.addEventListener("resize", updateNavigationLayout);
+        requestAnimationFrame(updateNavigationLayout);
 
         /* ── FAQ ACCORDION ── */
         document.querySelectorAll(".faq-q").forEach(btn => {
