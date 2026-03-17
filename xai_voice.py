@@ -256,6 +256,8 @@ def build_post_workout_voice_instructions(
         if athlete_name
         else "The athlete has not shared a name."
     )
+    workout_label = str(context.get("workout_label") or "").strip()
+    activity_line = f"The athlete just completed: {workout_label}." if workout_label else ""
 
     summary_lines = _summary_lines(context, language)
     summary_block = "\n".join(f"- {line}" for line in summary_lines) if summary_lines else "- No workout summary was provided."
@@ -273,15 +275,19 @@ def build_post_workout_voice_instructions(
         safety_override=False,
     )
 
+    activity_anchor = f"{activity_line}\n" if activity_line else ""
     common_intro = (
         f"{persona_text}\n\n"
         "You are now in post-workout review mode. "
+        f"{activity_anchor}"
         f"Speak in {language_name}. "
+        "Only reference data explicitly present in the summary below. "
+        "Do not invent movements, exercises, or effort types not mentioned in the summary. "
+        "Keep responses under 2 sentences. Never exceed 25 words per reply. "
         "Use the just-finished workout summary first. "
         "You may also reference the workout history overview for pattern, progress, and consistency questions. "
         "Do not claim to remember prior conversations or any data beyond the supplied summary and history overview. "
-        "If the athlete asks for medical diagnosis, tell them to seek professional care. "
-        "Do not invent metrics that are not in the supplied data.\n"
+        "If the athlete asks for medical diagnosis, tell them to seek professional care.\n"
         f"{athlete_line}\n"
         "Workout summary:\n"
         f"{summary_block}\n"

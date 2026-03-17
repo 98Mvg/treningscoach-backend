@@ -41,6 +41,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     @Published private(set) var voiceSessionId: String?
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var isQuotaExhausted: Bool = false
+    @Published private(set) var isSpeaking: Bool = false
 
     private let apiService: BackendAPIService
     private let summaryContext: PostWorkoutSummaryContext
@@ -423,10 +424,12 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
                 appendAssistantDelta(delta)
             }
         case "response.output_audio.delta", "response.audio.delta":
+            isSpeaking = true
             if let audio = stringValue(in: event, keys: ["delta", "audio"]), !audio.isEmpty {
                 queuePlaybackChunk(base64Audio: audio)
             }
-        case "response.done":
+        case "response.output_audio.done", "response.audio.done", "response.done":
+            isSpeaking = false
             finalizeAssistantDraft()
         case "error":
             let message = stringValue(in: event, keys: ["message"]) ?? "Live voice failed."
@@ -549,6 +552,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
         micState = .idle
+        isSpeaking = false
     }
 
     private func handleFailure(_ message: String) async {

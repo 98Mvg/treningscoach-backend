@@ -22,11 +22,17 @@ struct WorkoutCompleteView: View {
     @State private var showLiveCoachVoice = false
     @State private var showLiveVoicePaywall = false
     @State private var showWorkoutSummary = false
+    @State private var summaryDetent: PresentationDetent = .medium
     @State private var showShareOptions = false
     @State private var showShareSheet = false
     @State private var shareSheetItems: [Any] = []
     @State private var copiedLink = false
     @State private var xpBadgeVisible = false
+    @State private var displayedScore = 0
+    @State private var particlesVisible = false
+    @State private var particlesDone = false
+    @State private var particles: [SummaryParticle] = SummaryParticle.make()
+    @State private var liveCoachVM: LiveCoachConversationViewModel? = nil
 
     private var targetScore: Int {
         if viewModel.hasAuthoritativeCoachScore {
@@ -197,44 +203,51 @@ struct WorkoutCompleteView: View {
             }
         }
         .sheet(isPresented: $showWorkoutSummary) {
-            WorkoutSummarySheet(
-                xpGained: xpAwardForSummary,
-                xpToNextLevel: xpToNextLevel,
-                heartRateText: finalBPMText,
-                durationText: finalDurationText,
-                zoneTimePct: viewModel.postWorkoutSummaryContext.zoneTimeInTargetPct,
-                coachScore: targetScore,
-                liveVoiceIsAvailable: liveVoiceIsAvailable,
-                liveVoiceStatusText: liveVoiceStatusText,
-                isNorwegian: L10n.current == .no,
-                onStartCoaching: {
-                    showWorkoutSummary = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            if let vm = liveCoachVM {
+                WorkoutSummarySheet(
+                    xpGained: xpAwardForSummary,
+                    xpToNextLevel: xpToNextLevel,
+                    heartRateText: finalBPMText,
+                    durationText: finalDurationText,
+                    zoneTimePct: viewModel.postWorkoutSummaryContext.zoneTimeInTargetPct,
+                    coachScore: targetScore,
+                    liveVoiceIsAvailable: liveVoiceIsAvailable,
+                    liveVoiceStatusText: liveVoiceStatusText,
+                    isNorwegian: L10n.current == .no,
+                    liveCoachVM: vm,
+                    onStartCoaching: {
                         if liveVoiceIsAvailable {
-                            showLiveCoachVoice = true
+                            summaryDetent = .large
+                            Task { await vm.startIfNeeded() }
                         } else {
-                            showLiveVoicePaywall = true
+                            showWorkoutSummary = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                showLiveVoicePaywall = true
+                            }
+                        }
+                    },
+                    onHome: {
+                        showWorkoutSummary = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            withAnimation(AppConfig.Anim.transitionSpring) {
+                                viewModel.resetWorkout()
+                            }
+                        }
+                    },
+                    onShare: {
+                        showWorkoutSummary = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showShareOptions = true
                         }
                     }
-                },
-                onHome: {
-                    showWorkoutSummary = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        withAnimation(AppConfig.Anim.transitionSpring) {
-                            viewModel.resetWorkout()
-                        }
-                    }
-                },
-                onShare: {
-                    showWorkoutSummary = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        showShareOptions = true
-                    }
-                }
-            )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
+                )
+                .presentationDetents([.medium, .large], selection: $summaryDetent)
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(28)
+            }
+        }
+        .onChange(of: showWorkoutSummary) { _, isPresented in
+            if !isPresented { summaryDetent = .medium }
         }
         .sheet(isPresented: $showLiveCoachVoice) {
             LiveCoachConversationView(
@@ -281,11 +294,42 @@ struct WorkoutCompleteView: View {
         .onAppear {
             liveVoiceTracker.synchronize()
             freezeSummaryValues()
+            // Create voice VM eagerly so it's ready when sheet opens
+            if liveCoachVM == nil {
+                liveCoachVM = LiveCoachConversationViewModel(
+                    summaryContext: viewModel.postWorkoutSummaryContext,
+                    languageCode: liveVoiceLanguageCode,
+                    userName: liveVoiceUserName,
+                    isPremium: hasPremiumAccess
+                )
+            }
             withAnimation(.spring(response: 0.72, dampingFraction: 0.65).delay(0.10)) {
                 checkmarkScale = 1
             }
             withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
                 contentVisible = true
+            }
+            // Score counter animation
+            if targetScore > 0 {
+                Task {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    let steps = max(1, min(targetScore, 50))
+                    let stepSize = max(1, targetScore / steps)
+                    let delayNs = UInt64(0.9 / Double(steps) * 1_000_000_000)
+                    var current = 0
+                    while current < targetScore {
+                        current = min(current + stepSize, targetScore)
+                        await MainActor.run { displayedScore = current }
+                        try? await Task.sleep(nanoseconds: delayNs)
+                    }
+                }
+            }
+            // Particle burst
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                withAnimation(.easeOut(duration: 1.0)) { particlesVisible = true }
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                await MainActor.run { particlesDone = true }
             }
             if xpAwardForSummary > 0 {
                 withAnimation(.spring(response: 0.55, dampingFraction: 0.62).delay(0.55)) {
@@ -371,15 +415,50 @@ struct WorkoutCompleteView: View {
         finalBPMText = viewModel.completedWorkoutSnapshot?.finalHeartRateText ?? viewModel.watchBPMDisplayText
     }
 
+    private var ringGlowColor: Color {
+        if targetScore >= 80 { return Color(hex: "A5F3EC") }
+        if targetScore >= 60 { return Color(hex: "F59E0B") }
+        return Color(hex: "4A6FA5")
+    }
+
+    private static func makeParticles() -> [SummaryParticle] { SummaryParticle.make() }
+
     private func scoreRingView(ringSize: CGFloat) -> some View {
         ZStack {
+            // Score-based radial glow
+            if targetScore > 0 {
+                RadialGradient(
+                    colors: [ringGlowColor.opacity(0.26), Color.clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: ringSize * 0.72
+                )
+                .frame(width: ringSize + 56, height: ringSize + 56)
+                .opacity(contentVisible ? 1 : 0)
+                .animation(.easeOut(duration: 0.7).delay(0.3), value: contentVisible)
+            }
+
             Circle()
                 .fill(Color.white.opacity(0.07))
                 .frame(width: ringSize + 56, height: ringSize + 56)
                 .blur(radius: 18)
 
+            // Particle burst
+            if !particlesDone {
+                ForEach(particles) { p in
+                    Circle()
+                        .fill(ringGlowColor.opacity(0.75))
+                        .frame(width: p.size, height: p.size)
+                        .offset(
+                            x: particlesVisible ? cos(p.angle * .pi / 180) * p.distance : 0,
+                            y: particlesVisible ? sin(p.angle * .pi / 180) * p.distance : 0
+                        )
+                        .opacity(particlesVisible ? 0 : 0.88)
+                }
+            }
+
             GamifiedCoachScoreRingView(
-                score: targetScore,
+                score: displayedScore,
                 label: L10n.current == .no ? "Score" : "Score",
                 size: ringSize,
                 lineWidth: 14,
@@ -403,13 +482,13 @@ struct WorkoutCompleteView: View {
                 xpAnimationFrom: summaryProgressAward?.xpProgressBeforeFraction,
                 xpAnimationTo: summaryProgressAward?.xpProgressAfterFraction
             )
-            .shadow(color: Color.white.opacity(0.12), radius: 16, y: 2)
+            .shadow(color: ringGlowColor.opacity(0.18), radius: 18, y: 2)
 
             if xpAwardForSummary > 0 {
                 Text("+\(xpAwardForSummary) XP")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundColor(Color(hex: "A5F3EC"))
-                    .shadow(color: Color(hex: "A5F3EC").opacity(0.55), radius: 8, y: 0)
+                    .shadow(color: Color(hex: "A5F3EC").opacity(0.5), radius: 8, y: 0)
                     .offset(y: xpBadgeVisible ? -(ringSize / 2 + 20) : -(ringSize / 2 + 10))
                     .opacity(xpBadgeVisible ? 1 : 0)
             }
@@ -596,6 +675,109 @@ struct WorkoutCompleteView: View {
     }
 }
 
+// MARK: - Particle Model
+
+private struct SummaryParticle: Identifiable {
+    let id = UUID()
+    let angle: Double
+    let distance: CGFloat
+    let size: CGFloat
+
+    static func make() -> [SummaryParticle] {
+        (0..<14).map { _ in
+            SummaryParticle(
+                angle: Double.random(in: 0..<360),
+                distance: CGFloat.random(in: 60...90),
+                size: CGFloat.random(in: 4...6)
+            )
+        }
+    }
+}
+
+// MARK: - Waveform Bars View
+
+private struct WaveformBarsView: View {
+    @ObservedObject var service: XAIRealtimeVoiceService
+    let isNorwegian: Bool
+
+    @State private var barHeights: [CGFloat] = [8, 8, 8, 8, 8]
+    @State private var animationTimer: Timer?
+
+    private var isConnected: Bool {
+        if case .connected = service.connectionState { return true }
+        return false
+    }
+
+    private var isActive: Bool { isConnected && service.isSpeaking }
+    private var isUserSpeaking: Bool { isConnected && !service.isSpeaking }
+
+    private var barColor: Color {
+        if service.isSpeaking { return Color(hex: "A5F3EC") }
+        if isConnected { return Color.white.opacity(0.72) }
+        return Color.white.opacity(0.25)
+    }
+
+    private var statusLabel: String {
+        switch service.connectionState {
+        case .preparing, .connecting:
+            return isNorwegian ? "KOBLER TIL..." : "CONNECTING..."
+        case .connected:
+            if service.isSpeaking { return "REX" }
+            return isNorwegian ? "HØRER PÅ DEG" : "LISTENING"
+        case .ended:
+            return isNorwegian ? "SAMTALE AVSLUTTET" : "CONVERSATION ENDED"
+        case .failed:
+            return isNorwegian ? "KUNNE IKKE KOBLE TIL" : "COULD NOT CONNECT"
+        case .idle:
+            return ""
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 5) {
+                ForEach(0..<5, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(barColor)
+                        .frame(width: 4, height: barHeights[i])
+                        .animation(.easeInOut(duration: 0.08), value: barHeights[i])
+                }
+            }
+            .frame(height: 36)
+
+            if !statusLabel.isEmpty {
+                Text(statusLabel)
+                    .font(.system(size: 12, weight: .semibold))
+                    .tracking(0.8)
+                    .foregroundColor(service.isSpeaking ? Color(hex: "A5F3EC") : Color.white.opacity(isConnected ? 0.75 : 0.45))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .onChange(of: isActive) { _, active in
+            if active { startAnimating() } else { stopAnimating() }
+        }
+        .onChange(of: isUserSpeaking) { _, active in
+            if active { startAnimating() } else if !service.isSpeaking { stopAnimating() }
+        }
+        .onDisappear { animationTimer?.invalidate() }
+    }
+
+    private func startAnimating() {
+        animationTimer?.invalidate()
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
+            barHeights = (0..<5).map { _ in CGFloat.random(in: 10...32) }
+        }
+    }
+
+    private func stopAnimating() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        withAnimation(.easeOut(duration: 0.2)) {
+            barHeights = [8, 8, 8, 8, 8]
+        }
+    }
+}
+
 // MARK: - Workout Summary Sheet
 
 private struct WorkoutSummarySheet: View {
@@ -610,6 +792,7 @@ private struct WorkoutSummarySheet: View {
     let liveVoiceIsAvailable: Bool
     let liveVoiceStatusText: String
     let isNorwegian: Bool
+    @ObservedObject var liveCoachVM: LiveCoachConversationViewModel
     let onStartCoaching: () -> Void
     let onHome: () -> Void
     let onShare: () -> Void
@@ -647,29 +830,65 @@ private struct WorkoutSummarySheet: View {
         return cells
     }
 
+    private var showCoachPanel: Bool {
+        switch liveCoachVM.service.connectionState {
+        case .idle: return false
+        default: return true
+        }
+    }
+
+    // Compact chip row shown when coaching panel is active
+    private var compactStatsLine: String {
+        var parts: [String] = []
+        if xpGained > 0 { parts.append("+\(xpGained) XP") }
+        parts.append(durationText)
+        if hasHeartRate { parts.append(heartRateText) }
+        if coachScore > 0 { parts.append("Score \(coachScore)") }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 24) {
-                // Title
-                Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .padding(.top, 8)
+        VStack(spacing: 0) {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Title — shrinks when coaching active
+                    Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
+                        .font(.system(size: showCoachPanel ? 14 : 22, weight: showCoachPanel ? .medium : .bold))
+                        .foregroundColor(showCoachPanel ? CoachiTheme.textSecondary : CoachiTheme.textPrimary)
+                        .padding(.top, 8)
+                        .animation(.spring(duration: 0.35), value: showCoachPanel)
 
-                // Adaptive stats grid
-                if !statCells.isEmpty {
-                    statsGrid
+                    if showCoachPanel {
+                        // Compact stat chips
+                        Text(compactStatsLine)
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    } else {
+                        // Full stats grid
+                        if !statCells.isEmpty {
+                            statsGrid
+                        }
+                    }
+
+                    if AppConfig.LiveVoice.isEnabled {
+                        Divider()
+                            .background(CoachiTheme.borderSubtle.opacity(0.4))
+
+                        if showCoachPanel {
+                            inlineCoachPanel
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        } else {
+                            liveCoachSection
+                        }
+                    }
                 }
-
-                if AppConfig.LiveVoice.isEnabled {
-                    Divider()
-                        .background(CoachiTheme.borderSubtle.opacity(0.4))
-
-                    liveCoachSection
-                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 32)
+                .animation(.spring(duration: 0.35), value: showCoachPanel)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
         }
         .background(CoachiTheme.bg.ignoresSafeArea())
     }
@@ -767,51 +986,173 @@ private struct WorkoutSummarySheet: View {
                     .foregroundColor(CoachiTheme.textSecondary)
             }
 
-            HStack(spacing: 12) {
-                Button {
-                    onHome()
-                } label: {
-                    Text(isNorwegian ? "HJEM" : "HOME")
-                        .font(.system(size: 14, weight: .medium))
-                        .tracking(0.6)
-                        .foregroundColor(Color.white.opacity(0.9))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(hex: "9FB08C").opacity(0.96), Color(hex: "8CA078").opacity(0.96)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    onShare()
-                } label: {
-                    Text(isNorwegian ? "DEL" : "SHARE")
-                        .font(.system(size: 14, weight: .medium))
-                        .tracking(0.6)
-                        .foregroundColor(Color.white.opacity(0.92))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(
-                            Capsule(style: .continuous)
-                                .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .fill(Color.black.opacity(0.08))
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 4)
+            bottomButtons
         }
+    }
+
+    // MARK: - Inline Coach Panel
+
+    private var inlineCoachPanel: some View {
+        VStack(spacing: 16) {
+            // Waveform indicator
+            WaveformBarsView(service: liveCoachVM.service, isNorwegian: isNorwegian)
+                .padding(.vertical, 8)
+
+            // Transcript
+            if !liveCoachVM.transcriptEntries.isEmpty {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 10) {
+                        ForEach(liveCoachVM.transcriptEntries) { entry in
+                            inlineTranscriptBubble(entry: entry)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 220)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.black.opacity(0.16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                        )
+                )
+            }
+
+            // Toggle button
+            toggleCoachingButton
+
+            // Home/Share
+            bottomButtons
+        }
+    }
+
+    private func inlineTranscriptBubble(entry: LiveCoachTranscriptEntry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(entry.role == .assistant ? "REX" : (isNorwegian ? "DEG" : "YOU"))
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.7)
+                .foregroundColor(Color.white.opacity(0.52))
+            Text(entry.text)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundColor(Color.white.opacity(0.92))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(entry.role == .assistant
+                    ? Color(hex: "113042").opacity(0.86)
+                    : Color.white.opacity(0.07))
+        )
+    }
+
+    @ViewBuilder
+    private var toggleCoachingButton: some View {
+        let isConnecting: Bool = {
+            switch liveCoachVM.service.connectionState {
+            case .preparing, .connecting: return true
+            default: return false
+            }
+        }()
+        let isActive: Bool = {
+            if case .connected = liveCoachVM.service.connectionState { return true }
+            return false
+        }()
+        let isEnded: Bool = {
+            switch liveCoachVM.service.connectionState {
+            case .ended, .failed, .idle: return true
+            default: return false
+            }
+        }()
+
+        Button {
+            if isEnded {
+                onStartCoaching()
+            } else {
+                Task { await liveCoachVM.disconnect() }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                if isConnecting {
+                    ProgressView()
+                        .tint(Color.black.opacity(0.7))
+                        .scaleEffect(0.85)
+                }
+                Text(isActive
+                    ? (isNorwegian ? "Avslutt samtalen" : "End Conversation")
+                    : (isNorwegian ? "Start coaching" : "Start Coaching"))
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(isActive ? Color.white.opacity(0.92) : Color.black.opacity(0.85))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(
+                Group {
+                    if isActive {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.white.opacity(0.06))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.28), lineWidth: 1.5)
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(CoachiTheme.accent)
+                    }
+                }
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isConnecting)
+    }
+
+    private var bottomButtons: some View {
+        HStack(spacing: 12) {
+            Button {
+                onHome()
+            } label: {
+                Text(isNorwegian ? "HJEM" : "HOME")
+                    .font(.system(size: 14, weight: .medium))
+                    .tracking(0.6)
+                    .foregroundColor(Color.white.opacity(0.9))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "9FB08C").opacity(0.96), Color(hex: "8CA078").opacity(0.96)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onShare()
+            } label: {
+                Text(isNorwegian ? "DEL" : "SHARE")
+                    .font(.system(size: 14, weight: .medium))
+                    .tracking(0.6)
+                    .foregroundColor(Color.white.opacity(0.92))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(
+                        Capsule(style: .continuous)
+                            .stroke(Color(hex: "A5F3FC").opacity(0.88), lineWidth: 2)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.black.opacity(0.08))
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 4)
     }
 }
 
