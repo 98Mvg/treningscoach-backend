@@ -760,6 +760,7 @@ private struct WaveformBarsView: View {
 private struct WorkoutSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showTimeLimitPaywall = false
+    @State private var showTextCoach = false
 
     let workoutLabel: String
     let xpGained: Int
@@ -999,11 +1000,7 @@ private struct WorkoutSummarySheet: View {
 
     // MARK: - Inline Coach Panel
 
-    private var userTranscriptEntries: [LiveCoachTranscriptEntry] {
-        liveCoachVM.transcriptEntries.filter { $0.role == .user }
-    }
-
-    // Full-sheet voice coach — waveform centered, minimal chrome
+    // Full-sheet voice coach — waveform dominant, minimal chrome
     private var fullScreenCoachPanel: some View {
         VStack(spacing: 0) {
             // Compact workout context at top
@@ -1015,28 +1012,35 @@ private struct WorkoutSummarySheet: View {
                 .padding(.top, 16)
                 .padding(.horizontal, 20)
 
+            Spacer().frame(minHeight: 20)
+
+            // Top 40% spacer — pushes waveform to lower-center
             Spacer()
 
-            // Waveform — main focus, centered
+            // Waveform — main focus, 2x scale, full width
             WaveformBarsView(service: liveCoachVM.service, isNorwegian: isNorwegian)
-                .scaleEffect(1.3)
-                .padding(.vertical, 24)
+                .scaleEffect(x: 2.0, y: 2.0, anchor: .center)
+                .frame(maxWidth: .infinity)
+                .frame(height: 130)
 
-            // User transcript bubbles (if any)
-            if !userTranscriptEntries.isEmpty {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 8) {
-                        ForEach(userTranscriptEntries) { entry in
-                            inlineTranscriptBubble(entry: entry)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer().frame(height: 32)
+
+            // Subtle "type instead" link — transparent, not main focus
+            Button {
+                showTextCoach = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 12, weight: .regular))
+                    Text(isNorwegian ? "Skriv i stedet" : "Type instead")
+                        .font(.system(size: 13, weight: .medium))
                 }
-                .frame(maxHeight: 100)
-                .padding(.horizontal, 20)
+                .foregroundColor(Color.white.opacity(0.3))
             }
+            .buttonStyle(.plain)
 
-            Spacer()
+            // Bottom spacer — less than top to keep waveform in lower-center
+            Spacer().frame(minHeight: 16)
 
             // End button + home/share at bottom
             VStack(spacing: 12) {
@@ -1046,18 +1050,13 @@ private struct WorkoutSummarySheet: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
-    }
-
-    private func inlineTranscriptBubble(entry: LiveCoachTranscriptEntry) -> some View {
-        Text(entry.text)
-            .font(.system(size: 14, weight: .regular))
-            .foregroundColor(Color.white.opacity(0.82))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.07))
+        .sheet(isPresented: $showTextCoach) {
+            PostWorkoutTextCoachView(
+                summaryContext: liveCoachVM.summaryContext,
+                languageCode: liveCoachVM.languageCode,
+                userName: liveCoachVM.userName
             )
+        }
     }
 
     @ViewBuilder
