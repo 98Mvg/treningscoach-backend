@@ -4,7 +4,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
-from zone_event_motor import evaluate_zone_tick
+from zone_event_motor import (
+    _motivation_stage_phrase_ids,
+    _pick_runtime_phrase_id,
+    evaluate_zone_tick,
+)
 
 
 def _base_tick(**overrides):
@@ -226,6 +230,47 @@ def test_main_started_does_not_reappear_late_if_state_is_recreated():
     assert "main_started" not in events
     assert late_tick["event_type"] != "main_started"
     assert state["zone_engine"]["main_started_emitted"] is True
+
+
+def test_runtime_phrase_picker_rotates_main_started_variants():
+    state = {}
+
+    first = _pick_runtime_phrase_id(state=state, event_type="main_started", phase="main")
+    second = _pick_runtime_phrase_id(state=state, event_type="main_started", phase="main")
+
+    assert first in {"zone.main_started.1", "zone.main_started.2"}
+    assert second in {"zone.main_started.1", "zone.main_started.2"}
+    assert first != second
+
+
+def test_runtime_phrase_picker_rotates_in_zone_variants_without_immediate_repeat():
+    state = {}
+
+    picks = [
+        _pick_runtime_phrase_id(state=state, event_type="entered_target", phase="main")
+        for _ in range(4)
+    ]
+
+    assert all(
+        pick in {
+            "zone.in_zone.default.1",
+            "zone.in_zone.default.2",
+            "zone.in_zone.default.3",
+        }
+        for pick in picks
+    )
+    assert picks[0] != picks[1]
+
+
+def test_motivation_stage_phrase_ids_follow_active_runtime_review_variants():
+    assert _motivation_stage_phrase_ids("intervals", 1) == [
+        "interval.motivate.s1.1",
+        "interval.motivate.s1.2",
+    ]
+    assert _motivation_stage_phrase_ids("easy_run", 2) == [
+        "easy_run.motivate.s2.1",
+        "easy_run.motivate.s2.2",
+    ]
 
 
 def test_movement_pause_and_resume_events_after_dwell():
@@ -1288,7 +1333,7 @@ def test_interval_session_halfway_emits_dynamic_progress_text():
     assert "interval_countdown_session_halfway" in events
     assert tick["event_type"] == "interval_countdown_session_halfway"
     assert tick["phrase_id"] == "zone.countdown.session_halfway.dynamic"
-    assert tick["coach_text"] == "You are halfway through"
+    assert tick["coach_text"] == "You are halfway through the workout"
 
 
 def test_countdown_fired_keys_are_namespaced_by_phase_kind():

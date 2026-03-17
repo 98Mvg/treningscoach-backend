@@ -16,6 +16,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from breath_reliability import summarize_breath_quality, is_breath_quality_reliable
+from phrase_review_v2 import build_runtime_event_phrase_map
 from tts_phrase_catalog import get_phrase_text
 from workout_cue_catalog import (
     event_cooldown_key,
@@ -53,6 +54,29 @@ _STRUCTURE_INSTRUCTION_PHRASE_IDS = {
     ),
     "structure_instruction_finish": ("zone.structure.finish.1",),
 }
+
+_RUNTIME_REVIEW_EVENT_KEYS = {
+    "warmup_started": "warmup",
+    "main_started": "main_started",
+    "cooldown_started": "cooldown",
+    "workout_finished": "workout_finish",
+    "entered_target": "in_zone",
+    "exited_target_above": "above_zone",
+    "exited_target_below": "below_zone",
+    "hr_signal_lost": "hr_signal_lost",
+    "hr_signal_restored": "hr_signal_restored",
+    "hr_structure_mode_notice": "no_hr_mode_notice",
+    "pause_detected": "pause_detected",
+    "pause_resumed": "pause_resumed",
+    "interval_countdown_30": "countdown_30",
+    "interval_countdown_15": "countdown_15",
+    "interval_countdown_5": "countdown_5",
+    "interval_countdown_start": "countdown_start",
+    "interval_countdown_halfway": "countdown_halfway",
+    "interval_countdown_session_halfway": "countdown_session_halfway",
+}
+
+_RUNTIME_REVIEW_EVENT_PHRASE_MAP = build_runtime_event_phrase_map()
 
 _STYLE_ALIASES = {
     "easy": "minimal",
@@ -465,6 +489,44 @@ def _pick_structure_phrase_id(
 
     indices = state.setdefault("structure_phrase_rotation_index", {})
     last_phrase = state.setdefault("structure_last_phrase_id", {})
+    rotation_key = str(event_type)
+    next_index = int(indices.get(rotation_key, 0))
+
+    for offset in range(len(phrase_ids)):
+        candidate_index = (next_index + offset) % len(phrase_ids)
+        candidate_phrase = phrase_ids[candidate_index]
+        if candidate_phrase != last_phrase.get(rotation_key):
+            indices[rotation_key] = (candidate_index + 1) % len(phrase_ids)
+            last_phrase[rotation_key] = candidate_phrase
+            return candidate_phrase
+
+    indices[rotation_key] = (next_index + 1) % len(phrase_ids)
+    candidate_phrase = phrase_ids[next_index % len(phrase_ids)]
+    last_phrase[rotation_key] = candidate_phrase
+    return candidate_phrase
+
+
+def _runtime_review_phrase_ids_for_event(event_type: str) -> List[str]:
+    review_event_key = _RUNTIME_REVIEW_EVENT_KEYS.get(str(event_type or ""))
+    if not review_event_key:
+        return []
+    return list(_RUNTIME_REVIEW_EVENT_PHRASE_MAP.get(review_event_key) or [])
+
+
+def _pick_runtime_phrase_id(
+    *,
+    state: Dict[str, Any],
+    event_type: str,
+    phase: str,
+) -> Optional[str]:
+    phrase_ids = _runtime_review_phrase_ids_for_event(event_type)
+    if not phrase_ids:
+        return _resolve_phrase_id(event_type, phase)
+    if len(phrase_ids) == 1:
+        return phrase_ids[0]
+
+    indices = state.setdefault("runtime_phrase_rotation_index", {})
+    last_phrase = state.setdefault("runtime_last_phrase_id", {})
     rotation_key = str(event_type)
     next_index = int(indices.get(rotation_key, 0))
 
@@ -1274,7 +1336,7 @@ def _interval_session_halfway_text(
     lang = (language or "en").strip().lower()
     if lang == "no":
         return "Du er halvveis nå."
-    return "You are halfway through"
+    return "You are halfway through the workout"
 
 
 def _evaluate_hr_quality(
@@ -1721,9 +1783,18 @@ def _motivation_phrase_id(workout_type: str, stage: int, variant: int) -> str:
 
 def _motivation_stage_phrase_ids(workout_type: str, stage: int) -> List[str]:
     """Return stage-local phrase IDs in deterministic order."""
+    normalized_stage = max(1, min(4, int(stage or 1)))
+    review_event = (
+        f"interval_sustain_stage_{normalized_stage}"
+        if workout_type == "intervals"
+        else f"easy_run_sustain_stage_{normalized_stage}"
+    )
+    phrase_ids = list(_RUNTIME_REVIEW_EVENT_PHRASE_MAP.get(review_event) or [])
+    if phrase_ids:
+        return phrase_ids
     return [
-        _motivation_phrase_id(workout_type, stage=stage, variant=1),
-        _motivation_phrase_id(workout_type, stage=stage, variant=2),
+        _motivation_phrase_id(workout_type, stage=normalized_stage, variant=1),
+        _motivation_phrase_id(workout_type, stage=normalized_stage, variant=2),
     ]
 
 
@@ -2234,7 +2305,7 @@ def _event_text(
         return "15" if lang == "no" else "15"
 
     if event_type == "interval_countdown_5":
-        return "fem" if lang == "no" else "5!"
+        return "fem" if lang == "no" else "Five."
 
     if event_type == "interval_countdown_start":
         return "Start" if lang == "no" else "Go"
@@ -2317,7 +2388,7 @@ def _event_text(
 
     if event_type == "phase_change_work":
         if lang == "no":
-            return "Nå begynner innsatsen." if tone != "motivational" else "Nå jobber vi."
+            return "Nå begynner vi." if tone != "motivational" else "Nå jobber vi."
         return "Work starts now." if tone != "motivational" else "Time to work."
 
     if event_type == "phase_change_rest":
@@ -2327,23 +2398,23 @@ def _event_text(
 
     if event_type == "phase_change_warmup":
         if lang == "no":
-            return "Forbered deg på økten."
-        return "Prepare for the session."
+            return "Oppvarming startet"
+        return "Warmup started"
 
     if event_type == "phase_change_cooldown":
         if lang == "no":
-            return "Nå roer vi ned."
+            return "Nå roer vi ned pulsen."
         return "Cooldown now."
 
     if event_type == "pause_detected":
         if lang == "no":
-            return "Pauset økten."
-        return "Paused session"
+            return "Du har pauset økten"
+        return "Workout paused"
 
     if event_type == "pause_resumed":
         if lang == "no":
-            return "Du er i gang igjen."
-        return "You're moving again."
+            return "Økten fortsetter."
+        return "Workout has resumed"
 
     if event_type == "structure_instruction_work":
         return "Kjør på nå." if lang == "no" else "Pick it up now."
@@ -3019,6 +3090,19 @@ def evaluate_zone_tick(
 
     event_types = sorted(set(event_types), key=_event_priority, reverse=True)
 
+    selected_runtime_phrase_id: Optional[str] = None
+    if should_speak and primary_event:
+        if primary_event in _MOTIVATION_EVENT_TYPES:
+            selected_runtime_phrase_id = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(primary_event, canonical_phase)
+        elif primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+            selected_runtime_phrase_id = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(primary_event, canonical_phase)
+        else:
+            selected_runtime_phrase_id = _pick_runtime_phrase_id(
+                state=state,
+                event_type=primary_event,
+                phase=canonical_phase,
+            )
+
     coach_text = None
     if should_speak and primary_event:
         state["last_spoken_elapsed"] = float(elapsed_seconds)
@@ -3131,7 +3215,9 @@ def evaluate_zone_tick(
     }
     events_payload = []
     for event_name in event_types:
-        if event_name in _MOTIVATION_EVENT_TYPES:
+        if event_name == primary_event and selected_runtime_phrase_id:
+            _phrase = selected_runtime_phrase_id
+        elif event_name in _MOTIVATION_EVENT_TYPES:
             _phrase = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
         elif event_name in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
             _phrase = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
@@ -3146,13 +3232,7 @@ def evaluate_zone_tick(
         })
 
     resolved_priority = _event_priority(primary_event) if primary_event else 0
-    resolved_phrase_id = (
-        state.get("_pending_motivation_phrase_id")
-        if primary_event in _MOTIVATION_EVENT_TYPES
-        else state.get("_pending_structure_phrase_id")
-        if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES
-        else _resolve_phrase_id(primary_event, canonical_phase)
-    ) if primary_event else None
+    resolved_phrase_id = selected_runtime_phrase_id if primary_event else None
 
     # Contract hardening: every speakable event must carry both priority and phrase_id.
     for item in events_payload:
@@ -3162,7 +3242,9 @@ def evaluate_zone_tick(
         if item.get("priority") is None:
             item["priority"] = _event_priority(event_name)
         if not item.get("phrase_id"):
-            if event_name in _MOTIVATION_EVENT_TYPES:
+            if event_name == primary_event and selected_runtime_phrase_id:
+                item["phrase_id"] = selected_runtime_phrase_id
+            elif event_name in _MOTIVATION_EVENT_TYPES:
                 item["phrase_id"] = state.get("_pending_motivation_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
             elif event_name in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
                 item["phrase_id"] = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)

@@ -40,6 +40,34 @@ GROUP_ORDER = {
     "future additions": 6,
 }
 
+CURATION_CATEGORY_FAMILIES = {
+    "instruction": {
+        "zone.above",
+        "zone.below",
+        "zone.in_zone",
+        "zone.silence",
+        "zone.structure.work",
+        "zone.structure.recovery",
+        "zone.structure.steady",
+        "zone.structure.finish",
+    },
+    "context_progress": {
+        "zone.phase.warmup",
+        "zone.phase.work",
+        "zone.phase.rest",
+        "zone.phase.cooldown",
+        "zone.main_started",
+        "zone.pause",
+        "zone.hr_poor_enter",
+        "zone.hr_poor_exit",
+        "zone.hr_poor_timing",
+        "zone.countdown",
+        "zone.workout_finished",
+    },
+}
+CURATION_ACTIVE_STATUSES = {"active", "active_secondary"}
+RUNTIME_ACTIVE_STATUSES = {"active", "active_secondary"}
+
 
 @dataclass(frozen=True)
 class ReviewSeed:
@@ -92,8 +120,11 @@ class ReviewRow:
 
 ACTIVE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("instruction", "zone.above.default.1", "instruction", "zone.above", "above_zone", "HR", "Ease back slightly.", "Ro ned litt.", "active", "primary HR correction"),
+    ReviewSeed("instruction", "zone.above.default.2", "instruction", "zone.above", "above_zone", "HR", "Heart rate slightly above target.", "Pulsen er litt høy.", "active", "secondary HR correction"),
     ReviewSeed("instruction", "zone.below.default.1", "instruction", "zone.below", "below_zone", "HR", "Pick it up.", "Øk litt nå.", "active", "primary HR correction"),
     ReviewSeed("instruction", "zone.in_zone.default.1", "instruction", "zone.in_zone", "in_zone", "HR", "Stay right here.", "Bli her.", "active", "primary HR hold cue"),
+    ReviewSeed("instruction", "zone.in_zone.default.2", "instruction", "zone.in_zone", "in_zone", "HR", "You are in correct zone.", "Hold tempoet.", "active", "active HR hold cue"),
+    ReviewSeed("instruction", "zone.in_zone.default.3", "instruction", "zone.in_zone", "in_zone", "HR", "Hold this phase.", "Hold dette tempoet.", "active", "active HR hold cue"),
     ReviewSeed("instruction", "zone.silence.work.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Hold the rhythm.", "Hold rytmen.", "active", "low-urgency hold guidance"),
     ReviewSeed("instruction", "zone.silence.rest.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Relax your shoulders.", "Senk skuldrene.", "active", "low-urgency hold guidance"),
     ReviewSeed("instruction", "zone.silence.default.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Find your pace.", "Finn rytmen.", "active", "low-urgency hold guidance"),
@@ -106,21 +137,24 @@ ACTIVE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("instruction", "zone.structure.steady.5", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Keep the pace steady.", "Hold tempoet jevnt.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.6", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Hold the phase.", "Hold det her.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.finish.1", "instruction", "zone.structure.finish", "final_effort", "NO_HR", "Final push now!", "Trykk til nå!", "active", "primary no-HR finish cue"),
-    ReviewSeed("context", "zone.phase.warmup.1", "context", "zone.phase.warmup", "warmup", "BOTH", "Prepare for the session.", "Forbered deg på økten.", "active", "shared warmup context"),
+    ReviewSeed("context", "zone.phase.warmup.1", "context", "zone.phase.warmup", "warmup", "BOTH", "Warmup started", "Oppvarming startet", "active", "shared warmup context"),
     ReviewSeed("context", "zone.main_started.1", "context", "zone.main_started", "main_started", "BOTH", "Main set now.", "Nå er du i hoveddelen.", "active", "shared main-set context"),
-    ReviewSeed("context", "zone.phase.work.default.1", "context", "zone.phase.work", "phase_change_work", "BOTH", "Work starts now.", "Nå begynner innsatsen.", "active", "shared work transition"),
-    ReviewSeed("context", "zone.phase.work.motivational.1", "context", "zone.phase.work", "phase_change_work", "BOTH", "Time to work.", "Nå jobber vi.", "active", "shared work transition"),
+    ReviewSeed("context", "zone.main_started.2", "context", "zone.main_started", "main_started", "BOTH", "Workout starts now", "Treningen starter nå.", "active", "shared main-set context"),
+    ReviewSeed("context", "zone.phase.work.default.1", "context", "zone.phase.work", "phase_change_work", "BOTH", "Work starts now.", "Nå begynner vi.", "active", "shared work transition"),
+    ReviewSeed("motivation", "zone.phase.work.motivational.1", "motivation", "zone.phase.work", "phase_change_work", "BOTH", "Time to work.", "Nå jobber vi.", "active", "motivational work transition"),
     ReviewSeed("context", "zone.phase.rest.1", "context", "zone.phase.rest", "phase_change_rest", "BOTH", "Recovery now.", "Pause nå.", "active", "shared recovery context"),
-    ReviewSeed("context", "zone.phase.cooldown.1", "context", "zone.phase.cooldown", "cooldown", "BOTH", "Cooldown now.", "Nå roer vi ned.", "active", "shared cooldown context"),
-    ReviewSeed("context", "zone.pause.detected.1", "context", "zone.pause", "pause_detected", "BOTH", "Paused session", "Pauset økten.", "active", "shared pause context"),
-    ReviewSeed("context", "zone.pause.resumed.1", "context", "zone.pause", "pause_resumed", "BOTH", "You're moving again.", "Du er i gang igjen.", "active", "shared pause context"),
+    ReviewSeed("context", "zone.phase.cooldown.1", "context", "zone.phase.cooldown", "cooldown", "BOTH", "Cooldown now.", "Nå roer vi ned pulsen.", "active", "shared cooldown context"),
+    ReviewSeed("context", "zone.pause.detected.1", "context", "zone.pause", "pause_detected", "BOTH", "Workout paused", "Du har pauset økten", "active", "shared pause context"),
+    ReviewSeed("context", "zone.pause.resumed.1", "context", "zone.pause", "pause_resumed", "BOTH", "Workout has resumed", "Økten fortsetter.", "active", "shared pause context"),
     ReviewSeed("context", "zone.hr_poor_enter.1", "context", "zone.hr_poor_enter", "hr_signal_lost", "HR", "Heart rate signal is weak.", "Pulssignalet er svakt.", "active", "HR-dependent context"),
     ReviewSeed("context", "zone.hr_poor_exit.1", "context", "zone.hr_poor_exit", "hr_signal_restored", "HR", "Heart rate is back.", "Pulsen er tilbake.", "active", "HR-dependent context"),
     ReviewSeed("context", "zone.hr_poor_timing.1", "context", "zone.hr_poor_timing", "no_hr_mode_notice", "NO_HR", "No heart rate signal. I will continue coaching", "Ingen pulssignal. Jeg fortsetter å coache", "active", "primary no-HR mode switch"),
     ReviewSeed("progress", "zone.countdown.30", "progress", "zone.countdown", "countdown_30", "BOTH", "30 seconds left.", "30 sekunder.", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.15", "progress", "zone.countdown", "countdown_15", "BOTH", "15", "15", "active", "shared countdown cue"),
-    ReviewSeed("progress", "zone.countdown.5", "progress", "zone.countdown", "countdown_5", "BOTH", "5!", "fem", "active", "shared countdown cue"),
+    ReviewSeed("progress", "zone.countdown.5", "progress", "zone.countdown", "countdown_5", "BOTH", "Five.", "fem", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.start", "progress", "zone.countdown", "countdown_start", "BOTH", "Go", "Start", "active", "shared countdown start cue"),
+    ReviewSeed("progress", "zone.countdown.halfway.dynamic", "progress", "zone.countdown", "countdown_halfway", "BOTH", "You are halfway through", "Du er halvveis nå.", "active", "shared halfway countdown cue"),
+    ReviewSeed("progress", "zone.countdown.session_halfway.dynamic", "progress", "zone.countdown", "countdown_session_halfway", "BOTH", "You are halfway through the workout", "Du er halvveis nå.", "active", "shared session-halfway countdown cue"),
     ReviewSeed("progress", "zone.workout_finished.1", "progress", "zone.workout_finished", "workout_finish", "BOTH", "Workout finished. Nice work.", "Økten er ferdig. Bra jobbet.", "active", "shared workout closure"),
     ReviewSeed("motivation", "interval.motivate.s1.1", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Control your breath.", "Kontroller pusten.", "active", "active interval motivation"),
     ReviewSeed("motivation", "interval.motivate.s1.2", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Good start.", "God start.", "active", "active interval motivation"),
@@ -144,7 +178,6 @@ ACTIVE_SEEDS: tuple[ReviewSeed, ...] = (
 )
 
 FUTURE_SEEDS: tuple[ReviewSeed, ...] = (
-    ReviewSeed("future additions", "zone.above.default.2", "instruction", "zone.above", "above_zone", "HR", "Bring it down.", "Senk tempoet litt.", "future", "future HR correction variant"),
     ReviewSeed("future additions", "zone.above.default.3", "instruction", "zone.above", "above_zone", "HR", "Ease the effort.", "Ro ned innsatsen.", "future", "future HR correction variant"),
     ReviewSeed("future additions", "zone.above.default.4", "instruction", "zone.above", "above_zone", "HR", "Settle it down.", "La det roe seg.", "future", "future HR correction variant"),
     ReviewSeed("future additions", "zone.above.default.5", "instruction", "zone.above", "above_zone", "HR", "Relax the pace.", "Slipp litt opp.", "future", "future HR correction variant"),
@@ -152,13 +185,10 @@ FUTURE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("future additions", "zone.below.default.3", "instruction", "zone.below", "below_zone", "HR", "Lift the pace.", "Øk tempoet litt.", "future", "future HR correction variant"),
     ReviewSeed("future additions", "zone.below.default.4", "instruction", "zone.below", "below_zone", "HR", "Drive the pace.", "Trykk til litt.", "future", "future HR correction variant"),
     ReviewSeed("future additions", "zone.below.default.5", "instruction", "zone.below", "below_zone", "HR", "Build the effort.", "Bygg opp innsatsen.", "future", "future HR correction variant"),
-    ReviewSeed("future additions", "zone.in_zone.default.2", "instruction", "zone.in_zone", "in_zone", "HR", "Hold this pace.", "Hold dette tempoet.", "future", "future HR hold variant"),
-    ReviewSeed("future additions", "zone.in_zone.default.3", "instruction", "zone.in_zone", "in_zone", "HR", "Hold the rhythm.", "Hold rytmen.", "future", "future HR hold variant"),
     ReviewSeed("future additions", "zone.in_zone.default.4", "instruction", "zone.in_zone", "in_zone", "HR", "Stay steady.", "Hold det jevnt.", "future", "future HR hold variant"),
     ReviewSeed("future additions", "zone.in_zone.default.5", "instruction", "zone.in_zone", "in_zone", "HR", "Right there.", "Der ja!", "future", "future HR hold variant"),
     ReviewSeed("future additions", "zone.phase.warmup.2", "context", "zone.phase.warmup", "warmup", "BOTH", "Easy start.", "Rolig start.", "future", "future shared warmup variant"),
     ReviewSeed("future additions", "zone.phase.warmup.3", "context", "zone.phase.warmup", "warmup", "BOTH", "Start nice and easy.", "Start rolig.", "future", "future shared warmup variant"),
-    ReviewSeed("future additions", "zone.main_started.2", "context", "zone.main_started", "main_started", "BOTH", "The workout begins now.", "Nå begynner økten.", "future", "future shared main-set variant"),
     ReviewSeed("future additions", "zone.main_started.3", "context", "zone.main_started", "main_started", "BOTH", "Main work starts now.", "Hoveddelen starter nå.", "future", "future shared main-set variant"),
     ReviewSeed("future additions", "zone.phase.rest.2", "context", "zone.phase.rest", "phase_change_rest", "BOTH", "Calm your breath now.", "Ro ned pusten nå.", "future", "future shared recovery variant"),
     ReviewSeed("future additions", "zone.phase.rest.3", "context", "zone.phase.rest", "phase_change_rest", "BOTH", "Catch your breath.", "Hent deg inn nå.", "future", "future shared recovery variant"),
@@ -329,6 +359,35 @@ def summarize_review_rows(rows: Iterable[ReviewRow]) -> dict[str, int]:
         "compatibility_rows": sum(1 for row in row_list if row.active_status == "compatibility"),
         "future_rows": sum(1 for row in row_list if row.active_status == "future"),
     }
+
+
+def build_curation_rows(category: str) -> list[ReviewRow]:
+    allowed_families = CURATION_CATEGORY_FAMILIES.get(category)
+    if allowed_families is None:
+        raise ValueError(f"Unsupported curation category: {category}")
+
+    return [
+        row
+        for row in build_review_rows()
+        if row.active_status in CURATION_ACTIVE_STATUSES and row.family in allowed_families
+    ]
+
+
+def build_runtime_pack_rows() -> list[ReviewRow]:
+    return [
+        row
+        for row in build_review_rows()
+        if row.active_status in RUNTIME_ACTIVE_STATUSES
+    ]
+
+
+def build_runtime_event_phrase_map() -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {}
+    for seed in ACTIVE_SEEDS:
+        if seed.active_status not in RUNTIME_ACTIVE_STATUSES:
+            continue
+        grouped.setdefault(seed.event, []).append(seed.phrase_id)
+    return grouped
 
 
 def rows_to_dicts(rows: Iterable[ReviewRow]) -> list[dict[str, str]]:

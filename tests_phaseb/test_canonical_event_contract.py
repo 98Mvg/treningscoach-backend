@@ -237,14 +237,14 @@ def test_events_carry_priority_and_phrase_id():
 
 def test_speakable_event_contract_downgrades_to_safe_fallback(monkeypatch):
     state = {}
-    original_resolver = zone_event_motor._resolve_phrase_id
+    original_picker = zone_event_motor._pick_runtime_phrase_id
 
-    def _broken_resolver(event_type, phase):
+    def _broken_picker(*, state, event_type, phase):
         if event_type == "main_started":
             return None
-        return original_resolver(event_type, phase)
+        return original_picker(state=state, event_type=event_type, phase=phase)
 
-    monkeypatch.setattr(zone_event_motor, "_resolve_phrase_id", _broken_resolver)
+    monkeypatch.setattr(zone_event_motor, "_pick_runtime_phrase_id", _broken_picker)
 
     result = evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0))
     assert result["should_speak"] is True
@@ -327,16 +327,24 @@ def test_resolve_unknown_returns_none():
 
 
 def test_requested_norwegian_phrase_catalog_copy():
-    assert get_phrase_text("zone.phase.warmup.1", "no") == "Forbered deg på økten."
+    assert get_phrase_text("zone.phase.warmup.1", "no") == "Oppvarming startet"
     assert get_phrase_text("zone.countdown.15", "no") == "15"
+    assert get_phrase_text("zone.countdown.5", "en") == "Five."
     assert get_phrase_text("zone.countdown.5", "no") == "fem"
     assert get_phrase_text("zone.countdown.start", "no") == "Start"
     assert get_phrase_text("zone.main_started.1", "no") == "Nå er du i hoveddelen."
+    assert get_phrase_text("zone.main_started.2", "no") == "Treningen starter nå."
+    assert get_phrase_text("zone.pause.detected.1", "no") == "Du har pauset økten"
+    assert get_phrase_text("zone.pause.resumed.1", "no") == "Økten fortsetter."
+    assert get_phrase_text("zone.above.default.2", "no") == "Pulsen er litt høy."
+    assert get_phrase_text("zone.in_zone.default.2", "no") == "Hold tempoet."
+    assert get_phrase_text("zone.in_zone.default.3", "no") == "Hold dette tempoet."
     assert get_phrase_text("zone.silence.work.1", "no") == "Hold rytmen."
     assert get_phrase_text("zone.hr_poor_enter.1", "no") == "Pulssignalet er svakt."
     assert get_phrase_text("zone.hr_poor_exit.1", "no") == "Pulsen er tilbake."
     assert get_phrase_text("zone.hr_poor_timing.1", "no") == "Ingen pulssignal. Jeg fortsetter å coache"
-    assert get_phrase_text("zone.phase.cooldown.1", "no") == "Nå roer vi ned."
+    assert get_phrase_text("zone.phase.work.default.1", "no") == "Nå begynner vi."
+    assert get_phrase_text("zone.phase.cooldown.1", "no") == "Nå roer vi ned pulsen."
     assert get_phrase_text("zone.structure.work.1", "no") == "Kjør på nå."
 
 
@@ -347,14 +355,22 @@ def test_requested_norwegian_zone_fallback_copy():
     assert _event_text(event_type="interval_countdown_halfway", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Du er halvveis nå."
     assert _event_text(event_type="interval_countdown_session_halfway", language="no", style="normal", target_low=None, target_high=None, segment="work", workout_context_summary={"reps_total": 4}) == "Du er halvveis nå."
     assert _event_text(event_type="main_started", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Nå er du i hoveddelen."
-    assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Forbered deg på økten."
+    assert _event_text(event_type="phase_change_warmup", language="no", style="normal", target_low=None, target_high=None, segment="warmup") == "Oppvarming startet"
     assert _event_text(event_type="max_silence_breath_guide", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."
     assert _event_text(event_type="max_silence_go_by_feel", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Hold rytmen."
     assert _event_text(event_type="hr_signal_lost", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Pulssignalet er svakt."
     assert _event_text(event_type="hr_signal_restored", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Pulsen er tilbake."
     assert _event_text(event_type="hr_structure_mode_notice", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Ingen pulssignal. Jeg fortsetter å coache"
-    assert _event_text(event_type="phase_change_cooldown", language="no", style="normal", target_low=None, target_high=None, segment="cooldown") == "Nå roer vi ned."
+    assert _event_text(event_type="pause_detected", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Du har pauset økten"
+    assert _event_text(event_type="pause_resumed", language="no", style="normal", target_low=None, target_high=None, segment="main") == "Økten fortsetter."
+    assert _event_text(event_type="phase_change_work", language="no", style="normal", target_low=None, target_high=None, segment="work") == "Nå begynner vi."
+    assert _event_text(event_type="phase_change_cooldown", language="no", style="normal", target_low=None, target_high=None, segment="cooldown") == "Nå roer vi ned pulsen."
     assert _event_text(event_type="structure_instruction_recovery", language="no", style="normal", target_low=None, target_high=None, segment="recovery") == "Ro ned og hent deg inn."
+
+
+def test_requested_english_zone_fallback_copy():
+    assert _event_text(event_type="interval_countdown_5", language="en", style="normal", target_low=None, target_high=None, segment="work") == "Five."
+    assert _event_text(event_type="interval_countdown_session_halfway", language="en", style="normal", target_low=None, target_high=None, segment="work", workout_context_summary={"reps_total": 4}) == "You are halfway through the workout"
 
 
 # ── (Step 7) Structured logging ───────────────────────────────────────

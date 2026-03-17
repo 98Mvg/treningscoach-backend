@@ -1,6 +1,6 @@
 # Lessons / Execution Guardrails
 
-Updated: 2026-03-16
+Updated: 2026-03-17
 
 ## Workflow Orchestration
 
@@ -36,6 +36,9 @@ Updated: 2026-03-16
 
 ## Session-Specific Lessons
 
+- 2026-03-17: When curating V2 phrases, update the review source (`phrase_review_v2.py`), the fallback catalog (`tts_phrase_catalog.py`), and the deterministic backend text path (`zone_event_motor.py`) on the same pass or the app, pack generation, and tests drift immediately.
+- 2026-03-17: For R2 pack updates, prefer `tools/generate_audio_pack.py --changed-only --sync-r2` after small copy/variant edits so unchanged MP3s keep their existing audio identity while only genuinely changed/new phrases are regenerated and uploaded.
+- 2026-03-17: After updating V2 and syncing R2, run `tools/select_core_bundle.py --version v2` to keep the app’s bundled offline `CoreAudioPack` aligned with the same V2 manifest; otherwise offline fallback will lag behind the live pack.
 - 2026-03-16: When onboarding copy feels too thin, enrich the existing step views in `OnboardingContainerView.swift` with compact Coachi explanation cards instead of adding a second explainer flow or copying inspiration screens literally.
 - 2026-03-16: For HR onboarding, define the metric first (`makspuls`, `hvilepuls`) and then give one concrete measurement rule; that is enough clarity without turning the page into a medical article.
 - 2026-03-16: When asking about endurance habits, users need explicit examples of what counts and what does not. Keep those examples on the same page as the yes/no choice so they do not have to guess before answering.
@@ -147,3 +150,13 @@ Updated: 2026-03-16
 - 2026-03-17: Dynamic countdown copy like `2/4 done` should stay on the existing zone-event path but bypass local audio-pack playback. Use a `.dynamic` phrase-id suffix and let iOS fall through to backend TTS, otherwise local pack audio will silently override the dynamic progress text.
 - 2026-03-17: Halfway countdowns should be modeled as deterministic progress events, not as a second progress engine. Reuse `countdown_fired_map`, keep `interval_countdown_30` higher priority, and suppress halfway when it collides with the existing 30-second cue.
 - 2026-03-17: If the user wants simpler halfway wording for now, keep both halfway events alive but point them at the same copy temporarily. Do not remove the session-halfway event just because `2/4 done` is postponed.
+- 2026-03-17: `warmup_started`, `main_started`, `pause_detected`, and `pause_resumed` are shared `BOTH` context cues. Treat them as phase/session narration that should stay coherent in both HR and no-HR runtime paths, not as HR-only correction phrases.
+- 2026-03-17: New shared countdown/runtime cues should also be represented in `phrase_review_v2.py` as `BOTH` rows, even if the app currently bypasses local-pack playback for `.dynamic` ids. V2 curation must still show the real active phrase surface before upload/review.
+- 2026-03-17: The app-side audio truth was already R2 `latest.json` + `manifest.json`; the missing source-of-truth fix was upstream. For V2 packs, generate from active runtime rows in `phrase_review_v2.py`, not by treating review as an ID-only filter over `tts_phrase_catalog.py`.
+- 2026-03-17: `.dynamic` suffix should not mean "always bypass the pack." If a curated V2 phrase id can exist in the synced pack, iOS should try local/R2 audio first and only fall back to backend TTS if the file is actually missing.
+- 2026-03-17: A one-step `--sync-r2` workflow on the existing generator is safer than inventing a parallel upload script. Keep generation, manifest write, `latest.json`, upload, and stale-R2 prune on the same tool path.
+- 2026-03-17: For non-motivation workout cues that already have multiple active V2 variants, keep phrase rotation backend-owned. The app already honors backend `phrase_id`, so adding a second rotation layer in iOS would create drift between pack truth and runtime behavior.
+- 2026-03-17: Motivation timing is already stricter than normal context cues: interval motivation waits for valid in-zone HR plus sustain and skips the first 10 seconds of a rep; easy-run motivation uses a separate sustain + cooldown path. Check those guards before assuming “the coach is repetitive” is a trigger problem.
+- 2026-03-17: Render deploys from the root Flask runtime (`main.py` + `Procfile` + root `requirements.txt`). Do not fix deployment failures by editing stale `backend/requirements.txt` alone; either mirror root truth there or leave it as a compatibility shim.
+- 2026-03-17: Tool-only dependencies like `boto3` should not live in production `requirements.txt` just because a local script uses them. Put them in a dedicated tool requirements file and let runtime stay focused on what Gunicorn/Flask actually imports.
+- 2026-03-17: `SQLAlchemy` does not install the `psycopg` driver for you. If runtime normalizes `DATABASE_URL` to `postgresql+psycopg://`, keep `psycopg[binary]` explicit in root production requirements even if another package happened to pull it transitively before.

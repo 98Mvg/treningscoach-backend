@@ -13,9 +13,23 @@ def test_audio_pack_tools_exist():
     assert (REPO_ROOT / "tools" / "select_core_bundle.py").exists()
 
 
-def test_requirements_include_boto3_for_r2_upload():
+def test_runtime_requirements_do_not_pull_tool_only_r2_sdk():
     requirements = _read("requirements.txt")
+    assert "boto3" not in requirements
+    assert "Flask==3.0.0" in requirements
+    assert "gunicorn==21.2.0" in requirements
+    assert "psycopg" in requirements
+
+
+def test_tool_requirements_include_boto3_for_r2_upload():
+    requirements = _read("requirements-tools.txt")
+    assert "-r requirements.txt" in requirements
     assert "boto3" in requirements
+
+
+def test_backend_requirements_delegate_to_root_runtime_truth():
+    requirements = _read("backend/requirements.txt").strip()
+    assert requirements == "-r ../requirements.txt"
 
 
 def test_env_examples_expose_r2_audio_pack_keys():
@@ -52,10 +66,12 @@ def test_workout_event_router_is_local_first_not_audio_url_gated():
     assert "downloadAudioPackFileIfNeeded(" in content
 
 
-def test_dynamic_countdown_phrase_ids_bypass_local_pack_and_use_backend_tts():
+def test_dynamic_countdown_phrase_ids_try_pack_first_and_fallback_to_backend_tts():
     content = _read("TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift")
     assert 'utteranceID?.hasSuffix(".dynamic") == true' in content
-    assert 'reason=dynamic_phrase' in content
+    assert 'localPackFileURL(for: utteranceID' in content
+    assert 'downloadAudioPackFileIfNeeded(' in content
+    assert 'reason=dynamic_phrase_missing_in_pack' in content
 
 
 def test_workout_event_mapping_uses_phrase_catalog_ids():

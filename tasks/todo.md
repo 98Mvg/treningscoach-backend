@@ -1,6 +1,6 @@
 # Task Plan (Active)
 
-Updated: 2026-03-16
+Updated: 2026-03-17
 
 ## Working Rules (from workflow image)
 
@@ -29,6 +29,9 @@ Updated: 2026-03-16
 
 ## Progress Log
 
+- 2026-03-17: Promoted new V2 runtime phrases for `zone.above.default.2`, `zone.in_zone.default.2`, `zone.in_zone.default.3`, and `zone.main_started.2`, synced the changed `countdown/work/cooldown` copy across `phrase_review_v2.py`, `tts_phrase_catalog.py`, and `zone_event_motor.py`, and kept the single existing V2->R2/app path intact.
+- 2026-03-17: Ran `python3 tools/generate_audio_pack.py --version v2 --changed-only --sync-r2` with local `.env` sourcing; the tool regenerated only changed/new phrases (`16 changed`, `12 new`, `88 unchanged skipped`), wrote `v2/manifest.json` + `latest.json`, uploaded the updated V2 pack to R2, and pruned `0` stale MP3 objects.
+- 2026-03-17: Ran `python3 tools/select_core_bundle.py --version v2` so the app’s bundled offline `CoreAudioPack` now mirrors the current V2 manifest (`58` IDs / `116` MP3s), including the newly added V2 phrases like `zone.main_started.2`, `zone.above.default.2`, `zone.in_zone.default.2`, `zone.in_zone.default.3`, and `zone.countdown.session_halfway.dynamic`.
 - 2026-03-16: Kept `Talk to Coach Live` visible on workout summary for all users when live voice is enabled, but moved actual free-session counting from summary tap to the first successful realtime connection so failed starts/timeouts do not burn daily quota.
 - 2026-03-16: Synced free live-voice policy to `3/day` across iOS config, backend defaults, `.env.example`, and launch ops docs, while preserving max-duration caps for both free and premium sessions.
 - 2026-03-16: Cleaned the live website launch surfaces so `/` and `/download` now use `coachi.no` metadata/canonical URLs, real `/privacy` and `/terms` footer links, and free-download + optional Premium copy instead of old beta/onrender wording.
@@ -433,3 +436,102 @@ Updated: 2026-03-16
   - NO: `Du er halvveis nå.`
 - Deferred richer session-progress wording like `2/4 done` without undoing the session-halfway event itself, so future copy iteration can stay on the same deterministic countdown path.
 - Re-locked the wording in [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py) and [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py).
+
+## Review — 2026-03-17 Shared context phrase refresh
+
+- Refreshed the active shared context cues on the single existing phrase path:
+  - [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py)
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+- Updated runtime `.1` copy for:
+  - `zone.phase.warmup.1` -> `Warmup started` / `Oppvarming startet`
+  - `zone.pause.detected.1` -> `Workout paused` / `Du har pauset økten`
+  - `zone.pause.resumed.1` -> `Workout has resumed` / `Økten fortsetter.`
+- Added/updated the non-active variant `zone.main_started.2` in the phrase sources as:
+  - `Workout starting now` / `Treningsøkten begynner nå`
+- Kept runtime routing unchanged for `main_started`; the app still maps `main_started` to `.1`, while `.2` is now available as the next curated variant instead of a second routing path.
+- Verified the shared-context contract with:
+  - `pytest -q tests_phaseb/test_canonical_event_contract.py tests_phaseb/test_phrase_catalog_v2_review.py tests_phaseb/test_generate_audio_pack_sample_and_latest.py tests_phaseb/test_r2_audio_pack_contract.py tests_phaseb/test_workout_cue_catalog_contract.py` -> `85 passed`
+  - `python3 -m py_compile tts_phrase_catalog.py phrase_review_v2.py zone_event_motor.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 V2 phrase sync for new shared cues
+
+- Added the two new halfway countdown cues to [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) as active `progress` rows with `mode="BOTH"`:
+  - `zone.countdown.halfway.dynamic`
+  - `zone.countdown.session_halfway.dynamic`
+- Kept them on the existing V2 review/upload path without inventing a second phrase source. This makes all newly added shared workout cues visible in phrase curation/export even though runtime still treats the `.dynamic` ids specially on playback.
+- Updated review-count and curation tests in [test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py) so the `context_progress` curation view now includes the halfway cues alongside the rest of the active countdown family.
+- Verification:
+  - `PYTHONPATH=. pytest -q tests_phaseb/test_phrase_catalog_v2_review.py tests_phaseb/test_phrase_catalog_editor.py tests_phaseb/test_generate_audio_pack_sample_and_latest.py tests_phaseb/test_r2_audio_pack_contract.py tests_phaseb/test_workout_cue_catalog_contract.py tests_phaseb/test_canonical_event_contract.py` -> `101 passed`
+  - `python3 -m py_compile phrase_review_v2.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 V2 runtime pack sync to R2/app path
+
+- Closed the real single-source-of-truth gap on the existing audio-pack path:
+  - app runtime was already manifest-driven from R2 via [AudioPackSyncManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AudioPackSyncManager.swift)
+  - but V2 generation still built text from [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py) and used review only as an ID filter
+- [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) now builds the V2 pack from active runtime rows in [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py), so:
+  - local V2 review/source controls which runtime phrases are included
+  - generated `manifest.json` / `latest.json` stay the pack truth
+  - `--sync-r2` now provides a one-step generate + upload + stale-R2-prune workflow on the same existing pipeline
+- [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) no longer hard-bypasses `.dynamic` IDs. It now:
+  - tries local pack first
+  - tries R2 pack fetch next
+  - falls back to backend TTS only if the pack does not contain the file
+- This keeps R2/app sync authoritative even for curated countdown IDs that previously always skipped the pack path.
+- Updated source contracts in:
+  - [test_generate_audio_pack_sample_and_latest.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_generate_audio_pack_sample_and_latest.py)
+  - [test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py)
+  - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_generate_audio_pack_sample_and_latest.py tests_phaseb/test_phrase_catalog_v2_review.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
+  - `python3 -m py_compile phrase_review_v2.py tools/generate_audio_pack.py` -> passed
+  - `python3 tools/generate_audio_pack.py --version v2 --dry-run` -> `Phrases: 108`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 Phrase rotation on existing runtime path
+
+- Kept the current single cue runtime path and made backend phrase selection less repetitive without inventing a second selector in iOS.
+- Added [build_runtime_event_phrase_map()](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) in [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) so the active V2 review rows remain the source of truth for which variants are eligible per event.
+- Updated [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) so the selected primary event now uses backend-owned rotation for active V2 variants on shared context/instruction events such as:
+  - `main_started`
+  - `entered_target`
+  - `exited_target_above`
+  - and any future event that gains multiple active rows in the same review-event bucket
+- Left iOS on the same event path in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift): the app still prefers backend-provided `phrase_id`, so no duplicate rotation logic was added client-side.
+- Motivation was checked rather than redesigned:
+  - interval motivation only fires in `work` when HR is valid, the user is in target long enough, and the first 10 seconds of the rep have passed
+  - interval motivation uses slot/budget logic from work duration
+  - easy-run motivation fires after sustain and respects the easy-run cooldown
+  - higher-priority events suppress motivation in the same tick
+- Added/updated source contracts in:
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+  - [test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py)
+- Verification:
+  - `PYTHONPATH=. pytest -q tests_phaseb/test_zone_event_motor.py tests_phaseb/test_zone_motivation_stages.py tests_phaseb/test_canonical_event_contract.py tests_phaseb/test_phrase_catalog_v2_review.py tests_phaseb/test_r2_audio_pack_contract.py` -> `133 passed`
+  - `python3 -m py_compile zone_event_motor.py phrase_review_v2.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
+## Review — 2026-03-17 Render dependency cleanup
+
+- Troubleshot the Render deploy path against the real production runtime:
+  - Render deploys from root [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) via [Procfile](/Users/mariusgaarder/Documents/treningscoach/Procfile)
+  - root [requirements.txt](/Users/mariusgaarder/Documents/treningscoach/requirements.txt) is therefore the production dependency truth
+- Removed tool-only `boto3` from root [requirements.txt](/Users/mariusgaarder/Documents/treningscoach/requirements.txt) so Render no longer installs the R2 upload SDK as part of the Flask runtime.
+- Added [requirements-tools.txt](/Users/mariusgaarder/Documents/treningscoach/requirements-tools.txt) for manual tooling and R2 upload flows. This keeps the existing [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) path working without bloating production deploys.
+- Converted [backend/requirements.txt](/Users/mariusgaarder/Documents/treningscoach/backend/requirements.txt) into a simple compatibility shim (`-r ../requirements.txt`) so stale FastAPI/uvicorn/soundfile drift no longer misrepresents the real backend runtime.
+- Kept `psycopg[binary]` in root [requirements.txt](/Users/mariusgaarder/Documents/treningscoach/requirements.txt). The production DB URL is normalized to `postgresql+psycopg://` in [database.py](/Users/mariusgaarder/Documents/treningscoach/database.py), so the driver is a real runtime dependency and must not be removed.
+- Updated [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) error text so local R2 upload failures now point to `pip install -r requirements-tools.txt`.
+- Updated dependency/source contracts in:
+  - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
+  - [test_launch_integrations_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_launch_integrations_contract.py)
+  - [test_config_env_overrides.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_config_env_overrides.py)
+- Verification:
+  - `PYTHONPATH=. pytest -q tests_phaseb/test_r2_audio_pack_contract.py tests_phaseb/test_launch_integrations_contract.py tests_phaseb/test_config_env_overrides.py` -> `45 passed`
+  - `python3 -m py_compile tools/generate_audio_pack.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`

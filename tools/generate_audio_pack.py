@@ -6,6 +6,7 @@ Usage examples:
   python3 tools/generate_audio_pack.py --version v1 --dry-run
   python3 tools/generate_audio_pack.py --version v1
   python3 tools/generate_audio_pack.py --version v2 --changed-only
+  python3 tools/generate_audio_pack.py --version v2 --sync-r2
   python3 tools/generate_audio_pack.py --version v1 --sample-one --sample-language en
   python3 tools/generate_audio_pack.py --version v1 --sample-phrase-id zone.main_started.1 --sample-language en
   python3 tools/generate_audio_pack.py --version v1 --upload
@@ -32,10 +33,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import config  # noqa: E402
 from coaching_engine import validate_coaching_text  # noqa: E402
 from elevenlabs_tts import ElevenLabsTTS  # noqa: E402
+from phrase_review_v2 import build_runtime_pack_rows  # noqa: E402
 from tts_phrase_catalog import (  # noqa: E402
     expand_dynamic_templates,
     get_all_static_phrases,
     get_core_phrases,
+    get_phrase_by_id,
 )
 from workout_cue_catalog import validate_active_workout_cue_phrase  # noqa: E402
 
@@ -207,6 +210,69 @@ def _build_phrase_list(core_only: bool) -> list[PhraseItem]:
     return phrases
 
 
+def _build_v2_phrase_list() -> list[PhraseItem]:
+    phrases: list[PhraseItem] = []
+    seen: set[tuple[str, str]] = set()
+
+    for row in build_runtime_pack_rows():
+        catalog_entry = get_phrase_by_id(row.phrase_id)
+        source_persona = str(catalog_entry.get("persona", "personal_trainer")) if catalog_entry else "personal_trainer"
+        priority = str(catalog_entry.get("priority", "core")) if catalog_entry else "core"
+        persona = _persona_for_pack(row.phrase_id, source_persona)
+
+        for language, text in (("en", row.english_locked), ("no", row.norwegian_locked)):
+            phrases.append(
+                PhraseItem(
+                    phrase_id=row.phrase_id,
+                    language=language,
+                    text=text,
+                    persona=persona,
+                    priority=priority,
+                    voice_id_override=V2_FORCE_VOICE_IDS.get(language),
+                )
+            )
+            seen.add((row.phrase_id, language))
+
+    for phrase_id in sorted(V2_BUNDLE_INFRASTRUCTURE_IDS):
+        catalog_entry = get_phrase_by_id(phrase_id)
+        if not catalog_entry:
+            raise RuntimeError(f"Missing V2 infrastructure phrase in catalog: {phrase_id}")
+        persona = _persona_for_pack(phrase_id, str(catalog_entry.get("persona", "personal_trainer")))
+        priority = str(catalog_entry.get("priority", "core"))
+        for language in LANGUAGES:
+            key = (phrase_id, language)
+            if key in seen:
+                continue
+            phrases.append(
+                PhraseItem(
+                    phrase_id=phrase_id,
+                    language=language,
+                    text=str(catalog_entry.get(language, "")),
+                    persona=persona,
+                    priority=priority,
+                    voice_id_override=V2_FORCE_VOICE_IDS.get(language),
+                )
+            )
+            seen.add(key)
+
+    return sorted(phrases, key=lambda phrase: (phrase.phrase_id, phrase.language))
+
+
+def _phrases_for_build(
+    *,
+    version: str,
+    core_only: bool,
+    review_path: Optional[Path],
+) -> list[PhraseItem]:
+    if version == "v2":
+        return _build_v2_phrase_list()
+    return _filter_phrases_for_version(
+        phrases=_build_phrase_list(core_only=core_only),
+        version=version,
+        review_path=review_path,
+    )
+
+
 def _is_truthy(value: str) -> bool:
     return (value or "").strip().lower() in TRUTHY_APPROVALS
 
@@ -353,9 +419,9 @@ def _refresh_existing_output(
     core_only: bool,
     review_path: Optional[Path],
 ) -> list[PhraseItem]:
-    phrases = _filter_phrases_for_version(
-        phrases=_build_phrase_list(core_only=core_only),
+    phrases = _phrases_for_build(
         version=version,
+        core_only=core_only,
         review_path=review_path,
     )
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -404,9 +470,9 @@ def _generate_audio(
     review_path: Optional[Path],
     skip_validation: bool = False,
 ) -> tuple[list[PhraseItem], Path]:
-    all_phrases = _filter_phrases_for_version(
-        phrases=_build_phrase_list(core_only=core_only),
+    all_phrases = _phrases_for_build(
         version=version,
+        core_only=core_only,
         review_path=review_path,
     )
     phrases = _select_phrases_for_run(
@@ -523,7 +589,10 @@ def _upload_to_r2(version: str, output_dir: Path, manifest_path: Path, latest_pa
     try:
         import boto3
     except ImportError as exc:
-        raise RuntimeError("boto3 is required for --upload/--upload-only") from exc
+        raise RuntimeError(
+            "boto3 is required for --upload/--upload-only. "
+            "Install tool dependencies with `pip install -r requirements-tools.txt`."
+        ) from exc
 
     endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
     s3 = boto3.client(
@@ -582,7 +651,10 @@ def _build_r2_client():
     try:
         import boto3
     except ImportError as exc:
-        raise RuntimeError("boto3 is required for R2 pruning/upload") from exc
+        raise RuntimeError(
+            "boto3 is required for R2 pruning/upload. "
+            "Install tool dependencies with `pip install -r requirements-tools.txt`."
+        ) from exc
 
     endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
     s3 = boto3.client(
@@ -691,9 +763,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--review-input",
         default=str(PROJECT_ROOT / "output" / "spreadsheet" / "phrase_catalog_sorted.csv"),
-        help="V2 review CSV used to gate approved active rows.",
+        help="Legacy V2 review artifact path. V2 pack generation now sources runtime rows from phrase_review_v2.py.",
     )
     parser.add_argument("--upload", action="store_true", help="Generate then upload")
+    parser.add_argument(
+        "--sync-r2",
+        action="store_true",
+        help="One-step sync: generate/update manifest, upload to R2, and prune stale R2 MP3s.",
+    )
     parser.add_argument("--upload-only", action="store_true", help="Upload existing output folder only")
     parser.add_argument(
         "--refresh-existing-only",
@@ -718,6 +795,11 @@ def main() -> int:
     args = parser.parse_args()
 
     version = (args.version or "v1").strip()
+    if args.sync_r2 and args.dry_run:
+        raise RuntimeError("--sync-r2 cannot be used with --dry-run")
+    if args.sync_r2:
+        args.upload = True
+        args.prune_removed_r2 = True
     output_dir = PROJECT_ROOT / "output" / "audio_pack" / version
     manifest_path = output_dir / "manifest.json"
     latest_path = output_dir.parent / "latest.json"
