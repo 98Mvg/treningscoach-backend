@@ -2316,19 +2316,21 @@ class WorkoutViewModel: ObservableObject {
         guard watchReconnectionTimer == nil else { return }
         print("WATCH_RECONNECT_TIMER start")
         watchReconnectionTimer = Timer.scheduledTimer(withTimeInterval: 20.0, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            guard self.workoutState == .active else {
-                self.stopWatchReconnectionTimer()
-                return
+            Task { @MainActor in
+                guard let self else { return }
+                guard self.workoutState == .active else {
+                    self.stopWatchReconnectionTimer()
+                    return
+                }
+                let reachable = self.phoneWCManager.isReachable
+                print("WATCH_RECONNECT_TIMER tick reachable=\(reachable)")
+                if reachable {
+                    self.stopWatchReconnectionTimer()
+                    return
+                }
+                self.phoneWCManager.refreshStateManually()
+                self.retryDeferredWatchStartIfNeeded(trigger: "reconnection_timer")
             }
-            let reachable = self.phoneWCManager.isReachable
-            print("WATCH_RECONNECT_TIMER tick reachable=\(reachable)")
-            if reachable {
-                self.stopWatchReconnectionTimer()
-                return
-            }
-            self.phoneWCManager.refreshStateManually()
-            self.retryDeferredWatchStartIfNeeded(trigger: "reconnection_timer")
         }
     }
 
