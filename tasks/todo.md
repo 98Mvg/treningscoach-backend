@@ -682,6 +682,17 @@ Updated: 2026-03-17
   - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_audio_pack_manifest_coverage.py tests_phaseb/test_select_core_bundle.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 
+## Review — 2026-03-18 Norwegian preview-limit clip wording refresh
+
+- Replaced only the existing Norwegian preview-limit clip on the current live-voice pack path with `Fortsett samtalen med Premium.`:
+  - [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/output/audio_pack/v2/no/voice.preview.free_limit.1.mp3)
+  - bundled fallback at [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Resources/CoreAudioPack/no/voice.preview.free_limit.1.mp3)
+- Refreshed the active `v2` manifest entry in [manifest.json](/Users/mariusgaarder/Documents/treningscoach/output/audio_pack/v2/manifest.json) with the new size/hash before re-uploading the same pack to R2.
+- Verification:
+  - `python3 tools/generate_audio_pack.py --version v2 --upload-only` -> `Uploaded 118 MP3 files + v2/manifest.json + latest.json to R2 bucket 'coachi'`
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_audio_pack_manifest_coverage.py tests_phaseb/test_select_core_bundle.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
 ## Review — 2026-03-18 Risk list fixes: session persistence, trusted identity, iOS path mapping
 
 - Kept the single existing runtime path and reduced the top Phase-1 risks without introducing parallel session or API flows.
