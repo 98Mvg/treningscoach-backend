@@ -33,7 +33,7 @@ enum PaywallContext: Identifiable {
 
     var headline: String {
         switch self {
-        case .liveVoice: return "Talk to Your Coach Live"
+        case .liveVoice: return "Keep Talking with Your Coach"
         case .talkLimit: return "Continue the Conversation"
         case .general:   return "Your Personal AI Coach"
         }
@@ -41,7 +41,7 @@ enum PaywallContext: Identifiable {
 
     var headlineNo: String {
         switch self {
-        case .liveVoice: return "Snakk med coachen din live"
+        case .liveVoice: return "Fortsett med coachen din live"
         case .talkLimit: return "Fortsett samtalen"
         case .general:   return "Din personlige AI-coach"
         }
@@ -49,7 +49,7 @@ enum PaywallContext: Identifiable {
 
     var contextHint: String? {
         switch self {
-        case .liveVoice: return "You've used your 3 free live sessions for today. Upgrade to Premium for unlimited daily sessions with your coach."
+        case .liveVoice: return "Your 30-second free coaching preview has ended. Upgrade for up to \(AppConfig.LiveVoice.premiumMaxDurationSeconds / 60)-minute live sessions, \(AppConfig.LiveVoice.premiumSessionsPerDay) sessions per day, and deeper workout insights."
         case .talkLimit: return "You've used your free coach question for this workout. Upgrade to keep the conversation going."
         case .general:   return nil
         }
@@ -57,7 +57,7 @@ enum PaywallContext: Identifiable {
 
     var contextHintNo: String? {
         switch self {
-        case .liveVoice: return "Du har brukt dine 3 gratis livesessions for i dag. Oppgrader for ubegrenset daglig coaching med coachen din."
+        case .liveVoice: return "Den gratis 30-sekunders coach-previewen er ferdig. Oppgrader for opptil \(AppConfig.LiveVoice.premiumMaxDurationSeconds / 60) minutter per liveøkt, \(AppConfig.LiveVoice.premiumSessionsPerDay) samtaler per dag og dypere treningsinnsikt."
         case .talkLimit: return "Du har brukt det gratis coach-spørsmålet ditt for denne økten. Oppgrader for å fortsette samtalen."
         case .general:   return nil
         }

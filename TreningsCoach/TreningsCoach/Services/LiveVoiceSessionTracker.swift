@@ -3,7 +3,7 @@
 //  TreningsCoach
 //
 //  Tracks free-tier Live Voice session usage.
-//  - Daily limit:   AppConfig.LiveVoice.freeSessionsPerDay (3)
+//  - Daily limit:   AppConfig.LiveVoice.freeSessionsPerDay (2)
 //  - Premium users: no limits enforced and are not counted locally
 //
 //  State is UserDefaults-backed. Daily counter resets automatically on a new calendar day.

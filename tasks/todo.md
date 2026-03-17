@@ -642,3 +642,31 @@ Updated: 2026-03-17
   - `pytest -q tests_phaseb/test_watch_connectivity_contract.py tests_phaseb/test_watch_request_id_correlation_contract.py tests_phaseb/test_zone_event_motor.py tests_phaseb/test_coach_score_visual_contract.py tests_phaseb/test_live_voice_mode_contract.py` -> `67 passed`
   - `python3 -m py_compile zone_event_motor.py` -> `passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-17 Live voice free preview + premium caps
+
+- Kept the existing post-workout voice path intact:
+  - [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) still owns the summary-sheet entry and paywall handoff
+  - [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift) still owns start tracking
+  - [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift) still owns live-session timing and disconnect behavior
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) remains the backend policy source of truth for session caps
+- Free live voice is now a true preview instead of a turn-limited conversation:
+  - free tier is capped to `30` seconds per session and `2` sessions per day
+  - the turn-count cutoff was removed, so the existing realtime session now ends only on the configured timer
+  - summary sheet copy now shows free quota clearly with `Free today: N remaining` and `30 seconds max per session`
+- Premium live voice is now explicitly capped on the existing policy path:
+  - premium remains longer-form live voice, capped to `3` minutes per session and `3` sessions per day through the existing backend `/voice/session` policy
+  - paywall copy now reflects capped premium value instead of claiming unlimited daily sessions
+- The timeout handoff now uses the existing audio-pack system instead of jumping straight to the paywall:
+  - added [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/output/audio_pack/v2/en/voice.preview.free_limit.1.mp3) and [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/output/audio_pack/v2/no/voice.preview.free_limit.1.mp3) to the active `v2` pack
+  - bundled the same clip in [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Resources/CoreAudioPack/en/voice.preview.free_limit.1.mp3) and [voice.preview.free_limit.1.mp3](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Resources/CoreAudioPack/no/voice.preview.free_limit.1.mp3)
+  - [AudioPackSyncManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AudioPackSyncManager.swift) now exposes a local cached-or-bundled resolver for these playback-only clips
+  - on free-tier `timeLimit`, the summary sheet now plays the local preview-end clip first, then presents the existing `.liveVoice` paywall
+- Updated contracts in:
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - active audio-pack manifest at [manifest.json](/Users/mariusgaarder/Documents/treningscoach/output/audio_pack/v2/manifest.json)
+- Verification:
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_audio_pack_manifest_coverage.py tests_phaseb/test_select_core_bundle.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
+  - `python3 -m py_compile main.py config.py` -> `passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

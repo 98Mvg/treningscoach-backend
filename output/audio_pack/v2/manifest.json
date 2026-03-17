@@ -6,8 +6,8 @@
     "en",
     "no"
   ],
-  "total_files": 116,
-  "total_size_bytes": 2217316,
+  "total_files": 118,
+  "total_size_bytes": 2353242,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -761,6 +761,19 @@
         "file": "no/zone.workout_finished.1.mp3",
         "size": 33898,
         "sha256": "2ae389f3be5066568a4343c5dd59419cf46977d77200314eae8a224e7ab3222d"
+      }
+    },
+    {
+      "id": "voice.preview.free_limit.1",
+      "en": {
+        "file": "en/voice.preview.free_limit.1.mp3",
+        "size": 80293,
+        "sha256": "3126f4d723e06e43e82c26bfc11ea997ab311dbd69df4d993b14951a448ead18"
+      },
+      "no": {
+        "file": "no/voice.preview.free_limit.1.mp3",
+        "size": 55633,
+        "sha256": "91a34cdfc82589f3d2d360d1972957a2033965472722f7f85290d903ebcddf06"
       }
     }
   ]

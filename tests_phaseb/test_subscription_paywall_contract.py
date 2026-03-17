@@ -18,6 +18,11 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     content = PAYWALL.read_text()
     assert '"Restore Purchases"' in content
     assert '"Choose subscription"' in content
+    assert '"Keep Talking with Your Coach"' in content
+    assert '"Your 30-second free coaching preview has ended.' in content
+    assert 'AppConfig.LiveVoice.premiumMaxDurationSeconds / 60' in content
+    assert 'AppConfig.LiveVoice.premiumSessionsPerDay' in content
+    assert "unlimited daily sessions" not in content
     assert '"Yearly plan"' in content
     assert '"Monthly plan"' in content
     assert ".safeAreaInset(edge: .bottom)" in content

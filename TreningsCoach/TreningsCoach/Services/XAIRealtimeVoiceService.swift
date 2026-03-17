@@ -69,6 +69,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     private var didSendStartTelemetry = false
     private var hasConnectedSession = false
     private var assistantDraftID: UUID?
+    private var localClipPlayer: AVAudioPlayer?
 
     init(
         apiService: BackendAPIService = .shared,
@@ -179,8 +180,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             isQuotaExhausted = true
             await handleFailure(
                 languageCode == "no"
-                    ? "Du har brukt alle dine gratis okter i dag. Kom tilbake i morgen!"
-                    : "You've used today's free sessions. Come back tomorrow!"
+                    ? "Du har brukt opp dagens live coach-samtaler. Kom tilbake i morgen."
+                    : "You've used today's live coach sessions. Come back tomorrow."
             )
         } catch let apiError as APIError {
             print("🔴 [XAIVoice] APIError: \(apiError.localizedDescription)")
@@ -516,7 +517,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     }
 
     private func runSessionTimer(maxDurationSeconds: Int) async {
-        let limit = max(60, maxDurationSeconds)
+        let limit = max(15, maxDurationSeconds)
         while !Task.isCancelled && sessionDurationSeconds < limit {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
             guard !Task.isCancelled else { return }
@@ -525,11 +526,54 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
 
         guard !Task.isCancelled else { return }
         appendSystemMessage(
-            languageCode == "no"
-                ? "Live voice-okten er ferdig. Du kan starte en ny hvis du vil fortsette."
-                : "This live voice session has ended. Start a new one if you want to continue."
+            isFreeTierSession
+                ? (
+                    languageCode == "no"
+                        ? "Gratispreviewen er ferdig. Oppgrader for å fortsette samtalen."
+                        : "Your free preview has ended. Upgrade to keep talking."
+                )
+                : (
+                    languageCode == "no"
+                        ? "Live voice-okten er ferdig. Du kan starte en ny hvis du vil fortsette."
+                        : "This live voice session has ended. Start a new one if you want to continue."
+                )
         )
         await disconnect(reason: .timeLimit)
+    }
+
+    func playFreePreviewLockClipIfAvailable() async {
+        guard let url = AudioPackSyncManager.shared.resolvedPlaybackURL(
+            for: "voice.preview.free_limit.1",
+            language: normalizedPackLanguageCode
+        ) else {
+            return
+        }
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            if session.category != .playAndRecord {
+                try? session.setActive(false)
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            }
+            try session.setActive(true)
+
+            let player = try AVAudioPlayer(contentsOf: url)
+            localClipPlayer = player
+            player.prepareToPlay()
+            player.volume = 1.0
+            guard player.play() else {
+                localClipPlayer = nil
+                return
+            }
+
+            if player.duration > 0 {
+                try? await Task.sleep(nanoseconds: UInt64((player.duration + 0.1) * 1_000_000_000))
+            }
+        } catch {
+            print("🔴 [XAIVoice] preview lock clip failed: \(error.localizedDescription)")
+        }
+
+        localClipPlayer = nil
     }
 
     private func cleanupRealtimeRuntime() {
@@ -556,6 +600,14 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         webSocketTask = nil
         micState = .idle
         isSpeaking = false
+    }
+
+    private var isFreeTierSession: Bool {
+        sessionBootstrap?.voiceAccessTier?.lowercased() == "free"
+    }
+
+    private var normalizedPackLanguageCode: String {
+        languageCode.lowercased().hasPrefix("no") ? "no" : "en"
     }
 
     private func handleFailure(_ message: String) async {

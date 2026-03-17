@@ -194,6 +194,56 @@ class AudioPackSyncManager: ObservableObject {
         }
     }
 
+    func resolvedPlaybackURL(
+        for utteranceID: String,
+        language: String,
+        personaKey: String? = nil
+    ) -> URL? {
+        let normalizedLanguage: String
+        switch language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case let raw where raw.hasPrefix("no"):
+            normalizedLanguage = "no"
+        default:
+            normalizedLanguage = "en"
+        }
+
+        let packVersion = currentPackVersion ?? AppConfig.AudioPack.version
+        let versionDir = audioPackRootDirectory
+            .appendingPathComponent(packVersion, isDirectory: true)
+            .appendingPathComponent(normalizedLanguage, isDirectory: true)
+
+        if let personaKey,
+           !personaKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let personaSpecific = versionDir
+                .appendingPathComponent(personaKey, isDirectory: true)
+                .appendingPathComponent("\(utteranceID).mp3")
+            if FileManager.default.fileExists(atPath: personaSpecific.path) {
+                return personaSpecific
+            }
+        }
+
+        let genericCachedURL = versionDir.appendingPathComponent("\(utteranceID).mp3")
+        if FileManager.default.fileExists(atPath: genericCachedURL.path) {
+            return genericCachedURL
+        }
+
+        if let personaKey,
+           !personaKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let bundledPersonaSpecific = Bundle.main.url(
+                forResource: utteranceID,
+                withExtension: "mp3",
+                subdirectory: "CoreAudioPack/\(normalizedLanguage)/\(personaKey)"
+           ) {
+            return bundledPersonaSpecific
+        }
+
+        return Bundle.main.url(
+            forResource: utteranceID,
+            withExtension: "mp3",
+            subdirectory: "CoreAudioPack/\(normalizedLanguage)"
+        )
+    }
+
     // MARK: - Download Changed Files
 
     private func downloadChangedFiles(manifest: AudioPackManifest) async throws -> Int {

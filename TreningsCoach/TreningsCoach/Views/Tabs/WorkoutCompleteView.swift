@@ -251,6 +251,7 @@ struct WorkoutCompleteView: View {
                     coachScore: targetScore,
                     liveVoiceIsAvailable: liveVoiceIsAvailable,
                     liveVoiceStatusText: liveVoiceStatusText,
+                    liveVoiceQuotaDetailText: liveVoiceQuotaDetailText,
                     isPremium: hasPremiumAccess,
                     isNorwegian: L10n.current == .no,
                     liveCoachVM: vm,
@@ -403,19 +404,34 @@ struct WorkoutCompleteView: View {
     private var liveVoiceStatusText: String {
         if liveVoiceIsAvailable {
             if let remaining = remainingLiveSessions {
-                // Free user with sessions available
-                let unit = L10n.current == .no
-                    ? (remaining == 1 ? "økt igjen i dag" : "økter igjen i dag")
-                    : (remaining == 1 ? "session left today" : "sessions left today")
-                return L10n.current == .no ? "Gratis: \(remaining) \(unit)" : "Free: \(remaining) \(unit)"
+                return L10n.current == .no
+                    ? "Gratis i dag: \(remaining) igjen"
+                    : "Free today: \(remaining) remaining"
             }
-            // Premium — no session counting shown
-            return "Premium"
+            return L10n.current == .no ? "Premium live coach" : "Premium live coach"
         }
         if !hasLiveVoiceAccountAccess {
             return L10n.current == .no ? "Logg inn for å bruke live" : "Sign in to use live"
         }
-        return L10n.current == .no ? "Ingen økter igjen i dag" : "No sessions left today"
+        return L10n.current == .no
+            ? "Dagens gratispreview er brukt"
+            : "Today's free preview is used"
+    }
+
+    private var liveVoiceQuotaDetailText: String {
+        if !hasLiveVoiceAccountAccess {
+            return L10n.current == .no
+                ? "Logg inn for å starte live coach-samtaler."
+                : "Sign in to start live coach conversations."
+        }
+
+        if hasPremiumAccess {
+            return L10n.current == .no
+                ? "Opptil \(AppConfig.LiveVoice.premiumMaxDurationSeconds / 60) minutter per samtale"
+                : "Up to \(AppConfig.LiveVoice.premiumMaxDurationSeconds / 60) minutes per session"
+        }
+
+        return L10n.current == .no ? "30 sekunder maks per samtale" : "30 seconds max per session"
     }
 
     private func freezeSummaryValues() {
@@ -810,6 +826,7 @@ private struct WorkoutSummarySheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showTimeLimitPaywall = false
     @State private var showTextCoach = false
+    @State private var isPlayingPreviewLimitAudio = false
 
     let workoutLabel: String
     let xpGained: Int
@@ -822,6 +839,7 @@ private struct WorkoutSummarySheet: View {
     let coachScore: Int
     let liveVoiceIsAvailable: Bool
     let liveVoiceStatusText: String
+    let liveVoiceQuotaDetailText: String
     let isPremium: Bool
     let isNorwegian: Bool
     @ObservedObject var liveCoachVM: LiveCoachConversationViewModel
@@ -994,8 +1012,14 @@ private struct WorkoutSummarySheet: View {
         }
         .animation(.spring(duration: 0.35), value: showCoachPanel)
         .onChange(of: liveCoachVM.service.lastDisconnectReason) { _, reason in
-            if reason == .timeLimit && !isPremium {
-                showTimeLimitPaywall = true
+            guard reason == .timeLimit, !isPremium, !isPlayingPreviewLimitAudio else { return }
+            isPlayingPreviewLimitAudio = true
+            Task {
+                await liveCoachVM.service.playFreePreviewLockClipIfAvailable()
+                await MainActor.run {
+                    isPlayingPreviewLimitAudio = false
+                    showTimeLimitPaywall = true
+                }
             }
         }
         .sheet(isPresented: $showTimeLimitPaywall) {
@@ -1064,9 +1088,15 @@ private struct WorkoutSummarySheet: View {
                 Circle()
                     .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textTertiary.opacity(0.75))
                     .frame(width: 8, height: 8)
-                Text(liveVoiceStatusText)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(liveVoiceStatusText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary)
+                    Text(liveVoiceQuotaDetailText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Text(

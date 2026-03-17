@@ -508,13 +508,13 @@ def _live_voice_session_policy(subscription_tier: str) -> dict[str, int | str]:
     if normalized_tier == "premium":
         return {
             "access_tier": "premium",
-            "max_duration_seconds": max(60, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 300) or 300)),
-            "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 10) or 10)),
+            "max_duration_seconds": max(15, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_MAX_SESSION_SECONDS", 180) or 180)),
+            "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_PREMIUM_SESSIONS_PER_DAY", 3) or 3)),
         }
     return {
         "access_tier": "free",
-        "max_duration_seconds": max(60, int(getattr(config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 120) or 120)),
-        "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 3) or 3)),
+        "max_duration_seconds": max(15, int(getattr(config, "XAI_VOICE_AGENT_FREE_MAX_SESSION_SECONDS", 30) or 30)),
+        "daily_session_limit": max(1, int(getattr(config, "XAI_VOICE_AGENT_FREE_SESSIONS_PER_DAY", 2) or 2)),
     }
 
 

@@ -1,3 +1,4 @@
+import json
 import plistlib
 from pathlib import Path
 
@@ -29,6 +30,15 @@ INFO_PLIST = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Info.plist"
 )
 PBXPROJ = REPO_ROOT / "TreningsCoach" / "TreningsCoach.xcodeproj" / "project.pbxproj"
+AUDIO_PACK_MANIFEST = REPO_ROOT / "output" / "audio_pack" / "v2" / "manifest.json"
+CORE_AUDIO_EN = (
+    REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Resources" / "CoreAudioPack" / "en" / "voice.preview.free_limit.1.mp3"
+)
+CORE_AUDIO_NO = (
+    REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Resources" / "CoreAudioPack" / "no" / "voice.preview.free_limit.1.mp3"
+)
+PACK_AUDIO_EN = REPO_ROOT / "output" / "audio_pack" / "v2" / "en" / "voice.preview.free_limit.1.mp3"
+PACK_AUDIO_NO = REPO_ROOT / "output" / "audio_pack" / "v2" / "no" / "voice.preview.free_limit.1.mp3"
 
 
 def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating() -> None:
@@ -45,6 +55,9 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert ".sheet(isPresented: $showWorkoutSummary)" in text
     assert ".sheet(isPresented: $showLiveVoicePaywall)" in text
     assert "liveVoiceStatusText" in text
+    assert "liveVoiceQuotaDetailText" in text
+    assert '"Free today: \\(remaining) remaining"' in text
+    assert '"30 seconds max per session"' in text
     assert "private var sheetCardMaxWidth: CGFloat { 430 }" in text
     assert "private var summaryCardBackground: some View {" in text
     assert 'Text(isNorwegian ? "Coachi innsikt" : "Coachi Insight")' in text
@@ -53,6 +66,8 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert ".background(summaryCardBackground)" in text
     assert ".frame(height: 44)" in text
     assert "PaywallView(context: .liveVoice)" in text
+    assert "isPlayingPreviewLimitAudio" in text
+    assert "await liveCoachVM.service.playFreePreviewLockClipIfAvailable()" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
     assert 'Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")' in text
     assert "liveVoiceTracker.recordSession()" not in text
@@ -79,6 +94,8 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "service.$connectionState" in text
     assert "hasRecordedSuccessfulStart" in text
     assert "liveVoiceTracker.recordSession(isPremium: self.isPremium)" in text
+    assert "service.$turnCount" not in text
+    assert "freeTurnLimit" not in text
     assert '"Snakk med Coach" : "Talk to Coach"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
@@ -122,7 +139,10 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert 'event: "voice_session_failed"' in text
     assert 'event: "voice_session_ended"' in text
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
+    assert "let limit = max(15, maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
+    assert "playFreePreviewLockClipIfAvailable()" in text
+    assert '"voice.preview.free_limit.1"' in text
     assert "Float(source[index]) / Float(Int16.max)" in text
     assert "startupTimeoutTask" in text
     assert "Live voice took too long to start" in text
@@ -155,9 +175,11 @@ def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
     config_text = CONFIG_SWIFT.read_text(encoding="utf-8")
     assert "struct LiveVoice" in config_text
     assert 'static let isEnabled: Bool = boolInfoValue("LIVE_COACH_VOICE_ENABLED", default: true)' in config_text
-    assert "static let freeMaxDurationSeconds: Int = 60" in config_text
+    assert "static let freeMaxDurationSeconds: Int = 30" in config_text
     assert "static let premiumMaxDurationSeconds: Int = 180" in config_text
-    assert "static let freeSessionsPerDay: Int = 1" in config_text
+    assert "static let freeSessionsPerDay: Int = 2" in config_text
+    assert "static let premiumSessionsPerDay: Int = 3" in config_text
+    assert "freeTurnLimit" not in config_text
     assert "struct Share" in config_text
     assert 'static let coachiWebsiteURLString = "https://coachi.app"' in config_text
     assert 'static let instagramStoriesScheme = "instagram-stories://share"' in config_text
@@ -184,3 +206,17 @@ def test_backend_client_keeps_30_second_live_voice_bootstrap_timeout() -> None:
     text = (REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "BackendAPIService.swift").read_text(encoding="utf-8")
     assert 'var request = URLRequest(url: url, timeoutInterval: 30)' in text
     assert 'let url = URL(string: "\\(baseURL)/voice/session")!' in text
+
+
+def test_live_voice_preview_limit_clip_is_shipped_in_manifest_and_bundle() -> None:
+    manifest = json.loads(AUDIO_PACK_MANIFEST.read_text(encoding="utf-8"))
+    phrase_ids = {
+        str(item.get("id") or "").strip()
+        for item in manifest.get("phrases", [])
+        if str(item.get("id") or "").strip()
+    }
+    assert "voice.preview.free_limit.1" in phrase_ids
+    assert CORE_AUDIO_EN.exists()
+    assert CORE_AUDIO_NO.exists()
+    assert PACK_AUDIO_EN.exists()
+    assert PACK_AUDIO_NO.exists()
