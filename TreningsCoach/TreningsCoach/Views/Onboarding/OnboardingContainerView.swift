@@ -1913,20 +1913,25 @@ struct WatchConnectedPremiumOfferStepView: View {
 
     private func planPager(cardWidth: CGFloat, pageHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {
         let spacing: CGFloat = showsOnboardingChrome ? (compactLayout ? 12 : pagerSpacing) : 0
+        let totalPagerWidth = (CGFloat(PlanSelection.allCases.count) * cardWidth) + (CGFloat(max(0, PlanSelection.allCases.count - 1)) * spacing)
 
-        return HStack(spacing: spacing) {
-            planCard(for: .free, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                .frame(width: cardWidth, height: pageHeight)
+        return ZStack(alignment: .leading) {
+            HStack(spacing: spacing) {
+                planCard(for: .free, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
+                    .frame(width: cardWidth, height: pageHeight)
 
-            planCard(for: .premium, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                .frame(width: cardWidth, height: pageHeight)
+                planCard(for: .premium, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
+                    .frame(width: cardWidth, height: pageHeight)
 
-            planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                .frame(width: cardWidth, height: pageHeight)
+                planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
+                    .frame(width: cardWidth, height: pageHeight)
+            }
+            .frame(width: totalPagerWidth, alignment: .leading)
+            .offset(x: (-CGFloat(selectedPlan.rawValue) * (cardWidth + spacing)) + dragTranslation)
+            .animation(.spring(response: 0.35, dampingFraction: 0.82), value: selectedPlan)
+            .gesture(planSwipeGesture(pageWidth: cardWidth, spacing: spacing))
         }
-        .offset(x: (-CGFloat(selectedPlan.rawValue) * (cardWidth + spacing)) + dragTranslation)
-        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: selectedPlan)
-        .gesture(planSwipeGesture(pageWidth: cardWidth, spacing: spacing))
+        .frame(width: cardWidth, height: pageHeight, alignment: .leading)
         .clipped()
     }
 
@@ -2000,6 +2005,11 @@ struct WatchConnectedPremiumOfferStepView: View {
                             )
                     }
                 }
+
+                Text(planSummary(for: plan))
+                    .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
+                    .foregroundColor(CoachiTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Divider()
                     .overlay(CoachiTheme.borderSubtle.opacity(0.6))
@@ -2198,6 +2208,23 @@ struct WatchConnectedPremiumOfferStepView: View {
             return isNorwegian
                 ? "Velg hvordan du vil betale etter prøveperioden. Selve kjøpet fullføres i App Store."
                 : "Choose how you want to pay after the trial. The purchase still completes in the App Store."
+        }
+    }
+
+    private func planSummary(for plan: PlanSelection) -> String {
+        switch plan {
+        case .free:
+            return isNorwegian
+                ? "Start med Coachi-kjernene og oppgrader når du vil."
+                : "Start with the Coachi essentials and upgrade whenever you want."
+        case .premium:
+            return isNorwegian
+                ? "Lås opp hele Coachi-opplevelsen med mer innsikt, historikk og live coaching."
+                : "Unlock the full Coachi experience with deeper insights, history, and live coaching."
+        case .trial:
+            return isNorwegian
+                ? "Prøv hele Coachi gratis i 14 dager, og velg deretter planen som passer deg best."
+                : "Try the full Coachi experience free for 14 days, then choose the plan that fits you best."
         }
     }
 

@@ -970,3 +970,42 @@ Updated: 2026-03-17
   - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
   - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
   - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+
+## Review — 2026-03-18 Manage subscription offers pager ordering and copy alignment pass
+
+- Kept the single shared offers deck in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) and fixed the profile rendering issue on that same view instead of introducing another pager.
+- Fixed the visual page-order bug in the profile `Se alle tilbudene` path:
+  - the pager content is now explicitly left-anchored inside its viewport instead of being centered as a three-card `HStack`
+  - this removes the old `Premium -> Trial -> blank` rendering and restores the intended `Free -> Premium -> 14 dagers gratis prøveperiode` order
+  - the last page no longer drifts into empty space because the deck width is clipped from a leading-aligned frame
+- Tightened content consistency across the three plan pages:
+  - each plan now has one short summary paragraph under the title/price block so the decks read like the same system with different plan information
+  - the trial page now starts with the same top-down information rhythm as the Free and Premium cards instead of feeling structurally different
+- Kept the existing full-screen profile mode with no onboarding `Choose plan` header/subtitle/helper text, and kept one page visible at a time.
+- Updated focused verification coverage:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+
+## Review — 2026-03-18 Post-workout live voice duration and opening-line prompt pass
+
+- Kept the existing post-workout voice path on [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) -> [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift) `/voice/session` -> [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) -> [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py). No new voice architecture or alternate prompt path was introduced.
+- Fixed the `00:07` interpretation issue on the existing prompt/context path:
+  - [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) now resolves `elapsed_s` / `duration_text` into a spoken-safe duration string before it reaches the voice prompt
+  - timer strings are now explicitly guarded in the system instructions, so `00:07` is treated as `7 seconds`, not `7 minutes`
+  - very short workouts now add a specific instruction to treat the session as a brief or early-stopped running attempt instead of a hold or non-running exercise
+- Tightened the first-sentence prompt guard against bad exercise guesses:
+  - [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) now explicitly blocks reinterpretation of short durations as holds, planks, sets, or other non-running exercises
+  - [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift) mirrors the same timer and short-duration rules in `PostWorkoutSummaryContext.fallbackPrompt(...)` so typed follow-ups stay aligned with live voice
+- Updated focused verification coverage:
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+  - [test_voice_session_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_voice_session_contract.py)
+  - [test_xai_voice_post_workout_prompt.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_xai_voice_post_workout_prompt.py)
+
+## Review — 2026-03-18 Compact text-coach header cleanup pass
+
+- Kept the existing `WorkoutSummarySheet -> Type instead -> PostWorkoutTextCoachView` path in [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift).
+- Removed the compact header subtitle so the sheet opens blank under `Skriv i stedet` / `Type instead` instead of surfacing `coachScoreSummaryLine` such as `Coach score 0 · Keep building.`.
+- Left the rest of the compact composer unchanged: same close button, same input, same send path, same paywall/lock handling, and same transcript reply card behavior when a response arrives.
+- Updated focused verification coverage:
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)

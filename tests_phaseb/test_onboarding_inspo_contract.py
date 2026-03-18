@@ -142,6 +142,9 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'let contentWidth = showsOnboardingChrome ? max(0.0, layoutWidth - (contentSideInset * 2)) : renderWidth' in text
     assert 'let compactLayout = layoutWidth < 390 || renderHeight < 780' in text
     assert 'let availablePagerHeight = showsOnboardingChrome' in text
+    assert 'let totalPagerWidth = (CGFloat(PlanSelection.allCases.count) * cardWidth)' in text
+    assert 'ZStack(alignment: .leading)' in text
+    assert '.frame(width: cardWidth, height: pageHeight, alignment: .leading)' in text
     assert 'planPager(' in text
     assert '.frame(width: contentWidth, height: availablePagerHeight)' in text
     assert '.frame(height: 630)' not in text
@@ -152,6 +155,10 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'return isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
     assert 'return isNorwegian ? "Få Premium" : "Get Premium"' in text
     assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode" : "Start \\(trialDays)-day free trial"' in text
+    assert 'private func planSummary(for plan: PlanSelection) -> String {' in text
+    assert 'Start med Coachi-kjernene og oppgrader når du vil.' in text
+    assert 'Lås opp hele Coachi-opplevelsen med mer innsikt, historikk og live coaching.' in text
+    assert 'Prøv hele Coachi gratis i 14 dager, og velg deretter planen som passer deg best.' in text
     assert 'planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)' in text
     assert 'trialPricingOption(' in text
     assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' in text

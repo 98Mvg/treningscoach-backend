@@ -114,7 +114,8 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "case compactComposer" in text
     assert ".presentationDetents([presentationMode.compactDetent])" in text
     assert "private var compactComposerBody: some View" in text
-    assert "private var compactContextLine: String" in text
+    assert "Text(compactContextLine)" not in text
+    assert "private var compactContextLine: String" not in text
     assert 'event: "voice_fallback_text_opened"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Lukk" : "Close")' in text
     assert "dismiss()" in text
@@ -201,6 +202,8 @@ def test_text_fallback_prompt_is_running_only_and_blocks_strength_references() -
     text = MODELS_SWIFT.read_text(encoding="utf-8")
     assert "This coach conversation is for running workouts only." in text
     assert "Treat generic labels like 'Workout' as a general running workout." in text
+    assert "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes." in text
+    assert "Treat it as a very short or early-stopped running session, not as a static hold or strength exercise." in text
     assert "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks." in text
 
 

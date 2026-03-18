@@ -449,10 +449,11 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
 
     func fallbackPrompt(for question: String, languageCode: String) -> String {
         let isNorwegian = languageCode.lowercased() == "no"
+        let spokenDurationText = verbalizedDurationText(languageCode: languageCode)
         var lines = [
             isNorwegian ? "Oppsummering fra den siste treningsokten:" : "Summary from the last workout:",
             isNorwegian ? "- Oekt: \(workoutLabel)" : "- Workout: \(workoutLabel)",
-            isNorwegian ? "- Varighet: \(durationText)" : "- Duration: \(durationText)",
+            isNorwegian ? "- Varighet: \(spokenDurationText)" : "- Duration: \(spokenDurationText)",
             isNorwegian ? "- Sluttpuls: \(finalHeartRateText)" : "- Final heart rate: \(finalHeartRateText)",
             isNorwegian ? "- Coach score: \(coachScore)" : "- Coach score: \(coachScore)",
             isNorwegian ? "- Oppsummering: \(coachScoreSummaryLine)" : "- Summary: \(coachScoreSummaryLine)",
@@ -492,6 +493,19 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         )
         lines.append(
             isNorwegian
+                ? "Tolk timerverdier bokstavelig. Hvis tiden vises som MM:SS, betyr 00:07 syv sekunder, ikke sju minutter."
+                : "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes."
+        )
+        if let durationSeconds = resolvedDurationSeconds(), durationSeconds < 60 {
+            let shortDurationText = verbalizedDurationText(languageCode: languageCode)
+            lines.append(
+                isNorwegian
+                    ? "Denne økten var bare \(shortDurationText). Behandle den som en veldig kort eller tidlig avsluttet løpeøkt, ikke som en statisk hold eller styrkeøvelse."
+                    : "This workout lasted only \(shortDurationText). Treat it as a very short or early-stopped running session, not as a static hold or strength exercise."
+            )
+        }
+        lines.append(
+            isNorwegian
                 ? "Ikke nevn styrketrening, gymøvelser eller spesifikke øvelser som squats, lunges, push-ups, burpees eller planker."
                 : "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks."
         )
@@ -499,6 +513,61 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         lines.append("")
         lines.append(isNorwegian ? "Sporsmal: \(question)" : "Question: \(question)")
         return lines.joined(separator: "\n")
+    }
+
+    private func resolvedDurationSeconds() -> Int? {
+        if let elapsedS, elapsedS >= 0 {
+            return elapsedS
+        }
+
+        let parts = durationText.split(separator: ":").map(String.init)
+        guard (2...3).contains(parts.count) else { return nil }
+        let numbers = parts.compactMap(Int.init)
+        guard numbers.count == parts.count else { return nil }
+
+        if numbers.count == 2 {
+            return (numbers[0] * 60) + numbers[1]
+        }
+
+        return (numbers[0] * 3600) + (numbers[1] * 60) + numbers[2]
+    }
+
+    private func verbalizedDurationText(languageCode: String) -> String {
+        let isNorwegian = languageCode.lowercased() == "no"
+        guard let totalSeconds = resolvedDurationSeconds() else {
+            return durationText
+        }
+
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        var parts: [String] = []
+
+        if hours > 0 {
+            parts.append(
+                isNorwegian
+                    ? "\(hours) \(hours == 1 ? "time" : "timer")"
+                    : "\(hours) \(hours == 1 ? "hour" : "hours")"
+            )
+        }
+
+        if minutes > 0 {
+            parts.append(
+                isNorwegian
+                    ? "\(minutes) \(minutes == 1 ? "minutt" : "minutter")"
+                    : "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
+            )
+        }
+
+        if seconds > 0 || parts.isEmpty {
+            parts.append(
+                isNorwegian
+                    ? "\(seconds) \(seconds == 1 ? "sekund" : "sekunder")"
+                    : "\(seconds) \(seconds == 1 ? "second" : "seconds")"
+            )
+        }
+
+        return parts.joined(separator: " ")
     }
 
     func telemetryMetadata() -> [String: String] {

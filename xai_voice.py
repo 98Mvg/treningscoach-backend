@@ -138,6 +138,59 @@ def _format_zone_pct(raw_value: float | None) -> str | None:
     return f"{pct:.0f}%"
 
 
+def _duration_seconds_from_context(summary_context: Mapping[str, Any]) -> int | None:
+    elapsed_s = summary_context.get("elapsed_s")
+    if elapsed_s is not None:
+        try:
+            parsed = int(elapsed_s)
+            if parsed >= 0:
+                return parsed
+        except (TypeError, ValueError):
+            pass
+
+    duration_text = str(summary_context.get("duration_text") or "").strip()
+    if not duration_text or ":" not in duration_text:
+        return None
+
+    parts = duration_text.split(":")
+    if not 2 <= len(parts) <= 3 or not all(part.isdigit() for part in parts):
+        return None
+
+    numbers = [int(part) for part in parts]
+    if len(numbers) == 2:
+        minutes, seconds = numbers
+        return (minutes * 60) + seconds
+
+    hours, minutes, seconds = numbers
+    return (hours * 3600) + (minutes * 60) + seconds
+
+
+def _spoken_duration_from_seconds(total_seconds: int, language: str) -> str:
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    total_seconds = max(0, int(total_seconds))
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    parts: list[str] = []
+    if hours:
+        parts.append(f"{hours} {'time' if is_norwegian and hours == 1 else 'timer' if is_norwegian else 'hour' if hours == 1 else 'hours'}")
+    if minutes:
+        parts.append(f"{minutes} {'minutt' if is_norwegian and minutes == 1 else 'minutter' if is_norwegian else 'minute' if minutes == 1 else 'minutes'}")
+    if seconds or not parts:
+        parts.append(f"{seconds} {'sekund' if is_norwegian and seconds == 1 else 'sekunder' if is_norwegian else 'second' if seconds == 1 else 'seconds'}")
+    return " ".join(parts)
+
+
+def _spoken_duration_text(summary_context: Mapping[str, Any], language: str) -> str | None:
+    parsed_seconds = _duration_seconds_from_context(summary_context)
+    if parsed_seconds is not None:
+        return _spoken_duration_from_seconds(parsed_seconds, language)
+
+    raw_duration_text = str(summary_context.get("duration_text") or "").strip()
+    return raw_duration_text or None
+
+
 def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[str]:
     is_norwegian = str(language or "").strip().lower().startswith("no")
     lines: list[str] = []
@@ -147,7 +200,7 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
         prefix = "Workout" if not is_norwegian else "Økt"
         lines.append(f"{prefix}: {workout_label}")
 
-    duration_text = str(summary_context.get("duration_text") or "").strip()
+    duration_text = _spoken_duration_text(summary_context, language)
     if duration_text:
         prefix = "Duration" if not is_norwegian else "Varighet"
         lines.append(f"{prefix}: {duration_text}")
@@ -320,6 +373,15 @@ def build_post_workout_voice_instructions(
     )
     workout_label = str(context.get("workout_label") or "").strip()
     activity_line = f"The athlete just completed: {workout_label}." if workout_label else ""
+    duration_seconds = _duration_seconds_from_context(context)
+    short_duration_guard = ""
+    if duration_seconds is not None and duration_seconds < 60:
+        spoken_duration = _spoken_duration_from_seconds(duration_seconds, language)
+        short_duration_guard = (
+            f"The workout lasted only {spoken_duration}. "
+            "Treat it as a very short running attempt or an early-stopped run. "
+            "Do not reinterpret it as a hold, plank, set, or any non-running exercise.\n"
+        )
 
     summary_lines = _summary_lines(context, language)
     summary_block = "\n".join(f"- {line}" for line in summary_lines) if summary_lines else "- No workout summary was provided."
@@ -361,6 +423,8 @@ def build_post_workout_voice_instructions(
         "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.).\n"
         "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples.\n"
         "NEVER guess what the athlete did physically — only reference the workout label and the data below.\n"
+        "Interpret timer strings literally. If a timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes.\n"
+        f"{short_duration_guard}"
         "If the label says 'Easy Run', talk about pace, breathing, and aerobic base.\n"
         "If the label says 'Intervals', talk about work/rest ratio, intensity peaks, and recovery.\n"
         "If the label says 'Workout', treat it as a general running workout focused on pace, breathing, cardio effort, and heart rate zones.\n"

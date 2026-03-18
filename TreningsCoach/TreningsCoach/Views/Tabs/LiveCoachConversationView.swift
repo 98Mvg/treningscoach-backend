@@ -650,10 +650,6 @@ struct PostWorkoutTextCoachView: View {
                     Text(languageCode == "no" ? "Skriv i stedet" : "Type instead")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.96))
-                    Text(compactContextLine)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.66))
-                        .lineLimit(2)
                 }
                 Spacer()
                 Button(languageCode == "no" ? "Lukk" : "Close") {
@@ -742,22 +738,6 @@ struct PostWorkoutTextCoachView: View {
                 .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-    }
-
-    private var compactContextLine: String {
-        if !summaryContext.coachScoreSummaryLine.isEmpty {
-            return summaryContext.coachScoreSummaryLine
-        }
-        var parts = [summaryContext.workoutLabel, summaryContext.durationText]
-        if let averageHeartRate = summaryContext.averageHeartRate, averageHeartRate > 0 {
-            parts.append("\(averageHeartRate) BPM")
-        } else if !summaryContext.finalHeartRateText.isEmpty {
-            parts.append(summaryContext.finalHeartRateText)
-        }
-        if let distanceMeters = summaryContext.distanceMeters, distanceMeters > 0 {
-            parts.append(String(format: "%.2f km", distanceMeters / 1000.0))
-        }
-        return parts.joined(separator: " · ")
     }
 
     private var latestCompactReply: String? {
