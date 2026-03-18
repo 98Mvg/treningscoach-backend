@@ -53,10 +53,11 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert 'title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live"' in content
     assert 'title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights"' in content
     assert '(isNorwegian ? "Administrer i App Store" : "Manage in App Store")' in content
-    assert '(isNorwegian ? "Se alle tilbudene" : "See all offers")' in content
+    assert '(isNorwegian ? "Se alle tilbudene" : "See all offers")' not in content
     assert '(isNorwegian ? "Gratis" : "Free")' in content
     assert '"Premium"' in content
-    assert "@State private var showPlanOffers = false" in content
-    assert ".fullScreenCover(isPresented: $showPlanOffers)" in content
+    assert "@State private var showPlanOffers = false" not in content
+    assert ".fullScreenCover(isPresented: $showPlanOffers)" not in content
     assert "WatchConnectedPremiumOfferStepView(" in content
-    assert "presentationMode: .fullScreenOffers" in content
+    assert "presentationMode: .manageSubscriptionInline" in content
+    assert ".frame(height: inlinePlanDeckHeight)" in content

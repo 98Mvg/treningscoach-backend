@@ -120,11 +120,11 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
 
 def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None:
     text = _onboarding_text()
-    plan_card_block = text.split("private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {", 1)[1].split("private func planSwipeGesture", 1)[0]
+    plan_card_block = text.split("private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {", 1)[1].split("private func planFeatures", 1)[0]
     assert "struct WatchConnectedPremiumOfferStepView: View" in text
     assert "enum PresentationMode {" in text
     assert "case onboardingStep" in text
-    assert "case fullScreenOffers" in text
+    assert "case manageSubscriptionInline" in text
     assert "watchManager: PhoneWCManager.shared" in text
     assert 'isNorwegian ? "Velg plan" : "Choose plan"' in text
     assert 'private enum PlanSelection: Int, CaseIterable' in text
@@ -132,24 +132,30 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'selectedTrialPlan: PaywallPlanSelectionOption = .yearly' in text
     assert 'case trial' in text
     assert '@State private var autoAdvanceTask: Task<Void, Never>?' in text
+    assert '@State private var isPagerInteracting = false' in text
+    assert '@State private var isAdvancingAutomatically = false' in text
     assert 'let presentationMode: PresentationMode' in text
     assert 'presentationMode: PresentationMode = .onboardingStep' in text
     assert 'private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }' in text
-    assert 'private var enablesAutoAdvance: Bool { presentationMode == .onboardingStep }' in text
+    assert 'private var showsCurrentPlanState: Bool { presentationMode == .manageSubscriptionInline }' in text
     assert 'private var selectsPremiumOnAppear: Bool { presentationMode == .onboardingStep }' in text
-    assert 'startAutoAdvance(intervalSeconds: 5)' in text
+    assert 'private var autoAdvanceIntervalSeconds: UInt64?' in text
+    assert 'return 5' in text
+    assert 'return 7' in text
     assert 'try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)' in text
-    assert 'let layoutWidth = showsOnboardingChrome ? min(min(renderWidth, deviceWidth), 500) : renderWidth' in text
-    assert 'let contentWidth = showsOnboardingChrome ? max(0.0, layoutWidth - (contentSideInset * 2)) : renderWidth' in text
+    assert 'let layoutWidth = min(min(renderWidth, deviceWidth), 500)' in text
+    assert 'let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))' in text
     assert 'let compactLayout = layoutWidth < 390 || renderHeight < 780' in text
-    assert 'let availablePagerHeight = showsOnboardingChrome' in text
-    assert 'let totalPagerWidth = (CGFloat(PlanSelection.allCases.count) * cardWidth)' in text
-    assert 'ZStack(alignment: .leading)' in text
+    assert 'let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)' in text
+    assert 'TabView(selection: $selectedPlan)' in text
+    assert '.tabViewStyle(.page(indexDisplayMode: .never))' in text
+    assert '.simultaneousGesture(pagerInteractionGesture)' in text
     assert '.frame(width: cardWidth, height: pageHeight, alignment: .leading)' in text
     assert 'planPager(' in text
     assert '.frame(width: contentWidth, height: availablePagerHeight)' in text
     assert '.frame(height: 630)' not in text
-    assert 'DragGesture(minimumDistance: 24)' in text
+    assert 'DragGesture(minimumDistance: 24)' not in text
+    assert 'DragGesture(minimumDistance: 10)' in text
     assert 'Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")' in text
     assert 'planBackground(for: selectedPlan)' in text
     assert '.ignoresSafeArea()' in text
@@ -160,17 +166,19 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'Start med Coachi-kjernene og oppgrader når du vil.' in text
     assert 'Lås opp hele Coachi-opplevelsen med mer innsikt, historikk og live coaching.' in text
     assert 'Prøv hele Coachi gratis i 14 dager med samme enkle oversikt som de andre planene.' in text
-    assert 'planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)' in text
+    assert 'ForEach(PlanSelection.allCases, id: \\.rawValue)' in text
     assert 'trialPricingOption(' in text
     assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' not in text
     assert "return ScrollView(.vertical, showsIndicators: false)" not in plan_card_block
     assert "Spacer(minLength: denseLayout ? 8 : 12)" in plan_card_block
+    assert 'let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan' in plan_card_block
+    assert '.disabled(isActionDisabled)' in plan_card_block
     assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' in text
     assert 'Text(isNorwegian ? "Apple Watch koblet til" : "Apple Watch connected")' in text
     assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' not in text
     assert "PaywallView(context: .general, initialPlan: paywallInitialPlan)" in text
     assert "private func dismissKeyboardAndMove(to step: OnboardingStep)" in text
-    assert "selectedPlan = .free" in text
+    assert "syncSelectionForCurrentContext(animated: false)" in text
 
 
 def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:

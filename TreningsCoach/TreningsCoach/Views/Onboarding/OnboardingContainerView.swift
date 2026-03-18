@@ -1665,7 +1665,8 @@ struct WatchConnectedPremiumOfferStepView: View {
     @State private var selectedTrialPlan: PaywallPlanSelectionOption = .yearly
     @State private var paywallInitialPlan: PaywallPlanSelectionOption = .yearly
     @State private var autoAdvanceTask: Task<Void, Never>?
-    @GestureState private var dragTranslation: CGFloat = 0
+    @State private var isPagerInteracting = false
+    @State private var isAdvancingAutomatically = false
 
     let onBack: () -> Void
     let onContinue: () -> Void
@@ -1673,7 +1674,7 @@ struct WatchConnectedPremiumOfferStepView: View {
 
     enum PresentationMode {
         case onboardingStep
-        case fullScreenOffers
+        case manageSubscriptionInline
     }
 
     private enum PlanSelection: Int, CaseIterable {
@@ -1707,9 +1708,30 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }
-    private var enablesAutoAdvance: Bool { presentationMode == .onboardingStep }
     private var selectsPremiumOnAppear: Bool { presentationMode == .onboardingStep }
-    private var pagerSpacing: CGFloat { presentationMode == .fullScreenOffers ? 0 : 16 }
+    private var showsCurrentPlanState: Bool { presentationMode == .manageSubscriptionInline }
+    private var isInlineManageSubscription: Bool { presentationMode == .manageSubscriptionInline }
+    private var autoAdvanceIntervalSeconds: UInt64? {
+        switch presentationMode {
+        case .onboardingStep:
+            return 5
+        case .manageSubscriptionInline:
+            return 7
+        }
+    }
+
+    private var resolvedCurrentPlan: PlanSelection {
+        switch subscriptionManager.status {
+        case .trial:
+            return .trial
+        case .premium:
+            return .premium
+        case .free, .expired:
+            return .free
+        case .unknown:
+            return hasPremiumAccess ? .premium : .free
+        }
+    }
 
     private var titleText: String {
         isNorwegian ? "Velg plan" : "Choose plan"
@@ -1740,136 +1762,136 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let renderWidth = geo.size.width
-            let renderHeight = geo.size.height
-            let deviceWidth = UIScreen.main.bounds.width
-            let layoutWidth = showsOnboardingChrome ? min(min(renderWidth, deviceWidth), 500) : renderWidth
-            let safeTop = geo.safeAreaInsets.top
-            let safeBottom = max(geo.safeAreaInsets.bottom, 18)
-            let horizontalSafeInset = max(geo.safeAreaInsets.leading, geo.safeAreaInsets.trailing)
-            let contentSideInset: CGFloat = showsOnboardingChrome ? ((layoutWidth < 390 ? 18 : 24) + horizontalSafeInset) : 0
-            let contentWidth = showsOnboardingChrome ? max(0.0, layoutWidth - (contentSideInset * 2)) : renderWidth
-            let compactLayout = layoutWidth < 390 || renderHeight < 780
-            let headerAndFooterHeight = showsOnboardingChrome ? (watchReady ? 280.0 : 252.0) : 0.0
-            let availablePagerHeight = showsOnboardingChrome
-                ? max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)
-                : renderHeight
-
-            ZStack {
-                planBackground(for: selectedPlan)
-                    .ignoresSafeArea()
-
-                if showsOnboardingChrome {
-                    VStack(spacing: 0) {
-                        HStack(alignment: .top, spacing: 14) {
-                            backButton
-
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(titleText)
-                                    .font(.system(size: compactLayout ? 30 : 34, weight: .heavy))
-                                    .foregroundColor(highContrastForeground(for: selectedPlan))
-                                    .lineLimit(nil)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                Text(subtitleText)
-                                    .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
-                                    .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
-                                    .lineLimit(nil)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            Spacer(minLength: 0)
-                        }
-                        .frame(width: contentWidth, alignment: .leading)
-                        .padding(.top, safeTop + 12)
-
-                        if watchReady {
-                            watchReadyBadge
-                                .frame(width: contentWidth, alignment: .leading)
-                                .padding(.top, 16)
-                        }
-
-                        Spacer(minLength: 18)
-
-                        planPager(
-                            cardWidth: contentWidth,
-                            pageHeight: availablePagerHeight,
-                            compactLayout: compactLayout,
-                            topInset: 0,
-                            bottomInset: 0
-                        )
-                        .frame(width: contentWidth, height: availablePagerHeight)
-
-                        VStack(spacing: 16) {
-                            pageIndicator
-
-                            Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
-                                .multilineTextAlignment(.center)
-                                .frame(width: contentWidth, alignment: .center)
-                        }
-                        .padding(.top, 18)
-                        .padding(.bottom, safeBottom + 12)
-                    }
-                    .frame(width: layoutWidth, height: renderHeight, alignment: .top)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                } else {
-                    ZStack(alignment: .topLeading) {
-                        planPager(
-                            cardWidth: contentWidth,
-                            pageHeight: availablePagerHeight,
-                            compactLayout: compactLayout,
-                            topInset: safeTop + 70,
-                            bottomInset: safeBottom + 88
-                        )
-                        .frame(width: contentWidth, height: availablePagerHeight)
-
-                        backButton
-                            .padding(.top, safeTop + 12)
-                            .padding(.leading, 18)
-
-                        VStack {
-                            Spacer()
-
-                            pageIndicator
-                                .padding(.bottom, safeBottom + 18)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    }
-                    .frame(width: renderWidth, height: renderHeight, alignment: .center)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                }
+        Group {
+            if isInlineManageSubscription {
+                inlineManageSubscriptionBody
+            } else {
+                onboardingOfferBody
             }
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: .general, initialPlan: paywallInitialPlan)
         }
         .onAppear {
-            if selectsPremiumOnAppear && hasPremiumAccess {
-                selectedPlan = hasIntroOffer ? .trial : .premium
-            }
-            if enablesAutoAdvance {
-                startAutoAdvance(intervalSeconds: 5)
-            } else {
-                autoAdvanceTask?.cancel()
-                autoAdvanceTask = nil
-                selectedPlan = .free
-            }
+            syncSelectionForCurrentContext(animated: false)
+            restartAutoAdvanceIfNeeded()
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
             autoAdvanceTask = nil
+            isPagerInteracting = false
         }
-        .onChange(of: subscriptionManager.hasPremiumAccess) { _, newValue in
-            guard selectsPremiumOnAppear, newValue else { return }
-            if selectedPlan == .free {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    selectedPlan = hasIntroOffer ? .trial : .premium
+        .onChange(of: selectedPlan) { _, _ in
+            guard autoAdvanceIntervalSeconds != nil else { return }
+            guard !isPagerInteracting, !isAdvancingAutomatically else { return }
+            restartAutoAdvanceIfNeeded()
+        }
+        .onChange(of: subscriptionManager.status) { _, _ in
+            syncSelectionForCurrentContext(animated: true)
+        }
+        .onChange(of: subscriptionManager.hasPremiumAccess) { _, _ in
+            syncSelectionForCurrentContext(animated: true)
+        }
+    }
+
+    private var onboardingOfferBody: some View {
+        GeometryReader { geo in
+            let renderWidth = geo.size.width
+            let renderHeight = geo.size.height
+            let deviceWidth = UIScreen.main.bounds.width
+            let layoutWidth = min(min(renderWidth, deviceWidth), 500)
+            let safeTop = geo.safeAreaInsets.top
+            let safeBottom = max(geo.safeAreaInsets.bottom, 18)
+            let horizontalSafeInset = max(geo.safeAreaInsets.leading, geo.safeAreaInsets.trailing)
+            let contentSideInset: CGFloat = (layoutWidth < 390 ? 18 : 24) + horizontalSafeInset
+            let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))
+            let compactLayout = layoutWidth < 390 || renderHeight < 780
+            let headerAndFooterHeight = watchReady ? 280.0 : 252.0
+            let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)
+
+            ZStack {
+                planBackground(for: selectedPlan)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 14) {
+                        backButton
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(titleText)
+                                .font(.system(size: compactLayout ? 30 : 34, weight: .heavy))
+                                .foregroundColor(highContrastForeground(for: selectedPlan))
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(subtitleText)
+                                .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
+                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(width: contentWidth, alignment: .leading)
+                    .padding(.top, safeTop + 12)
+
+                    if watchReady {
+                        watchReadyBadge
+                            .frame(width: contentWidth, alignment: .leading)
+                            .padding(.top, 16)
+                    }
+
+                    Spacer(minLength: 18)
+
+                    planPager(
+                        cardWidth: contentWidth,
+                        pageHeight: availablePagerHeight,
+                        compactLayout: compactLayout,
+                        topInset: 0,
+                        bottomInset: 0
+                    )
+                    .frame(width: contentWidth, height: availablePagerHeight)
+
+                    VStack(spacing: 16) {
+                        pageIndicator
+
+                        Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
+                            .multilineTextAlignment(.center)
+                            .frame(width: contentWidth, alignment: .center)
+                    }
+                    .padding(.top, 18)
+                    .padding(.bottom, safeBottom + 12)
                 }
+                .frame(width: layoutWidth, height: renderHeight, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
+        }
+    }
+
+    private var inlineManageSubscriptionBody: some View {
+        GeometryReader { geo in
+            let renderWidth = geo.size.width
+            let renderHeight = geo.size.height
+            let compactLayout = renderWidth < 390 || renderHeight < 620
+            let pagerHeight = max(0.0, renderHeight - 36)
+
+            VStack(spacing: 16) {
+                planPager(
+                    cardWidth: renderWidth,
+                    pageHeight: pagerHeight,
+                    compactLayout: compactLayout,
+                    topInset: 0,
+                    bottomInset: 0
+                )
+                .frame(width: renderWidth, height: pagerHeight)
+
+                pageIndicator
+            }
+            .frame(width: renderWidth, height: renderHeight, alignment: .top)
         }
     }
 
@@ -1912,27 +1934,23 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func planPager(cardWidth: CGFloat, pageHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {
-        let spacing: CGFloat = showsOnboardingChrome ? (compactLayout ? 12 : pagerSpacing) : 0
-        let totalPagerWidth = (CGFloat(PlanSelection.allCases.count) * cardWidth) + (CGFloat(max(0, PlanSelection.allCases.count - 1)) * spacing)
-
-        return ZStack(alignment: .leading) {
-            HStack(spacing: spacing) {
-                planCard(for: .free, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                    .frame(width: cardWidth, height: pageHeight)
-
-                planCard(for: .premium, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                    .frame(width: cardWidth, height: pageHeight)
-
-                planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
-                    .frame(width: cardWidth, height: pageHeight)
+        TabView(selection: $selectedPlan) {
+            ForEach(PlanSelection.allCases, id: \.rawValue) { plan in
+                planCard(
+                    for: plan,
+                    availableHeight: pageHeight,
+                    compactLayout: compactLayout,
+                    topInset: topInset,
+                    bottomInset: bottomInset
+                )
+                .frame(width: cardWidth, height: pageHeight)
+                .tag(plan)
             }
-            .frame(width: totalPagerWidth, alignment: .leading)
-            .offset(x: (-CGFloat(selectedPlan.rawValue) * (cardWidth + spacing)) + dragTranslation)
-            .animation(.spring(response: 0.35, dampingFraction: 0.82), value: selectedPlan)
-            .gesture(planSwipeGesture(pageWidth: cardWidth, spacing: spacing))
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(width: cardWidth, height: pageHeight, alignment: .leading)
         .clipped()
+        .simultaneousGesture(pagerInteractionGesture)
     }
 
     private var pageIndicator: some View {
@@ -1957,14 +1975,15 @@ struct WatchConnectedPremiumOfferStepView: View {
         let badgeText = badgeText(for: plan)
         let priceSuffix = isNorwegian ? "/mnd" : "/mo"
         let isTrialPlan = plan == .trial
-        let immersiveLayout = presentationMode == .fullScreenOffers
-        let denseLayout = compactLayout || immersiveLayout
-        let cardPadding: CGFloat = immersiveLayout ? 24 : (compactLayout ? 20 : 24)
+        let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan
+        let isActionDisabled = isPlanActionDisabled(for: plan)
+        let denseLayout = compactLayout || isInlineManageSubscription
+        let cardPadding: CGFloat = compactLayout ? 20 : 24
         let titleSize: CGFloat = denseLayout ? 24 : 30
         let priceSize: CGFloat = denseLayout ? 34 : 42
         let featureSize: CGFloat = denseLayout ? 16 : 18
         let buttonVerticalPadding: CGFloat = denseLayout ? 14 : 16
-        let cornerRadius: CGFloat = immersiveLayout ? 0 : 28
+        let cornerRadius: CGFloat = 28
         let contentSpacing: CGFloat = denseLayout ? 14 : 18
         let featureSpacing: CGFloat = denseLayout ? 12 : 14
         let footerSpacing: CGFloat = denseLayout ? 8 : 10
@@ -1998,13 +2017,13 @@ struct WatchConnectedPremiumOfferStepView: View {
                 if let badgeText {
                     Text(badgeText)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(plan == .premium && !hasPremiumAccess ? .white : accent)
+                        .foregroundColor(badgeForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(plan == .premium && !hasPremiumAccess ? accent : accent.opacity(0.14))
+                                .fill(badgeBackgroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
                         )
                 }
             }
@@ -2051,17 +2070,19 @@ struct WatchConnectedPremiumOfferStepView: View {
                     Text(buttonTitle(for: plan))
                         .font(.headline.weight(.bold))
                         .multilineTextAlignment(.center)
-                        .foregroundColor(plan == .free && !hasPremiumAccess ? accent : .white)
+                        .foregroundColor(primaryButtonForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, buttonVerticalPadding)
-                        .background(plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent)
+                        .background(primaryButtonBackgroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
                         .clipShape(Capsule(style: .continuous))
                         .overlay(
                             Capsule(style: .continuous)
-                                .stroke(accent.opacity(plan == .free && !hasPremiumAccess ? 0.9 : 0.0), lineWidth: 2)
+                                .stroke(primaryButtonBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: 2)
                         )
                 }
                 .buttonStyle(.plain)
+                .disabled(isActionDisabled)
+                .opacity(isActionDisabled ? 0.94 : 1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -2076,7 +2097,7 @@ struct WatchConnectedPremiumOfferStepView: View {
                 .fill(accent)
                 .frame(height: plan != .free ? 44 : 6)
                 .overlay {
-                    if plan != .free && !hasPremiumAccess {
+                    if plan != .free && !hasPremiumAccess && !isCurrentPlan {
                         Text(plan == .trial ? (isNorwegian ? "GRATIS PRØVE" : "FREE TRIAL") : (isNorwegian ? "ANBEFALT" : "RECOMMENDED"))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white.opacity(0.96))
@@ -2085,27 +2106,9 @@ struct WatchConnectedPremiumOfferStepView: View {
         }
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(selectedPlan == plan ? accent.opacity(0.85) : CoachiTheme.borderSubtle.opacity(0.35), lineWidth: selectedPlan == plan ? 2.5 : 1)
+                .stroke(planBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: planBorderWidth(for: plan, isCurrentPlan: isCurrentPlan))
         )
-        .shadow(color: immersiveLayout ? .clear : accent.opacity(selectedPlan == plan ? 0.18 : 0.08), radius: selectedPlan == plan ? 18 : 12, x: 0, y: 12)
-    }
-
-    private func planSwipeGesture(pageWidth: CGFloat, spacing: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 24)
-            .updating($dragTranslation) { value, state, _ in
-                let limit = pageWidth + spacing
-                state = max(-limit, min(limit, value.translation.width))
-            }
-            .onEnded { value in
-                guard abs(value.translation.width) > 24 else { return }
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    let direction = value.translation.width < 0 ? 1 : -1
-                    let nextIndex = max(0, min(PlanSelection.allCases.count - 1, selectedPlan.rawValue + direction))
-                    if let nextPlan = PlanSelection(rawValue: nextIndex) {
-                        selectedPlan = nextPlan
-                    }
-                }
-            }
+        .shadow(color: accent.opacity(planShadowOpacity(for: plan, isCurrentPlan: isCurrentPlan)), radius: selectedPlan == plan ? 18 : 12, x: 0, y: 12)
     }
 
     private func planFeatures(for plan: PlanSelection) -> [String] {
@@ -2177,21 +2180,46 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func badgeText(for plan: PlanSelection) -> String? {
-        if hasPremiumAccess {
-            return plan == selectedPlan ? (isNorwegian ? "Din plan" : "Current Plan") : nil
+        if showsCurrentPlanState {
+            if plan == resolvedCurrentPlan {
+                return isNorwegian ? "Din plan" : "Current plan"
+            }
+
+            switch plan {
+            case .free:
+                return isNorwegian ? "Gratis" : "Free"
+            case .premium:
+                return "Premium"
+            case .trial:
+                return isNorwegian ? "Prøv gratis" : "Try free"
+            }
         }
 
-        switch plan {
-        case .free:
-            return isNorwegian ? "Din plan" : "Current Plan"
-        case .premium:
-            return "Premium"
-        case .trial:
-            return isNorwegian ? "Prøv gratis" : "Try free"
+        if hasPremiumAccess {
+            return plan == selectedPlan ? (isNorwegian ? "Aktiv" : "Active") : nil
         }
+
+        return plan == .free ? (isNorwegian ? "Din plan" : "Current plan") : (plan == .premium ? "Premium" : (isNorwegian ? "Prøv gratis" : "Try free"))
     }
 
     private func detailText(for plan: PlanSelection) -> String {
+        if showsCurrentPlanState, plan == resolvedCurrentPlan {
+            switch plan {
+            case .free:
+                return isNorwegian
+                    ? "Dette er den aktive gratisplanen din akkurat nå."
+                    : "This is your active free plan right now."
+            case .premium:
+                return isNorwegian
+                    ? "Dette er den aktive Premium-planen din. Administrering skjer i App Store."
+                    : "This is your active Premium plan. Management stays in the App Store."
+            case .trial:
+                return isNorwegian
+                    ? "Dette er den aktive gratis prøveperioden din akkurat nå."
+                    : "This is your active free trial right now."
+            }
+        }
+
         switch plan {
         case .free:
             return isNorwegian
@@ -2232,6 +2260,18 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func buttonTitle(for plan: PlanSelection) -> String {
+        if showsCurrentPlanState, plan == resolvedCurrentPlan {
+            return isNorwegian ? "Din plan" : "Current plan"
+        }
+
+        if showsCurrentPlanState, hasPremiumAccess {
+            return isNorwegian ? "Administrer i App Store" : "Manage in App Store"
+        }
+
+        if showsCurrentPlanState, plan == .free {
+            return isNorwegian ? "Gratis plan" : "Free plan"
+        }
+
         if hasPremiumAccess {
             return isNorwegian ? "Fortsett" : "Continue"
         }
@@ -2247,6 +2287,13 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func handlePlanAction(for plan: PlanSelection) {
+        guard !isPlanActionDisabled(for: plan) else { return }
+
+        if showsCurrentPlanState, hasPremiumAccess {
+            subscriptionManager.manageSubscription()
+            return
+        }
+
         if hasPremiumAccess {
             onContinue()
             return
@@ -2414,18 +2461,130 @@ struct WatchConnectedPremiumOfferStepView: View {
         return colorScheme == .dark ? .white : CoachiTheme.textPrimary
     }
 
-    private func startAutoAdvance(intervalSeconds: UInt64 = 5) {
-        autoAdvanceTask?.cancel()
-        autoAdvanceTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
-                if Task.isCancelled { return }
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.28)) {
-                        let nextIndex = (selectedPlan.rawValue + 1) % max(PlanSelection.allCases.count, 1)
-                        selectedPlan = PlanSelection(rawValue: nextIndex) ?? .free
-                    }
+    private func planBorderColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return accent.opacity(0.95)
+        }
+        if selectedPlan == plan {
+            return accent.opacity(0.78)
+        }
+        return CoachiTheme.borderSubtle.opacity(0.35)
+    }
+
+    private func planBorderWidth(for plan: PlanSelection, isCurrentPlan: Bool) -> CGFloat {
+        if isCurrentPlan {
+            return 3
+        }
+        return selectedPlan == plan ? 2 : 1
+    }
+
+    private func planShadowOpacity(for plan: PlanSelection, isCurrentPlan: Bool) -> Double {
+        if isCurrentPlan {
+            return 0.24
+        }
+        return selectedPlan == plan ? 0.14 : 0.06
+    }
+
+    private func badgeForegroundColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return .white
+        }
+        return plan == .premium && !hasPremiumAccess ? .white : accent
+    }
+
+    private func badgeBackgroundColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return accent
+        }
+        return plan == .premium && !hasPremiumAccess ? accent : accent.opacity(0.14)
+    }
+
+    private func primaryButtonForegroundColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return accent
+        }
+        return plan == .free && !hasPremiumAccess ? accent : .white
+    }
+
+    private func primaryButtonBackgroundColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return CoachiTheme.surface
+        }
+        return plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent
+    }
+
+    private func primaryButtonBorderColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+        if isCurrentPlan {
+            return accent.opacity(0.9)
+        }
+        return accent.opacity(plan == .free && !hasPremiumAccess ? 0.9 : 0.0)
+    }
+
+    private func isPlanActionDisabled(for plan: PlanSelection) -> Bool {
+        if showsCurrentPlanState, plan == resolvedCurrentPlan {
+            return true
+        }
+        return showsCurrentPlanState && plan == .free
+    }
+
+    private var pagerInteractionGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { _ in
+                guard autoAdvanceIntervalSeconds != nil else { return }
+                if !isPagerInteracting {
+                    isPagerInteracting = true
+                    autoAdvanceTask?.cancel()
+                    autoAdvanceTask = nil
                 }
+            }
+            .onEnded { _ in
+                guard autoAdvanceIntervalSeconds != nil else { return }
+                isPagerInteracting = false
+                restartAutoAdvanceIfNeeded()
+            }
+    }
+
+    private func syncSelectionForCurrentContext(animated: Bool) {
+        let targetPlan: PlanSelection
+        if isInlineManageSubscription {
+            targetPlan = resolvedCurrentPlan
+        } else if selectsPremiumOnAppear && hasPremiumAccess {
+            targetPlan = resolvedCurrentPlan
+        } else {
+            targetPlan = .free
+        }
+
+        guard selectedPlan != targetPlan else { return }
+        if animated {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                selectedPlan = targetPlan
+            }
+        } else {
+            selectedPlan = targetPlan
+        }
+    }
+
+    private func restartAutoAdvanceIfNeeded() {
+        autoAdvanceTask?.cancel()
+        autoAdvanceTask = nil
+
+        guard let intervalSeconds = autoAdvanceIntervalSeconds else { return }
+
+        autoAdvanceTask = Task {
+            try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard !isPagerInteracting else {
+                    restartAutoAdvanceIfNeeded()
+                    return
+                }
+                isAdvancingAutomatically = true
+                withAnimation(.easeInOut(duration: 0.32)) {
+                    let nextIndex = (selectedPlan.rawValue + 1) % max(PlanSelection.allCases.count, 1)
+                    selectedPlan = PlanSelection(rawValue: nextIndex) ?? .free
+                }
+                isAdvancingAutomatically = false
+                restartAutoAdvanceIfNeeded()
             }
         }
     }

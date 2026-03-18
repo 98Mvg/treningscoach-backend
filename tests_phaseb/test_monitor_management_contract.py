@@ -187,7 +187,7 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
 
 
-def test_manage_subscription_uses_full_screen_offer_swiper_without_onboarding_header() -> None:
+def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_header() -> None:
     profile_text = PROFILE_VIEW.read_text(encoding="utf-8")
     onboarding_text = (
         REPO_ROOT
@@ -198,11 +198,14 @@ def test_manage_subscription_uses_full_screen_offer_swiper_without_onboarding_he
         / "OnboardingContainerView.swift"
     ).read_text(encoding="utf-8")
 
-    assert "presentationMode: .fullScreenOffers" in profile_text
+    assert "presentationMode: .manageSubscriptionInline" in profile_text
     assert "OnboardingAtmosphereView(step: .premiumOffer)" not in profile_text
-    assert "if showsOnboardingChrome {" in onboarding_text
-    assert "if enablesAutoAdvance {" in onboarding_text
-    assert "if selectsPremiumOnAppear && hasPremiumAccess {" in onboarding_text
+    assert ".fullScreenCover(isPresented: $showPlanOffers)" not in profile_text
+    assert "private var onboardingOfferBody: some View {" in onboarding_text
+    assert "private var inlineManageSubscriptionBody: some View {" in onboarding_text
+    assert "private var isInlineManageSubscription: Bool { presentationMode == .manageSubscriptionInline }" in onboarding_text
+    assert "private var autoAdvanceIntervalSeconds: UInt64?" in onboarding_text
+    assert "return 7" in onboarding_text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:

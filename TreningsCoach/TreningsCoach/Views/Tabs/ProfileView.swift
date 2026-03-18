@@ -626,37 +626,25 @@ private struct ProfileValueRow: View {
 private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
-    @State private var showPlanOffers = false
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
+    private var inlinePlanDeckHeight: CGFloat {
+        min(max(UIScreen.main.bounds.height * 0.64, 560), 640)
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
                 subscriptionStatusCard
-                includedItemsCard
-
-                Button {
-                    showPlanOffers = true
-                } label: {
-                    Text(isNorwegian ? "Se alle tilbudene" : "See all offers")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(hex: "7C3AED"), Color(hex: "4F46E5")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
+                WatchConnectedPremiumOfferStepView(
+                    watchManager: PhoneWCManager.shared,
+                    onBack: {},
+                    onContinue: {},
+                    presentationMode: .manageSubscriptionInline
+                )
+                .environmentObject(subscriptionManager)
+                .frame(height: inlinePlanDeckHeight)
 
                 if hasPremiumAccess {
                     Button(isNorwegian ? "Administrer i App Store" : "Manage in App Store") {
@@ -673,6 +661,8 @@ private struct ManageSubscriptionView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(Color(hex: "5B4FD1"))
                 .frame(maxWidth: .infinity)
+
+                includedItemsCard
 
                 HStack(spacing: 8) {
                     Button(isNorwegian ? "Brukervilkår" : "Terms") {
@@ -699,15 +689,6 @@ private struct ManageSubscriptionView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(isPresented: $showPlanOffers) {
-            WatchConnectedPremiumOfferStepView(
-                watchManager: PhoneWCManager.shared,
-                onBack: { showPlanOffers = false },
-                onContinue: { showPlanOffers = false },
-                presentationMode: .fullScreenOffers
-            )
-            .environmentObject(subscriptionManager)
-        }
     }
 
     private var subscriptionStatusCard: some View {
