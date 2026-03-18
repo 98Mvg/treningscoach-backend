@@ -166,6 +166,10 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "apiService.wakeBackend()" in text
     assert "connectionState = .connecting" in text
     assert "Live voice is taking longer than expected to connect" in text
+    assert "Follow the active session instructions exactly." in text
+    assert "Do not mention workout history, earlier activity, or specific exercises." in text
+    assert "keep the opening generic and running-specific." in text
+    assert "Mention one concrete observation from the workout if available" not in text
     assert "Task {" in text
 
 
@@ -209,7 +213,9 @@ def test_text_fallback_prompt_is_running_only_and_blocks_strength_references() -
     assert "refer to it as a general running workout instead of repeating the raw label." in text
     assert "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes." in text
     assert "Treat it as a very short or early-stopped running session, not as a static hold or strength exercise." in text
+    assert "If the summary is generic, very short, or sparse, keep the first reply generic and running-specific." in text
     assert "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks." in text
+    assert "Do not say you noticed the athlete doing a specific exercise earlier unless the summary explicitly names it." in text
 
 
 def test_live_voice_flag_and_microphone_usage_are_declared() -> None:

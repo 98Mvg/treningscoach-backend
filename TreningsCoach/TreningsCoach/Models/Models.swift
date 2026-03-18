@@ -504,6 +504,11 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         )
         lines.append(
             isNorwegian
+                ? "Hvis sammendraget er generisk, veldig kort eller tynt, holder du første svar generelt og løpsspesifikt."
+                : "If the summary is generic, very short, or sparse, keep the first reply generic and running-specific."
+        )
+        lines.append(
+            isNorwegian
                 ? "Tolk timerverdier bokstavelig. Hvis tiden vises som MM:SS, betyr 00:07 syv sekunder, ikke sju minutter."
                 : "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes."
         )
@@ -519,6 +524,11 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
             isNorwegian
                 ? "Ikke nevn styrketrening, gymøvelser eller spesifikke øvelser som squats, lunges, push-ups, burpees eller planker."
                 : "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks."
+        )
+        lines.append(
+            isNorwegian
+                ? "Ikke si at du la merke til en spesifikk øvelse tidligere med mindre sammendraget faktisk nevner den."
+                : "Do not say you noticed the athlete doing a specific exercise earlier unless the summary explicitly names it."
         )
 
         lines.append("")

@@ -45,5 +45,8 @@ def test_post_workout_voice_instructions_keep_generic_workout_running_only() -> 
     assert "Workout: Workout" not in instructions
     assert "For this opening, refer to the workout as 'general running workout'." in instructions
     assert "Do not use workout history in the opening message." in instructions
+    assert "If the summary is generic, short, or sparse, keep the opening generic and running-specific." in instructions
+    assert "If the summary does not explicitly name an exercise, assume no exercise name is known." in instructions
+    assert "NEVER say you noticed the athlete doing a plank, squat, or any other exercise earlier." in instructions
     assert "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.)." in instructions
     assert "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples." in instructions

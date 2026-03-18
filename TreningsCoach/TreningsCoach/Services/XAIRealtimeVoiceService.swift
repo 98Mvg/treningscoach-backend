@@ -297,8 +297,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         let instructions = languageCode == "no"
-            ? "Start med en kort, vennlig hilsen som Coachi på norsk. Nevn én konkret observasjon fra økten hvis den finnes, og inviter brukeren til å stille et spørsmål."
-            : "Start with a short, friendly greeting as Coachi. Mention one concrete observation from the workout if available, then invite the user to ask a question."
+            ? "Gi den påkrevde åpningsmeldingen for den nettopp fullførte løpeøkten nå. Følg de aktive sesjonsinstruksjonene nøyaktig. Bruk bare sammendraget fra denne økten i åpningen. Ikke nevn historikk, tidligere aktivitet eller spesifikke øvelser. Hvis sammendraget er generisk eller veldig kort, hold åpningen generell og løpsspesifikk."
+            : "Give the required opening message for the just-finished running workout now. Follow the active session instructions exactly. Use only the summary from this workout in the opening. Do not mention workout history, earlier activity, or specific exercises. If the summary is generic or very short, keep the opening generic and running-specific."
         let payload: [String: Any] = [
             "type": "response.create",
             "response": [
