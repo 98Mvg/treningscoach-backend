@@ -22,6 +22,7 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     assert '"Choose subscription"' in content
     assert '"Keep Talking with Your Coach"' in content
     assert '"Your 30-second free coaching preview has ended.' in content
+    assert '"Start \\(AppConfig.Subscription.trialDurationDays)-day free trial now"' in content
     assert 'AppConfig.LiveVoice.premiumMaxDurationSeconds / 60' in content
     assert 'AppConfig.LiveVoice.premiumSessionsPerDay' in content
     assert "unlimited daily sessions" not in content

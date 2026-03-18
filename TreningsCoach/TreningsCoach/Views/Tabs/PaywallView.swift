@@ -363,7 +363,9 @@ struct PaywallView: View {
 
     private var primaryCTAString: String {
         if planHasTrial(selectedPlan) {
-            return isNorwegian ? "Start gratis prøveperiode" : "Start free trial"
+            return isNorwegian
+                ? "Start \(AppConfig.Subscription.trialDurationDays) dagers gratis prøveperiode nå"
+                : "Start \(AppConfig.Subscription.trialDurationDays)-day free trial now"
         }
         return isNorwegian ? "Fortsett" : "Continue"
     }

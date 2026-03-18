@@ -1042,3 +1042,19 @@ Updated: 2026-03-17
 - Verification:
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `22 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Render pipeline-minute learning note
+
+- Added the deploy-scope learning to the durable notes in [tasks/lessons.md](/Users/mariusgaarder/Documents/treningscoach/tasks/lessons.md): when pipeline minutes are the issue, the highest-ROI fix in this repo is preventing backend autodeploys on iOS-only commits with Render root-directory and build-filter settings.
+- Added the same guardrail to [2026-03-17-session-learnings-render-runtime-vs-tool-dependencies.md](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-17-session-learnings-render-runtime-vs-tool-dependencies.md) so Render troubleshooting handoff now covers both runtime dependency truth and deploy-scope control.
+- Kept runtime code unchanged. This pass is documentation only.
+
+## Review — 2026-03-18 Paywall trial CTA copy pass
+
+- Kept the existing onboarding/offers -> [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) purchase path.
+- Updated the trial CTA on the existing paywall bottom action from the generic free-trial label to explicit duration copy:
+  - Norwegian: `Start 14 dagers gratis prøveperiode nå`
+  - English: `Start 14-day free trial now`
+- Left non-trial paywall CTAs unchanged.
+- Updated focused contract coverage:
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
