@@ -16,6 +16,8 @@ def test_subscription_manager_exposes_manage_subscription_path():
 
 def test_paywall_exposes_restore_and_manage_subscription_buttons():
     content = PAYWALL.read_text()
+    assert "enum PaywallPlanSelectionOption" in content
+    assert "init(context: PaywallContext, initialPlan: PaywallPlanSelectionOption = .yearly)" in content
     assert '"Restore Purchases"' in content
     assert '"Choose subscription"' in content
     assert '"Keep Talking with Your Coach"' in content
@@ -36,6 +38,8 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     content = PROFILE.read_text()
     assert "ManageSubscriptionView()" in content
     assert "showManageSubscription = true" in content
+    assert "SubscriptionComparisonCatalog.featureRows(isNorwegian: isNorwegian)" in content
+    assert "struct ManageSubscriptionFeatureRowData: Identifiable" in content
     assert "title: L10n.manageSubscription" in content
     assert 'Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")' in content
     assert 'Text(isNorwegian ? "Inkludert i abonnementet" : "Included in your plan")' in content

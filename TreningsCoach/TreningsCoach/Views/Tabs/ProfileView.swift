@@ -732,38 +732,7 @@ private struct ManageSubscriptionView: View {
     }
 
     private var featureRows: [ManageSubscriptionFeatureRowData] {
-        [
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Guidede økter" : "Guided workouts",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Coachi Score" : "Coachi Score",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Pulssone-coaching" : "HR zone coaching",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
-                freeValue: isNorwegian ? "1/dag" : "1/day",
-                premiumValue: isNorwegian ? "3/dag" : "3/day"
-            ),
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Økthistorikk" : "Workout history",
-                freeValue: isNorwegian ? "10 økter" : "10 workouts",
-                premiumValue: isNorwegian ? "Alle" : "All"
-            ),
-            ManageSubscriptionFeatureRowData(
-                title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights",
-                freeValue: "—",
-                premiumValue: "✓"
-            ),
-        ]
+        SubscriptionComparisonCatalog.featureRows(isNorwegian: isNorwegian)
     }
 
     private var currentPlanSummary: some View {
@@ -821,11 +790,54 @@ private struct ManageSubscriptionView: View {
     }
 }
 
-private struct ManageSubscriptionFeatureRowData: Identifiable {
-    let id = UUID()
+struct ManageSubscriptionFeatureRowData: Identifiable {
+    let id: String
     let title: String
     let freeValue: String
     let premiumValue: String
+}
+
+enum SubscriptionComparisonCatalog {
+    static func featureRows(isNorwegian: Bool) -> [ManageSubscriptionFeatureRowData] {
+        [
+            ManageSubscriptionFeatureRowData(
+                id: "guided_workouts",
+                title: isNorwegian ? "Guidede økter" : "Guided workouts",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "coach_score",
+                title: isNorwegian ? "Coachi Score" : "Coachi Score",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "hr_zone_coaching",
+                title: isNorwegian ? "Pulssone-coaching" : "HR zone coaching",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "talk_to_coach_live",
+                title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
+                freeValue: isNorwegian ? "1/dag" : "1/day",
+                premiumValue: isNorwegian ? "3/dag" : "3/day"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "workout_history",
+                title: isNorwegian ? "Økthistorikk" : "Workout history",
+                freeValue: isNorwegian ? "10 økter" : "10 workouts",
+                premiumValue: isNorwegian ? "Alle" : "All"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "deep_workout_insights",
+                title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights",
+                freeValue: "—",
+                premiumValue: "✓"
+            ),
+        ]
+    }
 }
 
 private struct ManageSubscriptionFeatureRow: View {

@@ -763,6 +763,25 @@ Updated: 2026-03-17
   - `python3 -m py_compile xai_voice.py` -> passed
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 
+## Review — 2026-03-18 Session learnings + codebase sync
+
+- Added a focused handoff/learning document at [2026-03-18-session-learnings-post-workout-share-live-voice-and-watch-runtime.md](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-18-session-learnings-post-workout-share-live-voice-and-watch-runtime.md) covering:
+  - watch-backed workout startup and HR recovery rules on the existing request-id/WC path
+  - post-workout summary/share/live-coach UI convergence on one sheet system
+  - compact text fallback expectations for voice entry points
+  - running-only prompt guardrails and current `Rex` audio-session guidance
+  - explicit tomorrow follow-up checks
+- Added distilled recurring rules to [lessons.md](/Users/mariusgaarder/Documents/treningscoach/tasks/lessons.md) so the same mistakes are less likely to repeat in later passes.
+- Updated [generate_codebase_guide.py](/Users/mariusgaarder/Documents/treningscoach/scripts/generate_codebase_guide.py) so the new learning doc is part of the generated “Recent Session Learnings” section and the current operational status reflects:
+  - stabilized watch-backed workout recovery semantics
+  - free 30-second live voice preview on the existing summary path
+  - shared post-workout floating-card surfaces plus compact voice-entry text fallback
+- Regenerated [CODEBASE_GUIDE.md](/Users/mariusgaarder/Documents/treningscoach/CODEBASE_GUIDE.md) so tomorrow’s session can start from the updated generated source-of-truth instead of chat history.
+- Verification:
+  - `python3 -m py_compile scripts/generate_codebase_guide.py` -> passed
+  - `python3 scripts/generate_codebase_guide.py` -> `[OK] Wrote CODEBASE_GUIDE.md`
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+
 ## Review — 2026-03-18 Risk list fixes: session persistence, trusted identity, iOS path mapping
 
 - Kept the single existing runtime path and reduced the top Phase-1 risks without introducing parallel session or API flows.
@@ -786,4 +805,48 @@ Updated: 2026-03-17
     - [test_zone_continuous_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_continuous_contract.py) still expects older `decision_reason` / `breath_quality_state` / max-silence behavior than the current zone-event motor returns
     - [test_phase2_quality_floor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phase2_quality_floor.py) uses a timeline stub that no longer matches the runtime `BreathingTimeline` interface
     - [test_persona_event_motor_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_persona_event_motor_contract.py) assumes persona text variance on a path now owned by deterministic zone-event templates
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Onboarding swipeable Free/Premium plan step
+
+- Kept the single existing onboarding route in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift):
+  - non-premium users still go from `sensorConnect` to `.premiumOffer`
+  - premium users still skip to notification permission
+- Replaced the old static watch-ready premium bridge with a swipeable two-page `Free` / `Premium` selector on the existing `WatchConnectedPremiumOfferStepView`.
+- Made the step watch-aware without making it watch-dependent:
+  - it now observes [PhoneWCManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/PhoneWCManager.swift) state for copy/badge only
+  - watch-ready users get positive Apple Watch copy
+  - other non-premium users get generic choose-plan copy
+- Kept purchase ownership on the existing [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) `.general` sheet:
+  - `Free` card continues onboarding
+  - `Premium` card opens the existing paywall
+  - when premium access becomes active, the onboarding card snaps to Premium and the CTA becomes `Continue`
+- Added a small shared subscription comparison source in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) so the onboarding step and Manage Subscription screen use the same feature truth instead of maintaining duplicate plan rows.
+- Extended `OnboardingScaffold` just enough to support card-driven steps by hiding the bottom action area for this one onboarding screen instead of creating a second onboarding scaffold.
+- Updated contract coverage:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `11 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Onboarding 14-day free-trial swipe
+
+- Extended the same onboarding swiper in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) from two cards to three:
+  - `Free`
+  - `Premium`
+  - `14-day free trial`
+- Kept this on the existing `.premiumOffer` step and existing paywall path. No new onboarding checkout or duplicate trial flow was introduced.
+- The new trial card now:
+  - sits after the Premium card in the existing swipe order
+  - reuses the same premium feature list
+  - previews pricing after trial with local monthly/yearly selection
+  - shows a dynamic yearly-savings badge when StoreKit pricing is available
+  - opens the existing [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) `.general` sheet with the selected monthly/yearly option preselected
+- Added a small paywall-selection hook in [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) so onboarding can pass the initial monthly/yearly selection without changing purchase ownership or creating a second paywall.
+- Updated contract coverage to lock the third swipe and the paywall preselection hook:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `11 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

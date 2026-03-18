@@ -83,6 +83,11 @@ enum PaywallContext: Identifiable {
     }
 }
 
+enum PaywallPlanSelectionOption {
+    case monthly
+    case yearly
+}
+
 // MARK: - View
 
 struct PaywallView: View {
@@ -92,16 +97,16 @@ struct PaywallView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
     let context: PaywallContext
-    @State private var selectedPlan: SubscriptionPlanOption = .yearly
+    @State private var selectedPlan: PaywallPlanSelectionOption
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool {
         subscriptionManager.hasPremiumAccess
     }
 
-    private enum SubscriptionPlanOption {
-        case monthly
-        case yearly
+    init(context: PaywallContext, initialPlan: PaywallPlanSelectionOption = .yearly) {
+        self.context = context
+        _selectedPlan = State(initialValue: initialPlan)
     }
 
     // MARK: - Body
@@ -168,7 +173,7 @@ struct PaywallView: View {
         .padding(.top, 6)
     }
 
-    private func planCard(option: SubscriptionPlanOption) -> some View {
+    private func planCard(option: PaywallPlanSelectionOption) -> some View {
         let isSelected = selectedPlan == option
         let isYearly = option == .yearly
         let priceLabel = isYearly ? yearlyPriceLabel : monthlyPriceLabel
@@ -356,7 +361,7 @@ struct PaywallView: View {
         return isNorwegian ? "Fortsett" : "Continue"
     }
 
-    private func planHasTrial(_ option: SubscriptionPlanOption) -> Bool {
+    private func planHasTrial(_ option: PaywallPlanSelectionOption) -> Bool {
         switch option {
         case .monthly:
             return subscriptionManager.monthlyProduct?.subscription?.introductoryOffer != nil || !subscriptionManager.hasLoadedProducts
@@ -365,7 +370,7 @@ struct PaywallView: View {
         }
     }
 
-    private func planTrialText(for option: SubscriptionPlanOption) -> String {
+    private func planTrialText(for option: PaywallPlanSelectionOption) -> String {
         if planHasTrial(option) {
             return isNorwegian
                 ? "Gratis prøveperiode \(AppConfig.Subscription.trialDurationDays) dager"
