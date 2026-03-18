@@ -61,8 +61,8 @@ struct L10n {
     static var thisWeek: String { current == .no ? "Denne uken" : "This week" }
     static var workoutsCompleted: String { current == .no ? "treninger fullfort" : "workouts completed" }
     static var recentWorkouts: String { current == .no ? "Siste treninger" : "Recent Workouts" }
-    static var noWorkoutsYet: String { current == .no ? "Ingen treninger ennaa" : "No workouts yet" }
-    static var tapStartWorkout: String { current == .no ? "Trykk Start trening for aa begynne" : "Tap Start Workout to begin your first session" }
+    static var noWorkoutsYet: String { current == .no ? "Ingen treninger ennå" : "No workouts yet" }
+    static var tapStartWorkout: String { current == .no ? "Trykk Start trening for å begynne" : "Tap Start Workout to begin your first session" }
     static var of: String { current == .no ? "av" : "of" }
     static var today: String { current == .no ? "I dag" : "Today" }
     static var coachScore: String { current == .no ? "Coach score" : "Coach score" }
@@ -70,8 +70,8 @@ struct L10n {
     // MARK: - Workout
     static var warmup: String { current == .no ? "Oppvarming" : "Warm-up" }
     static var intense: String { current == .no ? "Intens" : "Intense" }
-    static var cooldown: String { current == .no ? "Nedkjoeling" : "Cool-down" }
-    static var tapToStart: String { current == .no ? "Trykk for aa starte trening" : "Tap to start workout" }
+    static var cooldown: String { current == .no ? "Nedkjøling" : "Cool-down" }
+    static var tapToStart: String { current == .no ? "Trykk for å starte trening" : "Tap to start workout" }
     static var stopWorkout: String { current == .no ? "Stopp trening" : "Stop Workout" }
     static var skipToWorkout: String { current == .no ? "Hopp til trening" : "Skip to Workout" }
     static var selectCoach: String { current == .no ? "Velg coach" : "Select Coach" }
@@ -188,7 +188,7 @@ struct L10n {
     static var repeatPasswordLabel: String { current == .no ? "Gjenta passordet" : "Repeat password" }
     static var acceptTerms: String {
         current == .no
-            ? "Ved aa hake av godtar du vilkar for bruk og personvern."
+            ? "Ved å hake av godtar du vilkår for bruk og personvern."
             : "By checking this box, you accept terms and privacy policy."
     }
     static var register: String { current == .no ? "Registrer deg" : "Register" }
@@ -209,8 +209,8 @@ struct L10n {
     static var appleTokenExpired: String {
         current == .no ? "Apple-innloggingen utløp. Prøv igjen." : "Apple sign-in token expired. Please try again."
     }
-    static var trainingLevel: String { current == .no ? "Treningsnivaa" : "Training Level" }
-    static var trainingLevelSubtitle: String { current == .no ? "Dette paavirker coachens tone og intensitet" : "This influences the coach's tone and intensity" }
+    static var trainingLevel: String { current == .no ? "Treningsnivå" : "Training Level" }
+    static var trainingLevelSubtitle: String { current == .no ? "Dette påvirker coachens tone og intensitet" : "This influences the coach's tone and intensity" }
     static var continueButton: String { current == .no ? "Fortsett" : "Continue" }
     static var getStarted: String { current == .no ? "Kom i gang" : "Get Started" }
     static var skip: String { current == .no ? "Hopp over" : "Skip" }
@@ -242,7 +242,7 @@ struct L10n {
     // MARK: - Wake Word & Coach Interaction
     static var sayCoachToSpeak: String { current == .no ? "Si \"Coachi\" eller \"PT\"" : "Say \"Coach\" to speak" }
     static var listeningForYou: String { current == .no ? "Lytter..." : "Listening..." }
-    static var coachHeard: String { current == .no ? "Hoert!" : "Heard!" }
+    static var coachHeard: String { current == .no ? "Hørt!" : "Heard!" }
     static var talkToCoachButton: String { current == .no ? "Snakk med coach" : "Talk to Coach" }
     static var coachSpeaking: String { current == .no ? "Coach svarer..." : "Coach speaking..." }
 
@@ -260,7 +260,7 @@ struct L10n {
     static var lastNamePlaceholder: String { current == .no ? "Etternavn" : "Last name" }
     static var beginnerAutoLevelLine: String {
         current == .no
-            ? "Du starter som Nybegynner og bygger deg opp med gode oekter."
+            ? "Du starter som Nybegynner og bygger deg opp med gode økter."
             : "You start as Beginner and level up with good-quality workouts."
     }
     static var coachScoreIntroHeadline: String {
@@ -268,16 +268,16 @@ struct L10n {
     }
     static var coachScoreIntroSubline: String {
         current == .no
-            ? "Bra, %@. Etter hver oekt faar du CoachScore som viser hvor godt du holdt riktig puls."
+            ? "Bra, %@. Etter hver økt får du CoachScore som viser hvor godt du holdt riktig puls."
             : "Great, %@. After each workout you get a CoachScore that shows how well you stayed in the right HR zone."
     }
     static var coachScoreLabel: String { "CoachScore" }
-    static var coachScoreSolidLabel: String { current == .no ? "Solid oekt" : "Solid workout" }
+    static var coachScoreSolidLabel: String { current == .no ? "Solid økt" : "Solid workout" }
     static var coachScoreReasonZone: String {
         current == .no ? "Tid i riktig sone" : "Time in target zone"
     }
     static var coachScoreReasonConsistency: String {
-        current == .no ? "Jevn innsats i oekten" : "Steady effort through the workout"
+        current == .no ? "Jevn innsats i økten" : "Steady effort through the workout"
     }
     static var coachScoreReasonRecovery: String {
         current == .no ? "God kontroll i recovery" : "Good recovery control"

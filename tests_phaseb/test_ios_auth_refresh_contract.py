@@ -154,6 +154,9 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "await authManager.signInWithEmail(" in view_text
     assert "private var visibleErrorMessage: String?" in view_text
     assert "authManager.errorMessage = nil" in view_text
+    assert "BackendAPIService.shared.wakeBackend()" in view_text
+    assert "Ved å hake av i denne boksen godtar du Coachi sin personvernerklæring og vilkår for bruk." in view_text
+    assert "Du må godta vilkårene før du kan fortsette." in view_text
 
 
 def test_auth_manager_supports_passwordless_email_sign_in() -> None:
@@ -164,6 +167,10 @@ def test_auth_manager_supports_passwordless_email_sign_in() -> None:
     assert '"\\(AppConfig.backendURL)/auth/email/verify"' in text
     assert "private func localizedEmailBackendError(errorResponse: ErrorResponse?) -> String" in text
     assert "L10n.authFailedTryAgain" in text
+    assert "private let authRequestTimeout: TimeInterval = 45" in text
+    assert "private func performAuthNetworkRequest(_ request: URLRequest) async throws -> (Data, URLResponse)" in text
+    assert "private func shouldRetryAuthRequest(after error: Error) -> Bool" in text
+    assert "BackendAPIService.shared.wakeBackend()" in text
 
 
 def test_auth_manager_routes_profile_reads_and_updates_through_backend_api_service() -> None:

@@ -572,14 +572,18 @@ class AuthManager: ObservableObject {
 
     // MARK: - Private
 
+    private let authRequestTimeout: TimeInterval = 45
+    private let authRetryDelayNanoseconds: UInt64 = 800_000_000
+
     private func sendAuthRequest(provider: String, body: [String: String]) async throws -> AuthResponse {
+        BackendAPIService.shared.wakeBackend()
         let url = URL(string: "\(AppConfig.backendURL)/auth/\(provider)")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: authRequestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performAuthNetworkRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -610,8 +614,9 @@ class AuthManager: ObservableObject {
     }
 
     private func sendEmailCodeRequest(email: String) async throws -> EmailCodeRequestResponse {
+        BackendAPIService.shared.wakeBackend()
         let url = URL(string: "\(AppConfig.backendURL)/auth/email/request-code")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: authRequestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode([
@@ -619,7 +624,7 @@ class AuthManager: ObservableObject {
             "language": L10n.current.rawValue,
         ])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performAuthNetworkRequest(request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -632,8 +637,9 @@ class AuthManager: ObservableObject {
     }
 
     private func sendEmailVerifyRequest(email: String, code: String) async throws -> AuthResponse {
+        BackendAPIService.shared.wakeBackend()
         let url = URL(string: "\(AppConfig.backendURL)/auth/email/verify")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: authRequestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode([
@@ -641,7 +647,7 @@ class AuthManager: ObservableObject {
             "code": code,
         ])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performAuthNetworkRequest(request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
@@ -653,6 +659,43 @@ class AuthManager: ObservableObject {
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
 
+    private func performAuthNetworkRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await URLSession.shared.data(for: request)
+        } catch {
+            guard shouldRetryAuthRequest(after: error) else {
+                throw APIError.networkError(error)
+            }
+
+            BackendAPIService.shared.wakeBackend()
+            try? await Task.sleep(nanoseconds: authRetryDelayNanoseconds)
+
+            do {
+                return try await URLSession.shared.data(for: request)
+            } catch {
+                throw APIError.networkError(error)
+            }
+        }
+    }
+
+    private func shouldRetryAuthRequest(after error: Error) -> Bool {
+        guard let urlError = error as? URLError else {
+            return false
+        }
+
+        switch urlError.code {
+        case .timedOut,
+             .cannotFindHost,
+             .cannotConnectToHost,
+             .networkConnectionLost,
+             .dnsLookupFailed,
+             .resourceUnavailable:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func localizedAuthError(provider: String, error: Error) -> String {
         if let apiError = error as? APIError {
             switch apiError {
@@ -661,14 +704,21 @@ class AuthManager: ObservableObject {
                 if provider == "apple" {
                     return trimmed.isEmpty ? L10n.appleSignInFailedTryAgain : trimmed
                 }
-                if trimmed.isEmpty || trimmed.localizedCaseInsensitiveContains("auth failed") {
+                if trimmed.isEmpty
+                    || trimmed.localizedCaseInsensitiveContains("auth failed")
+                    || trimmed.localizedCaseInsensitiveContains("authentication failed") {
                     return L10n.authFailedTryAgain
                 }
                 return trimmed
             case .networkError:
                 return L10n.authFailedTryAgain
-            default:
-                break
+            case .invalidURL,
+                 .invalidResponse,
+                 .httpError,
+                 .authenticationRequired,
+                 .downloadFailed,
+                 .quotaExceeded:
+                return L10n.authFailedTryAgain
             }
         }
 

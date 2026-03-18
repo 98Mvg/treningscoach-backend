@@ -429,4 +429,9 @@ def test_norwegian_language_strings_use_sprak() -> None:
     assert '"Velg spraak"' not in l10n_text
     assert "Norsk språk & coach" in language_selection_text
     assert "Norsk spraak & coach" not in language_selection_text
+    assert '"Ved å hake av godtar du vilkår for bruk og personvern."' in l10n_text
+    assert '"Treningsnivå"' in l10n_text
+    assert '"Dette påvirker coachens tone og intensitet"' in l10n_text
+    assert '"Hørt!"' in l10n_text
+    assert '"Bra, %@. Etter hver økt får du CoachScore som viser hvor godt du holdt riktig puls."' in l10n_text
     assert "CoachiTheme.borderSubtle.opacity(0.36)" in language_selection_text

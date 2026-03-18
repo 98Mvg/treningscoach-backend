@@ -905,3 +905,26 @@ Updated: 2026-03-17
   - [test_onboarding_theme_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_theme_contract.py)
   - [test_ios_auth_refresh_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_refresh_contract.py)
   - [test_ios_app_router_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_app_router_contract.py)
+
+## Review — 2026-03-18 Norwegian auth copy and post-watch plan pager fit pass
+
+- Kept the single existing onboarding/auth/premium-offer runtime path and tightened the same files instead of creating a second plan selector or a separate auth recovery path.
+- Fixed Norwegian alphabet output in the existing localized onboarding/auth strings:
+  - [L10n.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Localization/L10n.swift) now uses proper `æ/ø/å` wording for the relevant Coachi surfaces instead of `aa`-style ASCII fallbacks
+  - [AuthView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift) now uses proper Norwegian characters in the hard-coded terms and validation copy
+- Improved onboarding auth reliability on the current path in [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift):
+  - auth/email requests now warm the existing backend path before sending
+  - the same request path now retries once on transient backend/network failures instead of failing immediately
+  - generic backend `Authentication failed` responses now normalize to the localized sign-in failure state
+  - no provider flow was duplicated and the same `/auth/apple`, `/auth/google`, and `/auth/email/*` routes are still used
+- Fixed the post-watch onboarding plan swiper overflow in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift):
+  - the `Free / Premium / 14 dagers gratis prøveperiode` step now clamps to the same device/layout-width pattern used elsewhere in onboarding
+  - removed the old fixed `630`-height pager behavior that was causing clipping on phone-sized screens
+  - each slide now uses the available screen height, narrower adaptive type/padding, and a vertical card scroll path when content runs long
+- Updated focused contract coverage:
+  - [test_onboarding_theme_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_theme_contract.py)
+  - [test_ios_auth_refresh_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_refresh_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_ios_auth_provider_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_provider_contract.py)
+  - [test_ios_apple_signin_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_apple_signin_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)

@@ -104,6 +104,7 @@ struct AuthView: View {
             return nil
         }
         if rawMessage.localizedCaseInsensitiveContains("auth failed")
+            || rawMessage.localizedCaseInsensitiveContains("authentication failed")
             || rawMessage.localizedCaseInsensitiveContains("server error: auth failed") {
             return L10n.authFailedTryAgain
         }
@@ -190,6 +191,7 @@ struct AuthView: View {
             }
         )
         .onAppear {
+            BackendAPIService.shared.wakeBackend()
             authManager.errorMessage = nil
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
@@ -385,7 +387,7 @@ struct AuthView: View {
 
                     Text(
                         L10n.current == .no
-                            ? "Ved aa hake av i denne boksen godtar du Coachi sin personvernerklaering og vilkar for bruk."
+                            ? "Ved å hake av i denne boksen godtar du Coachi sin personvernerklæring og vilkår for bruk."
                             : "By checking this box you accept Coachi's privacy policy and terms of use."
                     )
                     .font(.footnote.weight(.medium))
@@ -412,7 +414,7 @@ struct AuthView: View {
             if showTermsValidationError {
                 Text(
                     L10n.current == .no
-                        ? "Du maa godta vilkaarene foer du kan fortsette."
+                        ? "Du må godta vilkårene før du kan fortsette."
                         : "You must accept the terms before you can continue."
                 )
                 .font(.footnote.weight(.semibold))
