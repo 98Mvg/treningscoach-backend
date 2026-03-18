@@ -72,6 +72,9 @@ def sanitize_post_workout_summary_context(raw_context: Any) -> dict[str, Any]:
         "rep_remaining_s": _clean_int("rep_remaining_s"),
         "reps_remaining_including_current": _clean_int("reps_remaining_including_current"),
         "elapsed_source": _clean_string("elapsed_source", 40),
+        "average_heart_rate": _clean_int("average_heart_rate"),
+        "distance_meters": _clean_float("distance_meters"),
+        "coaching_style": _clean_string("coaching_style", 40),
     }
 
     return {key: value for key, value in sanitized.items() if value is not None}
@@ -287,14 +290,14 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
     # Generic "Workout" or unknown mode
     if is_norwegian:
         return (
-            f"Utøveren valgte '{label}' — en generell treningsøkt. "
-            "Fokuser på kardio-innsats, pulssoner, og total varighet. "
-            "Ikke anta spesifikke øvelser eller bevegelser."
+            f"Utøveren valgte '{label}' — en generell løpeøkt. "
+            "Fokuser på kondisjon, tempo, pust, pulssoner, og total varighet. "
+            "Ikke nevn gym, styrke, spesifikke øvelser eller andre treningsformer."
         )
     return (
-        f"The athlete chose '{label}' — a general workout session. "
-        "Focus on cardio effort, heart rate zones, and total duration. "
-        "Do not assume any specific exercises or movements."
+        f"The athlete chose '{label}' — a general running workout. "
+        "Focus on cardio effort, pacing, breathing, heart rate zones, and total duration. "
+        "Do not mention gym work, strength training, specific exercises, or non-running activities."
     )
 
 
@@ -354,11 +357,13 @@ def build_post_workout_voice_instructions(
         "After the opening, return to the normal limit of 25 words / 2 sentences.\n\n"
         "CRITICAL — Workout type awareness:\n"
         "The athlete CHOSE this workout type before starting. Tailor ALL feedback to it.\n"
+        "This post-workout coach is for running workouts only.\n"
         "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.).\n"
+        "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples.\n"
         "NEVER guess what the athlete did physically — only reference the workout label and the data below.\n"
         "If the label says 'Easy Run', talk about pace, breathing, and aerobic base.\n"
         "If the label says 'Intervals', talk about work/rest ratio, intensity peaks, and recovery.\n"
-        "If the label says 'Workout', keep it general to cardio effort and heart rate zones.\n"
+        "If the label says 'Workout', treat it as a general running workout focused on pace, breathing, cardio effort, and heart rate zones.\n"
         "Refer to the workout ONLY by its label. Do not invent activity details.\n"
         "The athlete also chose an intensity level (Easy/Medium/Hard) before starting. "
         "Use this to gauge whether their heart rate, zone time, and effort match their intent. "

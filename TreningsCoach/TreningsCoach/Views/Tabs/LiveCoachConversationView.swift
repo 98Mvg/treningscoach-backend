@@ -111,7 +111,7 @@ final class LiveCoachConversationViewModel: ObservableObject {
         case .failed:
             return Color.red.opacity(0.85)
         case .ended:
-            return Color.white.opacity(0.55)
+            return Color.white.opacity(0.92)
         default:
             return Color.white.opacity(0.75)
         }
@@ -272,7 +272,8 @@ struct LiveCoachConversationView: View {
             PostWorkoutTextCoachView(
                 summaryContext: viewModel.summaryContext,
                 languageCode: viewModel.languageCode,
-                userName: viewModel.userName
+                userName: viewModel.userName,
+                presentationMode: .compactComposer
             )
         }
     }
@@ -299,7 +300,7 @@ struct LiveCoachConversationView: View {
             }
             Text(voiceOrbLabel)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.84))
+                .foregroundStyle(voiceOrbLabelTint)
         }
         .padding(.vertical, 4)
     }
@@ -316,6 +317,19 @@ struct LiveCoachConversationView: View {
             return no ? "Kunne ikke koble til" : "Could not connect"
         }
         return no ? "Kobler til..." : "Connecting..."
+    }
+
+    private var voiceOrbLabelTint: Color {
+        if viewModel.isConnected {
+            return Color.white.opacity(0.94)
+        }
+        if viewModel.isConversationEnded {
+            return Color.white.opacity(0.98)
+        }
+        if viewModel.failureMessage != nil {
+            return Color.red.opacity(0.92)
+        }
+        return Color.white.opacity(0.86)
     }
 
     private var transcriptCard: some View {
@@ -389,7 +403,7 @@ struct LiveCoachConversationView: View {
                 }
                 .buttonStyle(LiveVoicePrimaryButtonStyle())
 
-                Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead") {
+                Button(viewModel.languageCode == "no" ? "Skriv i stedet" : "Type instead") {
                     viewModel.openTextFallback()
                 }
                 .buttonStyle(LiveVoiceSecondaryButtonStyle())
@@ -422,7 +436,7 @@ struct LiveCoachConversationView: View {
                 .buttonStyle(LiveVoiceSecondaryButtonStyle())
 
                 if viewModel.canUseTextFallback {
-                    Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead") {
+                    Button(viewModel.languageCode == "no" ? "Skriv i stedet" : "Type instead") {
                         viewModel.openTextFallback()
                     }
                     .buttonStyle(LiveVoicePrimaryButtonStyle())
@@ -460,6 +474,15 @@ private struct TextCoachMessage: Identifiable {
     let text: String
 }
 
+enum PostWorkoutTextCoachPresentationMode: Equatable {
+    case fullScreen
+    case compactComposer
+
+    var compactDetent: PresentationDetent {
+        .fraction(0.33)
+    }
+}
+
 struct PostWorkoutTextCoachView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
@@ -469,6 +492,7 @@ struct PostWorkoutTextCoachView: View {
     let summaryContext: PostWorkoutSummaryContext
     let languageCode: String
     let userName: String
+    let presentationMode: PostWorkoutTextCoachPresentationMode
 
     @State private var draft = ""
     @State private var isSending = false
@@ -476,6 +500,18 @@ struct PostWorkoutTextCoachView: View {
     @State private var messages: [TextCoachMessage] = []
     @State private var sessionQuestionsUsed = 0
     @State private var showPaywall = false
+
+    init(
+        summaryContext: PostWorkoutSummaryContext,
+        languageCode: String,
+        userName: String,
+        presentationMode: PostWorkoutTextCoachPresentationMode = .fullScreen
+    ) {
+        self.summaryContext = summaryContext
+        self.languageCode = languageCode
+        self.userName = userName
+        self.presentationMode = presentationMode
+    }
 
     private var hasPremiumAccess: Bool {
         subscriptionManager.isPremium || authManager.currentUser?.subscriptionTier.isPremium == true
@@ -536,6 +572,23 @@ struct PostWorkoutTextCoachView: View {
     }
 
     var body: some View {
+        content
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(context: .talkLimit)
+                    .environmentObject(subscriptionManager)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if presentationMode == .compactComposer {
+            compactComposerBody
+        } else {
+            fullScreenBody
+        }
+    }
+
+    private var fullScreenBody: some View {
         NavigationStack {
             VStack(spacing: 14) {
                 ScrollView {
@@ -568,41 +621,7 @@ struct PostWorkoutTextCoachView: View {
                     }
                 }
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.red.opacity(0.85))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if isFreeUsageLimitReached {
-                    LockedCoachCard(languageCode: languageCode) {
-                        showPaywall = true
-                    }
-                } else {
-                    remainingHintBanner
-                    HStack(alignment: .bottom, spacing: 10) {
-                        TextField(
-                            languageCode == "no" ? "Still et oppfolgingssporsmal" : "Ask a follow-up question",
-                            text: $draft,
-                            axis: .vertical
-                        )
-                        .textFieldStyle(.plain)
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color.white.opacity(0.08))
-                        )
-
-                        Button(isSending ? "..." : (languageCode == "no" ? "Send" : "Send")) {
-                            Task {
-                                await sendQuestion()
-                            }
-                        }
-                        .buttonStyle(LiveVoicePrimaryButtonStyle())
-                        .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
+                composerSection
             }
             .padding(20)
             .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
@@ -616,11 +635,49 @@ struct PostWorkoutTextCoachView: View {
                     .foregroundStyle(Color.white.opacity(0.92))
                 }
             }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView(context: .talkLimit)
-                    .environmentObject(subscriptionManager)
-            }
         }
+    }
+
+    private var compactComposerBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(languageCode == "no" ? "Skriv i stedet" : "Type instead")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.96))
+                    Text(compactContextLine)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.66))
+                        .lineLimit(2)
+                }
+                Spacer()
+                Button(languageCode == "no" ? "Lukk" : "Close") {
+                    dismiss()
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.76))
+            }
+
+            if let latestCompactReply {
+                Text(latestCompactReply)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.88))
+                    .lineLimit(4)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(hex: "113042").opacity(0.80))
+                    )
+            }
+
+            composerSection
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
+        .presentationDetents([presentationMode.compactDetent])
+        .presentationDragIndicator(.visible)
     }
 
     private var summaryCard: some View {
@@ -641,6 +698,65 @@ struct PostWorkoutTextCoachView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color.black.opacity(0.20))
         )
+    }
+
+    @ViewBuilder
+    private var composerSection: some View {
+        if let errorMessage {
+            Text(errorMessage)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.red.opacity(0.85))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        if isFreeUsageLimitReached {
+            LockedCoachCard(languageCode: languageCode) {
+                showPaywall = true
+            }
+        } else {
+            remainingHintBanner
+            HStack(alignment: .bottom, spacing: 10) {
+                TextField(
+                    languageCode == "no" ? "Still et oppfolgingssporsmal" : "Ask a follow-up question",
+                    text: $draft,
+                    axis: .vertical
+                )
+                .textFieldStyle(.plain)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                )
+
+                Button(isSending ? "..." : (languageCode == "no" ? "Send" : "Send")) {
+                    Task {
+                        await sendQuestion()
+                    }
+                }
+                .buttonStyle(LiveVoicePrimaryButtonStyle())
+                .disabled(isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private var compactContextLine: String {
+        if !summaryContext.coachScoreSummaryLine.isEmpty {
+            return summaryContext.coachScoreSummaryLine
+        }
+        var parts = [summaryContext.workoutLabel, summaryContext.durationText]
+        if let averageHeartRate = summaryContext.averageHeartRate, averageHeartRate > 0 {
+            parts.append("\(averageHeartRate) BPM")
+        } else if !summaryContext.finalHeartRateText.isEmpty {
+            parts.append(summaryContext.finalHeartRateText)
+        }
+        if let distanceMeters = summaryContext.distanceMeters, distanceMeters > 0 {
+            parts.append(String(format: "%.2f km", distanceMeters / 1000.0))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var latestCompactReply: String? {
+        messages.reversed().first(where: { $0.role == .assistant })?.text
     }
 
     private func sendQuestion() async {

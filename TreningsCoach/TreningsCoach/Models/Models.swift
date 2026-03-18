@@ -485,6 +485,18 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         }
 
         lines.append("")
+        lines.append(
+            isNorwegian
+                ? "Denne coach-samtalen er kun for løpeøkter. Behandle også generiske etiketter som 'Økt' som en generell løpeøkt."
+                : "This coach conversation is for running workouts only. Treat generic labels like 'Workout' as a general running workout."
+        )
+        lines.append(
+            isNorwegian
+                ? "Ikke nevn styrketrening, gymøvelser eller spesifikke øvelser som squats, lunges, push-ups, burpees eller planker."
+                : "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks."
+        )
+
+        lines.append("")
         lines.append(isNorwegian ? "Sporsmal: \(question)" : "Question: \(question)")
         return lines.joined(separator: "\n")
     }

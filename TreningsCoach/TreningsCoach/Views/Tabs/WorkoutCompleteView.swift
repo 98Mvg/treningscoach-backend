@@ -114,11 +114,6 @@ struct WorkoutCompleteView: View {
     private var doneLabel: String { L10n.current == .no ? "HJEM" : "HOME" }
     private var shareLabel: String { L10n.current == .no ? "DEL" : "SHARE" }
     private var shareChooserTitle: String { L10n.current == .no ? "Del økten" : "Share workout" }
-    private var shareChooserSubtitle: String {
-        L10n.current == .no
-            ? "Velg hvor du vil dele kortet ditt."
-            : "Choose where you want to share your card."
-    }
     // liveCoachVoiceLabel removed — replaced by getFeedbackButton
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     // shouldShowLiveCoachVoiceButton removed — voice coach lives inside WorkoutSummarySheet
@@ -296,7 +291,6 @@ struct WorkoutCompleteView: View {
         .sheet(isPresented: $showShareOptions) {
             WorkoutShareDestinationsSheet(
                 title: shareChooserTitle,
-                subtitle: shareChooserSubtitle,
                 languageCode: L10n.current.rawValue,
                 onInstagram: {
                     performShareSelection { shareToInstagramStory() }
@@ -779,6 +773,21 @@ private struct WaveformBarsView: View {
         }
     }
 
+    private var statusColor: Color {
+        switch service.connectionState {
+        case .preparing, .connecting:
+            return Color.white.opacity(0.92)
+        case .connected:
+            return service.isSpeaking ? CoachiTheme.secondary : Color.white.opacity(0.96)
+        case .ended:
+            return Color.white.opacity(0.98)
+        case .failed:
+            return CoachiTheme.danger.opacity(0.96)
+        case .idle:
+            return .clear
+        }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 5) {
@@ -795,11 +804,7 @@ private struct WaveformBarsView: View {
                 Text(statusLabel)
                     .font(.system(size: 14, weight: .semibold))
                     .tracking(0.8)
-                    .foregroundColor(
-                        service.isSpeaking
-                            ? CoachiTheme.secondary
-                            : (isConnected ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
-                    )
+                    .foregroundColor(statusColor)
             }
         }
         .frame(maxWidth: .infinity)
@@ -1169,9 +1174,11 @@ private struct WorkoutSummarySheet: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 130)
 
-            Spacer().frame(height: 32)
+            Spacer().frame(height: 28)
 
-            // Subtle "type instead" link — transparent, not main focus
+            toggleCoachingButton
+                .padding(.horizontal, 20)
+
             Button {
                 showTextCoach = true
             } label: {
@@ -1183,13 +1190,13 @@ private struct WorkoutSummarySheet: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .foregroundColor(CoachiTheme.textSecondary)
+                .foregroundColor(Color.white.opacity(0.82))
                 .background(
                     Capsule(style: .continuous)
-                        .fill(CoachiTheme.surfaceElevated.opacity(0.82))
+                        .fill(Color.white.opacity(0.10))
                         .overlay(
                             Capsule(style: .continuous)
-                                .stroke(CoachiTheme.borderSubtle.opacity(0.34), lineWidth: 1)
+                                .stroke(Color.white.opacity(0.16), lineWidth: 1)
                         )
                 )
             }
@@ -1198,9 +1205,7 @@ private struct WorkoutSummarySheet: View {
             // Bottom spacer — less than top to keep waveform in lower-center
             Spacer().frame(minHeight: 16)
 
-            // End button + home/share at bottom
             VStack(spacing: 12) {
-                toggleCoachingButton
                 bottomButtons
             }
             .padding(.horizontal, 20)
@@ -1210,7 +1215,8 @@ private struct WorkoutSummarySheet: View {
             PostWorkoutTextCoachView(
                 summaryContext: liveCoachVM.summaryContext,
                 languageCode: liveCoachVM.languageCode,
-                userName: liveCoachVM.userName
+                userName: liveCoachVM.userName,
+                presentationMode: .compactComposer
             )
         }
         .background(summaryCardBackground)
@@ -1249,8 +1255,8 @@ private struct WorkoutSummarySheet: View {
                         .scaleEffect(0.85)
                 }
                 Text(isActive
-                    ? (isNorwegian ? "Avslutt samtalen" : "End Conversation")
-                    : (isNorwegian ? "Snakk med Coach" : "Talk to Coach"))
+                    ? (isNorwegian ? "Stopp" : "Stop")
+                    : (isNorwegian ? "Start" : "Start"))
                     .font(.system(size: 17, weight: .bold))
             }
             .frame(maxWidth: .infinity)
@@ -1565,7 +1571,6 @@ private struct WorkoutShareDestinationsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let title: String
-    let subtitle: String
     let languageCode: String
     let onInstagram: () -> Void
     let onSnapchat: () -> Void
@@ -1581,34 +1586,9 @@ private struct WorkoutShareDestinationsSheet: View {
                 Spacer(minLength: 0)
 
                 VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.arrow.up.fill")
-                            .font(.system(size: 11, weight: .bold))
-                        Text(languageCode == "no" ? "Del med Coachi" : "Share with Coachi")
-                            .font(.system(size: 11, weight: .bold))
-                            .tracking(0.5)
-                    }
-                    .foregroundColor(CoachiTheme.accent.opacity(0.92))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(Color.white.opacity(0.10))
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(CoachiTheme.accent.opacity(0.22), lineWidth: 1)
-                            )
-                    )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(.system(size: 21, weight: .semibold, design: .serif))
-                            .foregroundStyle(Color.white.opacity(0.94))
-
-                        Text(subtitle)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(CoachiTheme.accent.opacity(0.88))
-                    }
+                    Text(title)
+                        .font(.system(size: 21, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.white.opacity(0.94))
 
                     VStack(spacing: 12) {
                         HStack(spacing: 12) {

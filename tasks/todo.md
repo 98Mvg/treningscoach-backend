@@ -733,6 +733,36 @@ Updated: 2026-03-17
 - Verification:
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 
+## Review — 2026-03-18 Post-workout share + live coach polish
+
+- Kept the single existing post-workout flow and tightened only the current runtime surfaces:
+  - [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift)
+  - [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift)
+  - [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift)
+  - [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift)
+  - [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py)
+- Share-workout surface:
+  - removed the yellow `Share with Coachi` / `Del med Coachi` badge and the extra subtitle, leaving only the localized white `Share workout` / `Del økten` title on the existing floating share card
+- `Talk to Coach` sheet:
+  - moved the existing coach toggle directly under `WaveformBarsView`
+  - changed the toggle labels to localized `Start` / `Stop`
+  - kept `HOME` / `SHARE` on the bottom row
+  - increased waveform status contrast so ended/failed/connecting states remain readable on the glass card
+- `Type instead`:
+  - added an internal `PostWorkoutTextCoachPresentationMode` with default full-screen behavior plus a compact composer mode
+  - both live-voice entry points now open the compact composer sheet at a fixed one-third-height detent instead of the full transcript screen
+  - compact mode keeps the existing text-coach path and paywall handling, but trims the UI down to the short context line, input, send, and close controls
+- Coach correctness + tone:
+  - changed the live voice `AVAudioSession` mode from `.voiceChat` to `.default` while keeping the same `.playAndRecord` route options and the same `Rex` voice/provider path
+  - hardened the backend voice bootstrap and typed fallback prompt so the post-workout coach is explicitly running-only, treats generic `Workout` labels as a general running workout, and forbids gym/strength/bodyweight references
+  - preserved existing summary metrics in `xai_voice.py` sanitization for average heart rate, distance, and coaching style so the current summary context can actually reach the voice instructions
+- Test coverage:
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py) now covers the badge removal, compact text fallback mode, `Start` / `Stop` labels, `.default` audio-session mode, and running-only prompt guards
+- Verification:
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_voice_session_contract.py` -> `24 passed`
+  - `python3 -m py_compile xai_voice.py` -> passed
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
 ## Review — 2026-03-18 Risk list fixes: session persistence, trusted identity, iOS path mapping
 
 - Kept the single existing runtime path and reduced the top Phase-1 risks without introducing parallel session or API flows.

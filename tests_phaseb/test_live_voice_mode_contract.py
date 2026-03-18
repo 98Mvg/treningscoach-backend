@@ -16,6 +16,9 @@ AUTH_MANAGER = (
 LIVE_VOICE_VIEW = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Views" / "Tabs" / "LiveCoachConversationView.swift"
 )
+MODELS_SWIFT = (
+    REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Models" / "Models.swift"
+)
 VOICE_SERVICE = (
     REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Services" / "XAIRealtimeVoiceService.swift"
 )
@@ -58,7 +61,7 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert "liveVoiceQuotaDetailText" in text
     assert '"Free today: \\(remaining) remaining"' in text
     assert '"30 seconds max per session"' in text
-    assert "private var sheetCardMaxWidth: CGFloat { 430 }" in text
+    assert "private var sheetCardMaxWidth: CGFloat { 392 }" in text
     assert "private var summaryCardBackground: some View {" in text
     assert 'Text(isNorwegian ? "Coachi innsikt" : "Coachi Insight")' in text
     assert 'Text(isNorwegian ? "Coachi samtale" : "Coachi Conversation")' in text
@@ -70,6 +73,11 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert "await liveCoachVM.service.playFreePreviewLockClipIfAvailable()" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
     assert 'Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")' in text
+    assert '"Stopp" : "Stop"' in text
+    assert '"Start" : "Start"' in text
+    assert "presentationMode: .compactComposer" in text
+    assert '"Share with Coachi"' not in text
+    assert '"Del med Coachi"' not in text
     assert "liveVoiceTracker.recordSession()" not in text
 
 
@@ -99,8 +107,13 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert '"Snakk med Coach" : "Talk to Coach"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
-    assert 'Button(viewModel.languageCode == "no" ? "Spors med tekst i stedet" : "Ask in Text Instead")' in text
+    assert 'Button(viewModel.languageCode == "no" ? "Skriv i stedet" : "Type instead")' in text
     assert "PostWorkoutTextCoachView(" in text
+    assert "enum PostWorkoutTextCoachPresentationMode: Equatable" in text
+    assert "case compactComposer" in text
+    assert ".presentationDetents([presentationMode.compactDetent])" in text
+    assert "private var compactComposerBody: some View" in text
+    assert "private var compactContextLine: String" in text
     assert 'event: "voice_fallback_text_opened"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Lukk" : "Close")' in text
     assert "dismiss()" in text
@@ -141,6 +154,8 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
     assert "let limit = max(15, maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
+    assert "mode: .default" in text
+    assert "mode: .voiceChat" not in text
     assert "playFreePreviewLockClipIfAvailable()" in text
     assert '"voice.preview.free_limit.1"' in text
     assert "Float(source[index]) / Float(Int16.max)" in text
@@ -167,8 +182,22 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     assert "You may also reference the workout history overview for pattern, progress, and consistency questions." in text
     assert "Do not claim to remember prior conversations" in text
     assert "sanitize_post_workout_summary_context" in text
+    assert '"average_heart_rate": _clean_int("average_heart_rate")' in text
+    assert '"distance_meters": _clean_float("distance_meters")' in text
+    assert '"coaching_style": _clean_string("coaching_style", 40)' in text
+    assert "This post-workout coach is for running workouts only." in text
+    assert "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples." in text
+    assert "treat it as a general running workout" in text
+    assert "general workout session" not in text
     assert "conversation_history" not in text
     assert "session_history" not in text
+
+
+def test_text_fallback_prompt_is_running_only_and_blocks_strength_references() -> None:
+    text = MODELS_SWIFT.read_text(encoding="utf-8")
+    assert "This coach conversation is for running workouts only." in text
+    assert "Treat generic labels like 'Workout' as a general running workout." in text
+    assert "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks." in text
 
 
 def test_live_voice_flag_and_microphone_usage_are_declared() -> None:
