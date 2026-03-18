@@ -928,3 +928,45 @@ Updated: 2026-03-17
   - [test_ios_auth_provider_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_provider_contract.py)
   - [test_ios_apple_signin_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_apple_signin_contract.py)
   - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+
+## Review — 2026-03-18 Render startup memory pressure pass
+
+- Kept the single existing Flask runtime in [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) and reduced eager startup work instead of adding a second boot path or splitting services.
+- Reduced eager memory pressure from breath-analysis startup:
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) now uses a lazy breath-analyzer proxy instead of constructing `BreathAnalyzer()` during process boot
+  - default breath payloads are now available from a local helper, so safe fallback responses no longer need to import `librosa` just to build the default dict
+  - [breath_analyzer.py](/Users/mariusgaarder/Documents/treningscoach/breath_analyzer.py) now exposes a small `prewarm()` hook, but startup prewarm is deferred by default
+- Reduced eager memory pressure from TTS/provider startup:
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) now resolves ElevenLabs config at startup but defers actual `ElevenLabsTTS` client creation until first synthesis or cache-stats access
+  - [elevenlabs_tts.py](/Users/mariusgaarder/Documents/treningscoach/elevenlabs_tts.py) now lazy-loads the ElevenLabs SDK classes instead of importing them at module import time
+  - [strategic_brain.py](/Users/mariusgaarder/Documents/treningscoach/strategic_brain.py) now lazy-loads Anthropic, and the unused eager strategic-brain boot in `main.py` was removed
+- Added lightweight startup memory observability:
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) now logs RSS / peak memory checkpoints around Flask app creation, DB init, auth/web/chat blueprint registration, lazy breath-analyzer import, and lazy ElevenLabs initialization
+  - [config.py](/Users/mariusgaarder/Documents/treningscoach/config.py), [.env.example](/Users/mariusgaarder/Documents/treningscoach/.env.example), and [backend/.env.example](/Users/mariusgaarder/Documents/treningscoach/backend/.env.example) now expose `BACKEND_STARTUP_MEMORY_LOGGING_ENABLED` and `LIBROSA_STARTUP_PREWARM_ENABLED`
+- Focused backend verification coverage:
+  - [test_backend_startup_memory_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_backend_startup_memory_contract.py)
+  - [test_api_contracts.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_api_contracts.py)
+  - [test_backend_runtime_guards.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_backend_runtime_guards.py)
+  - [test_tts_audio_cache.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_tts_audio_cache.py)
+  - [test_web_blueprint_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_web_blueprint_contract.py)
+  - [test_root_runtime_source_of_truth.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_root_runtime_source_of_truth.py)
+
+## Review — 2026-03-18 Manage subscription offers swiper full-screen fit pass
+
+- Kept the existing shared offers swiper in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) and reused it from [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) instead of creating a second offers surface.
+- Split the shared view into presentation modes on the same runtime path:
+  - `onboardingStep` preserves the existing onboarding title, subtitle, auto-advance, and helper copy
+  - `fullScreenOffers` removes the `Choose plan` header/subtitle/footer helper so the slide deck is the screen
+- Fixed the profile `See all offers` regression where `Free` was not reachable:
+  - the profile path now opens the shared swiper in `.fullScreenOffers`
+  - `.fullScreenOffers` always resets to `selectedPlan = .free`
+  - premium-only auto-selection remains limited to the onboarding presentation mode
+- Fixed the page-width/peek issue on the profile offers screen:
+  - full-screen mode now uses the render width directly instead of the onboarding width clamp
+  - page spacing is `0` in full-screen mode so only one plan page is visible at a time
+  - the plan cards drop corner radius and card shadow in full-screen mode so the active page fills the available screen cleanly
+- Removed duplicated background layering on the profile path by presenting the shared swiper directly instead of wrapping it in a second onboarding atmosphere background.
+- Updated focused verification coverage:
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)

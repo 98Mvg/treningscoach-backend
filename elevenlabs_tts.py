@@ -16,16 +16,38 @@ import struct
 import time
 import wave
 from datetime import datetime
-from elevenlabs import VoiceSettings
-from elevenlabs.client import ElevenLabs
 import logging
 import config
 from locale_config import get_voice_id as locale_get_voice_id, get_tts_language_code
 
 logger = logging.getLogger(__name__)
+_ELEVENLABS_CLIENT_CLASS = None
+_VOICE_SETTINGS_CLASS = None
+ElevenLabs = None
+VoiceSettings = None
 
 # TTS model selection — flash_v2_5 is fastest + cheapest + supports Norwegian
 TTS_MODEL = "eleven_flash_v2_5"
+
+
+def _get_elevenlabs_sdk():
+    global _ELEVENLABS_CLIENT_CLASS
+    global _VOICE_SETTINGS_CLASS
+    global ElevenLabs
+    global VoiceSettings
+
+    if ElevenLabs is not None and VoiceSettings is not None:
+        _ELEVENLABS_CLIENT_CLASS = ElevenLabs
+        _VOICE_SETTINGS_CLASS = VoiceSettings
+
+    if _ELEVENLABS_CLIENT_CLASS is None or _VOICE_SETTINGS_CLASS is None:
+        from elevenlabs import VoiceSettings
+        from elevenlabs.client import ElevenLabs
+
+        _ELEVENLABS_CLIENT_CLASS = ElevenLabs
+        _VOICE_SETTINGS_CLASS = VoiceSettings
+
+    return _ELEVENLABS_CLIENT_CLASS, _VOICE_SETTINGS_CLASS
 
 class ElevenLabsTTS:
     def __init__(self, api_key: str, voice_id: str):
@@ -36,7 +58,8 @@ class ElevenLabsTTS:
             api_key: Your ElevenLabs API key (from dashboard)
             voice_id: Default voice ID (fallback if no per-language ID configured)
         """
-        self.client = ElevenLabs(api_key=api_key)
+        elevenlabs_client, _ = _get_elevenlabs_sdk()
+        self.client = elevenlabs_client(api_key=api_key)
         self.default_voice_id = voice_id
 
         # Cache directory for generated audio
@@ -183,11 +206,12 @@ class ElevenLabsTTS:
         logger.info(f"Generating with ElevenLabs{lang_label}{persona_label}: '{text}' (voice: {voice_id[:8]}..., model: {TTS_MODEL}, lang_code: {language_code})")
 
         # Build API kwargs — language_code is optional, only add when set
+        _, voice_settings_class = _get_elevenlabs_sdk()
         convert_kwargs = dict(
             voice_id=voice_id,
             text=text,
             model_id=TTS_MODEL,
-            voice_settings=VoiceSettings(
+            voice_settings=voice_settings_class(
                 stability=stability,
                 similarity_boost=similarity_boost,
                 style=style,
@@ -294,11 +318,12 @@ class ElevenLabsTTS:
         language_code = get_tts_language_code(language) if language else None
 
         # Build API kwargs — language_code is optional, only add when set
+        _, voice_settings_class = _get_elevenlabs_sdk()
         convert_kwargs = dict(
             voice_id=voice_id,
             text=text,
             model_id=TTS_MODEL,
-            voice_settings=VoiceSettings(
+            voice_settings=voice_settings_class(
                 stability=stability,
                 similarity_boost=similarity_boost,
                 style=style,

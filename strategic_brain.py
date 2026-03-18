@@ -18,9 +18,18 @@ import logging
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-from anthropic import Anthropic
 
 logger = logging.getLogger(__name__)
+_ANTHROPIC_CLASS = None
+
+
+def _get_anthropic_class():
+    global _ANTHROPIC_CLASS
+    if _ANTHROPIC_CLASS is None:
+        from anthropic import Anthropic
+
+        _ANTHROPIC_CLASS = Anthropic
+    return _ANTHROPIC_CLASS
 
 
 class StrategicBrain:
@@ -47,7 +56,8 @@ class StrategicBrain:
 
         if self.api_key:
             try:
-                self.client = Anthropic(api_key=self.api_key)
+                anthropic_class = _get_anthropic_class()
+                self.client = anthropic_class(api_key=self.api_key)
                 logger.info("✅ Strategic Brain initialized with Claude")
             except Exception as e:
                 logger.warning(f"⚠️ Strategic Brain failed to initialize: {e}")

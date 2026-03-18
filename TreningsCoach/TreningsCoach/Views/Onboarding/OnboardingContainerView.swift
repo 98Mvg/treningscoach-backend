@@ -1669,6 +1669,12 @@ struct WatchConnectedPremiumOfferStepView: View {
 
     let onBack: () -> Void
     let onContinue: () -> Void
+    let presentationMode: PresentationMode
+
+    enum PresentationMode {
+        case onboardingStep
+        case fullScreenOffers
+    }
 
     private enum PlanSelection: Int, CaseIterable {
         case free
@@ -1700,6 +1706,11 @@ struct WatchConnectedPremiumOfferStepView: View {
         subscriptionManager.yearlyProduct?.subscription?.introductoryOffer != nil
     }
 
+    private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }
+    private var enablesAutoAdvance: Bool { presentationMode == .onboardingStep }
+    private var selectsPremiumOnAppear: Bool { presentationMode == .onboardingStep }
+    private var pagerSpacing: CGFloat { presentationMode == .fullScreenOffers ? 0 : 16 }
+
     private var titleText: String {
         isNorwegian ? "Velg plan" : "Choose plan"
     }
@@ -1716,111 +1727,168 @@ struct WatchConnectedPremiumOfferStepView: View {
             : "Choose whether to start with Free or see what Premium adds. You can always upgrade later in the app."
     }
 
+    init(
+        watchManager: PhoneWCManager,
+        onBack: @escaping () -> Void,
+        onContinue: @escaping () -> Void,
+        presentationMode: PresentationMode = .onboardingStep
+    ) {
+        self.watchManager = watchManager
+        self.onBack = onBack
+        self.onContinue = onContinue
+        self.presentationMode = presentationMode
+    }
+
     var body: some View {
         GeometryReader { geo in
             let renderWidth = geo.size.width
             let renderHeight = geo.size.height
             let deviceWidth = UIScreen.main.bounds.width
-            let layoutWidth = min(min(renderWidth, deviceWidth), 500)
+            let layoutWidth = showsOnboardingChrome ? min(min(renderWidth, deviceWidth), 500) : renderWidth
             let safeTop = geo.safeAreaInsets.top
             let safeBottom = max(geo.safeAreaInsets.bottom, 18)
             let horizontalSafeInset = max(geo.safeAreaInsets.leading, geo.safeAreaInsets.trailing)
-            let contentSideInset: CGFloat = (layoutWidth < 390 ? 18 : 24) + horizontalSafeInset
-            let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))
+            let contentSideInset: CGFloat = showsOnboardingChrome ? ((layoutWidth < 390 ? 18 : 24) + horizontalSafeInset) : 0
+            let contentWidth = showsOnboardingChrome ? max(0.0, layoutWidth - (contentSideInset * 2)) : renderWidth
             let compactLayout = layoutWidth < 390 || renderHeight < 780
-            let headerAndFooterHeight = watchReady ? 280.0 : 252.0
-            let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)
+            let headerAndFooterHeight = showsOnboardingChrome ? (watchReady ? 280.0 : 252.0) : 0.0
+            let availablePagerHeight = showsOnboardingChrome
+                ? max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)
+                : renderHeight
 
             ZStack {
                 planBackground(for: selectedPlan)
                     .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    HStack(alignment: .top, spacing: 14) {
-                        Button(action: onBack) {
-                            Image(systemName: "chevron.left")
-                                .font(.title3.weight(.bold))
-                                .foregroundColor(highContrastForeground(for: selectedPlan))
-                                .frame(width: 42, height: 42)
-                                .background(
-                                    Circle()
-                                        .fill(CoachiTheme.surface.opacity(colorScheme == .dark ? 0.32 : 0.72))
-                                )
-                                .overlay(
-                                    Circle()
-                                        .stroke(highContrastForeground(for: selectedPlan).opacity(0.16), lineWidth: 1)
-                                )
+                if showsOnboardingChrome {
+                    VStack(spacing: 0) {
+                        HStack(alignment: .top, spacing: 14) {
+                            backButton
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(titleText)
+                                    .font(.system(size: compactLayout ? 30 : 34, weight: .heavy))
+                                    .foregroundColor(highContrastForeground(for: selectedPlan))
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                Text(subtitleText)
+                                    .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
+                                    .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Spacer(minLength: 0)
                         }
-                        .buttonStyle(.plain)
+                        .frame(width: contentWidth, alignment: .leading)
+                        .padding(.top, safeTop + 12)
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(titleText)
-                                .font(.system(size: compactLayout ? 30 : 34, weight: .heavy))
-                                .foregroundColor(highContrastForeground(for: selectedPlan))
-                                .lineLimit(nil)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            Text(subtitleText)
-                                .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
-                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
-                                .lineLimit(nil)
-                                .fixedSize(horizontal: false, vertical: true)
+                        if watchReady {
+                            watchReadyBadge
+                                .frame(width: contentWidth, alignment: .leading)
+                                .padding(.top, 16)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: contentWidth, alignment: .leading)
-                    .padding(.top, safeTop + 12)
+                        Spacer(minLength: 18)
 
-                    if watchReady {
-                        watchReadyBadge
-                            .frame(width: contentWidth, alignment: .leading)
-                            .padding(.top, 16)
-                    }
-
-                    Spacer(minLength: 18)
-
-                    planPager(cardWidth: contentWidth, pageHeight: availablePagerHeight, compactLayout: compactLayout)
+                        planPager(
+                            cardWidth: contentWidth,
+                            pageHeight: availablePagerHeight,
+                            compactLayout: compactLayout,
+                            topInset: 0,
+                            bottomInset: 0
+                        )
                         .frame(width: contentWidth, height: availablePagerHeight)
 
-                    VStack(spacing: 16) {
-                        pageIndicator
+                        VStack(spacing: 16) {
+                            pageIndicator
 
-                        Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
-                            .multilineTextAlignment(.center)
-                            .frame(width: contentWidth, alignment: .center)
+                            Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
+                                .multilineTextAlignment(.center)
+                                .frame(width: contentWidth, alignment: .center)
+                        }
+                        .padding(.top, 18)
+                        .padding(.bottom, safeBottom + 12)
                     }
-                    .padding(.top, 18)
-                    .padding(.bottom, safeBottom + 12)
+                    .frame(width: layoutWidth, height: renderHeight, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                } else {
+                    ZStack(alignment: .topLeading) {
+                        planPager(
+                            cardWidth: contentWidth,
+                            pageHeight: availablePagerHeight,
+                            compactLayout: compactLayout,
+                            topInset: safeTop + 70,
+                            bottomInset: safeBottom + 88
+                        )
+                        .frame(width: contentWidth, height: availablePagerHeight)
+
+                        backButton
+                            .padding(.top, safeTop + 12)
+                            .padding(.leading, 18)
+
+                        VStack {
+                            Spacer()
+
+                            pageIndicator
+                                .padding(.bottom, safeBottom + 18)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    }
+                    .frame(width: renderWidth, height: renderHeight, alignment: .center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .frame(width: layoutWidth, height: renderHeight, alignment: .top)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: .general, initialPlan: paywallInitialPlan)
         }
         .onAppear {
-            if hasPremiumAccess {
+            if selectsPremiumOnAppear && hasPremiumAccess {
                 selectedPlan = hasIntroOffer ? .trial : .premium
             }
-            startAutoAdvance(intervalSeconds: 5)
+            if enablesAutoAdvance {
+                startAutoAdvance(intervalSeconds: 5)
+            } else {
+                autoAdvanceTask?.cancel()
+                autoAdvanceTask = nil
+                selectedPlan = .free
+            }
         }
         .onDisappear {
             autoAdvanceTask?.cancel()
             autoAdvanceTask = nil
         }
         .onChange(of: subscriptionManager.hasPremiumAccess) { _, newValue in
-            guard newValue else { return }
+            guard selectsPremiumOnAppear, newValue else { return }
             if selectedPlan == .free {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     selectedPlan = hasIntroOffer ? .trial : .premium
                 }
             }
         }
+    }
+
+    private var backButton: some View {
+        Button(action: onBack) {
+            Image(systemName: "chevron.left")
+                .font(.title3.weight(.bold))
+                .foregroundColor(highContrastForeground(for: selectedPlan))
+                .frame(width: 42, height: 42)
+                .background(
+                    Circle()
+                        .fill(CoachiTheme.surface.opacity(colorScheme == .dark ? 0.32 : 0.72))
+                )
+                .overlay(
+                    Circle()
+                        .stroke(highContrastForeground(for: selectedPlan).opacity(0.16), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private var watchReadyBadge: some View {
@@ -1843,17 +1911,17 @@ struct WatchConnectedPremiumOfferStepView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func planPager(cardWidth: CGFloat, pageHeight: CGFloat, compactLayout: Bool) -> some View {
-        let spacing: CGFloat = compactLayout ? 12 : 16
+    private func planPager(cardWidth: CGFloat, pageHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {
+        let spacing: CGFloat = showsOnboardingChrome ? (compactLayout ? 12 : pagerSpacing) : 0
 
         return HStack(spacing: spacing) {
-            planCard(for: .free, availableHeight: pageHeight, compactLayout: compactLayout)
+            planCard(for: .free, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
                 .frame(width: cardWidth, height: pageHeight)
 
-            planCard(for: .premium, availableHeight: pageHeight, compactLayout: compactLayout)
+            planCard(for: .premium, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
                 .frame(width: cardWidth, height: pageHeight)
 
-            planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout)
+            planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)
                 .frame(width: cardWidth, height: pageHeight)
         }
         .offset(x: (-CGFloat(selectedPlan.rawValue) * (cardWidth + spacing)) + dragTranslation)
@@ -1879,16 +1947,18 @@ struct WatchConnectedPremiumOfferStepView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool) -> some View {
+    private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {
         let accent = accentColor(for: plan)
         let badgeText = badgeText(for: plan)
         let priceSuffix = isNorwegian ? "/mnd" : "/mo"
         let isTrialPlan = plan == .trial
-        let cardPadding: CGFloat = compactLayout ? 20 : 24
+        let immersiveLayout = presentationMode == .fullScreenOffers
+        let cardPadding: CGFloat = immersiveLayout ? 24 : (compactLayout ? 20 : 24)
         let titleSize: CGFloat = compactLayout ? 26 : 30
         let priceSize: CGFloat = compactLayout ? 36 : 42
         let featureSize: CGFloat = compactLayout ? 17 : 18
         let buttonVerticalPadding: CGFloat = compactLayout ? 14 : 16
+        let cornerRadius: CGFloat = immersiveLayout ? 0 : 28
 
         return ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: compactLayout ? 16 : 18) {
@@ -1980,12 +2050,14 @@ struct WatchConnectedPremiumOfferStepView: View {
                 }
             }
             .padding(cardPadding)
+            .padding(.top, topInset)
+            .padding(.bottom, bottomInset)
             .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .scrollBounceBehavior(.basedOnSize, axes: .vertical)
         .background(cardBackground(for: plan))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(accent)
@@ -1999,10 +2071,10 @@ struct WatchConnectedPremiumOfferStepView: View {
                 }
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(selectedPlan == plan ? accent.opacity(0.85) : CoachiTheme.borderSubtle.opacity(0.35), lineWidth: selectedPlan == plan ? 2.5 : 1)
         )
-        .shadow(color: accent.opacity(selectedPlan == plan ? 0.18 : 0.08), radius: selectedPlan == plan ? 18 : 12, x: 0, y: 12)
+        .shadow(color: immersiveLayout ? .clear : accent.opacity(selectedPlan == plan ? 0.18 : 0.08), radius: selectedPlan == plan ? 18 : 12, x: 0, y: 12)
     }
 
     private func planSwipeGesture(pageWidth: CGFloat, spacing: CGFloat) -> some Gesture {

@@ -144,6 +144,20 @@ class BreathAnalyzer:
             logger.error("Breath analysis failed: %s", e, exc_info=True)
             return self._default_analysis()
 
+    def prewarm(self) -> bool:
+        """Optionally warm librosa kernels after lazy initialization."""
+        try:
+            warmup = np.zeros(max(self.hop_length * 4, 4410), dtype=np.float32)
+            librosa.feature.rms(
+                y=warmup,
+                frame_length=self.frame_length,
+                hop_length=self.hop_length,
+            )
+            return True
+        except Exception as exc:
+            logger.warning("BreathAnalyzer prewarm failed: %s", exc)
+            return False
+
     # ============================================
     # AUDIO LOADING
     # ============================================

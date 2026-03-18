@@ -187,6 +187,24 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
 
 
+def test_manage_subscription_uses_full_screen_offer_swiper_without_onboarding_header() -> None:
+    profile_text = PROFILE_VIEW.read_text(encoding="utf-8")
+    onboarding_text = (
+        REPO_ROOT
+        / "TreningsCoach"
+        / "TreningsCoach"
+        / "Views"
+        / "Onboarding"
+        / "OnboardingContainerView.swift"
+    ).read_text(encoding="utf-8")
+
+    assert "presentationMode: .fullScreenOffers" in profile_text
+    assert "OnboardingAtmosphereView(step: .premiumOffer)" not in profile_text
+    assert "if showsOnboardingChrome {" in onboarding_text
+    assert "if enablesAutoAdvance {" in onboarding_text
+    assert "if selectsPremiumOnAppear && hasPremiumAccess {" in onboarding_text
+
+
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:
     text = MONITORS_VIEW.read_text(encoding="utf-8")
     assert 'case garmin = "Garmin"' in text

@@ -700,15 +700,12 @@ private struct ManageSubscriptionView: View {
         .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $showPlanOffers) {
-            ZStack {
-                OnboardingAtmosphereView(step: .premiumOffer)
-
-                WatchConnectedPremiumOfferStepView(
-                    watchManager: PhoneWCManager.shared,
-                    onBack: { showPlanOffers = false },
-                    onContinue: { showPlanOffers = false }
-                )
-            }
+            WatchConnectedPremiumOfferStepView(
+                watchManager: PhoneWCManager.shared,
+                onBack: { showPlanOffers = false },
+                onContinue: { showPlanOffers = false },
+                presentationMode: .fullScreenOffers
+            )
             .environmentObject(subscriptionManager)
         }
     }

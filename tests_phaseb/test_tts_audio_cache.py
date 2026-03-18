@@ -26,7 +26,15 @@ def _fake_elevenlabs_class(counter):
 
 
 def _build_tts(monkeypatch, tmp_path, counter):
-    monkeypatch.setattr(elevenlabs_tts, "ElevenLabs", _fake_elevenlabs_class(counter))
+    class _FakeVoiceSettings:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(
+        elevenlabs_tts,
+        "_get_elevenlabs_sdk",
+        lambda: (_fake_elevenlabs_class(counter), _FakeVoiceSettings),
+    )
     tts = elevenlabs_tts.ElevenLabsTTS(api_key="test_key", voice_id="default_voice")
     tts.cache_dir = str(tmp_path)
     os.makedirs(tts.cache_dir, exist_ok=True)

@@ -129,6 +129,9 @@ def test_breath_analysis_timeout_uses_safe_default_and_cooldown(monkeypatch, tmp
     first = main._analyze_breath_with_timeout(str(fake_audio), request_context="continuous", trace_id="t1")
     second = main._analyze_breath_with_timeout(str(fake_audio), request_context="continuous", trace_id="t2")
 
+    with main._breath_analysis_lock:
+        main._breath_analysis_skip_until = 0.0
+
     assert first["analysis_error"] == "analysis_timeout"
     assert second["analysis_error"] == "analysis_timeout_cooldown"
     assert calls["submit"] == 1

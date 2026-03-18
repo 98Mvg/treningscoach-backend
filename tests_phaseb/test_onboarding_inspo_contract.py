@@ -121,6 +121,9 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
 def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None:
     text = _onboarding_text()
     assert "struct WatchConnectedPremiumOfferStepView: View" in text
+    assert "enum PresentationMode {" in text
+    assert "case onboardingStep" in text
+    assert "case fullScreenOffers" in text
     assert "watchManager: PhoneWCManager.shared" in text
     assert 'isNorwegian ? "Velg plan" : "Choose plan"' in text
     assert 'private enum PlanSelection: Int, CaseIterable' in text
@@ -128,13 +131,18 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'selectedTrialPlan: PaywallPlanSelectionOption = .yearly' in text
     assert 'case trial' in text
     assert '@State private var autoAdvanceTask: Task<Void, Never>?' in text
+    assert 'let presentationMode: PresentationMode' in text
+    assert 'presentationMode: PresentationMode = .onboardingStep' in text
+    assert 'private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }' in text
+    assert 'private var enablesAutoAdvance: Bool { presentationMode == .onboardingStep }' in text
+    assert 'private var selectsPremiumOnAppear: Bool { presentationMode == .onboardingStep }' in text
     assert 'startAutoAdvance(intervalSeconds: 5)' in text
     assert 'try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)' in text
-    assert 'let layoutWidth = min(min(renderWidth, deviceWidth), 500)' in text
-    assert 'let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))' in text
+    assert 'let layoutWidth = showsOnboardingChrome ? min(min(renderWidth, deviceWidth), 500) : renderWidth' in text
+    assert 'let contentWidth = showsOnboardingChrome ? max(0.0, layoutWidth - (contentSideInset * 2)) : renderWidth' in text
     assert 'let compactLayout = layoutWidth < 390 || renderHeight < 780' in text
-    assert 'let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)' in text
-    assert 'planPager(cardWidth: contentWidth, pageHeight: availablePagerHeight, compactLayout: compactLayout)' in text
+    assert 'let availablePagerHeight = showsOnboardingChrome' in text
+    assert 'planPager(' in text
     assert '.frame(width: contentWidth, height: availablePagerHeight)' in text
     assert '.frame(height: 630)' not in text
     assert 'DragGesture(minimumDistance: 24)' in text
@@ -144,7 +152,7 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'return isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
     assert 'return isNorwegian ? "Få Premium" : "Get Premium"' in text
     assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode" : "Start \\(trialDays)-day free trial"' in text
-    assert 'planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout)' in text
+    assert 'planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)' in text
     assert 'trialPricingOption(' in text
     assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' in text
     assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' in text
@@ -152,6 +160,7 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' not in text
     assert "PaywallView(context: .general, initialPlan: paywallInitialPlan)" in text
     assert "private func dismissKeyboardAndMove(to step: OnboardingStep)" in text
+    assert "selectedPlan = .free" in text
 
 
 def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:

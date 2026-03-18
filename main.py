@@ -17,6 +17,8 @@ import logging
 import time
 import inspect
 import re
+import resource
+import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timedelta, timezone
 from threading import Lock
@@ -29,7 +31,6 @@ from coaching_intelligence import calculate_next_interval  # Legacy interval tim
 from user_memory import UserMemory  # STEP 5: Import user memory
 from voice_intelligence import VoiceIntelligence  # STEP 6: Import voice intelligence
 from elevenlabs_tts import ElevenLabsTTS, synthesize_speech_mock  # Import ElevenLabs TTS + fallback mock
-from strategic_brain import get_strategic_brain  # Import Strategic Brain for high-level coaching
 from database import (
     AppStoreServerNotification,
     AppStoreSubscriptionState,
@@ -43,7 +44,6 @@ from database import (
     WorkoutHistory,
     user_has_active_app_store_subscription,
 )  # Import database initialization + models
-from breath_analyzer import BreathAnalyzer  # Import advanced breath analysis
 from auth_routes import auth_bp  # Import auth blueprint
 from auth import (
     enforce_rate_limit,
@@ -94,6 +94,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+STARTUP_MEMORY_DIAGNOSTICS: list[dict[str, object]] = []
 
 
 def _utcnow() -> datetime:
@@ -107,7 +108,94 @@ def _utcnow_naive() -> datetime:
 def _utcnow_iso_z() -> str:
     return _utcnow().isoformat().replace("+00:00", "Z")
 
+
+def _current_memory_snapshot() -> dict[str, float | None]:
+    rss_mb = None
+    peak_mb = None
+
+    try:
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+        divisor = 1024.0 * 1024.0 if sys.platform == "darwin" else 1024.0
+        peak_mb = round(float(usage.ru_maxrss) / divisor, 1)
+    except Exception:
+        peak_mb = None
+
+    try:
+        with open("/proc/self/status", "r", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("VmRSS:"):
+                    rss_kb = float(line.split()[1])
+                    rss_mb = round(rss_kb / 1024.0, 1)
+                    break
+    except Exception:
+        rss_mb = None
+
+    return {
+        "rss_mb": rss_mb,
+        "peak_mb": peak_mb,
+    }
+
+
+def _log_memory_checkpoint(milestone: str) -> None:
+    if not bool(getattr(config, "BACKEND_STARTUP_MEMORY_LOGGING_ENABLED", True)):
+        return
+
+    snapshot = {"milestone": milestone, **_current_memory_snapshot()}
+    STARTUP_MEMORY_DIAGNOSTICS.append(snapshot)
+    logger.info(
+        "MEMORY_CHECKPOINT milestone=%s rss_mb=%s peak_mb=%s",
+        milestone,
+        snapshot["rss_mb"] if snapshot["rss_mb"] is not None else "unknown",
+        snapshot["peak_mb"] if snapshot["peak_mb"] is not None else "unknown",
+    )
+
+
+class _LazyBreathAnalyzer:
+    """Keep the existing breath-analysis runtime path while deferring DSP imports."""
+
+    def __init__(self, *, sample_rate: int, enable_mfcc: bool):
+        self.sample_rate = int(sample_rate)
+        self.enable_mfcc = bool(enable_mfcc)
+        self._instance = None
+        self._lock = Lock()
+
+    def _get_instance(self):
+        if self._instance is not None:
+            return self._instance
+
+        with self._lock:
+            if self._instance is not None:
+                return self._instance
+
+            _log_memory_checkpoint("breath_analyzer_import_start")
+            from breath_analyzer import BreathAnalyzer
+
+            _log_memory_checkpoint("breath_analyzer_import_ready")
+            self._instance = BreathAnalyzer(
+                sample_rate=self.sample_rate,
+                enable_mfcc=self.enable_mfcc,
+            )
+            _log_memory_checkpoint("breath_analyzer_instance_ready")
+            return self._instance
+
+    def prewarm(self) -> bool:
+        analyzer = self._get_instance()
+        prewarm_fn = getattr(analyzer, "prewarm", None)
+        if callable(prewarm_fn):
+            return bool(prewarm_fn())
+        return False
+
+    def analyze(self, filepath: str) -> dict:
+        return self._get_instance().analyze(filepath)
+
+    def _default_analysis(self) -> dict:
+        return _default_breath_analysis()
+
+    def __getattr__(self, name: str):
+        return getattr(self._get_instance(), name)
+
 app = Flask(__name__)
+_log_memory_checkpoint("flask_app_created")
 SENTRY_RUNTIME = init_sentry(logger=logger)
 _cors_origins = list(getattr(config, "CORS_ALLOWED_ORIGINS", []) or [])
 CORS(
@@ -119,10 +207,12 @@ logger.info("CORS configured with %s allowed origins", len(_cors_origins))
 # Initialize database
 init_db(app)
 logger.info("✅ Database initialized")
+_log_memory_checkpoint("database_initialized")
 
 # Register auth routes
 app.register_blueprint(auth_bp)
 logger.info("✅ Auth routes registered (/auth/*)")
+_log_memory_checkpoint("auth_blueprint_registered")
 
 # Configuration from config.py
 MAX_FILE_SIZE = config.MAX_FILE_SIZE
@@ -139,10 +229,10 @@ brain_router = BrainRouter()
 session_manager = SessionManager(storage_backend="database", app=app)
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
-breath_analyzer = BreathAnalyzer(
+breath_analyzer = _LazyBreathAnalyzer(
     sample_rate=getattr(config, "BREATH_ANALYSIS_SAMPLE_RATE", 44100),
     enable_mfcc=bool(getattr(config, "BREATH_ANALYSIS_ENABLE_MFCC", False)),
-)  # Advanced breath analysis with DSP + spectral features
+)  # Advanced breath analysis with DSP + spectral features, lazily loaded on first use
 _breath_analysis_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="breath-analysis")
 _breath_analysis_lock = Lock()
 _breath_analysis_skip_until = 0.0
@@ -153,28 +243,26 @@ running_personalization = RunningPersonalizationStore(
     max_recovery_samples=getattr(config, "ZONE_PERSONALIZATION_MAX_RECOVERY_SAMPLES", 24),
     max_session_history=getattr(config, "ZONE_PERSONALIZATION_MAX_SESSION_HISTORY", 20),
 )
+_log_memory_checkpoint("core_runtime_ready")
 
-# Pre-warm librosa to avoid cold-start delay on first request
-# librosa lazy-loads heavy modules (numba, etc.) which can cause 30s+ timeout
-try:
-    import librosa
-    import numpy as np
-    _warmup = np.zeros(4410, dtype=np.float32)  # 100ms of silence
-    librosa.feature.rms(y=_warmup, frame_length=1024, hop_length=512)
-    del _warmup
-    logger.info("✅ Librosa pre-warmed successfully")
-except Exception as e:
-    logger.warning(f"⚠️ Librosa pre-warm failed: {e}")
-if getattr(config, "USE_STRATEGIC_BRAIN", False):
-    strategic_brain = get_strategic_brain()  # Initialize Strategic Brain (Claude-powered)
-    if strategic_brain.is_available():
-        logger.info("✅ Strategic Brain (Claude) is available")
-    else:
-        logger.info("⚠️ Strategic Brain disabled (no ANTHROPIC_API_KEY)")
+if getattr(config, "LIBROSA_STARTUP_PREWARM_ENABLED", False):
+    try:
+        if breath_analyzer.prewarm():
+            logger.info("✅ Librosa pre-warmed successfully")
+        else:
+            logger.info("ℹ️ Librosa pre-warm skipped by analyzer")
+    except Exception as e:
+        logger.warning(f"⚠️ Librosa pre-warm failed: {e}")
 else:
-    strategic_brain = None
+    logger.info("ℹ️ Librosa pre-warm deferred until first breath-analysis request")
+
+strategic_brain = None
+if getattr(config, "USE_STRATEGIC_BRAIN", False):
+    logger.info("ℹ️ Strategic Brain enabled in config but deferred until first strategic call")
+else:
     logger.info("ℹ️ Strategic Brain disabled via config (USE_STRATEGIC_BRAIN=False)")
 logger.info(f"Initialized with brain: {brain_router.get_active_brain()}")
+_log_memory_checkpoint("post_brain_router_configuration")
 
 # Initialize TTS service (ElevenLabs for production)
 def _resolve_default_elevenlabs_voice_id():
@@ -203,28 +291,30 @@ def _resolve_default_elevenlabs_voice_id():
 
 elevenlabs_api_key = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
 elevenlabs_voice_id, elevenlabs_voice_source = _resolve_default_elevenlabs_voice_id()
+elevenlabs_tts = None
+elevenlabs_init_failed = False
 
-if elevenlabs_api_key and elevenlabs_voice_id:
-    logger.info(f"🎙️ Initializing ElevenLabs TTS (voice source: {elevenlabs_voice_source})...")
-    elevenlabs_tts = ElevenLabsTTS(api_key=elevenlabs_api_key, voice_id=elevenlabs_voice_id)
-    USE_ELEVENLABS = True
-    logger.info("✅ ElevenLabs TTS ready")
-elif not elevenlabs_api_key:
+if not elevenlabs_api_key:
     logger.warning("⚠️ ELEVENLABS_API_KEY missing, using mock TTS")
-    USE_ELEVENLABS = False
-else:
+elif not elevenlabs_voice_id:
     logger.warning("⚠️ ElevenLabs voice ID not found in env/config, using mock TTS")
-    USE_ELEVENLABS = False
-logger.info("TTS service initialized")
+USE_ELEVENLABS = bool(elevenlabs_api_key and elevenlabs_voice_id)
+if USE_ELEVENLABS:
+    logger.info("🎙️ ElevenLabs TTS configured for lazy initialization (voice source: %s)", elevenlabs_voice_source)
+logger.info("TTS service configured")
 TTS_RUNTIME_DIAGNOSTICS = {
     "boot": {
         "use_elevenlabs": bool(USE_ELEVENLABS),
         "voice_source": elevenlabs_voice_source,
         "voice_prefix": (elevenlabs_voice_id[:8] + "...") if elevenlabs_voice_id else "",
+        "lazy_init": True,
+        "initialized_at_startup": False,
+        "service_initialized": False,
     },
     "last_success": None,
     "last_error": None,
 }
+_log_memory_checkpoint("tts_runtime_configured")
 VOICE_TEXT_PACING_COMPAT_WARNED = False
 QUALITY_GUARD_METRICS = {
     "continuous_ticks": 0,
@@ -239,6 +329,55 @@ QUALITY_GUARD_METRICS = {
     "language_guard_en_to_no_rewrites": 0,
     "language_guard_no_to_en_rewrites": 0,
 }
+
+
+def _get_elevenlabs_tts():
+    global elevenlabs_tts
+    global elevenlabs_init_failed
+
+    if not USE_ELEVENLABS:
+        return None
+    if elevenlabs_tts is not None:
+        return elevenlabs_tts
+    if elevenlabs_init_failed:
+        return None
+
+    try:
+        _log_memory_checkpoint("elevenlabs_init_start")
+        elevenlabs_tts = ElevenLabsTTS(api_key=elevenlabs_api_key, voice_id=elevenlabs_voice_id)
+        TTS_RUNTIME_DIAGNOSTICS["boot"]["service_initialized"] = True
+        _log_memory_checkpoint("elevenlabs_init_ready")
+        logger.info("✅ ElevenLabs TTS ready")
+        return elevenlabs_tts
+    except Exception as exc:
+        elevenlabs_init_failed = True
+        TTS_RUNTIME_DIAGNOSTICS["last_error"] = {
+            "error": str(exc),
+            "stage": "init",
+            "timestamp": _utcnow_iso_z(),
+        }
+        logger.error("ElevenLabs TTS initialization failed, using mock fallback: %s", exc, exc_info=True)
+        return None
+
+
+def _default_breath_analysis() -> dict:
+    """Keep default breath payloads available without importing librosa on boot."""
+    return {
+        "analysis_version": 2,
+        "silence": 50.0,
+        "volume": 30.0,
+        "tempo": 15.0,
+        "intensity": "moderate",
+        "intensity_score": 0.3,
+        "intensity_confidence": 0.0,
+        "duration": 2.0,
+        "breath_phases": [],
+        "respiratory_rate": 15.0,
+        "breath_regularity": 0.5,
+        "inhale_exhale_ratio": 0.7,
+        "signal_quality": 0.0,
+        "dominant_frequency": 400.0,
+    }
 
 
 def _increment_quality_metric(key: str, amount: int = 1) -> None:
@@ -1303,7 +1442,7 @@ def transcribe_talk_audio(filepath: str, language: str, timeout_seconds: float) 
 
 
 def _default_breath_analysis_with_error(error_code: str, **extra_fields) -> dict:
-    result = breath_analyzer._default_analysis()
+    result = _default_breath_analysis()
     result["analysis_error"] = error_code
     for key, value in extra_fields.items():
         if value is not None:
@@ -2489,7 +2628,7 @@ def _build_continuous_failsafe_response(
         "contract_version": contract_version,
         "text": _get_silent_debug_text(reason, language),
         "should_speak": False,
-        "breath_analysis": breath_analyzer._default_analysis(),
+        "breath_analysis": _default_breath_analysis(),
         "audio_url": None,
         "wait_seconds": int(getattr(config, "MAX_COACHING_INTERVAL", 20)),
         "phase": phase,
@@ -2732,7 +2871,7 @@ def _infer_interval_state(breath_history: list, current_intensity: str, workout_
 # Advanced breath analysis is now handled by BreathAnalyzer class
 # (see breath_analyzer.py) — uses DSP + spectral features for
 # real inhale/exhale/pause detection, respiratory rate, etc.
-# Initialized above as: breath_analyzer = BreathAnalyzer()
+# Initialized above as a lazy proxy so DSP imports happen only when needed.
 
 # ============================================
 # COACH-LOGIKK
@@ -2810,11 +2949,12 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                     )
                     VOICE_TEXT_PACING_COMPAT_WARNED = True
 
-        if USE_ELEVENLABS:
+        tts_client = _get_elevenlabs_tts()
+        if tts_client is not None:
             # Use ElevenLabs with persona-specific voice settings
             pacing_override = voice_pacing if getattr(config, "VOICE_TTS_PACING_ENABLED", True) else None
             try:
-                result = elevenlabs_tts.generate_audio(
+                result = tts_client.generate_audio(
                     tts_text,
                     language=normalized_language,
                     persona=selected_persona,
@@ -2837,7 +2977,7 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                 )
 
                 try:
-                    result = elevenlabs_tts.generate_audio(
+                    result = tts_client.generate_audio(
                         tts_text,
                         language=normalized_language,
                         persona=None,
@@ -2858,7 +2998,7 @@ def generate_voice(text, language=None, persona=None, emotional_mode=None):
                     )
                     if normalized_language != "en":
                         try:
-                            result = elevenlabs_tts.generate_audio(
+                            result = tts_client.generate_audio(
                                 tts_text,
                                 language="en",
                                 persona=None,
@@ -2944,6 +3084,7 @@ web_bp = create_web_blueprint(
     logger=logger,
 )
 app.register_blueprint(web_bp)
+_log_memory_checkpoint("web_blueprint_registered")
 
 chat_bp = create_chat_blueprint(
     brain_router=brain_router,
@@ -2952,6 +3093,7 @@ chat_bp = create_chat_blueprint(
     logger=logger,
 )
 app.register_blueprint(chat_bp)
+_log_memory_checkpoint("chat_blueprint_registered")
 
 @app.route('/tts/cache/stats', methods=['GET'])
 def tts_cache_stats():
@@ -2963,7 +3105,11 @@ def tts_cache_stats():
         }), 503
 
     try:
-        stats = elevenlabs_tts.get_cache_stats()
+        tts_client = _get_elevenlabs_tts()
+        if tts_client is None:
+            return jsonify({"error": "ElevenLabs failed to initialize"}), 503
+
+        stats = tts_client.get_cache_stats()
         return jsonify(stats), 200
     except Exception as e:
         logger.error(f"Error reading TTS cache stats: {e}", exc_info=True)
@@ -3285,7 +3431,7 @@ def coach_continuous():
 
             logger.warning(f"Audio chunk too small ({file_size} bytes). Header: {header_hex}")
 
-            breath_data = breath_analyzer._default_analysis()
+            breath_data = _default_breath_analysis()
             breath_data["analysis_error"] = "audio_too_small"
             breath_data["audio_bytes"] = file_size
 

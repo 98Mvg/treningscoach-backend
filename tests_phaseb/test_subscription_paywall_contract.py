@@ -57,5 +57,5 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert '"Premium"' in content
     assert "@State private var showPlanOffers = false" in content
     assert ".fullScreenCover(isPresented: $showPlanOffers)" in content
-    assert "OnboardingAtmosphereView(step: .premiumOffer)" in content
     assert "WatchConnectedPremiumOfferStepView(" in content
+    assert "presentationMode: .fullScreenOffers" in content
