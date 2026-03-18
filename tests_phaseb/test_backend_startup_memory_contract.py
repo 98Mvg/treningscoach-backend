@@ -14,6 +14,7 @@ MAIN = REPO_ROOT / "main.py"
 ELEVENLABS = REPO_ROOT / "elevenlabs_tts.py"
 STRATEGIC = REPO_ROOT / "strategic_brain.py"
 CONFIG = REPO_ROOT / "config.py"
+PROCFILE = REPO_ROOT / "Procfile"
 
 
 def test_main_defers_breath_analysis_and_logs_memory_checkpoints() -> None:
@@ -44,6 +45,14 @@ def test_config_exposes_startup_memory_and_prewarm_flags() -> None:
 
     assert 'BACKEND_STARTUP_MEMORY_LOGGING_ENABLED = _env_bool("BACKEND_STARTUP_MEMORY_LOGGING_ENABLED", True)' in text
     assert 'LIBROSA_STARTUP_PREWARM_ENABLED = _env_bool("LIBROSA_STARTUP_PREWARM_ENABLED", False)' in text
+
+
+def test_render_procfile_reduces_worker_duplication_on_512mb_instance() -> None:
+    text = PROCFILE.read_text(encoding="utf-8")
+
+    assert "gunicorn main:app" in text
+    assert "--workers 1" in text
+    assert "--workers 2" not in text
 
 
 def test_generate_voice_uses_lazy_tts_helper(monkeypatch, tmp_path) -> None:

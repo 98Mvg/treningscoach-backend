@@ -1958,114 +1958,117 @@ struct WatchConnectedPremiumOfferStepView: View {
         let priceSuffix = isNorwegian ? "/mnd" : "/mo"
         let isTrialPlan = plan == .trial
         let immersiveLayout = presentationMode == .fullScreenOffers
+        let denseLayout = compactLayout || immersiveLayout
         let cardPadding: CGFloat = immersiveLayout ? 24 : (compactLayout ? 20 : 24)
-        let titleSize: CGFloat = compactLayout ? 26 : 30
-        let priceSize: CGFloat = compactLayout ? 36 : 42
-        let featureSize: CGFloat = compactLayout ? 17 : 18
-        let buttonVerticalPadding: CGFloat = compactLayout ? 14 : 16
+        let titleSize: CGFloat = denseLayout ? 24 : 30
+        let priceSize: CGFloat = denseLayout ? 34 : 42
+        let featureSize: CGFloat = denseLayout ? 16 : 18
+        let buttonVerticalPadding: CGFloat = denseLayout ? 14 : 16
         let cornerRadius: CGFloat = immersiveLayout ? 0 : 28
+        let contentSpacing: CGFloat = denseLayout ? 14 : 18
+        let featureSpacing: CGFloat = denseLayout ? 12 : 14
+        let footerSpacing: CGFloat = denseLayout ? 8 : 10
 
-        return ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: compactLayout ? 16 : 18) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(planTitle(for: plan))
-                            .font(.system(size: titleSize, weight: .heavy))
+        return VStack(alignment: .leading, spacing: contentSpacing) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: denseLayout ? 8 : 10) {
+                    Text(planTitle(for: plan))
+                        .font(.system(size: titleSize, weight: .heavy))
+                        .foregroundColor(accent)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(priceHeadline(for: plan))
+                            .font(.system(size: priceSize, weight: .heavy))
                             .foregroundColor(accent)
-                            .lineLimit(nil)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .minimumScaleFactor(0.7)
+                            .lineLimit(1)
 
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(priceHeadline(for: plan))
-                                .font(.system(size: priceSize, weight: .heavy))
-                                .foregroundColor(accent)
-                                .minimumScaleFactor(0.7)
-                                .lineLimit(1)
-
-                            if !isTrialPlan {
-                                Text(priceSuffix)
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundColor(accent.opacity(0.76))
-                            }
+                        if !isTrialPlan {
+                            Text(priceSuffix)
+                                .font(.title3.weight(.semibold))
+                                .foregroundColor(accent.opacity(0.76))
                         }
-                    }
-
-                    Spacer(minLength: 12)
-
-                    if let badgeText {
-                        Text(badgeText)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(plan == .premium && !hasPremiumAccess ? .white : accent)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(plan == .premium && !hasPremiumAccess ? accent : accent.opacity(0.14))
-                            )
                     }
                 }
 
-                Text(planSummary(for: plan))
-                    .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
+                Spacer(minLength: 12)
+
+                if let badgeText {
+                    Text(badgeText)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(plan == .premium && !hasPremiumAccess ? .white : accent)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(plan == .premium && !hasPremiumAccess ? accent : accent.opacity(0.14))
+                        )
+                }
+            }
+
+            Text(planSummary(for: plan))
+                .font(.system(size: denseLayout ? 14 : 16, weight: .medium))
+                .foregroundColor(CoachiTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+                .overlay(CoachiTheme.borderSubtle.opacity(0.6))
+
+            if isTrialPlan {
+                trialFeaturesSection(accent: accent, compactLayout: denseLayout, featureSize: featureSize)
+            } else {
+                VStack(alignment: .leading, spacing: featureSpacing) {
+                    ForEach(planFeatures(for: plan), id: \.self) { feature in
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(accent)
+                                .frame(width: 18, alignment: .center)
+
+                            Text(feature)
+                                .font(.system(size: featureSize, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+
+            Spacer(minLength: denseLayout ? 8 : 12)
+
+            VStack(alignment: .leading, spacing: footerSpacing) {
+                Text(detailText(for: plan))
+                    .font(.system(size: denseLayout ? 14 : 15, weight: .semibold))
                     .foregroundColor(CoachiTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider()
-                    .overlay(CoachiTheme.borderSubtle.opacity(0.6))
-
-                if isTrialPlan {
-                    trialFeaturesSection(accent: accent, compactLayout: compactLayout, featureSize: featureSize)
-                } else {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(planFeatures(for: plan), id: \.self) { feature in
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(accent)
-                                    .frame(width: 18, alignment: .center)
-
-                                Text(feature)
-                                    .font(.system(size: featureSize, weight: .semibold))
-                                    .foregroundColor(CoachiTheme.textPrimary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }
+                Button {
+                    handlePlanAction(for: plan)
+                } label: {
+                    Text(buttonTitle(for: plan))
+                        .font(.headline.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(plan == .free && !hasPremiumAccess ? accent : .white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonVerticalPadding)
+                        .background(plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent)
+                        .clipShape(Capsule(style: .continuous))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(accent.opacity(plan == .free && !hasPremiumAccess ? 0.9 : 0.0), lineWidth: 2)
+                        )
                 }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(detailText(for: plan))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Button {
-                        handlePlanAction(for: plan)
-                    } label: {
-                        Text(buttonTitle(for: plan))
-                            .font(.headline.weight(.bold))
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(plan == .free && !hasPremiumAccess ? accent : .white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, buttonVerticalPadding)
-                            .background(plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent)
-                            .clipShape(Capsule(style: .continuous))
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(accent.opacity(plan == .free && !hasPremiumAccess ? 0.9 : 0.0), lineWidth: 2)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
+                .buttonStyle(.plain)
             }
-            .padding(cardPadding)
-            .padding(.top, topInset)
-            .padding(.bottom, bottomInset)
-            .frame(maxWidth: .infinity, minHeight: availableHeight, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+        .padding(cardPadding)
+        .padding(.top, topInset)
+        .padding(.bottom, bottomInset)
+        .frame(height: availableHeight, alignment: .topLeading)
         .background(cardBackground(for: plan))
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(alignment: .top) {
@@ -2206,8 +2209,8 @@ struct WatchConnectedPremiumOfferStepView: View {
                 : "Available in the App Store. Yearly plan from \(yearlyPriceText)."
         case .trial:
             return isNorwegian
-                ? "Velg hvordan du vil betale etter prøveperioden. Selve kjøpet fullføres i App Store."
-                : "Choose how you want to pay after the trial. The purchase still completes in the App Store."
+                ? "Alle Coachi-funksjoner er inkludert i prøveperioden. Kjøpet fullføres i App Store."
+                : "All Coachi features are included during the trial. The purchase still completes in the App Store."
         }
     }
 
@@ -2223,8 +2226,8 @@ struct WatchConnectedPremiumOfferStepView: View {
                 : "Unlock the full Coachi experience with deeper insights, history, and live coaching."
         case .trial:
             return isNorwegian
-                ? "Prøv hele Coachi gratis i 14 dager, og velg deretter planen som passer deg best."
-                : "Try the full Coachi experience free for 14 days, then choose the plan that fits you best."
+                ? "Prøv hele Coachi gratis i 14 dager med samme enkle oversikt som de andre planene."
+                : "Try the full Coachi experience free for 14 days with the same simple setup as the other plans."
         }
     }
 
@@ -2239,7 +2242,7 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .premium:
             return isNorwegian ? "Få Premium" : "Get Premium"
         case .trial:
-            return isNorwegian ? "Start \(trialDays) dagers gratis prøveperiode" : "Start \(trialDays)-day free trial"
+            return isNorwegian ? "Start \(trialDays) dagers gratis prøveperiode nå" : "Start \(trialDays)-day free trial now"
         }
     }
 
@@ -2262,8 +2265,8 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func trialFeaturesSection(accent: Color, compactLayout: Bool, featureSize: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: compactLayout ? 14 : 16) {
+            VStack(alignment: .leading, spacing: compactLayout ? 10 : 12) {
                 ForEach(planFeatures(for: .premium), id: \.self) { feature in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "checkmark")
@@ -2279,19 +2282,7 @@ struct WatchConnectedPremiumOfferStepView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Rectangle()
-                        .fill(CoachiTheme.borderSubtle.opacity(0.55))
-                        .frame(height: 1)
-                    Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                    Rectangle()
-                        .fill(CoachiTheme.borderSubtle.opacity(0.55))
-                        .frame(height: 1)
-                }
-
+            VStack(alignment: .leading, spacing: compactLayout ? 10 : 12) {
                 HStack(spacing: 12) {
                     trialPricingOption(
                         title: isNorwegian ? "Månedlig" : "Monthly",

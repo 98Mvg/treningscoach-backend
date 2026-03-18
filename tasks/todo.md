@@ -1009,3 +1009,36 @@ Updated: 2026-03-17
 - Left the rest of the compact composer unchanged: same close button, same input, same send path, same paywall/lock handling, and same transcript reply card behavior when a response arrives.
 - Updated focused verification coverage:
   - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+
+## Review — 2026-03-18 Render 512MB OOM worker reduction pass
+
+- Investigated the existing Render deployment path and confirmed the single highest-impact remaining memory multiplier was still [Procfile](/Users/mariusgaarder/Documents/treningscoach/Procfile): `gunicorn main:app --timeout 120 --workers 2`.
+- Kept the same Flask/Gunicorn architecture and the same runtime entrypoint. The fix is purely on the existing deploy command:
+  - reduced Gunicorn from `--workers 2` to `--workers 1`
+  - this removes the duplicate loaded Python process on a `512MB` Render instance, which is the cleanest way to stop startup/import memory from being doubled again after the earlier lazy-loading pass
+- Added focused deploy/runtime guard coverage so the Procfile does not drift back to two workers:
+  - [test_backend_startup_memory_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_backend_startup_memory_contract.py)
+  - [test_root_runtime_source_of_truth.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_root_runtime_source_of_truth.py)
+- Verification:
+  - `python3 scripts/generate_codebase_guide.py --check` -> `CODEBASE_GUIDE.md is in sync`
+  - `pytest -q tests_phaseb/test_backend_startup_memory_contract.py tests_phaseb/test_root_runtime_source_of_truth.py` -> `12 passed`
+  - `python3 -m py_compile main.py config.py breath_analyzer.py elevenlabs_tts.py strategic_brain.py` -> passed
+
+## Review — 2026-03-18 Shared offers swiper static-layout pass
+
+- Kept the existing shared offers path on [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift), reused by onboarding and [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) `Se alle tilbudene`. No new paywall, no second offers screen, and no parallel subscription flow were introduced.
+- Removed inner vertical scrolling from `planCard(...)` so the deck is swipe-only horizontally. Each plan card now uses a fixed-height layout with a bottom-anchored CTA instead of a nested vertical `ScrollView`.
+- Tightened the trial page so the CTA stays visible on screen:
+  - removed the `Pricing after trial` / `Pris etter prøvetid` heading
+  - kept the existing monthly/yearly selectors on the same paywall path
+  - updated the trial CTA copy to `Start 14 dagers gratis prøveperiode nå` / `Start 14-day free trial now`
+- Kept the `Free -> Premium -> Trial` action behavior intact:
+  - `Free` continues on the existing flow
+  - `Premium` and `Trial` still open the existing [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) `.general` route
+- Updated focused verification coverage:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `22 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

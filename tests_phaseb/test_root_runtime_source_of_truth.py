@@ -19,6 +19,14 @@ def test_backend_start_backend_uses_root_runtime():
     assert 'python3 "$ROOT_DIR/main.py"' in content
 
 
+def test_render_procfile_uses_single_worker_runtime() -> None:
+    content = _read_text("Procfile")
+    assert "gunicorn main:app" in content
+    assert "--timeout 120" in content
+    assert "--workers 1" in content
+    assert "--workers 2" not in content
+
+
 def test_release_check_runs_source_of_truth_guard():
     content = _read_text("scripts/release_check.sh")
     assert "./scripts/check_root_runtime.sh" in content

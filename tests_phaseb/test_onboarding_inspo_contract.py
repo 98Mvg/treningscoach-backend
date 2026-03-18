@@ -120,6 +120,7 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
 
 def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None:
     text = _onboarding_text()
+    plan_card_block = text.split("private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {", 1)[1].split("private func planSwipeGesture", 1)[0]
     assert "struct WatchConnectedPremiumOfferStepView: View" in text
     assert "enum PresentationMode {" in text
     assert "case onboardingStep" in text
@@ -154,14 +155,16 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '.ignoresSafeArea()' in text
     assert 'return isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
     assert 'return isNorwegian ? "Få Premium" : "Get Premium"' in text
-    assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode" : "Start \\(trialDays)-day free trial"' in text
+    assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode nå" : "Start \\(trialDays)-day free trial now"' in text
     assert 'private func planSummary(for plan: PlanSelection) -> String {' in text
     assert 'Start med Coachi-kjernene og oppgrader når du vil.' in text
     assert 'Lås opp hele Coachi-opplevelsen med mer innsikt, historikk og live coaching.' in text
-    assert 'Prøv hele Coachi gratis i 14 dager, og velg deretter planen som passer deg best.' in text
+    assert 'Prøv hele Coachi gratis i 14 dager med samme enkle oversikt som de andre planene.' in text
     assert 'planCard(for: .trial, availableHeight: pageHeight, compactLayout: compactLayout, topInset: topInset, bottomInset: bottomInset)' in text
     assert 'trialPricingOption(' in text
-    assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' in text
+    assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' not in text
+    assert "return ScrollView(.vertical, showsIndicators: false)" not in plan_card_block
+    assert "Spacer(minLength: denseLayout ? 8 : 12)" in plan_card_block
     assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' in text
     assert 'Text(isNorwegian ? "Apple Watch koblet til" : "Apple Watch connected")' in text
     assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' not in text
