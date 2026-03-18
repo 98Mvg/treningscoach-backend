@@ -886,3 +886,22 @@ Updated: 2026-03-17
   - `python3 -m py_compile auth_routes.py` -> passed
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_ios_profile_sync_contract.py tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_auth_and_workout_security.py` -> `47 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Onboarding language/auth regression pass
+
+- Kept the same onboarding runtime path in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift); the fixes stayed local to the existing language step, auth step, and subscription bootstrap path.
+- Fixed narrow-device clipping in [LanguageSelectionView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/LanguageSelectionView.swift) by moving it onto the same width-clamped full-screen layout model already used by the stronger onboarding screens:
+  - clamps against render width and device width
+  - constrains text to a centered content width
+  - keeps the surface clipped to the screen bounds
+  - uses adaptive Coachi borders instead of the old white-only outline
+- Reduced onboarding hangs by tightening [SubscriptionManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/SubscriptionManager.swift):
+  - `initialize()` is now idempotent so the app-level `.task` does not repeatedly re-run subscription boot work while onboarding rerenders
+  - server-side entitlement sync now bails out before calling backend validation when there is no auth material, which removes the repeated unauthenticated `SUB_VALIDATE skipped reason=missing_auth_material` churn during onboarding
+- Hardened onboarding auth error handling on the existing path:
+  - [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) now normalizes generic backend `Auth failed` responses into a localized sign-in failure instead of leaking the raw server fallback
+  - [AuthView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift) now clears stale auth errors when the step appears and when the user edits the email, so an old failure does not linger across retries
+- Updated focused contract coverage:
+  - [test_onboarding_theme_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_theme_contract.py)
+  - [test_ios_auth_refresh_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_auth_refresh_contract.py)
+  - [test_ios_app_router_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_app_router_contract.py)

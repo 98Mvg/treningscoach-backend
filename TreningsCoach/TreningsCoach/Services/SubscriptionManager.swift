@@ -77,6 +77,8 @@ final class SubscriptionManager: ObservableObject {
 
     private var products: [Product] = []
     private var transactionListener: Task<Void, Error>?
+    private var initializationTask: Task<Void, Never>?
+    private var hasInitialized = false
 
     // MARK: - Init
 
@@ -92,9 +94,25 @@ final class SubscriptionManager: ObservableObject {
 
     /// Call once at app startup to verify entitlement and load products.
     func initialize() async {
-        await refreshStatus()
-        await loadProducts()
-        await syncLatestEntitlementWithBackend()
+        if hasInitialized {
+            return
+        }
+        if let initializationTask {
+            await initializationTask.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.initializationTask = nil }
+            await self.refreshStatus()
+            await self.loadProducts()
+            await self.syncLatestEntitlementWithBackend()
+            self.hasInitialized = true
+        }
+
+        initializationTask = task
+        await task.value
     }
 
     // MARK: - Product Loading
@@ -242,6 +260,10 @@ final class SubscriptionManager: ObservableObject {
     }
 
     private func syncLatestEntitlementWithBackend() async {
+        guard AuthManager.shared.hasUsableSession() || AuthManager.shared.currentRefreshToken() != nil else {
+            return
+        }
+
         var latestTransactionID: String?
         var latestSignedTransactionInfo: String?
         var latestSignedDate: Date?

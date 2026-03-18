@@ -200,6 +200,9 @@ struct L10n {
     static var appleSignInFailedTryAgain: String {
         current == .no ? "Apple-innlogging feilet. Prøv igjen." : "Apple sign-in failed. Please try again."
     }
+    static var authFailedTryAgain: String {
+        current == .no ? "Innlogging feilet. Prøv igjen." : "Sign-in failed. Please try again."
+    }
     static var appleIdentityVerifyFailed: String {
         current == .no ? "Kunne ikke verifisere Apple-identitet." : "Unable to verify Apple identity."
     }

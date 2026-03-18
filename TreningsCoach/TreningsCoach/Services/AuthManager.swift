@@ -654,15 +654,25 @@ class AuthManager: ObservableObject {
     }
 
     private func localizedAuthError(provider: String, error: Error) -> String {
-        if provider == "apple" {
-            if let apiError = error as? APIError {
-                switch apiError {
-                case .serverError(let message):
-                    return message
-                default:
-                    return L10n.appleSignInFailedTryAgain
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .serverError(let message):
+                let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                if provider == "apple" {
+                    return trimmed.isEmpty ? L10n.appleSignInFailedTryAgain : trimmed
                 }
+                if trimmed.isEmpty || trimmed.localizedCaseInsensitiveContains("auth failed") {
+                    return L10n.authFailedTryAgain
+                }
+                return trimmed
+            case .networkError:
+                return L10n.authFailedTryAgain
+            default:
+                break
             }
+        }
+
+        if provider == "apple" {
             return L10n.appleSignInFailedTryAgain
         }
         return error.localizedDescription

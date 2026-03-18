@@ -57,7 +57,10 @@ def test_backend_api_service_uses_generic_mobile_analytics_and_signed_subscripti
 def test_subscription_manager_syncs_signed_transactions_and_app_account_token() -> None:
     text = SUBSCRIPTION_MANAGER.read_text(encoding="utf-8")
     assert "func initialize() async {" in text
+    assert "if hasInitialized {" in text
+    assert "if let initializationTask {" in text
     assert "await syncLatestEntitlementWithBackend()" in text
+    assert "AuthManager.shared.hasUsableSession() || AuthManager.shared.currentRefreshToken() != nil" in text
     assert ".appAccountToken(uuid)" in text
     assert "verification.jwsRepresentation" in text
     assert "result.jwsRepresentation" in text

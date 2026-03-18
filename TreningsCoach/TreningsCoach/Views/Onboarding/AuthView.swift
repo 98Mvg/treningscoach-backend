@@ -98,6 +98,18 @@ struct AuthView: View {
         return mode == .login ? L10n.loginWithEmail : L10n.register
     }
 
+    private var visibleErrorMessage: String? {
+        guard let rawMessage = authManager.errorMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawMessage.isEmpty else {
+            return nil
+        }
+        if rawMessage.localizedCaseInsensitiveContains("auth failed")
+            || rawMessage.localizedCaseInsensitiveContains("server error: auth failed") {
+            return L10n.authFailedTryAgain
+        }
+        return rawMessage
+    }
+
     var body: some View {
         GeometryReader { geo in
             let renderWidth = geo.size.width
@@ -131,7 +143,7 @@ struct AuthView: View {
                             .offset(y: appeared ? 0 : 18)
                     }
 
-                    if let errorMessage = authManager.errorMessage, !errorMessage.isEmpty {
+                    if let errorMessage = visibleErrorMessage {
                         Text(errorMessage)
                             .font(.footnote.weight(.medium))
                             .foregroundColor(CoachiTheme.primary)
@@ -178,11 +190,13 @@ struct AuthView: View {
             }
         )
         .onAppear {
+            authManager.errorMessage = nil
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) { appeared = true }
         }
         .onChange(of: normalizedEmail) { _, _ in
             verificationCode = ""
             emailCodeRequested = false
+            authManager.errorMessage = nil
         }
         .onChange(of: acceptedTerms) { _, isAccepted in
             if isAccepted {

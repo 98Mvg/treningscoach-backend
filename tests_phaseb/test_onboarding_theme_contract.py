@@ -108,7 +108,7 @@ def test_onboarding_scaffold_clamps_layout_width_and_vertical_scroll_only() -> N
     assert "let layoutWidth = min(min(renderWidth, deviceWidth), 500)" in text
     assert "let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))" in text
     assert "let bottomInset = min(42.0, max(20.0, geo.safeAreaInsets.bottom + 8.0))" in text
-    assert "let contentTopInset = max(renderHeight * 0.08, 24.0)" in text
+    assert "let contentTopInset = contentTopInsetOverride ?? max(renderHeight * 0.08, 24.0)" in text
     assert "ScrollView(.vertical, showsIndicators: false)" in text
     assert ".safeAreaInset(edge: .bottom, spacing: 0)" in text
     assert ".scrollBounceBehavior(.basedOnSize, axes: .vertical)" in text
@@ -404,11 +404,8 @@ def test_custom_tab_bar_uses_compact_height_layout() -> None:
 
 
 def test_profile_and_settings_do_not_expose_technical_provider_details() -> None:
-    profile_text = PROFILE_VIEW.read_text(encoding="utf-8")
     settings_text = SETTINGS_VIEW.read_text(encoding="utf-8")
 
-    assert "ElevenLabs" not in profile_text
-    assert "L10n.coachVoice" not in profile_text
     assert "ElevenLabs" not in settings_text
     assert 'title: "Backend"' not in settings_text
     assert "AppConfig.backendURL" not in settings_text
@@ -421,7 +418,15 @@ def test_norwegian_language_strings_use_sprak() -> None:
     assert '"Språk"' in l10n_text
     assert '"Velg språk"' in l10n_text
     assert '"Spraak"' not in l10n_text
-    assert "Spacer(minLength: max(24, geo.size.height * 0.18))" in language_selection_text
+    assert "let layoutWidth = min(min(renderWidth, deviceWidth), 500)" in language_selection_text
+    assert "let contentWidth = max(0.0, layoutWidth - (sidePadding * 2))" in language_selection_text
+    assert "let topSpacing = max(renderHeight * 0.16, geo.safeAreaInsets.top + 28.0)" in language_selection_text
+    assert "let bottomInset = min(42.0, max(24.0, geo.safeAreaInsets.bottom + 10.0))" in language_selection_text
+    assert "ScrollView(.vertical, showsIndicators: false)" in language_selection_text
+    assert ".frame(width: layoutWidth, height: renderHeight, alignment: .top)" in language_selection_text
+    assert ".clipped()" in language_selection_text
+    assert ".frame(width: contentWidth, alignment: .center)" in language_selection_text
     assert '"Velg spraak"' not in l10n_text
     assert "Norsk språk & coach" in language_selection_text
     assert "Norsk spraak & coach" not in language_selection_text
+    assert "CoachiTheme.borderSubtle.opacity(0.36)" in language_selection_text

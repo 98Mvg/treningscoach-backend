@@ -152,6 +152,8 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "title: L10n.emailCodeLabel" in view_text
     assert "await authManager.requestEmailSignInCode(email: normalizedEmail)" in view_text
     assert "await authManager.signInWithEmail(" in view_text
+    assert "private var visibleErrorMessage: String?" in view_text
+    assert "authManager.errorMessage = nil" in view_text
 
 
 def test_auth_manager_supports_passwordless_email_sign_in() -> None:
@@ -161,6 +163,7 @@ def test_auth_manager_supports_passwordless_email_sign_in() -> None:
     assert '"\\(AppConfig.backendURL)/auth/email/request-code"' in text
     assert '"\\(AppConfig.backendURL)/auth/email/verify"' in text
     assert "private func localizedEmailBackendError(errorResponse: ErrorResponse?) -> String" in text
+    assert "L10n.authFailedTryAgain" in text
 
 
 def test_auth_manager_routes_profile_reads_and_updates_through_backend_api_service() -> None:
