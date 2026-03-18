@@ -187,12 +187,15 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     assert "You may also reference the workout history overview for pattern, progress, and consistency questions." in text
     assert "Do not claim to remember prior conversations" in text
     assert "sanitize_post_workout_summary_context" in text
+    assert "def _canonical_workout_reference(" in text
     assert '"average_heart_rate": _clean_int("average_heart_rate")' in text
     assert '"distance_meters": _clean_float("distance_meters")' in text
     assert '"coaching_style": _clean_string("coaching_style", 40)' in text
     assert "This post-workout coach is for running workouts only." in text
     assert "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples." in text
     assert "treat it as a general running workout" in text
+    assert "Do not use workout history in the opening message." in text
+    assert "Do not repeat the raw generic label 'Workout' or 'Standard'." in text
     assert "general workout session" not in text
     assert "conversation_history" not in text
     assert "session_history" not in text
@@ -202,6 +205,8 @@ def test_text_fallback_prompt_is_running_only_and_blocks_strength_references() -
     text = MODELS_SWIFT.read_text(encoding="utf-8")
     assert "This coach conversation is for running workouts only." in text
     assert "Treat generic labels like 'Workout' as a general running workout." in text
+    assert "In the first reply, use only the summary from this workout, not older workouts or history." in text
+    assert "refer to it as a general running workout instead of repeating the raw label." in text
     assert "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes." in text
     assert "Treat it as a very short or early-stopped running session, not as a static hold or strength exercise." in text
     assert "Do not mention strength training, gym work, or specific exercises such as squats, lunges, push-ups, burpees, or planks." in text

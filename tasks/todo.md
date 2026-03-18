@@ -1058,3 +1058,29 @@ Updated: 2026-03-17
 - Left non-trial paywall CTAs unchanged.
 - Updated focused contract coverage:
   - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+
+## Review — 2026-03-18 Post-workout voice workout-reference hardening pass
+
+- Traced the existing live voice request path end to end:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) builds [PostWorkoutSummaryContext](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift)
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift) sends it to `/voice/session`
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) bootstraps the xAI session
+  - [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) builds the Rex instruction payload
+- Root causes for bad first-sentence context like `plank` / `squat`:
+  - generic labels like `Workout` / `Økt` were being repeated into the opening prompt instead of being normalized to a running-specific reference
+  - the opening-message rules still allowed too much freedom on generic modes
+  - workout history was available during bootstrap without an explicit guard that the opening must use only the just-finished workout summary
+- Kept the single existing Rex/xAI live voice path and hardened it in place:
+  - [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) now canonicalizes generic labels like `Workout` / `Standard` into `general running workout` / `generell løpeøkt`
+  - the opening message now gets an explicit workout-reference rule instead of using the raw generic label
+  - the summary block now says `Workout: general running workout` instead of `Workout: Workout`
+  - the bootstrap prompt now explicitly forbids using workout history in the opening message
+  - [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift) mirrors the same normalization and first-reply guard for the typed fallback path
+- Updated focused verification coverage:
+  - [test_xai_voice_post_workout_prompt.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_xai_voice_post_workout_prompt.py)
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+  - [test_voice_session_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_voice_session_contract.py)
+- Verification:
+  - `python3 -m py_compile xai_voice.py` -> passed
+  - `pytest -q tests_phaseb/test_xai_voice_post_workout_prompt.py tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_voice_session_contract.py` -> `26 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`

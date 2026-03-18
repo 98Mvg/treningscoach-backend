@@ -195,7 +195,11 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
     is_norwegian = str(language or "").strip().lower().startswith("no")
     lines: list[str] = []
 
-    workout_label = str(summary_context.get("workout_label") or summary_context.get("workout_mode") or "").strip()
+    workout_label = _canonical_workout_reference(
+        str(summary_context.get("workout_mode") or "").strip(),
+        str(summary_context.get("workout_label") or "").strip(),
+        is_norwegian,
+    )
     if workout_label:
         prefix = "Workout" if not is_norwegian else "Økt"
         lines.append(f"{prefix}: {workout_label}")
@@ -311,12 +315,36 @@ def _history_lines(history_context: Mapping[str, Any], language: str) -> list[st
     return lines
 
 
+def _general_running_reference(is_norwegian: bool) -> str:
+    return "generell løpeøkt" if is_norwegian else "general running workout"
+
+
+def _canonical_workout_reference(workout_mode: str, workout_label: str, is_norwegian: bool) -> str:
+    mode = str(workout_mode or "").strip().lower()
+    label = str(workout_label or "").strip()
+    label_lower = label.lower()
+    generic_labels = {"", "workout", "standard", "økt", "okt"}
+
+    if mode == "easy_run" or "easy" in label_lower or "rolig" in label_lower:
+        return "Rolig tur" if is_norwegian else "Easy Run"
+
+    if mode == "interval" or "intervall" in label_lower or "interval" in label_lower:
+        return "Intervaller" if is_norwegian else "Intervals"
+
+    if mode == "standard" or label_lower in generic_labels:
+        return _general_running_reference(is_norwegian)
+
+    return label or _general_running_reference(is_norwegian)
+
+
 def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegian: bool) -> str:
     """Return a context paragraph that tells the AI exactly what kind of workout this was."""
-    label = workout_label or workout_mode or ""
+    mode = str(workout_mode or "").strip().lower()
+    label = _canonical_workout_reference(workout_mode, workout_label, is_norwegian)
     label_lower = label.lower()
+    general_reference = _general_running_reference(is_norwegian)
 
-    if "easy" in label_lower or "rolig" in label_lower:
+    if mode == "easy_run" or "easy" in label_lower or "rolig" in label_lower:
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — en rolig løpetur med lavt tempo. "
@@ -329,7 +357,7 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
             "Do not mention intervals, sprints, or high intensity."
         )
 
-    if "interval" in label_lower:
+    if mode == "interval" or "intervall" in label_lower or "interval" in label_lower:
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — intervalltrening med vekslende høy- og lavinnsats. "
@@ -341,6 +369,19 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
         )
 
     # Generic "Workout" or unknown mode
+    if label == general_reference:
+        if is_norwegian:
+            return (
+                "Utøveren valgte en generell løpeøkt. "
+                "Fokuser på kondisjon, tempo, pust, pulssoner, og total varighet. "
+                "Ikke nevn gym, styrke, spesifikke øvelser eller andre treningsformer."
+            )
+        return (
+            "The athlete chose a general running workout. "
+            "Focus on cardio effort, pacing, breathing, heart rate zones, and total duration. "
+            "Do not mention gym work, strength training, specific exercises, or non-running activities."
+        )
+
     if is_norwegian:
         return (
             f"Utøveren valgte '{label}' — en generell løpeøkt. "
@@ -371,8 +412,18 @@ def build_post_workout_voice_instructions(
         if athlete_name
         else "The athlete has not shared a name."
     )
-    workout_label = str(context.get("workout_label") or "").strip()
-    activity_line = f"The athlete just completed: {workout_label}." if workout_label else ""
+    workout_mode = str(context.get("workout_mode") or "").strip().lower()
+    raw_workout_label = str(context.get("workout_label") or "").strip()
+    workout_reference = _canonical_workout_reference(workout_mode, raw_workout_label, is_norwegian)
+    general_reference = _general_running_reference(is_norwegian)
+    if workout_reference == general_reference:
+        activity_line = (
+            "Utøveren fullførte nettopp en generell løpeøkt."
+            if is_norwegian
+            else "The athlete just completed a general running workout."
+        )
+    else:
+        activity_line = f"The athlete just completed: {workout_reference}." if workout_reference else ""
     duration_seconds = _duration_seconds_from_context(context)
     short_duration_guard = ""
     if duration_seconds is not None and duration_seconds < 60:
@@ -400,8 +451,21 @@ def build_post_workout_voice_instructions(
     )
 
     # Build workout-mode awareness block
-    workout_mode = str(context.get("workout_mode") or "").strip().lower()
-    mode_awareness = _workout_mode_description(workout_mode, workout_label, is_norwegian)
+    mode_awareness = _workout_mode_description(workout_mode, raw_workout_label, is_norwegian)
+    if workout_reference == general_reference:
+        opening_reference_rule = (
+            "I åpningen skal du omtale økten som 'generell løpeøkt'. "
+            "Ikke gjenta den generiske etiketten 'Økt' eller 'Standard'."
+            if is_norwegian
+            else "For this opening, refer to the workout as 'general running workout'. "
+            "Do not repeat the raw generic label 'Workout' or 'Standard'."
+        )
+    else:
+        opening_reference_rule = (
+            f"I åpningen skal du omtale økten som '{workout_reference}'."
+            if is_norwegian
+            else f"For this opening, refer to the workout as '{workout_reference}'."
+        )
 
     activity_anchor = f"{activity_line}\n" if activity_line else ""
     common_intro = (
@@ -411,7 +475,7 @@ def build_post_workout_voice_instructions(
         f"{mode_awareness}\n"
         f"Speak in {language_name}. "
         "YOUR OPENING MESSAGE is special and must follow these rules:\n"
-        "1. Start by acknowledging the specific workout just completed (use the workout label and duration)\n"
+        "1. Start by acknowledging the specific workout just completed (use the workout reference and duration)\n"
         "2. Mention one standout metric (average heart rate, distance, zone time, or coach score)\n"
         "3. Give a brief, specific coaching insight based on the data\n"
         "4. End with an open question about how the athlete felt\n"
@@ -422,7 +486,9 @@ def build_post_workout_voice_instructions(
         "This post-workout coach is for running workouts only.\n"
         "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.).\n"
         "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples.\n"
-        "NEVER guess what the athlete did physically — only reference the workout label and the data below.\n"
+        "NEVER guess what the athlete did physically — only reference the workout reference and the data below.\n"
+        "Use only the current workout summary for the opening message. Do not use workout history in the opening message.\n"
+        f"{opening_reference_rule}\n"
         "Interpret timer strings literally. If a timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes.\n"
         f"{short_duration_guard}"
         "If the label says 'Easy Run', talk about pace, breathing, and aerobic base.\n"

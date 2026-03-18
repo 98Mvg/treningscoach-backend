@@ -39,6 +39,11 @@ def test_post_workout_voice_instructions_keep_generic_workout_running_only() -> 
         user_name=None,
     )
 
-    assert "The athlete chose 'Workout' — a general running workout." in instructions
+    assert "The athlete chose a general running workout." in instructions
+    assert "The athlete just completed a general running workout." in instructions
+    assert "Workout: general running workout" in instructions
+    assert "Workout: Workout" not in instructions
+    assert "For this opening, refer to the workout as 'general running workout'." in instructions
+    assert "Do not use workout history in the opening message." in instructions
     assert "NEVER mention specific exercises (squats, lunges, push-ups, burpees, planks, etc.)." in instructions
     assert "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples." in instructions

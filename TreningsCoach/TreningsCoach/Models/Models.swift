@@ -450,9 +450,10 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
     func fallbackPrompt(for question: String, languageCode: String) -> String {
         let isNorwegian = languageCode.lowercased() == "no"
         let spokenDurationText = verbalizedDurationText(languageCode: languageCode)
+        let workoutReference = normalizedWorkoutReference(languageCode: languageCode)
         var lines = [
             isNorwegian ? "Oppsummering fra den siste treningsokten:" : "Summary from the last workout:",
-            isNorwegian ? "- Oekt: \(workoutLabel)" : "- Workout: \(workoutLabel)",
+            isNorwegian ? "- Oekt: \(workoutReference)" : "- Workout: \(workoutReference)",
             isNorwegian ? "- Varighet: \(spokenDurationText)" : "- Duration: \(spokenDurationText)",
             isNorwegian ? "- Sluttpuls: \(finalHeartRateText)" : "- Final heart rate: \(finalHeartRateText)",
             isNorwegian ? "- Coach score: \(coachScore)" : "- Coach score: \(coachScore)",
@@ -493,6 +494,16 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         )
         lines.append(
             isNorwegian
+                ? "I første svar skal du bare bruke sammendraget fra denne økten, ikke eldre økter eller historikk."
+                : "In the first reply, use only the summary from this workout, not older workouts or history."
+        )
+        lines.append(
+            isNorwegian
+                ? "Hvis etiketten er generisk som 'Økt' eller 'Standard', omtaler du den som en generell løpeøkt i stedet for å gjenta råetiketten."
+                : "If the label is generic like 'Workout' or 'Standard', refer to it as a general running workout instead of repeating the raw label."
+        )
+        lines.append(
+            isNorwegian
                 ? "Tolk timerverdier bokstavelig. Hvis tiden vises som MM:SS, betyr 00:07 syv sekunder, ikke sju minutter."
                 : "Interpret timer strings literally. If the timer is shown as MM:SS, then 00:07 means 7 seconds, not 7 minutes."
         )
@@ -513,6 +524,30 @@ struct PostWorkoutSummaryContext: Codable, Equatable {
         lines.append("")
         lines.append(isNorwegian ? "Sporsmal: \(question)" : "Question: \(question)")
         return lines.joined(separator: "\n")
+    }
+
+    private func normalizedWorkoutReference(languageCode: String) -> String {
+        let isNorwegian = languageCode.lowercased() == "no"
+        let normalizedLabel = workoutLabel
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: isNorwegian ? "no_NO" : "en_US"))
+            .lowercased()
+        let normalizedMode = workoutMode.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if normalizedMode == WorkoutMode.easyRun.rawValue || normalizedLabel.contains("easy") || normalizedLabel.contains("rolig") {
+            return isNorwegian ? "Rolig tur" : "Easy Run"
+        }
+
+        if normalizedMode == WorkoutMode.intervals.rawValue || normalizedLabel.contains("interval") || normalizedLabel.contains("intervall") {
+            return isNorwegian ? "Intervaller" : "Intervals"
+        }
+
+        let genericLabels = Set(["", "workout", "standard", "okt", "okt"])
+        if normalizedMode == WorkoutMode.standard.rawValue || genericLabels.contains(normalizedLabel) {
+            return isNorwegian ? "Generell løpeøkt" : "General running workout"
+        }
+
+        return workoutLabel
     }
 
     private func resolvedDurationSeconds() -> Int? {
