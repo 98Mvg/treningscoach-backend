@@ -85,9 +85,18 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     personal_slice = text[text.index("private struct PersonalProfileSettingsView: View"):text.index("private struct AboutCoachiView: View")]
+    assert "import PhotosUI" in text
+    assert "private struct CoachiProfileAvatarView: View" in text
+    assert "AsyncImage(url: resolvedURL)" in text
+    assert "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" in text
     assert 'Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")' in text
+    assert "authManager.updateProfileAvatar(imageData: jpegData)" in text
     assert 'title: L10n.current == .no ? "Navn" : "Name",' in text
     assert 'title: L10n.current == .no ? "E-post" : "Email",' in text
+    assert 'Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")' in personal_slice
+    assert 'Text(L10n.current == .no ? "Slett konto" : "Delete account")' not in personal_slice
+    assert personal_slice.index('title: L10n.current == .no ? "E-post" : "Email",') < personal_slice.index('Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")')
+    assert personal_slice.index('Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")') < personal_slice.index('sectionHeader(L10n.current == .no ? "App" : "App")')
     assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)"' not in text
     assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)"' not in text
     assert "sectionHeader(L10n.account)" not in personal_slice

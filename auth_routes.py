@@ -5,10 +5,12 @@ Launch-safe auth keeps Apple and email available, and enables Google when config
 
 import logging
 import hashlib
+import os
 import secrets
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, send_from_directory
 from database import db, EmailAuthCode, User, UserSettings
 from email_sender import send_account_welcome_email, send_sign_in_code_email
 from email_service import sendLoginEmail, sendPasswordReset
@@ -30,10 +32,16 @@ from auth import (
 import config
 from launch_integrations import capture_exception_with_context
 from supabase_auth_service import verify_email_otp
+from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+_AUTH_AVATAR_ROUTE_PREFIX = "/auth/avatar/"
+_AUTH_AVATAR_SUBDIR = "avatars"
+_AUTH_AVATAR_MAX_BYTES = 5 * 1024 * 1024
+_ALLOWED_AUTH_AVATAR_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"}
 
 
 _apple_auth_metrics = {
@@ -221,6 +229,60 @@ def _generate_email_auth_code() -> str:
 
 def _hash_email_auth_code(code: str) -> str:
     return hashlib.sha256((code or "").strip().encode("utf-8")).hexdigest()
+
+
+def _auth_avatar_directory() -> str:
+    upload_root = getattr(config, "UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
+    avatar_dir = os.path.join(upload_root, _AUTH_AVATAR_SUBDIR)
+    os.makedirs(avatar_dir, exist_ok=True)
+    return avatar_dir
+
+
+def _managed_auth_avatar_filename(avatar_url: str | None) -> str | None:
+    raw = str(avatar_url or "").strip()
+    if not raw.startswith(_AUTH_AVATAR_ROUTE_PREFIX):
+        return None
+
+    filename = raw[len(_AUTH_AVATAR_ROUTE_PREFIX):].strip().lstrip("/")
+    safe_filename = os.path.basename(filename)
+    if not safe_filename or safe_filename != filename:
+        return None
+    return safe_filename
+
+
+def _delete_managed_auth_avatar_if_needed(avatar_url: str | None) -> None:
+    filename = _managed_auth_avatar_filename(avatar_url)
+    if not filename:
+        return
+
+    avatar_path = os.path.join(_auth_avatar_directory(), filename)
+    if not os.path.exists(avatar_path):
+        return
+
+    try:
+        os.remove(avatar_path)
+    except OSError as exc:
+        logger.warning("Could not remove managed auth avatar %s: %s", avatar_path, exc)
+
+
+def _save_uploaded_auth_avatar(file_storage, user_id: str) -> str:
+    original_name = secure_filename(file_storage.filename or "")
+    extension = os.path.splitext(original_name)[1].lower()
+    if extension not in _ALLOWED_AUTH_AVATAR_EXTENSIONS:
+        raise ValueError("Unsupported avatar image format")
+
+    file_storage.seek(0, os.SEEK_END)
+    file_size = file_storage.tell()
+    file_storage.seek(0)
+    if file_size <= 0:
+        raise ValueError("Avatar image is empty")
+    if file_size > _AUTH_AVATAR_MAX_BYTES:
+        raise ValueError("Avatar image is too large")
+
+    filename = f"avatar_{user_id}_{uuid.uuid4().hex[:16]}{extension}"
+    avatar_path = os.path.join(_auth_avatar_directory(), filename)
+    file_storage.save(avatar_path)
+    return f"{_AUTH_AVATAR_ROUTE_PREFIX}{filename}"
 
 
 def _email_provider_info(email: str) -> dict:
@@ -796,6 +858,15 @@ def get_profile():
     return jsonify({"user": user.to_dict()}), 200
 
 
+@auth_bp.route("/avatar/<path:filename>", methods=["GET"])
+def get_managed_avatar(filename: str):
+    safe_filename = os.path.basename(filename or "")
+    if not safe_filename or safe_filename != filename:
+        return jsonify({"error": "Avatar not found"}), 404
+
+    return send_from_directory(_auth_avatar_directory(), safe_filename, conditional=True, max_age=3600)
+
+
 @auth_bp.route("/me", methods=["PUT"])
 @rate_limit(
     limit=getattr(config, "AUTH_ME_RATE_LIMIT_PER_MINUTE", 60),
@@ -827,8 +898,14 @@ def update_profile():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    data = request.get_json()
-    if not data:
+    avatar_file = None
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        data = request.form.to_dict()
+        avatar_file = request.files.get("avatar")
+    else:
+        data = request.get_json(silent=True) or {}
+
+    if not data and (avatar_file is None or not (avatar_file.filename or "").strip()):
         return jsonify({"error": "No data provided"}), 400
 
     # Update allowed fields
@@ -849,6 +926,15 @@ def update_profile():
 
     if "preferred_persona" in data:
         user.preferred_persona = data["preferred_persona"]
+
+    if avatar_file is not None and (avatar_file.filename or "").strip():
+        try:
+            previous_avatar_url = user.avatar_url
+            user.avatar_url = _save_uploaded_auth_avatar(avatar_file, user.id)
+            if previous_avatar_url != user.avatar_url:
+                _delete_managed_auth_avatar_if_needed(previous_avatar_url)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
     user.updated_at = _utcnow_naive()
     db.session.commit()
@@ -876,8 +962,10 @@ def delete_account():
         return jsonify({"error": "User not found"}), 404
 
     email = user.email
+    avatar_url = user.avatar_url
     db.session.delete(user)
     db.session.commit()
+    _delete_managed_auth_avatar_if_needed(avatar_url)
 
     logger.info(f"Account deleted: {email}")
     return jsonify({"success": True, "message": "Account deleted"}), 200

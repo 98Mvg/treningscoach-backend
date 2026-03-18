@@ -493,6 +493,72 @@ class AuthManager: ObservableObject {
         }
     }
 
+    func updateProfileAvatar(imageData: Data, filename: String = "avatar.jpg", mimeType: String = "image/jpeg") async -> String? {
+        guard let token = authToken, !token.isEmpty else {
+            return L10n.current == .no
+                ? "Du ma vaere logget inn for a oppdatere profilbildet."
+                : "You need to be signed in to update your profile photo."
+        }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            var (data, response) = try await performProfileAvatarUpdateRequest(
+                token: token,
+                imageData: imageData,
+                filename: filename,
+                mimeType: mimeType
+            )
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                let refreshed = await BackendAPIService.shared.refreshAuthTokenIfNeeded()
+                guard refreshed,
+                      let refreshedToken = authToken,
+                      !refreshedToken.isEmpty
+                else {
+                    if currentRefreshToken() == nil {
+                        signOut()
+                    } else {
+                        authLogger.notice("AUTH_PROFILE_AVATAR refresh_failed=network keeping_session=true")
+                    }
+                    return L10n.current == .no
+                        ? "Kunne ikke oppdatere profilbildet akkurat na."
+                        : "Could not update the profile photo right now."
+                }
+                (data, response) = try await performProfileAvatarUpdateRequest(
+                    token: refreshedToken,
+                    imageData: imageData,
+                    filename: filename,
+                    mimeType: mimeType
+                )
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                if let httpResponse = response as? HTTPURLResponse,
+                   httpResponse.statusCode == 404 {
+                    authLogger.notice("AUTH_PROFILE_AVATAR stale_session=true status=404 action=sign_out")
+                    signOut()
+                }
+                return L10n.current == .no
+                    ? "Kunne ikke oppdatere profilbildet."
+                    : "Could not update the profile photo."
+            }
+
+            let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
+            applyAuthenticatedProfile(profileResponse.user)
+            authLogger.debug("PROFILE_AVATAR_UPDATE success=true")
+            return nil
+        } catch {
+            authLogger.error("PROFILE_AVATAR_UPDATE success=false")
+            return L10n.current == .no
+                ? "Kunne ikke oppdatere profilbildet. Prov igjen."
+                : "Could not update the profile photo. Try again."
+        }
+    }
+
     // nonisolated: network call runs on background thread.
     // Only the @Published update hops back to MainActor via MainActor.run.
     nonisolated func fetchRuntimeFlags() async {
@@ -688,6 +754,20 @@ class AuthManager: ObservableObject {
 
     private func performProfileUpdateRequest(token: String, payload: Data) async throws -> (Data, URLResponse) {
         try await BackendAPIService.shared.updateAuthenticatedProfile(token: token, payload: payload)
+    }
+
+    private func performProfileAvatarUpdateRequest(
+        token: String,
+        imageData: Data,
+        filename: String,
+        mimeType: String
+    ) async throws -> (Data, URLResponse) {
+        try await BackendAPIService.shared.updateAuthenticatedProfileAvatar(
+            token: token,
+            imageData: imageData,
+            filename: filename,
+            mimeType: mimeType
+        )
     }
 
     private func updateProfileFromResponseData(_ data: Data) throws {

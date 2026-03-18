@@ -5,7 +5,7 @@
 > Regenerate with: `python3 scripts/generate_codebase_guide.py`
 > Verify sync with: `pytest -q tests_phaseb/test_codebase_guide_sync.py`
 
-Last generated: 2026-03-17
+Last generated: 2026-03-18
 Repository: `/Users/mariusgaarder/Documents/treningscoach`
 
 ## Agent Quickstart
@@ -193,6 +193,7 @@ flowchart LR
 | Route | Methods | Endpoint |
 |---|---|---|
 | `/auth/apple` | `POST` | `auth.auth_apple` |
+| `/auth/avatar/<path:filename>` | `GET` | `auth.get_managed_avatar` |
 | `/auth/email/password-reset` | `POST` | `auth.auth_email_password_reset` |
 | `/auth/email/request-code` | `POST` | `auth.auth_email_request_code` |
 | `/auth/email/verify` | `POST` | `auth.auth_email_verify` |
@@ -433,6 +434,16 @@ Main integrations:
 
 ## 13. Recent Session Learnings
 
+### [2026-03-18 - Onboarding, Live Voice, Paywall, And Profile Reliability](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-18-session-learnings-onboarding-live-voice-paywall-profile-reliability.md)
+- Keep onboarding plan selection on the existing `.premiumOffer` route, but let it behave like a real full-screen pager: auto-rotating, swipeable, and edge-to-edge instead of an inset light card.
+- Cold-start live voice should warm the existing backend path and keep real failure text visible before declaring connect failure; do not solve Render/bootstrap latency by creating a second voice startup path.
+- Profile-photo support should stay on the current authenticated `/auth/me` account route with managed-file cleanup on replacement and delete-account, rather than introducing a separate avatar subsystem.
+
+### [2026-03-18 - Post-Workout Share, Live Voice, And Watch Runtime](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-18-session-learnings-post-workout-share-live-voice-and-watch-runtime.md)
+- Watch-backed workout startup and live-HR recovery should stay on the existing request-id and WatchConnectivity path, with late matching ACKs upgrading the active workout instead of forcing a restart or second flow.
+- Post-workout share, summary, and `Talk to Coach` polish should converge on the same floating-card/button language, while `Type instead` from voice should reuse `PostWorkoutTextCoachView` in a compact composer mode rather than branching into a second text system.
+- Running-only prompt guards must live in both realtime voice bootstrap and typed fallback, and iOS audio-session tuning on the current `Rex` path should be tried before changing provider or voice identity.
+
 ### [2026-03-14 - Onboarding Controls, Share Surfaces, And Free Live Voice](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-14-session-learnings-onboarding-controls-share-surfaces-and-free-live-voice.md)
 - Full-screen onboarding hero pages now need explicit in-view navigation controls instead of depending on `safeAreaInset` or broad drag gestures.
 - Summary sharing and post-coach insight sharing now work better as visible destination buttons, and the same app-style share surface should be reused across both paths.
@@ -494,10 +505,13 @@ Main integrations:
 - Watch capability gating, companion embedding/signing, request-id correlation, and local fallback semantics are implemented on the existing WatchConnectivity path.
 - The watch app now ships watch-specific app-icon assets and a running dashboard with large BPM plus local remaining/elapsed time.
 - Live HR from the watch can reach the iPhone over the current WC path on real paired devices when the companion app is installed.
+- Watch-backed workout startup now tolerates temporary WC reachability loss better, uses late matching watch ACKs to upgrade the active workout on the same request-id path, and keeps disconnect notices tied to true detach/unavailable states instead of transient HR dips.
 - Workout talk is Grok-first for wake-word and button triggers, but still depends on backend latency and the current talk capture path.
 - Wake-word workout talk now suspends speech recognition more gracefully before capture to reduce `kAFAssistantErrorDomain Code=1101` churn on device.
 - Post-workout xAI live voice with Rex is enabled by default, tier-limited, isolated from the continuous workout runtime, and hardened with startup timeout plus non-blocking close/failure cleanup.
+- Free post-workout live voice now runs as a 30-second preview on the current summary-sheet path with a local audio-pack lock clip and existing `.liveVoice` paywall handoff, while premium remains session/day capped on the same bootstrap policy path.
 - `Talk to Coach Live` now uses the current summary plus a sanitized structured workout-history overview (full-history aggregates + recent workouts), still falls back to the existing `/coach/talk` path, and no longer uses a mixer-unsafe playback format.
+- Post-workout summary, inline coach, and share surfaces now share the same floating-card visual system, and voice-entry text fallback uses a compact one-third-height composer instead of jumping to the full transcript screen.
 - StoreKit subscriptions, talk usage tracking, and paywall surfaces now exist in the main iOS runtime, while the app remains free to download and use in a free core mode.
 - Paywall and settings now expose reviewer-visible `Restore Purchases` and `Manage Subscription` actions on the same StoreKit path, which makes the premium flow easier to verify before App Store submission.
 - Settings now expose a real in-app delete-account flow on top of the existing `DELETE /auth/me` backend route, and sign-out returns the user to guest mode rather than forcing onboarding.

@@ -469,6 +469,32 @@ class BackendAPIService {
         return try await performRequestWithBackendAvailability(request, path: "/auth/me")
     }
 
+    func updateAuthenticatedProfileAvatar(
+        token: String,
+        imageData: Data,
+        filename: String,
+        mimeType: String
+    ) async throws -> (Data, URLResponse) {
+        let url = URL(string: "\(baseURL)/auth/me")!
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"avatar\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        return try await performRequestWithBackendAvailability(request, path: "/auth/me")
+    }
+
     // MARK: - API Methods
 
     /// Check backend health

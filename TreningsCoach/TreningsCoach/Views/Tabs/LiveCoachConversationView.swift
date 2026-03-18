@@ -137,16 +137,19 @@ final class LiveCoachConversationViewModel: ObservableObject {
     func startIfNeeded() async {
         guard !hasAutoStarted else { return }
         hasAutoStarted = true
+        BackendAPIService.shared.wakeBackend()
         await service.start()
 
         // Auto-retry once on first failure (handles Render cold-start timeouts)
         if case .failed = service.connectionState {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
+            BackendAPIService.shared.wakeBackend()
             await service.start()
         }
     }
 
     func retry() async {
+        BackendAPIService.shared.wakeBackend()
         await service.start()
     }
 
@@ -301,6 +304,8 @@ struct LiveCoachConversationView: View {
             Text(voiceOrbLabel)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(voiceOrbLabelTint)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
         }
         .padding(.vertical, 4)
     }
@@ -313,8 +318,8 @@ struct LiveCoachConversationView: View {
         if viewModel.isConversationEnded {
             return no ? "Samtale avsluttet" : "Conversation ended"
         }
-        if viewModel.failureMessage != nil {
-            return no ? "Kunne ikke koble til" : "Could not connect"
+        if let failureMessage = viewModel.failureMessage, !failureMessage.isEmpty {
+            return failureMessage
         }
         return no ? "Kobler til..." : "Connecting..."
     }

@@ -32,6 +32,9 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     assert "subscriptionManager.restorePurchases()" in content
     assert '"https://coachi.no/terms"' in content
     assert '"https://coachi.no/privacy"' in content
+    assert ".background(CoachiTheme.backgroundGradient.ignoresSafeArea())" in content
+    assert ".fill(CoachiTheme.bg.opacity(0.94))" in content
+    assert 'Color(hex: "F7F7FB")' not in content
 
 
 def test_profile_premium_section_exposes_reviewer_visible_subscription_actions():
@@ -52,3 +55,7 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert '(isNorwegian ? "Se alle tilbudene" : "See all offers")' in content
     assert '(isNorwegian ? "Gratis" : "Free")' in content
     assert '"Premium"' in content
+    assert "@State private var showPlanOffers = false" in content
+    assert ".fullScreenCover(isPresented: $showPlanOffers)" in content
+    assert "OnboardingAtmosphereView(step: .premiumOffer)" in content
+    assert "WatchConnectedPremiumOfferStepView(" in content

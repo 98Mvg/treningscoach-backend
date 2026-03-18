@@ -104,6 +104,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         didSendStartTelemetry = false
         hasConnectedSession = false
         assistantDraftID = nil
+        apiService.wakeBackend()
 
         print("🎙️ [XAIVoice] start() — requesting mic permission")
         micState = .requestingPermission
@@ -115,7 +116,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
 
         do {
             startupTimeoutTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 12_000_000_000)
+                try? await Task.sleep(nanoseconds: 22_000_000_000)
                 guard let self else { return }
                 switch self.connectionState {
                 case .preparing, .connecting:
@@ -125,8 +126,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
                 }
                 await self.handleFailure(
                     self.languageCode == "no"
-                        ? "Live voice tok for lang tid a starte. Prov igjen eller bruk tekst."
-                        : "Live voice took too long to start. Try again or use text instead."
+                        ? "Live voice bruker litt tid pa a koble til. Prov igjen om et oyeblikk eller bruk tekst."
+                        : "Live voice is taking longer than expected to connect. Try again in a moment or use text instead."
                 )
             }
 
@@ -139,6 +140,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             print("🎙️ [XAIVoice] session bootstrap OK — voiceSessionId=\(bootstrap.voiceSessionId) voice=\(bootstrap.voice)")
             self.sessionBootstrap = bootstrap
             self.voiceSessionId = bootstrap.voiceSessionId
+            connectionState = .connecting
 
             try configureAudioSession()
             try preparePlaybackGraphIfNeeded()

@@ -1,4 +1,5 @@
 import importlib
+import io
 import json
 import os
 import sys
@@ -123,6 +124,39 @@ def test_find_or_create_user_sends_welcome_email_only_for_new_user(monkeypatch):
             db.session.delete(settings)
         db.session.delete(user)
         db.session.commit()
+
+
+def test_auth_profile_avatar_upload_and_delete_cleanup():
+    client = main.app.test_client()
+
+    with main.app.app_context():
+        user = _create_user("avatar-user")
+        token = auth.create_jwt(user.id, user.email)
+        user_id = user.id
+
+    upload = client.put(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"avatar": (io.BytesIO(b"fake-jpeg-data"), "avatar.jpg")},
+        content_type="multipart/form-data",
+    )
+    assert upload.status_code == 200
+    payload = upload.get_json()
+    avatar_url = payload["user"]["avatar_url"]
+    assert avatar_url.startswith("/auth/avatar/avatar_")
+
+    fetched = client.get(avatar_url)
+    assert fetched.status_code == 200
+    assert fetched.data == b"fake-jpeg-data"
+
+    deleted = client.delete("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert deleted.status_code == 200
+
+    missing = client.get(avatar_url)
+    assert missing.status_code == 404
+
+    with main.app.app_context():
+        _delete_user_and_workouts(user_id)
 
 
 def test_workouts_require_auth_and_scope_results_to_current_user():

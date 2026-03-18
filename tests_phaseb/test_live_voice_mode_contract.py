@@ -104,6 +104,7 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "liveVoiceTracker.recordSession(isPremium: self.isPremium)" in text
     assert "service.$turnCount" not in text
     assert "freeTurnLimit" not in text
+    assert "BackendAPIService.shared.wakeBackend()" in text
     assert '"Snakk med Coach" : "Talk to Coach"' in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
@@ -119,6 +120,7 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "dismiss()" in text
     assert "private var hasPremiumAccess: Bool" in text
     assert "authManager.currentUser?.subscriptionTier.isPremium == true" in text
+    assert "if let failureMessage = viewModel.failureMessage, !failureMessage.isEmpty {" in text
 
 
 def test_live_voice_view_generates_shareable_insight_card_after_conversation() -> None:
@@ -160,7 +162,9 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert '"voice.preview.free_limit.1"' in text
     assert "Float(source[index]) / Float(Int16.max)" in text
     assert "startupTimeoutTask" in text
-    assert "Live voice took too long to start" in text
+    assert "apiService.wakeBackend()" in text
+    assert "connectionState = .connecting" in text
+    assert "Live voice is taking longer than expected to connect" in text
     assert "Task {" in text
 
 

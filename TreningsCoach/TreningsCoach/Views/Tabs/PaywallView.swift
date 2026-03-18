@@ -131,7 +131,7 @@ struct PaywallView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 220)
             }
-            .background(Color(hex: "F7F7FB").ignoresSafeArea())
+            .background(CoachiTheme.backgroundGradient.ignoresSafeArea())
             .navigationBarHidden(true)
             .safeAreaInset(edge: .bottom) {
                 bottomActionSection
@@ -218,7 +218,7 @@ struct PaywallView: View {
                             .foregroundColor(CoachiTheme.textSecondary)
                         Text(detailText)
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Color(hex: "8B5CF6"))
+                            .foregroundColor(CoachiTheme.primary)
                     }
 
                     Spacer()
@@ -248,7 +248,7 @@ struct PaywallView: View {
                         lineWidth: isSelected ? 3 : 1
                     )
             )
-            .shadow(color: Color.black.opacity(0.06), radius: 18, x: 0, y: 10)
+            .shadow(color: CoachiTheme.textPrimary.opacity(0.08), radius: 18, x: 0, y: 10)
         }
         .buttonStyle(.plain)
     }
@@ -306,7 +306,7 @@ struct PaywallView: View {
             Task { await subscriptionManager.restorePurchases() }
         }
         .font(.system(size: 16, weight: .bold))
-        .foregroundColor(Color(hex: "5B4FD1"))
+        .foregroundColor(CoachiTheme.primary)
     }
 
     private var termsAndPrivacyFooter: some View {
@@ -338,10 +338,17 @@ struct PaywallView: View {
         .padding(.top, 18)
         .padding(.bottom, 16)
         .background(
-            Rectangle()
-                .fill(Color(hex: "F7F7FB").opacity(0.96))
-                .ignoresSafeArea(edges: .bottom)
-                .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: -4)
+            ZStack {
+                Rectangle()
+                    .fill(CoachiTheme.bg.opacity(0.94))
+                    .ignoresSafeArea(edges: .bottom)
+
+                Rectangle()
+                    .fill(CoachiTheme.borderSubtle.opacity(0.32))
+                    .frame(height: 1)
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .shadow(color: CoachiTheme.textPrimary.opacity(0.06), radius: 10, x: 0, y: -4)
         )
     }
 

@@ -5,7 +5,9 @@
 //  Settings-first profile tab styled after the native list layout
 //
 
+import PhotosUI
 import SwiftUI
+import UIKit
 
 private let coachiSupportEmail = "AI.Coachi@hotmail.com"
 private let coachiWebsiteURL = "https://coachi.no"
@@ -17,6 +19,58 @@ private let coachiTermsURL = "https://coachi.no/terms"
 private let coachiSupportURL = "https://coachi.no/support"
 private let coachiDownloadURL = "https://coachi.no/download"
 private let floatingTabBarContentClearance: CGFloat = 96
+
+@MainActor
+private struct CoachiProfileAvatarView: View {
+    let avatarURL: String?
+    var size: CGFloat = 76
+
+    private var resolvedURL: URL? {
+        guard let avatarURL = avatarURL?.trimmingCharacters(in: .whitespacesAndNewlines), !avatarURL.isEmpty else {
+            return nil
+        }
+        if avatarURL.hasPrefix("http"), let url = URL(string: avatarURL) {
+            return url
+        }
+        return URL(string: "\(AppConfig.backendURL)\(avatarURL)")
+    }
+
+    var body: some View {
+        Group {
+            if let resolvedURL {
+                AsyncImage(url: resolvedURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: size, height: size)
+        .background(CoachiTheme.surfaceElevated)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(CoachiTheme.borderSubtle.opacity(0.42), lineWidth: 1)
+        )
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            CoachiTheme.surfaceElevated
+
+            Image(systemName: "face.smiling")
+                .font(.system(size: size * 0.36, weight: .medium))
+                .foregroundColor(CoachiTheme.textTertiary)
+        }
+    }
+}
 
 struct ProfileView: View {
     @EnvironmentObject var appViewModel: AppViewModel
@@ -144,12 +198,7 @@ struct ProfileView: View {
                     .environmentObject(authManager)
             } label: {
                 HStack(spacing: 16) {
-                    Image(systemName: "face.smiling")
-                        .font(.system(size: 28))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .frame(width: 76, height: 76)
-                        .background(CoachiTheme.surfaceElevated)
-                        .clipShape(Circle())
+                    CoachiProfileAvatarView(avatarURL: authManager.currentUser?.avatarURL)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(appViewModel.userProfile.name)
@@ -577,7 +626,7 @@ private struct ProfileValueRow: View {
 private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
-    @State private var showPaywall = false
+    @State private var showPlanOffers = false
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
@@ -589,15 +638,9 @@ private struct ManageSubscriptionView: View {
                 includedItemsCard
 
                 Button {
-                    if hasPremiumAccess {
-                        subscriptionManager.manageSubscription()
-                    } else {
-                        showPaywall = true
-                    }
+                    showPlanOffers = true
                 } label: {
-                    Text(hasPremiumAccess
-                        ? (isNorwegian ? "Administrer i App Store" : "Manage in App Store")
-                        : (isNorwegian ? "Se alle tilbudene" : "See all offers"))
+                    Text(isNorwegian ? "Se alle tilbudene" : "See all offers")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -614,6 +657,15 @@ private struct ManageSubscriptionView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
+                if hasPremiumAccess {
+                    Button(isNorwegian ? "Administrer i App Store" : "Manage in App Store") {
+                        subscriptionManager.manageSubscription()
+                    }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                }
 
                 Button(isNorwegian ? "Gjenopprett kjøp" : "Restore purchases") {
                     Task { await subscriptionManager.restorePurchases() }
@@ -647,8 +699,17 @@ private struct ManageSubscriptionView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(context: .general)
+        .fullScreenCover(isPresented: $showPlanOffers) {
+            ZStack {
+                OnboardingAtmosphereView(step: .premiumOffer)
+
+                WatchConnectedPremiumOfferStepView(
+                    watchManager: PhoneWCManager.shared,
+                    onBack: { showPlanOffers = false },
+                    onContinue: { showPlanOffers = false }
+                )
+            }
+            .environmentObject(subscriptionManager)
         }
     }
 
@@ -1052,37 +1113,68 @@ private struct HealthProfileView: View {
     }
 }
 
+@MainActor
 private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
     @AppStorage("app_language") private var appLanguageCode: String = "en"
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoUploadErrorMessage: String?
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
     }
 
     var body: some View {
+        let currentAvatarURL = authManager.currentUser?.avatarURL
+        let isAuthenticated = authManager.isAuthenticated
+        let isLoading = authManager.isLoading
+
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 sectionHeader(L10n.personalProfile)
 
-                HStack(spacing: 16) {
-                    Image(systemName: "face.smiling")
-                        .font(.system(size: 28))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .frame(width: 76, height: 76)
-                        .background(CoachiTheme.surfaceElevated)
-                        .clipShape(Circle())
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    HStack(spacing: 16) {
+                        CoachiProfileAvatarView(avatarURL: currentAvatarURL)
 
-                    Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(hex: "8B5CF6"))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(CoachiTheme.primary)
 
-                    Spacer()
+                            Text(
+                                isAuthenticated
+                                    ? (L10n.current == .no ? "Velg et bilde fra bildebiblioteket ditt" : "Choose a photo from your library")
+                                    : (L10n.current == .no ? "Logg inn for a synkronisere profilbildet ditt" : "Sign in to sync your profile photo")
+                            )
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                        }
+
+                        Spacer()
+
+                        if isLoading {
+                            ProgressView()
+                                .tint(CoachiTheme.primary)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 18)
+                    .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 18)
+                .buttonStyle(.plain)
+                .disabled(!isAuthenticated || isLoading)
+
+                if let photoUploadErrorMessage, !photoUploadErrorMessage.isEmpty {
+                    Text(photoUploadErrorMessage)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(CoachiTheme.danger)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 14)
+                }
 
                 settingsDivider
 
@@ -1100,6 +1192,35 @@ private struct PersonalProfileSettingsView: View {
                     trailingIcon: nil,
                     valueColor: emailDisplayLine == unavailableEmailText ? CoachiTheme.textSecondary : CoachiTheme.textPrimary
                 )
+
+                if authManager.isAuthenticated {
+                    settingsDivider
+
+                    NavigationLink {
+                        DeleteAccountInfoView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                                .foregroundColor(CoachiTheme.danger)
+                                .frame(width: 30)
+
+                            Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.danger)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 sectionHeader(L10n.current == .no ? "App" : "App")
 
@@ -1148,35 +1269,6 @@ private struct PersonalProfileSettingsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-
-                if authManager.isAuthenticated {
-                    settingsDivider
-
-                    NavigationLink {
-                        DeleteAccountInfoView()
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16))
-                                .foregroundColor(CoachiTheme.danger)
-                                .frame(width: 30)
-
-                            Text(L10n.current == .no ? "Slett konto" : "Delete account")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(CoachiTheme.danger)
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textTertiary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .padding(.top, 8)
             .padding(.bottom, 80)
@@ -1184,6 +1276,10 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedPhotoItem) { _, newValue in
+            guard let newValue else { return }
+            Task { await uploadSelectedPhoto(newValue) }
+        }
     }
 
     private var emailDisplayLine: String {
@@ -1197,6 +1293,27 @@ private struct PersonalProfileSettingsView: View {
         isGuestMode
             ? (L10n.current == .no ? "Ingen konto tilkoblet" : "No account connected")
             : (L10n.current == .no ? "Ikke tilgjengelig" : "Not available")
+    }
+
+    private func uploadSelectedPhoto(_ item: PhotosPickerItem) async {
+        photoUploadErrorMessage = nil
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data),
+                  let jpegData = image.jpegData(compressionQuality: 0.85) else {
+                photoUploadErrorMessage = L10n.current == .no
+                    ? "Kunne ikke lese bildet du valgte."
+                    : "Could not read the selected photo."
+                return
+            }
+
+            photoUploadErrorMessage = await authManager.updateProfileAvatar(imageData: jpegData)
+            selectedPhotoItem = nil
+        } catch {
+            photoUploadErrorMessage = L10n.current == .no
+                ? "Kunne ikke laste opp profilbildet. Prov igjen."
+                : "Could not upload the profile photo. Try again."
+        }
     }
 
     private var settingsDivider: some View {

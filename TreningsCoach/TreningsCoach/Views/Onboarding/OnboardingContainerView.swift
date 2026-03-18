@@ -239,12 +239,12 @@ struct OnboardingContainerView: View {
                         mode: .intro,
                         onPrimary: {
                             authMode = .register
-                            move(to: .auth)
+                            move(to: .language)
                         },
                         primaryTitle: L10n.register,
                         onSecondary: {
                             authMode = .login
-                            move(to: .auth)
+                            move(to: .language)
                         },
                         secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"
                     )
@@ -254,7 +254,6 @@ struct OnboardingContainerView: View {
                     LanguageSelectionView { language in
                         selectedLanguage = language
                         L10n.set(language)
-                        authMode = .register
                         move(to: .auth)
                     }
                     .transition(stepTransition)
@@ -291,7 +290,7 @@ struct OnboardingContainerView: View {
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
                         onBack: { move(to: .auth) },
-                        onContinue: { move(to: .features) }
+                        onContinue: { dismissKeyboardAndMove(to: .features) }
                     )
                     .transition(stepTransition)
 
@@ -541,6 +540,13 @@ struct OnboardingContainerView: View {
         }
     }
 
+    private func dismissKeyboardAndMove(to step: OnboardingStep) {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            move(to: step)
+        }
+    }
+
     private func requestNotificationsAndFinish() {
         guard !finishingOnboarding else { return }
         finishingOnboarding = true
@@ -593,7 +599,7 @@ private struct OnboardingFlowProgressView: View {
     }
 }
 
-private struct OnboardingAtmosphereView: View {
+struct OnboardingAtmosphereView: View {
     let step: OnboardingStep
     @Environment(\.colorScheme) private var colorScheme
 
@@ -679,7 +685,11 @@ private struct IdentityStepView: View {
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: canContinue,
-            onPrimary: onContinue
+            onPrimary: {
+                focusedField = nil
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                onContinue()
+            }
         ) {
             VStack(spacing: 16) {
                 identityInputField(
@@ -702,6 +712,8 @@ private struct IdentityStepView: View {
                     submitLabel: .done
                 ) {
                     if canContinue {
+                        focusedField = nil
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         onContinue()
                     }
                 }
@@ -1644,13 +1656,15 @@ struct SensorConnectOnboardingView: View {
 
 // NoSensorFallbackStepView removed — content merged into SensorConnectOnboardingView
 
-private struct WatchConnectedPremiumOfferStepView: View {
+struct WatchConnectedPremiumOfferStepView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var watchManager: PhoneWCManager
     @State private var showPaywall = false
     @State private var selectedPlan: PlanSelection = .free
     @State private var selectedTrialPlan: PaywallPlanSelectionOption = .yearly
     @State private var paywallInitialPlan: PaywallPlanSelectionOption = .yearly
+    @State private var autoAdvanceTask: Task<Void, Never>?
     @GestureState private var dragTranslation: CGFloat = 0
 
     let onBack: () -> Void
@@ -1703,27 +1717,74 @@ private struct WatchConnectedPremiumOfferStepView: View {
     }
 
     var body: some View {
-        OnboardingScaffold(
-            title: titleText,
-            subtitle: subtitleText,
-            onBack: onBack,
-            primaryTitle: "",
-            canContinue: true,
-            onPrimary: { },
-            showsBottomActions: false
-        ) {
-            VStack(spacing: 18) {
-                if watchReady {
-                    watchReadyBadge
+        GeometryReader { geo in
+            let safeTop = geo.safeAreaInsets.top
+            let safeBottom = max(geo.safeAreaInsets.bottom, 18)
+            let pageHeight = max(0, geo.size.height - safeTop - safeBottom - 240)
+
+            ZStack {
+                planBackground(for: selectedPlan)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Button(action: onBack) {
+                            Image(systemName: "chevron.left")
+                                .font(.title3.weight(.bold))
+                                .foregroundColor(highContrastForeground(for: selectedPlan))
+                                .frame(width: 42, height: 42)
+                                .background(
+                                    Circle()
+                                        .fill(CoachiTheme.surface.opacity(colorScheme == .dark ? 0.32 : 0.72))
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(highContrastForeground(for: selectedPlan).opacity(0.16), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(titleText)
+                                .font(.system(size: 34, weight: .heavy))
+                                .foregroundColor(highContrastForeground(for: selectedPlan))
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(subtitleText)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, safeTop + 12)
+
+                    if watchReady {
+                        watchReadyBadge
+                            .padding(.horizontal, 22)
+                            .padding(.top, 16)
+                    }
+
+                    Spacer(minLength: 18)
+
+                    planPager
+                        .frame(height: max(560, min(pageHeight, 690)))
+
+                    VStack(spacing: 16) {
+                        pageIndicator
+
+                        Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 18)
+                    .padding(.bottom, safeBottom + 12)
                 }
-
-                planPager
-                pageIndicator
-
-                Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .sheet(isPresented: $showPaywall) {
@@ -1733,6 +1794,11 @@ private struct WatchConnectedPremiumOfferStepView: View {
             if hasPremiumAccess {
                 selectedPlan = hasIntroOffer ? .trial : .premium
             }
+            startAutoAdvance(intervalSeconds: 5)
+        }
+        .onDisappear {
+            autoAdvanceTask?.cancel()
+            autoAdvanceTask = nil
         }
         .onChange(of: subscriptionManager.hasPremiumAccess) { _, newValue in
             guard newValue else { return }
@@ -1757,6 +1823,10 @@ private struct WatchConnectedPremiumOfferStepView: View {
         .padding(.vertical, 10)
         .background(CoachiTheme.success.opacity(0.10))
         .clipShape(Capsule(style: .continuous))
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(CoachiTheme.success.opacity(0.28), lineWidth: 1)
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -1787,7 +1857,7 @@ private struct WatchConnectedPremiumOfferStepView: View {
         HStack(spacing: 10) {
             ForEach(PlanSelection.allCases, id: \.rawValue) { plan in
                 Capsule(style: .continuous)
-                    .fill(selectedPlan == plan ? CoachiTheme.textPrimary : CoachiTheme.borderSubtle.opacity(0.55))
+                    .fill(selectedPlan == plan ? highContrastForeground(for: selectedPlan) : highContrastForeground(for: selectedPlan).opacity(0.34))
                     .frame(width: selectedPlan == plan ? 24 : 8, height: 8)
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedPlan)
                     .onTapGesture {
@@ -1882,7 +1952,7 @@ private struct WatchConnectedPremiumOfferStepView: View {
                         .foregroundColor(plan == .free && !hasPremiumAccess ? accent : .white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(plan == .free && !hasPremiumAccess ? Color.white : accent)
+                        .background(plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent)
                         .clipShape(Capsule(style: .continuous))
                         .overlay(
                             Capsule(style: .continuous)
@@ -1978,22 +2048,23 @@ private struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func cardBackground(for plan: PlanSelection) -> LinearGradient {
+        let accent = accentColor(for: plan)
         switch plan {
         case .free:
             return LinearGradient(
-                colors: [Color(hex: "FFF8F3"), Color.white],
+                colors: [CoachiTheme.surface, accent.opacity(colorScheme == .dark ? 0.18 : 0.10), CoachiTheme.surfaceElevated],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .premium:
             return LinearGradient(
-                colors: [Color(hex: "F4FFF7"), Color.white],
+                colors: [CoachiTheme.surface, accent.opacity(colorScheme == .dark ? 0.18 : 0.10), CoachiTheme.surfaceElevated],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .trial:
             return LinearGradient(
-                colors: [Color(hex: "F3FFF7"), Color.white],
+                colors: [CoachiTheme.surface, accent.opacity(colorScheme == .dark ? 0.18 : 0.10), CoachiTheme.surfaceElevated],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -2182,7 +2253,7 @@ private struct WatchConnectedPremiumOfferStepView: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.95))
+            .background(CoachiTheme.surfaceElevated.opacity(colorScheme == .dark ? 0.96 : 0.98))
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -2211,6 +2282,38 @@ private struct WatchConnectedPremiumOfferStepView: View {
         return isNorwegian
             ? "Spar \(savings)% med år"
             : "Save \(savings)% yearly"
+    }
+
+    private func planBackground(for plan: PlanSelection) -> LinearGradient {
+        let accent = accentColor(for: plan)
+        return LinearGradient(
+            colors: colorScheme == .dark
+                ? [Color.black.opacity(0.82), accent.opacity(0.40), CoachiTheme.bgDeep]
+                : [accent.opacity(0.22), CoachiTheme.bg, CoachiTheme.bgDeep.opacity(0.72)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private func highContrastForeground(for plan: PlanSelection) -> Color {
+        _ = plan
+        return colorScheme == .dark ? .white : CoachiTheme.textPrimary
+    }
+
+    private func startAutoAdvance(intervalSeconds: UInt64 = 5) {
+        autoAdvanceTask?.cancel()
+        autoAdvanceTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.28)) {
+                        let nextIndex = (selectedPlan.rawValue + 1) % max(PlanSelection.allCases.count, 1)
+                        selectedPlan = PlanSelection(rawValue: nextIndex) ?? .free
+                    }
+                }
+            }
+        }
     }
 }
 

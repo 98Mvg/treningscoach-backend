@@ -92,12 +92,13 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert 'secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"' in text
     assert "authMode = .register" in text
     assert "authMode = .login" in text
+    assert "move(to: .language)" in text
     assert "AuthView(mode: authMode)" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? \"\"" in text
     assert "move(to: .identity)" in text
     assert "} onContinueWithoutAccount: {" in text
     assert "onBack: { move(to: .auth) }" in text
-    assert "onContinue: { move(to: .features) }" in text
+    assert "onContinue: { dismissKeyboardAndMove(to: .features) }" in text
     assert "onSecondary: { move(to: .identity) }" in text
     assert "onPrimary: { move(to: .birthAndGender) }" in text
     assert "onBack: { move(to: .features) }" in text
@@ -119,16 +120,20 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
 
 def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None:
     text = _onboarding_text()
-    assert "private struct WatchConnectedPremiumOfferStepView: View" in text
+    assert "struct WatchConnectedPremiumOfferStepView: View" in text
     assert "watchManager: PhoneWCManager.shared" in text
     assert 'isNorwegian ? "Velg plan" : "Choose plan"' in text
-    assert 'showsBottomActions: false' in text
     assert 'private enum PlanSelection: Int, CaseIterable' in text
     assert 'selectedPlan: PlanSelection = .free' in text
     assert 'selectedTrialPlan: PaywallPlanSelectionOption = .yearly' in text
     assert 'case trial' in text
+    assert '@State private var autoAdvanceTask: Task<Void, Never>?' in text
+    assert 'startAutoAdvance(intervalSeconds: 5)' in text
+    assert 'try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)' in text
     assert 'DragGesture(minimumDistance: 24)' in text
     assert 'Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")' in text
+    assert 'planBackground(for: selectedPlan)' in text
+    assert '.ignoresSafeArea()' in text
     assert 'return isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
     assert 'return isNorwegian ? "Få Premium" : "Get Premium"' in text
     assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode" : "Start \\(trialDays)-day free trial"' in text
@@ -139,6 +144,7 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'Text(isNorwegian ? "Apple Watch koblet til" : "Apple Watch connected")' in text
     assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' not in text
     assert "PaywallView(context: .general, initialPlan: paywallInitialPlan)" in text
+    assert "private func dismissKeyboardAndMove(to step: OnboardingStep)" in text
 
 
 def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:

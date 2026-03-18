@@ -29,6 +29,8 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-18: Moved the authenticated delete-account entry into `Personlig profil` directly under the email row with the clearer `Slett brukerkontoen din` copy, and removed the duplicate bottom placement on the same existing `DeleteAccountInfoView` path.
+- 2026-03-18: Reused the existing onboarding `Free -> Premium -> 14 dagers gratis prøveperiode` swiper from `Administrer abonnement` via a full-screen offers surface instead of sending `Se alle tilbudene` straight to the generic paywall or duplicating plan-card logic.
 - 2026-03-17: Moved the responsive overflow/hamburger navigation to the actual `coachi.no` runtime path in `templates/index_launch.html`/`backend/templates/index_launch.html`, and changed `main.py` default web variant fallback from `codex` to `launch` so preview/default truth matches the live site.
 - 2026-03-17: Fixed iOS/backend timeout noise on the single existing runtime path by adding a short backend-unavailable cooldown in `BackendAPIService`, routing `/auth/me` through the same guarded service instead of `URLSession.shared`, and fast-failing best-effort + primary calls (`/health`, `/analytics/mobile`, `/subscription/validate`, `/voice/session`, `/coach/continuous`, `/coach/talk`) when Render is already known unavailable.
 - 2026-03-17: Updated stale source contracts around workout-summary live-voice UI to match the current `WorkoutSummarySheet` implementation instead of removed internal properties/CTA event names.
@@ -98,6 +100,10 @@ Updated: 2026-03-17
   - result: `BUILD SUCCEEDED`
 - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py`
   - result: `12 passed`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
+- `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py`
+  - result: `21 passed`
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
   - result: `BUILD SUCCEEDED`
 - `pytest -q tests_phaseb/test_launch_page_copy_contract.py tests_phaseb/test_web_blueprint_contract.py`
@@ -849,4 +855,34 @@ Updated: 2026-03-17
   - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
 - Verification:
   - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py` -> `11 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Onboarding, live voice, paywall, and profile reliability pass
+
+- Kept the single existing runtime paths in place and tightened them instead of introducing parallel onboarding, paywall, live-voice, or account systems.
+- Onboarding reliability and polish in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift):
+  - welcome now routes to language selection first, then auth, while preserving register vs login intent
+  - identity now dismisses keyboard before advancing into the post-auth explainer to avoid the hanging keyboard transition
+  - the existing `WatchConnectedPremiumOfferStepView` now auto-rotates every 5 seconds, stays manually swipeable, and renders as a full-screen adaptive offers surface instead of the old inset card step
+- Live voice startup resilience on the existing path:
+  - [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift) now warms the backend before initial connect and retry, and shows the actual failure message in the orb/status area instead of collapsing everything to a generic connect error
+  - [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift) now wakes the backend before bootstrap, uses a longer startup window, and stages connection state as `.connecting` after session bootstrap so cold starts have room to recover
+- Paywall readability fixes in [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift):
+  - removed the fixed pale `F7F7FB` surfaces
+  - switched the background and sticky bottom action area to adaptive Coachi theme surfaces so text and controls remain visible in both light and dark mode
+- Profile/account reliability on the existing `/auth/me` path:
+  - [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) now supports synced profile-photo selection with `PhotosPicker`, renders the avatar in both the profile entry row and `Personlig profil`, and still keeps `Slett brukerkontoen din` directly under email
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift) and [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) now upload the avatar through the existing authenticated profile route
+  - [auth_routes.py](/Users/mariusgaarder/Documents/treningscoach/auth_routes.py) now accepts optional avatar upload on `PUT /auth/me`, serves managed avatar files from the auth blueprint, and removes managed avatar files when the account is deleted
+  - [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Info.plist) now declares photo-library usage for the existing iOS target
+- Updated focused coverage:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_ios_profile_sync_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_profile_sync_contract.py)
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+  - [test_auth_and_workout_security.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_auth_and_workout_security.py)
+- Verification:
+  - `python3 -m py_compile auth_routes.py` -> passed
+  - `pytest -q tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_ios_profile_sync_contract.py tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_auth_and_workout_security.py` -> `47 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
