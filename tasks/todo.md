@@ -693,6 +693,46 @@ Updated: 2026-03-17
   - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_audio_pack_manifest_coverage.py tests_phaseb/test_select_core_bundle.py tests_phaseb/test_r2_audio_pack_contract.py` -> `52 passed`
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 
+## Review — 2026-03-18 Workout complete Get Feedback CTA refresh
+
+- Kept the existing post-workout flow in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) and restyled only the current `Get Feedback` CTA that opens `WorkoutSummarySheet`.
+- Added a `hero` variant to the existing `SummarySurfaceButtonStyle` so the button uses a darker rectangular fill, brighter cyan border glow, and centered label/icon composition closer to the provided reference, without introducing a second button component.
+- Verification:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 WorkoutSummarySheet template refresh
+
+- Used [Workoutsummarysheet.png](/Users/mariusgaarder/Documents/treningscoach/Workoutsummarysheet.png) as the visual template for the existing `WorkoutSummarySheet` in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift).
+- Kept the current summary/coaching flow, but changed the sheet presentation to a clear-backed floating card and retuned the existing sheet surface to match the template more closely:
+  - warm translucent glass card instead of a full sheet background
+  - pill label + serif-style summary title/subtitle
+  - darker embedded coach panel
+  - premium-style `Talk to Coach` CTA and glass `HOME` / `SHARE` buttons
+- Extended the existing `SummarySurfaceButtonStyle` with additional summary-card variants instead of creating a second button system.
+- Verification:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Get Feedback width tweak
+
+- Kept the same `Get Feedback` CTA in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift), but capped its width to avoid running edge-to-edge across the bottom action area.
+- Verification:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Keep summary sheet detent on Talk to Coach
+
+- Removed the automatic `summaryDetent = .large` jump in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) when `Talk to Coach` starts from `WorkoutSummarySheet`.
+- The existing summary sheet now stays at its current size instead of expanding just because live coach starts.
+- Verification:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Share workout sheet matched to Talk to Coach surface
+
+- Kept the existing share-workout flow in [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift), but restyled `WorkoutShareDestinationsSheet` to use the same clear-backed floating-card treatment as the Talk to Coach sheet.
+- Extracted a shared `WorkoutModalCardBackground` so the summary sheet and share sheet now use the same warm glass card background instead of separate surface treatments.
+- Updated the share sheet to use the same header language, card layout, and summary-card button styling family rather than the old plain white sheet.
+- Verification:
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
 ## Review — 2026-03-18 Risk list fixes: session persistence, trusted identity, iOS path mapping
 
 - Kept the single existing runtime path and reduced the top Phase-1 risks without introducing parallel session or API flows.

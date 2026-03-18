@@ -258,7 +258,6 @@ struct WorkoutCompleteView: View {
                     subscriptionManager: subscriptionManager,
                     onStartCoaching: {
                         if liveVoiceIsAvailable {
-                            summaryDetent = .large
                             Task { await vm.startIfNeeded() }
                         } else {
                             showWorkoutSummary = false
@@ -283,8 +282,8 @@ struct WorkoutCompleteView: View {
                     }
                 )
                 .presentationDetents([.medium, .large], selection: $summaryDetent)
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(.clear)
             }
         }
         .onChange(of: showWorkoutSummary) { _, isPresented in
@@ -315,8 +314,9 @@ struct WorkoutCompleteView: View {
                     performShareSelection { copyWorkoutLink() }
                 }
             )
-            .presentationDetents([.height(330)])
-            .presentationDragIndicator(.visible)
+            .presentationDetents([.height(420)])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $showShareSheet) {
             WorkoutSummaryActivityShareSheet(activityItems: shareSheetItems)
@@ -389,16 +389,24 @@ struct WorkoutCompleteView: View {
         Button {
             showWorkoutSummary = true
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "chart.bar.doc.horizontal")
-                    .font(.system(size: 16, weight: .semibold))
+            ZStack {
                 Text(L10n.current == .no ? "Få tilbakemelding" : "Get Feedback")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.84)
+
+                HStack(spacing: 0) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                        .font(.system(size: 18, weight: .bold))
+                        .frame(width: 24)
+                    Spacer()
+                }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .padding(.horizontal, 22)
+            .frame(maxWidth: 332)
+            .frame(height: 60)
         }
-        .buttonStyle(SummarySurfaceButtonStyle(variant: .primary))
+        .buttonStyle(SummarySurfaceButtonStyle(variant: .hero))
     }
 
     private var liveVoiceStatusText: String {
@@ -891,31 +899,10 @@ private struct WorkoutSummarySheet: View {
         }
     }
 
-    private var sheetCardMaxWidth: CGFloat { 430 }
+    private var sheetCardMaxWidth: CGFloat { 392 }
 
     private var summaryCardBackground: some View {
-        RoundedRectangle(cornerRadius: 30, style: .continuous)
-            .fill(CoachiTheme.surface.opacity(0.97))
-            .overlay(
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                CoachiTheme.primary.opacity(0.08),
-                                Color.clear,
-                                CoachiTheme.secondary.opacity(0.04),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .blendMode(.plusLighter)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .stroke(CoachiTheme.borderSubtle.opacity(0.42), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.10), radius: 22, y: 10)
+        WorkoutModalCardBackground()
     }
 
     // Compact chip row shown when coaching panel is active
@@ -936,79 +923,65 @@ private struct WorkoutSummarySheet: View {
 
     var body: some View {
         ZStack {
-            CoachiTheme.backgroundGradient.ignoresSafeArea()
+            Color.clear.ignoresSafeArea()
 
-            Group {
-                if showCoachPanel {
-                    fullScreenCoachPanel
-                } else {
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 18) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "note.text")
-                                    .font(.system(size: 11, weight: .bold))
-                                Text(isNorwegian ? "Coachi innsikt" : "Coachi Insight")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .tracking(0.5)
-                            }
-                            .foregroundColor(CoachiTheme.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(CoachiTheme.primary.opacity(0.12))
-                            )
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(CoachiTheme.textPrimary)
-
-                                Text("\(workoutLabel) · \(durationText)")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(CoachiTheme.textSecondary)
-                            }
-
-                            if coachScore > 0 {
-                                VStack(spacing: 8) {
-                                    Text("\(coachScore)")
-                                        .font(.system(size: 52, weight: .bold, design: .rounded))
-                                        .foregroundColor(CoachiTheme.textPrimary)
-                                        .monospacedDigit()
-
-                                    Text("Coachi Score")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(CoachiTheme.textSecondary)
+                Group {
+                    if showCoachPanel {
+                        fullScreenCoachPanel
+                    } else {
+                        ScrollView(showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 18) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "sparkles.rectangle.stack.fill")
+                                        .font(.system(size: 11, weight: .bold))
+                                    Text(isNorwegian ? "Coachi innsikt" : "Coachi Insight")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .tracking(0.5)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 20)
+                                .foregroundColor(CoachiTheme.accent.opacity(0.92))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                        .fill(scoreAccentColor.opacity(0.12))
+                                    Capsule(style: .continuous)
+                                        .fill(Color.white.opacity(0.10))
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                                .stroke(scoreAccentColor.opacity(0.20), lineWidth: 1)
+                                            Capsule(style: .continuous)
+                                                .stroke(CoachiTheme.accent.opacity(0.22), lineWidth: 1)
                                         )
                                 )
-                            }
 
-                            if !statCells.isEmpty {
-                                statsGrid
-                            }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(isNorwegian ? "Treningsoversikt" : "Workout Summary")
+                                        .font(.system(size: 21, weight: .semibold, design: .serif))
+                                        .foregroundColor(Color.white.opacity(0.94))
 
-                            if AppConfig.LiveVoice.isEnabled {
-                                liveCoachSection
+                                    Text("\(workoutLabel) · \(durationText)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(CoachiTheme.accent.opacity(0.88))
+                                }
+
+                                if !statCells.isEmpty {
+                                    statsGrid
+                                }
+
+                                if AppConfig.LiveVoice.isEnabled {
+                                    liveCoachSection
+                                }
                             }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 20)
                         }
-                        .padding(22)
+                        .background(summaryCardBackground)
                     }
-                    .background(summaryCardBackground)
                 }
             }
-            .frame(maxWidth: sheetCardMaxWidth, maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: sheetCardMaxWidth, maxHeight: .infinity, alignment: .bottom)
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 16)
         }
         .animation(.spring(duration: 0.35), value: showCoachPanel)
         .onChange(of: liveCoachVM.service.lastDisconnectReason) { _, reason in
@@ -1045,56 +1018,71 @@ private struct WorkoutSummarySheet: View {
     private var statsGrid: some View {
         VStack(spacing: 0) {
             ForEach(statRows.indices, id: \.self) { rowIdx in
-                if rowIdx > 0 { Divider() }
+                if rowIdx > 0 { Divider().overlay(Color.white.opacity(0.10)) }
                 HStack(spacing: 0) {
                     statCell(title: statRows[rowIdx][0].title, value: statRows[rowIdx][0].value)
                     if statRows[rowIdx].count > 1 {
-                        Divider().frame(width: 1)
+                        Divider()
+                            .overlay(Color.white.opacity(0.10))
+                            .frame(width: 1)
                         statCell(title: statRows[rowIdx][1].title, value: statRows[rowIdx][1].value)
                     }
                 }
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(CoachiTheme.surface)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.white.opacity(0.09))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.06),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
         )
     }
 
     private func statCell(title: String, value: String) -> some View {
         VStack(spacing: 5) {
             Text(value)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
+                .font(.system(size: 19, weight: .bold))
+                .foregroundColor(Color.white.opacity(0.95))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(CoachiTheme.textSecondary)
+                .foregroundColor(Color.white.opacity(0.62))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
     }
 
     private var liveCoachSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textTertiary.opacity(0.75))
+                    .fill(liveVoiceIsAvailable ? CoachiTheme.accent : Color.white.opacity(0.46))
                     .frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(liveVoiceStatusText)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(liveVoiceIsAvailable ? CoachiTheme.success : CoachiTheme.textSecondary)
+                        .foregroundColor(Color.white.opacity(0.94))
                     Text(liveVoiceQuotaDetailText)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(CoachiTheme.textSecondary)
+                        .foregroundColor(Color.white.opacity(0.74))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -1105,13 +1093,13 @@ private struct WorkoutSummarySheet: View {
                     : "Get a short Coachi follow-up about this exact workout."
             )
             .font(.system(size: 14, weight: .medium))
-            .foregroundColor(CoachiTheme.textSecondary)
+            .foregroundColor(Color.white.opacity(0.72))
 
             Button {
                 onStartCoaching()
             } label: {
                 HStack(spacing: 10) {
-                    Image(systemName: "waveform.circle.fill")
+                    Image(systemName: liveVoiceIsAvailable ? "mic.fill" : "lock.fill")
                         .font(.system(size: 17, weight: .semibold))
                     Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")
                         .font(.system(size: 17, weight: .bold))
@@ -1121,7 +1109,7 @@ private struct WorkoutSummarySheet: View {
             }
             .buttonStyle(
                 SummarySurfaceButtonStyle(
-                    variant: liveVoiceIsAvailable ? .primary : .outline
+                    variant: liveVoiceIsAvailable ? .coach : .glassOutline
                 )
             )
 
@@ -1131,10 +1119,10 @@ private struct WorkoutSummarySheet: View {
         .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(CoachiTheme.surfaceElevated.opacity(0.72))
+                .fill(Color.white.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
                 )
         )
     }
@@ -1268,7 +1256,7 @@ private struct WorkoutSummarySheet: View {
             .frame(maxWidth: .infinity)
             .frame(height: 52)
         }
-        .buttonStyle(SummarySurfaceButtonStyle(variant: isActive ? .outline : .primary))
+        .buttonStyle(SummarySurfaceButtonStyle(variant: isActive ? .glassOutline : .coach))
         .disabled(isConnecting)
     }
 
@@ -1283,7 +1271,7 @@ private struct WorkoutSummarySheet: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
             }
-            .buttonStyle(SummarySurfaceButtonStyle(variant: .utility))
+            .buttonStyle(SummarySurfaceButtonStyle(variant: .glass))
 
             Button {
                 onShare()
@@ -1294,13 +1282,17 @@ private struct WorkoutSummarySheet: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
             }
-            .buttonStyle(SummarySurfaceButtonStyle(variant: .outline))
+            .buttonStyle(SummarySurfaceButtonStyle(variant: .glassOutline))
         }
         .padding(.top, 4)
     }
 }
 
-private enum SummarySurfaceButtonVariant {
+private enum SummarySurfaceButtonVariant: Equatable {
+    case hero
+    case coach
+    case glass
+    case glassOutline
     case primary
     case utility
     case outline
@@ -1315,11 +1307,8 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(foregroundColor)
             .background(buttonBackground(pressed: configuration.isPressed))
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(borderColor(pressed: configuration.isPressed), lineWidth: borderWidth)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(buttonBorder(pressed: configuration.isPressed))
             .shadow(
                 color: shadowColor(pressed: configuration.isPressed),
                 radius: configuration.isPressed ? 8 : shadowRadius,
@@ -1332,15 +1321,34 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         switch variant {
-        case .primary:
+        case .hero, .primary:
             return Color.white.opacity(0.96)
+        case .coach:
+            return CoachiTheme.accent.opacity(0.98)
+        case .glass, .glassOutline:
+            return Color.white.opacity(0.92)
         case .utility, .outline:
             return CoachiTheme.textPrimary
         }
     }
 
+    private var cornerRadius: CGFloat {
+        switch variant {
+        case .hero:
+            return 14
+        case .coach, .glass, .glassOutline, .primary, .utility, .outline:
+            return 22
+        }
+    }
+
     private var borderWidth: CGFloat {
         switch variant {
+        case .hero:
+            return 1.35
+        case .coach:
+            return 1.25
+        case .glass, .glassOutline:
+            return 1
         case .outline:
             return 1.5
         case .primary, .utility:
@@ -1350,6 +1358,12 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
 
     private var shadowRadius: CGFloat {
         switch variant {
+        case .hero:
+            return 18
+        case .coach:
+            return 16
+        case .glass, .glassOutline:
+            return 8
         case .primary:
             return 14
         case .utility, .outline:
@@ -1359,6 +1373,10 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
 
     private var shadowYOffset: CGFloat {
         switch variant {
+        case .hero:
+            return 0
+        case .coach, .glass, .glassOutline:
+            return 4
         case .primary:
             return 6
         case .utility, .outline:
@@ -1366,15 +1384,88 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
         }
     }
 
+    @ViewBuilder
     private func buttonBackground(pressed: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(fillStyle(pressed: pressed))
+            .overlay {
+                if variant == .hero {
+                    RoundedRectangle(cornerRadius: max(cornerRadius - 2, 0), style: .continuous)
+                        .stroke(Color.white.opacity(pressed ? 0.04 : 0.10), lineWidth: 1)
+                        .padding(2)
+                }
+            }
+            .overlay(alignment: .top) {
+                if variant == .hero {
+                    RoundedRectangle(cornerRadius: max(cornerRadius - 4, 0), style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.18),
+                                    Color.white.opacity(0.05),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(height: 18)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 3)
+                }
+            }
     }
 
     private func fillStyle(pressed: Bool) -> AnyShapeStyle {
         let pressedOpacity = pressed ? 0.88 : 1.0
 
         switch variant {
+        case .hero:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color(hex: "313743").opacity(0.92 * pressedOpacity),
+                        Color(hex: "1D222B").opacity(0.98 * pressedOpacity),
+                        Color(hex: "12161E").opacity(0.98 * pressedOpacity)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        case .coach:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.78 * pressedOpacity),
+                        Color(hex: "2A2621").opacity(0.88 * pressedOpacity),
+                        Color(hex: "151515").opacity(0.92 * pressedOpacity)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        case .glass:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity((isEnabled ? 0.14 : 0.08) * pressedOpacity),
+                        Color.white.opacity((isEnabled ? 0.08 : 0.05) * pressedOpacity)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+        case .glassOutline:
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity((isEnabled ? 0.08 : 0.05) * pressedOpacity),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
         case .primary:
             return AnyShapeStyle(CoachiTheme.primaryGradient.opacity(isEnabled ? pressedOpacity : 0.55))
         case .utility:
@@ -1384,8 +1475,65 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
         }
     }
 
+    @ViewBuilder
+    private func buttonBorder(pressed: Bool) -> some View {
+        if variant == .hero {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: "67E8F9").opacity(pressed ? 0.48 : 0.86),
+                            Color.white.opacity(pressed ? 0.12 : 0.24),
+                            Color(hex: "67E8F9").opacity(pressed ? 0.48 : 0.86)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: borderWidth
+                )
+        } else if variant == .coach {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            CoachiTheme.accent.opacity(pressed ? 0.40 : 0.72),
+                            Color.white.opacity(pressed ? 0.10 : 0.18),
+                            CoachiTheme.accent.opacity(pressed ? 0.40 : 0.72)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: borderWidth
+                )
+        } else if variant == .glassOutline {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.18),
+                            CoachiTheme.accent.opacity(pressed ? 0.18 : 0.36)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: borderWidth
+                )
+        } else {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(borderColor(pressed: pressed), lineWidth: borderWidth)
+        }
+    }
+
     private func borderColor(pressed: Bool) -> Color {
         switch variant {
+        case .hero:
+            return Color(hex: "67E8F9").opacity(pressed ? 0.40 : 0.72)
+        case .coach:
+            return CoachiTheme.accent.opacity(pressed ? 0.34 : 0.62)
+        case .glass:
+            return Color.white.opacity(pressed ? 0.12 : 0.18)
+        case .glassOutline:
+            return CoachiTheme.accent.opacity(pressed ? 0.16 : 0.30)
         case .primary:
             return Color.white.opacity(pressed ? 0.10 : 0.14)
         case .utility:
@@ -1397,6 +1545,12 @@ private struct SummarySurfaceButtonStyle: ButtonStyle {
 
     private func shadowColor(pressed: Bool) -> Color {
         switch variant {
+        case .hero:
+            return Color(hex: "67E8F9").opacity(pressed ? 0.20 : 0.42)
+        case .coach:
+            return CoachiTheme.accent.opacity(pressed ? 0.10 : 0.22)
+        case .glass, .glassOutline:
+            return Color.black.opacity(pressed ? 0.06 : 0.14)
         case .primary:
             return CoachiTheme.primary.opacity(pressed ? 0.18 : 0.28)
         case .utility:
@@ -1420,75 +1574,124 @@ private struct WorkoutShareDestinationsSheet: View {
     let onCopyLink: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Capsule()
-                .fill(Color.white.opacity(0.18))
-                .frame(width: 44, height: 5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 8)
+        ZStack {
+            Color.clear.ignoresSafeArea()
 
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(CoachiTheme.textPrimary)
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
 
-            Text(subtitle)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(CoachiTheme.textSecondary)
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(languageCode == "no" ? "Del med Coachi" : "Share with Coachi")
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(CoachiTheme.accent.opacity(0.92))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color.white.opacity(0.10))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(CoachiTheme.accent.opacity(0.22), lineWidth: 1)
+                            )
+                    )
 
-            HStack(spacing: 12) {
-                shareButton(label: "Instagram", accent: Color(hex: "E1306C"), icon: .camera) {
-                    onInstagram()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 21, weight: .semibold, design: .serif))
+                            .foregroundStyle(Color.white.opacity(0.94))
+
+                        Text(subtitle)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(CoachiTheme.accent.opacity(0.88))
+                    }
+
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            shareButton(label: "Instagram", accent: Color(hex: "E1306C"), icon: .camera) {
+                                onInstagram()
+                            }
+                            shareButton(label: "Snapchat", accent: Color(hex: "FFFC00"), icon: .snapchat) {
+                                onSnapchat()
+                            }
+                            shareButton(label: "TikTok", accent: Color.black, icon: .tiktok) {
+                                onTikTok()
+                            }
+                        }
+
+                        HStack(spacing: 12) {
+                            shareButton(label: "X", accent: Color.black, icon: .x) {
+                                onX()
+                            }
+                            shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link", accent: Color(hex: "4F46E5"), icon: .link) {
+                                onCopyLink()
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
+                    )
+
+                    Button(languageCode == "no" ? "Lukk" : "Close") {
+                        dismiss()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .buttonStyle(SummarySurfaceButtonStyle(variant: .glass))
                 }
-                shareButton(label: "Snapchat", accent: Color(hex: "FFFC00"), icon: .snapchat) {
-                    onSnapchat()
-                }
-                shareButton(label: "TikTok", accent: Color.black, icon: .tiktok) {
-                    onTikTok()
-                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 20)
+                .background(WorkoutModalCardBackground())
             }
-
-            HStack(spacing: 12) {
-                shareButton(label: "X", accent: Color.black, icon: .x) {
-                    onX()
-                }
-                shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link", accent: Color(hex: "4F46E5"), icon: .link) {
-                    onCopyLink()
-                }
-            }
-
-            Button(languageCode == "no" ? "Lukk" : "Close") {
-                dismiss()
-            }
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(CoachiTheme.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 4)
+            .frame(maxWidth: 392, maxHeight: .infinity, alignment: .bottom)
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
-        .background(CoachiTheme.background)
     }
 
     @ViewBuilder
     private func shareButton(label: String, accent: Color, icon: ShareDestinationIcon, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(accent.opacity(icon == .snapchat ? 0.92 : 1))
-                        .frame(width: 64, height: 64)
+                    Circle()
+                        .fill(accent.opacity(icon == .snapchat ? 0.92 : 0.24))
+                        .frame(width: 52, height: 52)
+                    Circle()
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .frame(width: 52, height: 52)
                     shareIcon(for: icon)
                 }
                 Text(label)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CoachiTheme.textPrimary)
+                    .foregroundStyle(Color.white.opacity(0.92))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            .frame(height: 102)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -1517,6 +1720,37 @@ private struct WorkoutShareDestinationsSheet: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(Color.white)
         }
+    }
+}
+
+private struct WorkoutModalCardBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: "73523E").opacity(0.16),
+                                Color(hex: "5B4769").opacity(0.18),
+                                Color.black.opacity(0.12)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(CoachiTheme.accent.opacity(0.28), lineWidth: 1)
+                    .padding(1)
+            )
+            .shadow(color: Color.black.opacity(0.22), radius: 26, y: 14)
     }
 }
 
