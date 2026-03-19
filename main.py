@@ -2672,6 +2672,98 @@ def _build_continuous_failsafe_response(
     }
 
 
+def _build_continuous_zone_tick_degraded_response(
+    *,
+    contract_version: str,
+    phase: str,
+    workout_mode: str,
+    coaching_style: str,
+    interval_template: str | None,
+    language: str,
+    reason: str,
+    trace_id: str,
+    breath_data: dict | None,
+    zone_tick: dict | None,
+    coach_text: str | None,
+    wait_seconds: int | None = None,
+) -> dict:
+    payload = _build_continuous_failsafe_response(
+        contract_version=contract_version,
+        phase=phase,
+        workout_mode=workout_mode,
+        coaching_style=coaching_style,
+        interval_template=interval_template,
+        reason=reason,
+        trace_id=trace_id,
+        language=language,
+    )
+
+    events = (zone_tick.get("events") if isinstance(zone_tick, dict) else []) or []
+    should_speak = bool(zone_tick and zone_tick.get("should_speak") and events)
+    fallback_text = coach_text or (
+        zone_tick.get("coach_text")
+        if isinstance(zone_tick, dict)
+        else None
+    ) or _get_silent_debug_text(reason, language)
+
+    payload.update(
+        {
+            "text": fallback_text,
+            "should_speak": should_speak,
+            "breath_analysis": breath_data or _default_breath_analysis(),
+            "audio_url": None,
+            "wait_seconds": int(wait_seconds or getattr(config, "MAX_COACHING_INTERVAL", 20)),
+            "reason": reason,
+            "decision_reason": reason,
+            "zone_tick_guard_silent_safe": False,
+            "events": events,
+            "brain_provider": "system",
+            "brain_source": "zone_event_degraded",
+            "brain_status": "fallback",
+            "latency_fast_fallback_used": True,
+            "tts_fallback_used": True,
+        }
+    )
+
+    if isinstance(zone_tick, dict):
+        payload.update(
+            {
+                "zone_status": zone_tick.get("zone_status"),
+                "zone_event": zone_tick.get("event_type"),
+                "zone_primary_event": zone_tick.get("primary_event_type"),
+                "zone_priority": zone_tick.get("priority"),
+                "zone_phrase_id": zone_tick.get("phrase_id"),
+                "sensor_mode": zone_tick.get("sensor_mode"),
+                "phase_id": zone_tick.get("phase_id"),
+                "zone_state": zone_tick.get("zone_state"),
+                "delta_to_band": zone_tick.get("delta_to_band"),
+                "heart_rate": zone_tick.get("heart_rate"),
+                "target_zone_label": zone_tick.get("target_zone_label"),
+                "target_hr_low": zone_tick.get("target_hr_low"),
+                "target_hr_high": zone_tick.get("target_hr_high"),
+                "target_source": zone_tick.get("target_source"),
+                "target_hr_enforced": zone_tick.get("target_hr_enforced"),
+                "remaining_phase_seconds": zone_tick.get("remaining_phase_seconds"),
+                "hr_quality": zone_tick.get("hr_quality"),
+                "hr_quality_reasons": zone_tick.get("hr_quality_reasons"),
+                "hr_delta_bpm": zone_tick.get("hr_delta_bpm"),
+                "zone_duration_seconds": zone_tick.get("zone_duration_seconds"),
+                "movement_score": zone_tick.get("movement_score"),
+                "cadence_spm": zone_tick.get("cadence_spm"),
+                "movement_source": zone_tick.get("movement_source"),
+                "movement_state": zone_tick.get("movement_state"),
+                "zone_score_confidence": zone_tick.get("score_confidence"),
+                "zone_time_in_target_pct": zone_tick.get("time_in_target_pct"),
+                "zone_overshoots": zone_tick.get("overshoots"),
+                "recovery_seconds": zone_tick.get("recovery_seconds"),
+                "recovery_avg_seconds": zone_tick.get("recovery_avg_seconds"),
+                "workout_context_summary": zone_tick.get("workout_context_summary"),
+            }
+        )
+
+    return payload
+
+
 def _log_decision_debug(
     *,
     session_id: str,
@@ -4201,9 +4293,69 @@ def coach_continuous():
             except Exception:
                 pass
 
+        fallback_form = request.form or {}
+        fallback_contract = normalize_continuous_contract(fallback_form, {})
+        zone_tick_local = locals().get("zone_tick")
+        zone_mode_active_local = bool(locals().get("zone_mode_active"))
+        if zone_mode_active_local and isinstance(zone_tick_local, dict):
+            degraded_reason = str(
+                locals().get("reason")
+                or zone_tick_local.get("reason")
+                or zone_tick_local.get("event_type")
+                or "zone_event_degraded"
+            )
+            degraded_payload = _build_continuous_zone_tick_degraded_response(
+                contract_version=fallback_contract.get("contract_version", "1"),
+                phase=(
+                    fallback_contract["workout_state"].phase
+                    if fallback_contract.get("workout_state") is not None
+                    else str(locals().get("phase") or "intense")
+                ),
+                workout_mode=(
+                    str(locals().get("workout_mode"))
+                    if locals().get("workout_mode")
+                    else (
+                        "interval"
+                        if (fallback_contract["workout_plan"].workout_type in {"interval", "intervals"})
+                        else "easy_run"
+                    )
+                ),
+                coaching_style=normalize_coaching_style(
+                    fallback_form.get(
+                        "coaching_style",
+                        str(locals().get("coaching_style") or getattr(config, "DEFAULT_COACHING_STYLE", "normal")),
+                    ),
+                    config,
+                ),
+                interval_template=normalize_interval_template(
+                    fallback_form.get(
+                        "interval_template",
+                        str(locals().get("interval_template") or getattr(config, "DEFAULT_INTERVAL_TEMPLATE", "4x4")),
+                    ),
+                    config,
+                ),
+                language=normalize_language_code(
+                    fallback_form.get(
+                        "language",
+                        str(locals().get("language") or getattr(config, "DEFAULT_LANGUAGE", "en")),
+                    )
+                ),
+                reason=degraded_reason,
+                trace_id=trace_id,
+                breath_data=locals().get("breath_data"),
+                zone_tick=zone_tick_local,
+                coach_text=locals().get("coach_text"),
+                wait_seconds=locals().get("wait_seconds"),
+            )
+            logger.error(
+                "ZONE_DEGRADED_200 trace_id=%s reason=%s event=%s",
+                trace_id,
+                degraded_reason,
+                zone_tick_local.get("event_type"),
+            )
+            return jsonify(degraded_payload), 200
+
         if bool(getattr(config, "CONTINUOUS_FAILSAFE_ENABLED", True)):
-            fallback_form = request.form or {}
-            fallback_contract = normalize_continuous_contract(fallback_form, {})
             fallback_payload = _build_continuous_failsafe_response(
                 contract_version=fallback_contract.get("contract_version", "1"),
                 phase=(

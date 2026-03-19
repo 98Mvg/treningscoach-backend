@@ -1443,3 +1443,22 @@ Updated: 2026-03-17
   - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
   - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
   - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+
+## Review — 2026-03-19 Free run continuous failsafe hardening
+
+- Kept the single existing free-run request path:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) still posts the same `/coach/continuous` request
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) still owns the response contract
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) still decides free-run `main_started`
+- Hardened [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) so once a valid `zone_tick` exists, later downstream exceptions degrade to an event-preserving response instead of collapsing all the way to `continuous_failsafe`
+- This specifically protects free-run first ticks when backend TTS/output work fails:
+  - `main_started` is preserved
+  - `events` and `zone_phrase_id` are preserved
+  - `audio_url` can fall back to `null`, allowing the iOS runtime to keep using the existing phrase-pack path
+- Added focused contract coverage in [test_zone_continuous_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_continuous_contract.py) for a forced-TTS-failure free-run first tick
+
+## Review — 2026-03-19 Export compliance plist alignment
+
+- Confirmed the main iPhone app target already sets `ITSAppUsesNonExemptEncryption = NO` in [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Info.plist)
+- Added the same explicit key to the watch app target in [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Info.plist) so export-compliance stays explicit across the shipped bundle
+- Kept the existing target/plist setup; no new config path or build setting indirection was introduced
