@@ -194,6 +194,20 @@ def test_app_store_webhook_env_overrides(monkeypatch):
     assert config.APP_STORE_SERVER_NOTIFICATIONS_VERIFY_SIGNATURE is False
 
 
+def test_runtime_session_storage_backend_env_override(monkeypatch):
+    monkeypatch.setenv("RUNTIME_SESSION_STORAGE_BACKEND", "memory")
+
+    importlib.reload(config)
+
+    assert config.RUNTIME_SESSION_STORAGE_BACKEND == "memory"
+
+    monkeypatch.setenv("RUNTIME_SESSION_STORAGE_BACKEND", "invalid")
+
+    importlib.reload(config)
+
+    assert config.RUNTIME_SESSION_STORAGE_BACKEND == "database"
+
+
 def test_security_env_overrides(monkeypatch):
     monkeypatch.setenv("JWT_ACCESS_TOKEN_MAX_DAYS", "5")
     monkeypatch.setenv("JWT_REFRESH_TOKEN_MAX_DAYS", "20")

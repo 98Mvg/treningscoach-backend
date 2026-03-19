@@ -36,6 +36,7 @@ Updated: 2026-03-17
 
 ## Session-Specific Lessons
 
+- 2026-03-19: If `SessionManager` is configured for database-backed runtime sessions, never assume the runtime table exists in production. Keep the intended DB path, but make missing-table detection explicit and fall back to the existing in-memory session map instead of letting `/coach/continuous` crash into `continuous_failsafe`.
 - 2026-03-19: When changing live workout cue wording, update all three phrase truth surfaces together: `phrase_review_v2.py`, `tts_phrase_catalog.py`, and `zone_event_motor.py` deterministic fallback text. If one lags, canonical phrase contracts fail even though event ids stay unchanged.
 - 2026-03-19: Phrase metadata saying `BOTH` is not enough. Always inspect the runtime gate in `zone_event_motor.py` too, or the engine can stay `FULL_HR`-only while the catalog/tests look correct.
 - 2026-03-19: Free run is not a separate backend workout type on the runtime path. Treat it as `easy_run` plus `plan_free_run`, and fix parity in the canonical easy-run branch instead of creating free-run-specific logic.
@@ -229,3 +230,4 @@ Updated: 2026-03-17
 - 2026-03-19: Tone buckets should live only in runtime selection, not in new phrase assets. For structure-driven motivation and fallback, keep a small internal `phase_family -> tone_bucket -> candidate_phrase_ids` map in `zone_event_motor.py` and reuse existing `interval.motivate.*`, `easy_run.motivate.*`, and `zone.silence.*` ids instead of creating new phrase families or MP3s.
 - 2026-03-19: In `/coach/continuous`, a resolved `zone_tick` should not be discarded by later TTS/output exceptions. Preserve the existing zone event contract and let iOS fall back to the phrase-pack path with `audio_url = null` instead of returning a full silent `continuous_failsafe`.
 - 2026-03-19: Export-compliance settings should be explicit on every shipped app bundle target. If `ITSAppUsesNonExemptEncryption = NO` is already set on the iPhone app, mirror it on the watch app target too so App Store Connect/Xcode export checks do not depend on implicit inheritance.
+- 2026-03-19: If `/coach/continuous` already returns a `debug_trace_id` on failsafe payloads, thread that exact field through the existing iOS response model and log it directly on device. Do not invent a second error-reporting path when the real gap is just dropped response metadata.

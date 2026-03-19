@@ -166,13 +166,71 @@ class SessionManager:
         normalized_backend = str(storage_backend or "memory").strip().lower()
         self.storage_backend = normalized_backend if normalized_backend in {"memory", "database"} else "memory"
         self.app = app
+        self._database_storage_disabled_reason: Optional[str] = None
+        self._database_runtime_table_verified = False
 
     @staticmethod
     def _utcnow_naive() -> datetime:
         return datetime.now(timezone.utc).replace(tzinfo=None)
 
     def _uses_database_storage(self) -> bool:
-        return self.storage_backend == "database"
+        return self.storage_backend == "database" and self._database_storage_disabled_reason is None
+
+    @staticmethod
+    def _missing_runtime_table_reason() -> str:
+        return "runtime_session_states_missing"
+
+    @staticmethod
+    def _is_missing_runtime_table_error(error: Exception) -> bool:
+        normalized = str(error or "").strip().lower()
+        return (
+            "runtime_session_states" in normalized
+            and any(
+                marker in normalized
+                for marker in (
+                    "does not exist",
+                    "undefinedtable",
+                    "no such table",
+                    "unknown table",
+                )
+            )
+        )
+
+    def _disable_database_storage(self, reason: str, error: Optional[Exception] = None) -> None:
+        if self._database_storage_disabled_reason is not None:
+            return
+        self._database_storage_disabled_reason = reason
+        details = ""
+        if error is not None:
+            details = f" ({type(error).__name__}: {error})"
+        print(
+            f"⚠️ Runtime session DB storage disabled: {reason}. Falling back to in-memory session state{details}"
+        )
+
+    def _database_runtime_table_ready(self) -> bool:
+        if not self._uses_database_storage():
+            return False
+
+        bind = self._database_bind()
+        if bind is None:
+            return False
+
+        if self._database_runtime_table_verified:
+            return True
+
+        from sqlalchemy import inspect
+
+        try:
+            if inspect(bind).has_table("runtime_session_states"):
+                self._database_runtime_table_verified = True
+                return True
+            self._disable_database_storage(self._missing_runtime_table_reason())
+            return False
+        except Exception as exc:
+            if self._is_missing_runtime_table_error(exc):
+                self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
+                return False
+            return False
 
     def _database_bind(self):
         if not self._uses_database_storage():
@@ -221,7 +279,7 @@ class SessionManager:
         return value
 
     def _persist_session_record(self, session_id: str, session: Dict) -> None:
-        if not self._uses_database_storage():
+        if not self._database_runtime_table_ready():
             return
 
         from database import RuntimeSessionState
@@ -266,41 +324,54 @@ class SessionManager:
             with bind.begin() as connection:
                 connection.execute(stmt)
             return
-        except Exception:
+        except Exception as exc:
+            if self._is_missing_runtime_table_error(exc):
+                self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
+                return
             pass
 
-        with bind.begin() as connection:
-            updated = connection.execute(
-                table.update()
-                .where(table.c.session_id == normalized_session_id)
-                .values(
-                    user_id=user_id,
-                    payload_json=payload_json,
-                    updated_at=now,
-                )
-            ).rowcount
-            if not updated:
-                connection.execute(table.insert().values(**values))
+        try:
+            with bind.begin() as connection:
+                updated = connection.execute(
+                    table.update()
+                    .where(table.c.session_id == normalized_session_id)
+                    .values(
+                        user_id=user_id,
+                        payload_json=payload_json,
+                        updated_at=now,
+                    )
+                ).rowcount
+                if not updated:
+                    connection.execute(table.insert().values(**values))
+        except Exception as exc:
+            if self._is_missing_runtime_table_error(exc):
+                self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
 
     def _load_session_record(self, session_id: str) -> Optional[Dict]:
-        if not self._uses_database_storage():
-            return None
-
-        from database import RuntimeSessionState
-        from sqlalchemy import select
-
         normalized_session_id = self._normalize_session_id(session_id)
         if not normalized_session_id:
             return None
+
+        if not self._database_runtime_table_ready():
+            return self.sessions.get(normalized_session_id)
+
+        from database import RuntimeSessionState
+        from sqlalchemy import select
 
         table = RuntimeSessionState.__table__
         bind = self._database_bind()
         if bind is None:
             return self.sessions.get(normalized_session_id)
-        with bind.connect() as connection:
-            row = connection.execute(
-                select(table.c.payload_json).where(table.c.session_id == normalized_session_id)
-            ).first()
+
+        try:
+            with bind.connect() as connection:
+                row = connection.execute(
+                    select(table.c.payload_json).where(table.c.session_id == normalized_session_id)
+                ).first()
+        except Exception as exc:
+            if self._is_missing_runtime_table_error(exc):
+                self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
+            return self.sessions.get(normalized_session_id)
         if row is None:
             self.sessions.pop(normalized_session_id, None)
             return None
@@ -457,7 +528,7 @@ class SessionManager:
         if not normalized_session_id:
             return
         self.sessions.pop(normalized_session_id, None)
-        if self._uses_database_storage():
+        if self._database_runtime_table_ready():
             from database import RuntimeSessionState
 
             table = RuntimeSessionState.__table__
@@ -465,10 +536,14 @@ class SessionManager:
             if bind is None:
                 print(f"🗑️  Deleted session: {normalized_session_id}")
                 return
-            with bind.begin() as connection:
-                connection.execute(
-                    table.delete().where(table.c.session_id == normalized_session_id)
-                )
+            try:
+                with bind.begin() as connection:
+                    connection.execute(
+                        table.delete().where(table.c.session_id == normalized_session_id)
+                    )
+            except Exception as exc:
+                if self._is_missing_runtime_table_error(exc):
+                    self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
         print(f"🗑️  Deleted session: {normalized_session_id}")
 
     def list_sessions(self, user_id: Optional[str] = None) -> List[Dict]:
@@ -481,7 +556,7 @@ class SessionManager:
         Returns:
             List of session summaries
         """
-        if not self._uses_database_storage():
+        if not self._database_runtime_table_ready():
             sessions = []
             for session_id, session in self.sessions.items():
                 if user_id and session["user_id"] != user_id:
@@ -520,8 +595,25 @@ class SessionManager:
                     "updated_at": session["updated_at"]
                 })
             return sessions
-        with bind.connect() as connection:
-            session_ids = [row[0] for row in connection.execute(stmt)]
+        try:
+            with bind.connect() as connection:
+                session_ids = [row[0] for row in connection.execute(stmt)]
+        except Exception as exc:
+            if self._is_missing_runtime_table_error(exc):
+                self._disable_database_storage(self._missing_runtime_table_reason(), error=exc)
+            sessions = []
+            for session_id, session in self.sessions.items():
+                if user_id and session["user_id"] != user_id:
+                    continue
+                sessions.append({
+                    "session_id": session_id,
+                    "user_id": session["user_id"],
+                    "persona": session["persona"],
+                    "message_count": len(session["messages"]),
+                    "created_at": session["created_at"],
+                    "updated_at": session["updated_at"]
+                })
+            return sessions
 
         sessions = []
         for session_id in session_ids:

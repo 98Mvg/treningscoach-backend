@@ -226,7 +226,10 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Initialize Brain Router and Managers
 brain_router = BrainRouter()
-session_manager = SessionManager(storage_backend="database", app=app)
+session_manager = SessionManager(
+    storage_backend=getattr(config, "RUNTIME_SESSION_STORAGE_BACKEND", "database"),
+    app=app,
+)
 user_memory = UserMemory()  # STEP 5: Initialize user memory
 voice_intelligence = VoiceIntelligence()  # STEP 6: Initialize voice intelligence
 breath_analyzer = _LazyBreathAnalyzer(

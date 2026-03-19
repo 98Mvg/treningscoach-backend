@@ -3482,7 +3482,12 @@ class WorkoutViewModel: ObservableObject {
 
                 let eventCount = response.events?.count ?? 0
                 let hasEventsField = response.events != nil
-                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), has_events_field=\(hasEventsField), events=\(eventCount), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
+                print("📊 Backend response: should_speak=\(response.shouldSpeak), has_audio=\(response.audioURL != nil), has_events_field=\(hasEventsField), events=\(eventCount), text_len=\(response.text.count), wait=\(response.waitSeconds)s, reason=\(response.reason ?? "none"), trace_id=\(response.debugTraceID ?? "none"), brain=\(response.brainProvider ?? "unknown")/\(response.brainSource ?? "unknown")/\(response.brainStatus ?? "unknown")")
+                if let traceID = response.debugTraceID,
+                   !traceID.isEmpty,
+                   response.reason == "continuous_failsafe" || response.brainSource == "failsafe" {
+                    print("🚨 BACKEND_FAILSAFE trace_id=\(traceID) reason=\(response.reason ?? "none")")
+                }
 
                 // 4. Event-first speech routing:
                 // - If events field exists (even empty), event scheduler decides.

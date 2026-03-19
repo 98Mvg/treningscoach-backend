@@ -2,10 +2,16 @@ import io
 import os
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MODELS = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "Models" / "Models.swift"
+WORKOUT_VIEW_MODEL = REPO_ROOT / "TreningsCoach" / "TreningsCoach" / "ViewModels" / "WorkoutViewModel.swift"
 
 
 def _mock_breath_analysis(_path: str):
@@ -240,6 +246,16 @@ def test_continuous_tts_failure_preserves_free_run_zone_event(monkeypatch):
     assert payload["zone_phrase_id"]
     assert isinstance(payload.get("debug_trace_id"), str)
     assert payload["debug_trace_id"]
+
+
+def test_ios_continuous_response_decodes_and_logs_backend_trace_id() -> None:
+    model_text = MODELS.read_text(encoding="utf-8")
+    view_model_text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+
+    assert "let debugTraceID: String?" in model_text
+    assert 'case debugTraceID = "debug_trace_id"' in model_text
+    assert 'trace_id=\\(response.debugTraceID ?? "none")' in view_model_text
+    assert '🚨 BACKEND_FAILSAFE trace_id=\\(traceID) reason=\\(response.reason ?? "none")' in view_model_text
 
 
 def test_continuous_zone_contract_exposes_zone_fields(monkeypatch, tmp_path):

@@ -29,6 +29,7 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-19: Fixed the `/coach/continuous` production-crash path on the existing `SessionManager` runtime by making runtime-session storage configurable via `RUNTIME_SESSION_STORAGE_BACKEND` and automatically falling back to the existing in-memory session map when the `runtime_session_states` table is missing, instead of letting DB-backed session reads/writes crash the coaching tick into `continuous_failsafe`.
 - 2026-03-19: Kept the single existing `NO_HR` hierarchy in `zone_event_motor.py` and refined breath into a high-confidence modifier only: it now tightens anti-silence timing only when confidence is genuinely high, and after the first structure cue it refines runtime phrase selection on the same path instead of introducing a parallel motivation path.
 - 2026-03-19: Kept the single existing `zone_event_motor.py` runtime path and made staged motivation truly `BOTH` for intervals and easy/free run by letting the same motivation engine unlock in structure-driven mode after the first structure cue in the current segment, instead of keeping sustained motivation `FULL_HR`-only.
 - 2026-03-19: Added focused runtime coverage proving free run stays on the easy-run path with `plan_free_run` as the only no-warmup exception, and proving no-HR interval/easy-run workouts can now escalate from structure cues into the staged motivation families on the same path.
@@ -1462,3 +1463,12 @@ Updated: 2026-03-17
 - Confirmed the main iPhone app target already sets `ITSAppUsesNonExemptEncryption = NO` in [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Info.plist)
 - Added the same explicit key to the watch app target in [Info.plist](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoachWatchApp/Info.plist) so export-compliance stays explicit across the shipped bundle
 - Kept the existing target/plist setup; no new config path or build setting indirection was introduced
+
+## Review — 2026-03-19 Continuous failsafe trace-id surfacing on iOS
+
+- Kept the single existing `/coach/continuous` response contract and iOS decode path
+- Added `debug_trace_id` decoding to [Models.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Models/Models.swift) so the device can see the backend trace already returned by [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py)
+- Updated [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift) to:
+  - print `trace_id=` in the standard backend response log line
+  - print an explicit `BACKEND_FAILSAFE trace_id=...` line when `continuous_failsafe` / `failsafe` is returned
+- Added focused contract coverage in [test_zone_continuous_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_continuous_contract.py) for the Swift decode key and log path

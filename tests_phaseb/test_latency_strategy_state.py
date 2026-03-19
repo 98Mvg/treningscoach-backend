@@ -1,8 +1,10 @@
 import os
 import sys
+from flask import Flask
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import database
 import main
 from session_manager import SessionManager
 
@@ -46,3 +48,19 @@ def test_database_backed_session_manager_round_trips_sessions_across_instances()
             assert reloaded["metadata"]["recent_zone_events"][0]["text"] == "Smooth and easy."
         finally:
             writer.delete_session(session_id)
+
+
+def test_database_backed_session_manager_falls_back_to_memory_when_runtime_table_missing(tmp_path):
+    app = Flask("runtime-session-fallback")
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{(tmp_path / 'missing_runtime_sessions.db').as_posix()}"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    database.db.init_app(app)
+
+    with app.app_context():
+        manager = SessionManager(storage_backend="database", app=app)
+        session_id = manager.create_session(user_id="missing_table_user", persona="personal_trainer")
+        manager.init_workout_state(session_id, phase="intense", training_level="intermediate")
+
+        assert manager._database_storage_disabled_reason == "runtime_session_states_missing"
+        assert manager.session_exists(session_id) is True
+        assert manager.get_workout_state(session_id)["current_phase"] == "intense"

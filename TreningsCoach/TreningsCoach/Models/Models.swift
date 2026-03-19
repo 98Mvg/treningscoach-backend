@@ -268,6 +268,7 @@ struct ContinuousCoachResponse: Codable {
     let contractVersion: String?
     let text: String
     let shouldSpeak: Bool
+    let debugTraceID: String?
     let breathAnalysis: BreathAnalysis
     let audioURL: String?
     let waitSeconds: Double
@@ -326,6 +327,7 @@ struct ContinuousCoachResponse: Codable {
         case contractVersion = "contract_version"
         case text
         case shouldSpeak = "should_speak"
+        case debugTraceID = "debug_trace_id"
         case breathAnalysis = "breath_analysis"
         case audioURL = "audio_url"
         case waitSeconds = "wait_seconds"

@@ -211,6 +211,12 @@ AUDIO_SIGNATURE_BYPASS_FOR_TESTS = _env_bool("AUDIO_SIGNATURE_BYPASS_FOR_TESTS",
 # Database-backed API rate limits (fixed windows, shared across workers).
 RATE_LIMIT_ENABLED = _env_bool("RATE_LIMIT_ENABLED", True)
 RATE_LIMIT_STORAGE_BACKEND = (os.getenv("RATE_LIMIT_STORAGE_BACKEND", "database") or "database").strip().lower()
+_raw_runtime_session_storage_backend = (
+    os.getenv("RUNTIME_SESSION_STORAGE_BACKEND", "database") or "database"
+).strip().lower()
+RUNTIME_SESSION_STORAGE_BACKEND = (
+    _raw_runtime_session_storage_backend if _raw_runtime_session_storage_backend in {"memory", "database"} else "database"
+)
 RATE_LIMIT_RETENTION_SECONDS = _env_int("RATE_LIMIT_RETENTION_SECONDS", 7 * 24 * 3600)
 API_RATE_LIMIT_PER_HOUR = _env_int("API_RATE_LIMIT_PER_HOUR", 100)
 AUTH_RATE_LIMIT_PER_HOUR = _env_int("AUTH_RATE_LIMIT_PER_HOUR", 40)
