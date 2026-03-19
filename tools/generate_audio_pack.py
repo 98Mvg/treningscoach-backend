@@ -33,12 +33,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import config  # noqa: E402
 from coaching_engine import validate_coaching_text  # noqa: E402
 from elevenlabs_tts import ElevenLabsTTS  # noqa: E402
-from phrase_review_v2 import build_runtime_pack_rows  # noqa: E402
+from phrase_review_v2 import build_runtime_pack_rows, get_workout_phrase_entry  # noqa: E402
 from tts_phrase_catalog import (  # noqa: E402
     expand_dynamic_templates,
     get_all_static_phrases,
     get_core_phrases,
-    get_phrase_by_id,
 )
 from workout_cue_catalog import validate_active_workout_cue_phrase  # noqa: E402
 
@@ -215,7 +214,7 @@ def _build_v2_phrase_list() -> list[PhraseItem]:
     seen: set[tuple[str, str]] = set()
 
     for row in build_runtime_pack_rows():
-        catalog_entry = get_phrase_by_id(row.phrase_id)
+        catalog_entry = get_workout_phrase_entry(row.phrase_id)
         source_persona = str(catalog_entry.get("persona", "personal_trainer")) if catalog_entry else "personal_trainer"
         priority = str(catalog_entry.get("priority", "core")) if catalog_entry else "core"
         persona = _persona_for_pack(row.phrase_id, source_persona)

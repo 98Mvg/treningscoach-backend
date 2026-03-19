@@ -1208,20 +1208,21 @@ def test_interval_warmup_end_emits_countdown_sequence():
     events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" in events_30
 
-    tick_15 = evaluate_zone_tick(
+    tick_10 = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
             phase="intense",
-            elapsed_seconds=585,
+            elapsed_seconds=590,
             heart_rate=145,
             hr_quality="good",
             watch_connected=True,
             watch_status="connected",
         )
     )
-    events_15 = [item.get("event_type") for item in tick_15.get("events", []) if isinstance(item, dict)]
-    assert "interval_countdown_15" in events_15
+    events_10 = [item.get("event_type") for item in tick_10.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_10" in events_10
+    assert tick_10["phrase_id"] == "zone.countdown.warmup_recovery.10.1"
 
     tick_5 = evaluate_zone_tick(
         **_base_tick(
@@ -1252,6 +1253,7 @@ def test_interval_warmup_end_emits_countdown_sequence():
     )
     events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_start" in events_start
+    assert tick_start["phrase_id"] == "zone.countdown.warmup_recovery.start.1"
 
 
 def test_easy_run_warmup_end_emits_countdown_sequence():
@@ -1273,21 +1275,22 @@ def test_easy_run_warmup_end_emits_countdown_sequence():
     events_30 = [item.get("event_type") for item in tick_30.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" in events_30
 
-    tick_15 = evaluate_zone_tick(
+    tick_10 = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="easy_run",
             phase="warmup",
             warmup_seconds=120,
-            elapsed_seconds=105,
+            elapsed_seconds=110,
             heart_rate=136,
             hr_quality="good",
             watch_connected=True,
             watch_status="connected",
         )
     )
-    events_15 = [item.get("event_type") for item in tick_15.get("events", []) if isinstance(item, dict)]
-    assert "interval_countdown_15" in events_15
+    events_10 = [item.get("event_type") for item in tick_10.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_10" in events_10
+    assert tick_10["phrase_id"] == "zone.countdown.warmup_recovery.10.1"
 
     tick_5 = evaluate_zone_tick(
         **_base_tick(
@@ -1320,6 +1323,7 @@ def test_easy_run_warmup_end_emits_countdown_sequence():
     )
     events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_start" in events_start
+    assert tick_start["phrase_id"] == "zone.countdown.warmup_recovery.start.1"
 
 
 def test_easy_run_warmup_countdown_handles_coarse_tick_budget():
@@ -1341,16 +1345,16 @@ def test_easy_run_warmup_countdown_handles_coarse_tick_budget():
     )
     first_events = [item.get("event_type") for item in first.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" not in first_events
-    assert "interval_countdown_15" not in first_events
+    assert "interval_countdown_10" not in first_events
 
-    # Coarse jump to remaining 14s should still emit both 30 and 15 once.
+    # Coarse jump to remaining 10s should still emit both 30 and 10 once.
     second = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="easy_run",
             phase="warmup",
             warmup_seconds=120,
-            elapsed_seconds=106,
+            elapsed_seconds=110,
             heart_rate=136,
             hr_quality="good",
             watch_connected=True,
@@ -1359,9 +1363,9 @@ def test_easy_run_warmup_countdown_handles_coarse_tick_budget():
     )
     second_events = [item.get("event_type") for item in second.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" in second_events
-    assert "interval_countdown_15" in second_events
+    assert "interval_countdown_10" in second_events
     assert second_events.count("interval_countdown_30") == 1
-    assert second_events.count("interval_countdown_15") == 1
+    assert second_events.count("interval_countdown_10") == 1
 
     third = evaluate_zone_tick(
         **_base_tick(
@@ -1527,3 +1531,12 @@ def test_countdown_fired_keys_are_namespaced_by_phase_kind():
     )
     events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_30" in events
+
+
+def test_interval_recovery_countdown_uses_phase_specific_phrase_ids():
+    phrase_id = _pick_runtime_phrase_id(
+        state={},
+        event_type="interval_countdown_10",
+        phase="recovery",
+    )
+    assert phrase_id == "zone.countdown.warmup_recovery.10.1"

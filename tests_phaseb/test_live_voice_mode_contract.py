@@ -73,6 +73,13 @@ def test_summary_screen_exposes_live_voice_cta_with_tracker_and_paywall_gating()
     assert "await liveCoachVM.service.playFreePreviewLockClipIfAvailable()" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
     assert 'Text(isNorwegian ? "Snakk med Coach" : "Talk to Coach")' in text
+    assert 'event: "voice_cta_tapped"' in text
+    assert '"entry_point"] = "workout_summary_sheet"' in text
+    assert '"live_voice_available"] = liveVoiceIsAvailable' in text
+    assert '"is_premium"] = hasPremiumAccess' in text
+    assert '"remaining_today"] = remainingToday' in text
+    assert "BackendAPIService.shared.wakeBackend()" in text
+    assert "if isPresented {" in text
     assert '"Stopp" : "Stop"' in text
     assert '"Start" : "Start"' in text
     assert "presentationMode: .compactComposer" in text
@@ -99,13 +106,20 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     text = LIVE_VOICE_VIEW.read_text(encoding="utf-8")
     assert "final class LiveCoachConversationViewModel: ObservableObject" in text
     assert "struct LiveCoachConversationView: View" in text
-    assert "service.$connectionState" in text
+    assert "service.$didReceiveFirstAssistantResponse" in text
     assert "hasRecordedSuccessfulStart" in text
     assert "liveVoiceTracker.recordSession(isPremium: self.isPremium)" in text
+    assert "guard !self.hasRecordedSuccessfulStart else { return }" in text
     assert "service.$turnCount" not in text
     assert "freeTurnLimit" not in text
     assert "BackendAPIService.shared.wakeBackend()" in text
-    assert '"Snakk med Coach" : "Talk to Coach"' in text
+    assert "ConversationActivityState" in text
+    assert "service.isSpeaking" in text
+    assert "service.micState == .capturing" in text
+    assert "ScrollViewReader" in text
+    assert '.id(transcriptBottomAnchor)' in text
+    assert "scrollTranscriptToBottom" in text
+    assert "viewModel.orbLabel" in text
     assert 'Button(viewModel.languageCode == "no" ? "Avslutt samtalen" : "End Conversation")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Prov igjen" : "Try Again")' in text
     assert 'Button(viewModel.languageCode == "no" ? "Skriv i stedet" : "Type instead")' in text
@@ -121,7 +135,7 @@ def test_live_voice_view_has_retry_disconnect_and_text_fallback() -> None:
     assert "dismiss()" in text
     assert "private var hasPremiumAccess: Bool" in text
     assert "authManager.currentUser?.subscriptionTier.isPremium == true" in text
-    assert "if let failureMessage = viewModel.failureMessage, !failureMessage.isEmpty {" in text
+    assert "if let failureMessage = viewModel.failureMessage, viewModel.canUseTextFallback {" in text
 
 
 def test_live_voice_view_generates_shareable_insight_card_after_conversation() -> None:
@@ -145,6 +159,7 @@ def test_live_voice_view_generates_shareable_insight_card_after_conversation() -
 def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     text = VOICE_SERVICE.read_text(encoding="utf-8")
     assert "final class XAIRealtimeVoiceService: NSObject, ObservableObject" in text
+    assert "private final class OutboundAudioSender" in text
     assert "URLSession.shared.webSocketTask(with: url, protocols: protocols)" in text
     assert 'try await socket.send(.string(rawJSON))' in text
     assert 'try await sendInitialAssistantKickoff()' in text
@@ -152,8 +167,12 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "standardFormatWithSampleRate: 24_000" in text
     assert 'let payload = "{\\"type\\":\\"input_audio_buffer.append\\",\\"audio\\":\\"\\(encoded)\\"}"' in text
     assert 'event: "voice_session_started"' in text
+    assert 'event: "voice_first_assistant_response"' in text
+    assert 'event: "voice_first_assistant_audio"' in text
     assert 'event: "voice_session_failed"' in text
     assert 'event: "voice_session_ended"' in text
+    assert "@Published private(set) var didReceiveFirstAssistantResponse: Bool = false" in text
+    assert "@Published private(set) var didReceiveFirstAssistantAudio: Bool = false" in text
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
     assert "let limit = max(15, maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
@@ -166,11 +185,13 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "apiService.wakeBackend()" in text
     assert "connectionState = .connecting" in text
     assert "Live voice is taking longer than expected to connect" in text
-    assert "Follow the active session instructions exactly." in text
-    assert "Do not mention workout history, earlier activity, or specific exercises." in text
-    assert "keep the opening generic and running-specific." in text
-    assert "Mention one concrete observation from the workout if available" not in text
-    assert "Task {" in text
+    assert "Deliver the required opening recap now. Follow the active session instructions exactly." in text
+    assert "outboundAudioSender.updateSocket(socket)" in text
+    assert "outboundAudioSender.enqueue(payload)" in text
+    assert "pendingPayloads.count >= self.maxDepth" in text
+    assert "pendingPayloads.removeFirst()" in text
+    assert 'socket.send(.string(payload)) { error in' in text
+    assert "await self?.sendAudioAppend(payload)" not in text
 
 
 def test_live_voice_tracker_queries_are_side_effect_free_for_summary_reads() -> None:
@@ -188,6 +209,9 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     text = XAI_VOICE_HELPER.read_text(encoding="utf-8")
     assert "Use the just-finished workout summary first." in text
     assert "sanitize_workout_history_context" in text
+    assert "def _opening_recap_brief(" in text
+    assert "def _opening_metric_candidates(" in text
+    assert "def _opening_insight_cue(" in text
     assert "You may also reference the workout history overview for pattern, progress, and consistency questions." in text
     assert "Do not claim to remember prior conversations" in text
     assert "sanitize_post_workout_summary_context" in text
@@ -200,6 +224,10 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     assert "treat it as a general running workout" in text
     assert "Do not use workout history in the opening message." in text
     assert "Do not repeat the raw generic label 'Workout' or 'Standard'." in text
+    assert "YOUR FIRST RESPONSE is a special post-workout recap and must follow these rules exactly:" in text
+    assert "Opening recap brief (use this for the first response only):" in text
+    assert "Mention one or two real stats from the opening recap brief below." in text
+    assert "End with exactly one open question." in text
     assert "general workout session" not in text
     assert "conversation_history" not in text
     assert "session_history" not in text

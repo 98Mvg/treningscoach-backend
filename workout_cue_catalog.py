@@ -26,10 +26,16 @@ MOTIVATION_STAGE_LABELS = {
 }
 
 ACTIVE_WORKOUT_CUE_WORD_LIMITS = {
-    "instruction": 6,
-    "context": 8,
+    "instruction": 8,
+    "context": 11,
     "progress": 8,
     "motivation": 6,
+}
+
+ACTIVE_WORKOUT_CUE_WORD_LIMIT_OVERRIDES = {
+    "zone.hr_poor_timing.1": 11,
+    "zone.structure.work.1": 7,
+    "zone.structure.recovery.1": 8,
 }
 
 _MOTIVATION_STAGE_PATTERN = re.compile(r"^(?:interval|easy_run)\.motivate\.s([1-4])\.\d+$")
@@ -128,6 +134,7 @@ def get_event_catalog(event_type: str) -> Optional[str]:
 
     if normalized in {
         "interval_countdown_30",
+        "interval_countdown_10",
         "interval_countdown_15",
         "interval_countdown_5",
         "interval_countdown_start",
@@ -230,7 +237,10 @@ def validate_active_workout_cue_phrase(phrase_id: str, text: str) -> tuple[bool,
 
     words = count_words(text)
     sentences = count_sentences(text)
-    limit = ACTIVE_WORKOUT_CUE_WORD_LIMITS[catalog]
+    limit = ACTIVE_WORKOUT_CUE_WORD_LIMIT_OVERRIDES.get(
+        phrase_id,
+        ACTIVE_WORKOUT_CUE_WORD_LIMITS[catalog],
+    )
 
     if words > limit:
         return False, f"catalog={catalog} words={words} limit={limit}"

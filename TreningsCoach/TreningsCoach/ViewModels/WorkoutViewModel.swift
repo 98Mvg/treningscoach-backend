@@ -1907,6 +1907,8 @@ class WorkoutViewModel: ObservableObject {
             return 98
         case "interval_countdown_5":
             return 95
+        case "interval_countdown_10":
+            return 94
         case "interval_countdown_15":
             return 94
         case "interval_countdown_30":
@@ -1939,6 +1941,39 @@ class WorkoutViewModel: ObservableObject {
             return 54
         default:
             return 0
+        }
+    }
+
+    private func countdownUtteranceID(for eventType: String, phase: String) -> String? {
+        let normalizedPhase = phase.lowercased()
+        if normalizedPhase == "warmup" || normalizedPhase == "recovery" {
+            switch eventType {
+            case "interval_countdown_30":
+                return "zone.countdown.warmup_recovery.30.1"
+            case "interval_countdown_10":
+                return "zone.countdown.warmup_recovery.10.1"
+            case "interval_countdown_5":
+                return "zone.countdown.warmup_recovery.5.1"
+            case "interval_countdown_start":
+                return "zone.countdown.warmup_recovery.start.1"
+            default:
+                break
+            }
+        }
+
+        switch eventType {
+        case "interval_countdown_30":
+            return "zone.countdown.30"
+        case "interval_countdown_10":
+            return nil
+        case "interval_countdown_15":
+            return "zone.countdown.15"
+        case "interval_countdown_5":
+            return "zone.countdown.5"
+        case "interval_countdown_start":
+            return "zone.countdown.start"
+        default:
+            return nil
         }
     }
 
@@ -1981,14 +2016,8 @@ class WorkoutViewModel: ObservableObject {
             return "zone.structure.steady.1"
         case "structure_instruction_finish":
             return "zone.structure.finish.1"
-        case "interval_countdown_30":
-            return "zone.countdown.30"
-        case "interval_countdown_15":
-            return "zone.countdown.15"
-        case "interval_countdown_5":
-            return "zone.countdown.5"
-        case "interval_countdown_start":
-            return "zone.countdown.start"
+        case "interval_countdown_30", "interval_countdown_10", "interval_countdown_15", "interval_countdown_5", "interval_countdown_start":
+            return countdownUtteranceID(for: eventType, phase: phase)
         case "interval_countdown_halfway":
             return "zone.countdown.halfway.dynamic"
         case "interval_countdown_session_halfway":

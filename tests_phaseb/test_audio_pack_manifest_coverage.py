@@ -49,6 +49,7 @@ def _zone_event_phrase_ids() -> set[str]:
         "no_sensors_notice",
         "watch_restored_notice",
         "interval_countdown_30",
+        "interval_countdown_10",
         "interval_countdown_15",
         "interval_countdown_5",
         "interval_countdown_start",
@@ -88,6 +89,10 @@ def test_zone_event_phrase_ids_exist_in_active_manifest():
         "zone.countdown.15",
         "zone.countdown.5",
         "zone.countdown.start",
+        "zone.countdown.warmup_recovery.30.1",
+        "zone.countdown.warmup_recovery.10.1",
+        "zone.countdown.warmup_recovery.5.1",
+        "zone.countdown.warmup_recovery.start.1",
         "zone.hr_poor_enter.1",
         "zone.hr_poor_exit.1",
     })

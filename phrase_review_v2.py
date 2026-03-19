@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from tts_phrase_catalog import PHRASE_CATALOG
 from workout_cue_catalog import ACTIVE_WORKOUT_CUE_WORD_LIMITS, count_sentences, count_words
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -128,51 +127,55 @@ ACTIVE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("instruction", "zone.silence.work.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Hold the rhythm.", "Hold rytmen.", "active", "low-urgency hold guidance"),
     ReviewSeed("instruction", "zone.silence.rest.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Relax your shoulders.", "Senk skuldrene.", "active", "low-urgency hold guidance"),
     ReviewSeed("instruction", "zone.silence.default.1", "instruction", "zone.silence", "max_silence_hold", "BOTH", "Find your pace.", "Finn rytmen.", "active", "low-urgency hold guidance"),
-    ReviewSeed("instruction", "zone.structure.work.1", "instruction", "zone.structure.work", "interval_start", "NO_HR", "Pick it up now.", "Kjør på nå.", "active", "primary no-HR work cue"),
-    ReviewSeed("instruction", "zone.structure.recovery.1", "instruction", "zone.structure.recovery", "recovery_start", "NO_HR", "Ease back and recover.", "Ro ned og hent deg inn.", "active", "primary no-HR recovery cue"),
-    ReviewSeed("instruction", "zone.structure.steady.1", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Settle into the pace.", "Finn rytmen.", "active", "primary no-HR steady cue"),
+    ReviewSeed("instruction", "zone.structure.work.1", "instruction", "zone.structure.work", "interval_start", "NO_HR", "Interval starts now. Bring up the pace.", "Drag starter nå. Øk farten.", "active", "primary no-HR work cue"),
+    ReviewSeed("instruction", "zone.structure.recovery.1", "instruction", "zone.structure.recovery", "recovery_start", "NO_HR", "Recovery now. Ease off and reset.", "Pause nå. Ro ned og hent deg inn.", "active", "primary no-HR recovery cue"),
+    ReviewSeed("instruction", "zone.structure.steady.1", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Easy pace now. Keep it steady.", "Rolig tempo nå. Hold det jevnt.", "active", "primary no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.2", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Stay with the rhythm.", "Bli i rytmen.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.3", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Stay smooth and relaxed.", "Rolig og avslappet.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.4", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Control the effort here.", "Kontroll på innsatsen.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.5", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Keep the pace steady.", "Hold tempoet jevnt.", "active", "no-HR steady cue"),
     ReviewSeed("instruction", "zone.structure.steady.6", "instruction", "zone.structure.steady", "steady_run", "NO_HR", "Hold the phase.", "Hold det her.", "active", "no-HR steady cue"),
-    ReviewSeed("instruction", "zone.structure.finish.1", "instruction", "zone.structure.finish", "final_effort", "NO_HR", "Final push now!", "Trykk til nå!", "active", "primary no-HR finish cue"),
-    ReviewSeed("context", "zone.phase.warmup.1", "context", "zone.phase.warmup", "warmup", "BOTH", "Warmup started", "Oppvarming startet", "active", "shared warmup context"),
-    ReviewSeed("context", "zone.main_started.1", "context", "zone.main_started", "main_started", "BOTH", "Main set now.", "Nå er du i hoveddelen.", "active", "shared main-set context"),
+    ReviewSeed("instruction", "zone.structure.finish.1", "instruction", "zone.structure.finish", "final_effort", "NO_HR", "Final push now. Finish strong.", "Siste drag nå. Avslutt sterkt.", "active", "primary no-HR finish cue"),
+    ReviewSeed("context", "zone.phase.warmup.1", "context", "zone.phase.warmup", "warmup", "BOTH", "Warmup starts now.", "Oppvarming starter nå.", "active", "shared warmup context"),
+    ReviewSeed("context", "zone.main_started.1", "context", "zone.main_started", "main_started", "BOTH", "Main set starts now.", "Hoveddelen starter nå.", "active", "shared main-set context"),
     ReviewSeed("context", "zone.main_started.2", "context", "zone.main_started", "main_started", "BOTH", "Workout starts now", "Treningen starter nå.", "active", "shared main-set context"),
-    ReviewSeed("context", "zone.phase.work.default.1", "context", "zone.phase.work", "phase_change_work", "BOTH", "Work starts now.", "Nå begynner vi.", "active", "shared work transition"),
+    ReviewSeed("context", "zone.phase.work.default.1", "context", "zone.phase.work", "phase_change_work", "BOTH", "Interval starts now. Bring up the pace.", "Drag starter nå. Øk farten.", "active", "shared work transition"),
     ReviewSeed("motivation", "zone.phase.work.motivational.1", "motivation", "zone.phase.work", "phase_change_work", "BOTH", "Time to work.", "Nå jobber vi.", "active", "motivational work transition"),
-    ReviewSeed("context", "zone.phase.rest.1", "context", "zone.phase.rest", "phase_change_rest", "BOTH", "Recovery now.", "Pause nå.", "active", "shared recovery context"),
-    ReviewSeed("context", "zone.phase.cooldown.1", "context", "zone.phase.cooldown", "cooldown", "BOTH", "Cooldown now.", "Nå roer vi ned pulsen.", "active", "shared cooldown context"),
-    ReviewSeed("context", "zone.pause.detected.1", "context", "zone.pause", "pause_detected", "BOTH", "Workout paused", "Du har pauset økten", "active", "shared pause context"),
-    ReviewSeed("context", "zone.pause.resumed.1", "context", "zone.pause", "pause_resumed", "BOTH", "Workout has resumed", "Økten fortsetter.", "active", "shared pause context"),
+    ReviewSeed("context", "zone.phase.rest.1", "context", "zone.phase.rest", "phase_change_rest", "BOTH", "Recovery starts now.", "Pause starter nå.", "active", "shared recovery context"),
+    ReviewSeed("context", "zone.phase.cooldown.1", "context", "zone.phase.cooldown", "cooldown", "BOTH", "Cooldown starts now.", "Nedtrapping starter nå.", "active", "shared cooldown context"),
+    ReviewSeed("context", "zone.pause.detected.1", "context", "zone.pause", "pause_detected", "BOTH", "Workout paused.", "Du har pauset økten.", "active", "shared pause context"),
+    ReviewSeed("context", "zone.pause.resumed.1", "context", "zone.pause", "pause_resumed", "BOTH", "Workout resumed.", "Økten er i gang igjen.", "active", "shared pause context"),
     ReviewSeed("context", "zone.hr_poor_enter.1", "context", "zone.hr_poor_enter", "hr_signal_lost", "HR", "Heart rate signal is weak.", "Pulssignalet er svakt.", "active", "HR-dependent context"),
     ReviewSeed("context", "zone.hr_poor_exit.1", "context", "zone.hr_poor_exit", "hr_signal_restored", "HR", "Heart rate is back.", "Pulsen er tilbake.", "active", "HR-dependent context"),
-    ReviewSeed("context", "zone.hr_poor_timing.1", "context", "zone.hr_poor_timing", "no_hr_mode_notice", "NO_HR", "No heart rate signal. I will continue coaching", "Ingen pulssignal. Jeg fortsetter å coache", "active", "primary no-HR mode switch"),
+    ReviewSeed("context", "zone.hr_poor_timing.1", "context", "zone.hr_poor_timing", "no_hr_mode_notice", "NO_HR", "No heart rate signal. I'll coach you by time and effort.", "Mangler pulssignal. Jeg guider deg på tid og innsats.", "active", "primary no-HR mode switch"),
     ReviewSeed("progress", "zone.countdown.30", "progress", "zone.countdown", "countdown_30", "BOTH", "30 seconds left.", "30 sekunder.", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.15", "progress", "zone.countdown", "countdown_15", "BOTH", "15", "15", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.5", "progress", "zone.countdown", "countdown_5", "BOTH", "Five.", "fem", "active", "shared countdown cue"),
     ReviewSeed("progress", "zone.countdown.start", "progress", "zone.countdown", "countdown_start", "BOTH", "Go", "Start", "active", "shared countdown start cue"),
+    ReviewSeed("progress", "zone.countdown.warmup_recovery.30.1", "progress", "zone.countdown.warmup_recovery", "countdown_warmup_recovery_30", "BOTH", "30 seconds left. Get ready.", "30 sekunder igjen. Gjør deg klar.", "active", "warmup/recovery prep countdown cue"),
+    ReviewSeed("progress", "zone.countdown.warmup_recovery.10.1", "progress", "zone.countdown.warmup_recovery", "countdown_warmup_recovery_10", "BOTH", "Get ready. Starting soon.", "Gjør deg klar. Starter snart.", "active", "warmup/recovery prep countdown cue"),
+    ReviewSeed("progress", "zone.countdown.warmup_recovery.5.1", "progress", "zone.countdown.warmup_recovery", "countdown_warmup_recovery_5", "BOTH", "Five.", "Fem.", "active", "warmup/recovery prep countdown cue"),
+    ReviewSeed("progress", "zone.countdown.warmup_recovery.start.1", "progress", "zone.countdown.warmup_recovery", "countdown_warmup_recovery_start", "BOTH", "Go.", "Kjør.", "active", "warmup/recovery prep countdown cue"),
     ReviewSeed("progress", "zone.countdown.halfway.dynamic", "progress", "zone.countdown", "countdown_halfway", "BOTH", "You are halfway through", "Du er halvveis nå.", "active", "shared halfway countdown cue"),
     ReviewSeed("progress", "zone.countdown.session_halfway.dynamic", "progress", "zone.countdown", "countdown_session_halfway", "BOTH", "You are halfway through the workout", "Du er halvveis nå.", "active", "shared session-halfway countdown cue"),
     ReviewSeed("progress", "zone.workout_finished.1", "progress", "zone.workout_finished", "workout_finish", "BOTH", "Workout finished. Nice work.", "Økten er ferdig. Bra jobbet.", "active", "shared workout closure"),
-    ReviewSeed("motivation", "interval.motivate.s1.1", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Control your breath.", "Kontroller pusten.", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s1.2", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Good start.", "God start.", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s2.1", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "HR", "Nice work.", "Bra jobba.", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s2.2", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "HR", "Hold the rhythm.", "Hold rytmen.", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s3.1", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "HR", "Perfect!", "Herlig!", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s3.2", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "HR", "Stay with it!", "Stå i det!", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s4.1", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "HR", "Finish strong!", "Kjør på nå!", "active", "active interval motivation"),
-    ReviewSeed("motivation", "interval.motivate.s4.2", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "HR", "All the way in.", "Helt inn!", "active", "active interval motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s1.1", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "HR", "Focus on breath and rhythm.", "Fokuser på pust og rytme.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s1.2", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "HR", "Settle your pace.", "Finn ditt tempo.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s2.1", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "HR", "Good rhythm.", "Bra rytme.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s2.2", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "HR", "Keep it steady.", "Hold det jevnt.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s3.1", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "HR", "Nice work!", "Bra jobba!", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s3.2", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "HR", "Keep it strong.", "Hold det sterkt.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s4.1", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "HR", "Stay smooth.", "Hold det rolig.", "active", "active easy-run motivation"),
-    ReviewSeed("motivation", "easy_run.motivate.s4.2", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "HR", "Keep it steady.", "Hold det jevnt.", "active", "active easy-run motivation"),
-    ReviewSeed("diagnostic secondary", "zone.watch_disconnected.1", "context", "zone.watch", "watch_lost", "DIAGNOSTIC", "Watch disconnected", "Pulsklokken ble frakoblet.", "active_secondary", "secondary watch-loss diagnostic"),
+    ReviewSeed("motivation", "interval.motivate.s1.1", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "BOTH", "Control your breath.", "Kontroller pusten.", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s1.2", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "BOTH", "Good start.", "God start.", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s2.1", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "BOTH", "Nice work.", "Bra jobba.", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s2.2", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "BOTH", "Hold the rhythm.", "Hold rytmen.", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s3.1", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "BOTH", "Perfect!", "Herlig!", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s3.2", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "BOTH", "Stay with it!", "Stå i det!", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s4.1", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "BOTH", "Finish strong!", "Kjør på nå!", "active", "active interval motivation"),
+    ReviewSeed("motivation", "interval.motivate.s4.2", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "BOTH", "All the way in.", "Helt inn!", "active", "active interval motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s1.1", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "BOTH", "Focus on breath and rhythm.", "Fokuser på pust og rytme.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s1.2", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "BOTH", "Settle your pace.", "Finn ditt tempo.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s2.1", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "BOTH", "Good rhythm.", "Bra rytme.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s2.2", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "BOTH", "Keep it steady.", "Hold det jevnt.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s3.1", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "BOTH", "Nice work!", "Bra jobba!", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s3.2", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "BOTH", "Keep it strong.", "Hold det sterkt.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s4.1", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "BOTH", "Stay smooth.", "Hold det rolig.", "active", "active easy-run motivation"),
+    ReviewSeed("motivation", "easy_run.motivate.s4.2", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "BOTH", "Keep it steady.", "Hold det jevnt.", "active", "active easy-run motivation"),
+    ReviewSeed("diagnostic secondary", "zone.watch_disconnected.1", "context", "zone.watch", "watch_lost", "DIAGNOSTIC", "Watch disconnected.", "Klokken ble koblet fra.", "active_secondary", "secondary watch-loss diagnostic"),
     ReviewSeed("diagnostic secondary", "zone.watch_restored.1", "context", "zone.watch", "watch_restored", "DIAGNOSTIC", "Watch connected and heart rate is back.", "Klokken er tilkoblet, og pulsen er tilbake.", "active_secondary", "secondary watch-restore diagnostic"),
     ReviewSeed("diagnostic secondary", "zone.no_sensors.1", "context", "zone.no_sensors", "no_sensors", "DIAGNOSTIC", "Coaching by breath.", "Coacher med pust.", "active_secondary", "secondary no-sensors diagnostic"),
 )
@@ -202,14 +205,14 @@ FUTURE_SEEDS: tuple[ReviewSeed, ...] = (
     ReviewSeed("future additions", "zone.countdown.start.2", "progress", "zone.countdown", "countdown_start", "BOTH", "Start!", "Start!", "future", "future countdown-start variant"),
     ReviewSeed("future additions", "zone.workout_finished.2", "progress", "zone.workout_finished", "workout_finish", "BOTH", "That’s the workout done.", "Der er økta ferdig.", "future", "future workout-finish variant"),
     ReviewSeed("future additions", "zone.workout_finished.3", "progress", "zone.workout_finished", "workout_finish", "BOTH", "Session complete. Nice work.", "Økta er fullført. Bra jobbet.", "future", "future workout-finish variant"),
-    ReviewSeed("future additions", "interval.motivate.s1.3", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "HR", "Steady pace.", "Finn rytmen.", "future", "future interval motivation variant"),
-    ReviewSeed("future additions", "interval.motivate.s2.3", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "HR", "Keep it steady.", "Hold det jevnt.", "future", "future interval motivation variant"),
-    ReviewSeed("future additions", "interval.motivate.s3.3", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "HR", "Stay strong!", "Hold deg sterk!", "future", "future interval motivation variant"),
-    ReviewSeed("future additions", "interval.motivate.s4.3", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "HR", "Perfect!", "Herlig!", "future", "future interval motivation variant"),
-    ReviewSeed("future additions", "easy_run.motivate.s1.3", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "HR", "Nice and easy.", "Start rolig!", "future", "future easy-run motivation variant"),
-    ReviewSeed("future additions", "easy_run.motivate.s2.3", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "HR", "Stay relaxed.", "Hold deg avslappet.", "future", "future easy-run motivation variant"),
-    ReviewSeed("future additions", "easy_run.motivate.s3.3", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "HR", "Keep your flow.", "Hold flyten.", "future", "future easy-run motivation variant"),
-    ReviewSeed("future additions", "easy_run.motivate.s4.3", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "HR", "Right to the end.", "Helt til slutt.", "future", "future easy-run motivation variant"),
+    ReviewSeed("future additions", "interval.motivate.s1.3", "motivation", "interval.motivate.s1", "interval_sustain_stage_1", "BOTH", "Steady pace.", "Finn rytmen.", "future", "future interval motivation variant"),
+    ReviewSeed("future additions", "interval.motivate.s2.3", "motivation", "interval.motivate.s2", "interval_sustain_stage_2", "BOTH", "Keep it steady.", "Hold det jevnt.", "future", "future interval motivation variant"),
+    ReviewSeed("future additions", "interval.motivate.s3.3", "motivation", "interval.motivate.s3", "interval_sustain_stage_3", "BOTH", "Stay strong!", "Hold deg sterk!", "future", "future interval motivation variant"),
+    ReviewSeed("future additions", "interval.motivate.s4.3", "motivation", "interval.motivate.s4", "interval_sustain_stage_4", "BOTH", "Perfect!", "Herlig!", "future", "future interval motivation variant"),
+    ReviewSeed("future additions", "easy_run.motivate.s1.3", "motivation", "easy_run.motivate.s1", "easy_run_sustain_stage_1", "BOTH", "Nice and easy.", "Start rolig!", "future", "future easy-run motivation variant"),
+    ReviewSeed("future additions", "easy_run.motivate.s2.3", "motivation", "easy_run.motivate.s2", "easy_run_sustain_stage_2", "BOTH", "Stay relaxed.", "Hold deg avslappet.", "future", "future easy-run motivation variant"),
+    ReviewSeed("future additions", "easy_run.motivate.s3.3", "motivation", "easy_run.motivate.s3", "easy_run_sustain_stage_3", "BOTH", "Keep your flow.", "Hold flyten.", "future", "future easy-run motivation variant"),
+    ReviewSeed("future additions", "easy_run.motivate.s4.3", "motivation", "easy_run.motivate.s4", "easy_run_sustain_stage_4", "BOTH", "Right to the end.", "Helt til slutt.", "future", "future easy-run motivation variant"),
 )
 
 COMPATIBILITY_METADATA: tuple[tuple[str, str, str, str, str, str], ...] = (
@@ -246,12 +249,121 @@ COMPATIBILITY_METADATA: tuple[tuple[str, str, str, str, str, str], ...] = (
 
 REQUIRED_ACTIVE_IDS = {seed.phrase_id for seed in ACTIVE_SEEDS}
 
+WORKOUT_CUE_PERSONA = "personal_trainer"
+WORKOUT_CUE_PRIORITY = "core"
+
+COMPATIBILITY_TEXT_MAP: dict[str, tuple[str, str]] = {
+    "zone.above.minimal.1": ("Ease off 10-15 seconds.", "Litt ned 10-15 sekunder."),
+    "zone.above_ease.minimal.1": ("HR still climbing. Ease down.", "Pulsen stiger. Rolig ned."),
+    "zone.above_ease.default.1": ("Still high. Ease down 20 seconds.", "Fortsatt høy. Ro ned 20 sekunder."),
+    "zone.below.minimal.1": ("Build slightly now.", "Bygg litt opp nå."),
+    "zone.below_push.minimal.1": ("You're moving. Add a little.", "Du er i gang. Litt opp."),
+    "zone.below_push.default.1": ("You're moving. Pick it up slightly.", "Du er i gang. Øk litt."),
+    "zone.in_zone.minimal.1": ("Good. Stay here.", "Bli her."),
+    "zone.feel.easy_run.1": ("Steady effort. Stay comfortable.", "Jevn innsats. Hold det behagelig."),
+    "zone.feel.easy_run.2": ("Find your rhythm and hold it.", "Finn rytmen din og hold den."),
+    "zone.feel.easy_run.3": ("Easy and controlled. You set the pace.", "Rolig og kontrollert. Du bestemmer tempoet."),
+    "zone.feel.work.1": ("Push hard but controlled.", "Hold en jevn rytme"),
+    "zone.feel.work.2": ("Strong effort now. Stay focused.", "Sterk innsats nå. Hold fokus."),
+    "zone.feel.recovery.1": ("Ease off. Let your body recover.", "Slipp av. La kroppen hente seg inn."),
+    "zone.feel.recovery.2": ("Relax and breathe. Recovery counts.", "Slapp av og pust. Hvile teller."),
+    "zone.breath.easy_run.1": ("Match your breathing to your pace.", "Tilpass pusten til tempoet."),
+    "zone.breath.easy_run.2": ("Smooth breaths. You're doing well.", "Jevn pust. Du gjør det bra."),
+    "zone.breath.work.1": ("Breathe through the effort.", "Herlig"),
+    "zone.breath.recovery.1": ("Slow your breathing down.", "Senk pustetakten."),
+    "motivation.1": ("Nice work!", "Hold det sterkt."),
+    "motivation.2": ("Keep it up.", "Bra jobba!"),
+    "motivation.3": ("That's the effort I want to see.", "Det skal kjennes litt. Det er prisen for endring.."),
+    "motivation.4": ("One step at a time. You got this.", "Ett steg om gangen. Du klarer det."),
+    "motivation.5": ("Discipline beats motivation. Keep going.", "Disiplin slår motivasjon. Fortsett."),
+    "motivation.6": ("This is where it counts.", "Det er nå det gjelder."),
+    "motivation.7": ("You showed up. thats the hard part.", "Du møtte opp. Det er det vanskelige."),
+    "motivation.8": ("Trust the process.", "Stol på prosessen."),
+    "motivation.9": ("Every rep matters.", "Hvert steg teller."),
+    "motivation.10": ("Finish what you started.", "Fullfør det du begynte på."),
+}
+
+
+def _seed_text_map(*, include_future: bool = False) -> dict[str, tuple[str, str]]:
+    mapping = {
+        seed.phrase_id: (seed.english_locked, seed.norwegian_locked)
+        for seed in ACTIVE_SEEDS
+    }
+    if include_future:
+        mapping.update(
+            {
+                seed.phrase_id: (seed.english_locked, seed.norwegian_locked)
+                for seed in FUTURE_SEEDS
+            }
+        )
+    return mapping
+
+
+def build_workout_phrase_catalog_entries() -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    for seed in ACTIVE_SEEDS:
+        if seed.phrase_id in seen:
+            continue
+        seen.add(seed.phrase_id)
+        entries.append(
+            {
+                "id": seed.phrase_id,
+                "en": seed.english_locked,
+                "no": seed.norwegian_locked,
+                "persona": WORKOUT_CUE_PERSONA,
+                "priority": WORKOUT_CUE_PRIORITY,
+            }
+        )
+
+    for phrase_id, (en, no) in COMPATIBILITY_TEXT_MAP.items():
+        if phrase_id in seen:
+            continue
+        seen.add(phrase_id)
+        entries.append(
+            {
+                "id": phrase_id,
+                "en": en,
+                "no": no,
+                "persona": WORKOUT_CUE_PERSONA,
+                "priority": WORKOUT_CUE_PRIORITY,
+            }
+        )
+
+    return entries
+
+
+_WORKOUT_PHRASE_CATALOG_BY_ID = {
+    str(entry["id"]): entry
+    for entry in build_workout_phrase_catalog_entries()
+}
+
+
+def get_workout_phrase_entry(phrase_id: str) -> dict[str, str] | None:
+    normalized = str(phrase_id or "").strip()
+    if not normalized:
+        return None
+    return _WORKOUT_PHRASE_CATALOG_BY_ID.get(normalized)
+
+
+def get_workout_phrase_text(phrase_id: str, language: str) -> str | None:
+    entry = get_workout_phrase_entry(phrase_id)
+    if not entry:
+        return None
+    lang_key = (language or "en").strip().lower()
+    if lang_key not in {"en", "no"}:
+        lang_key = "en"
+    text = entry.get(lang_key)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return None
+
 
 def _catalog_text_map() -> dict[str, tuple[str, str]]:
-    return {
-        str(item["id"]): (str(item.get("en", "")), str(item.get("no", "")))
-        for item in PHRASE_CATALOG
-    }
+    mapping = _seed_text_map()
+    mapping.update(COMPATIBILITY_TEXT_MAP)
+    return mapping
 
 
 def _load_active_manifest_ids() -> set[str]:

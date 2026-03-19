@@ -575,16 +575,24 @@ def test_voice_telemetry_accepts_allowed_events(monkeypatch):
         token = auth.create_jwt(user.id, user.email)
 
     try:
-        response = client.post(
-            "/voice/telemetry",
-            json={
-                "event": "voice_session_started",
-                "metadata": {"voice_session_id": "voice_test_123", "turn_count": 1},
-            },
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        assert response.status_code == 200
-        assert response.get_json()["success"] is True
+        events = [
+            ("voice_session_started", {"voice_session_id": "voice_test_123", "turn_count": 1}),
+            ("voice_cta_tapped", {"entry_point": "workout_summary_sheet"}),
+            ("voice_first_assistant_response", {"voice_session_id": "voice_test_123", "source": "text_delta"}),
+            ("voice_first_assistant_audio", {"voice_session_id": "voice_test_123"}),
+        ]
+        for event, metadata in events:
+            response = client.post(
+                "/voice/telemetry",
+                json={
+                    "event": event,
+                    "metadata": metadata,
+                },
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert response.status_code == 200
+            assert response.get_json()["success"] is True
+
         assert calls == [
             (
                 "voice_session_started",
@@ -594,7 +602,32 @@ def test_voice_telemetry_accepts_allowed_events(monkeypatch):
                     "turn_count": 1,
                     "subscription_tier": "premium",
                 },
-            )
+            ),
+            (
+                "voice_cta_tapped",
+                user_id,
+                {
+                    "entry_point": "workout_summary_sheet",
+                    "subscription_tier": "premium",
+                },
+            ),
+            (
+                "voice_first_assistant_response",
+                user_id,
+                {
+                    "voice_session_id": "voice_test_123",
+                    "source": "text_delta",
+                    "subscription_tier": "premium",
+                },
+            ),
+            (
+                "voice_first_assistant_audio",
+                user_id,
+                {
+                    "voice_session_id": "voice_test_123",
+                    "subscription_tier": "premium",
+                },
+            ),
         ]
     finally:
         with main.app.app_context():

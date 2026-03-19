@@ -447,6 +447,8 @@ _MOBILE_ANALYTICS_ALLOWED_EVENTS = {
     "subscription_sync_succeeded",
     "voice_cta_tapped",
     "voice_fallback_text_opened",
+    "voice_first_assistant_audio",
+    "voice_first_assistant_response",
     "voice_session_ended",
     "voice_session_failed",
     "voice_session_requested",
@@ -4818,6 +4820,8 @@ def voice_telemetry():
     event = str(payload.get("event") or "").strip()
     allowed_events = {
         "voice_cta_tapped",
+        "voice_first_assistant_audio",
+        "voice_first_assistant_response",
         "voice_session_requested",
         "voice_session_started",
         "voice_session_failed",

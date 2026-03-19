@@ -85,6 +85,10 @@ def test_workout_event_mapping_uses_phrase_catalog_ids():
         "zone.above.default.1",
         "zone.below.default.1",
         "zone.countdown.30",
+        "zone.countdown.warmup_recovery.30.1",
+        "zone.countdown.warmup_recovery.10.1",
+        "zone.countdown.warmup_recovery.5.1",
+        "zone.countdown.warmup_recovery.start.1",
         "zone.countdown.15",
         "zone.countdown.5",
         "zone.countdown.start",
@@ -117,6 +121,7 @@ def test_workout_event_mapping_covers_no_hr_structure_instruction():
     assert 'case "structure_instruction_steady":' in content
     assert 'case "structure_instruction_finish":' in content
     assert '"zone.hr_poor_timing.1"' in content
+    assert '"interval_countdown_10"' in content
     assert '"zone.structure.work.1"' in content
     assert '"zone.structure.recovery.1"' in content
     assert '"zone.structure.steady.1"' in content

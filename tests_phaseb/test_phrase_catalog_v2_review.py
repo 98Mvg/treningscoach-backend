@@ -22,8 +22,8 @@ def test_build_review_rows_summary_shape():
     rows = review.build_review_rows()
     summary = review.summarize_review_rows(rows)
 
-    assert summary["total_rows"] == 116
-    assert summary["active_rows"] == 53
+    assert summary["total_rows"] == 120
+    assert summary["active_rows"] == 57
     assert summary["compatibility_rows"] == 28
     assert summary["future_rows"] == 32
     assert summary["record_now_rows"] >= 10

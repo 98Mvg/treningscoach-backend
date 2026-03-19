@@ -391,6 +391,59 @@ def test_max_silence_uses_structure_instruction_when_hr_missing_without_targets(
     assert forced["should_speak"] is True
 
 
+def test_structure_driven_easy_run_can_switch_to_staged_motivation_after_first_structure_cue():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=None,
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=None,
+            )
+        )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_steady"
+
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=240,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_motivation"
+    assert second_forced["phrase_id"].startswith("easy_run.motivate.")
+    assert second_forced["should_speak"] is True
+
+
 def test_easy_run_max_silence_budget_blocks_repeated_forced_cue():
     state = {}
 

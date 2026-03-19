@@ -309,10 +309,12 @@ struct AppConfig {
         /// Free trial duration in days (shown in paywall UI only — StoreKit manages the actual trial).
         static let trialDurationDays = 14
 
-        /// Monthly price shown in paywall before StoreKit price is loaded.
-        static let fallbackMonthlyPrice = "$9.99"
-        /// Yearly price shown in paywall before StoreKit price is loaded.
-        static let fallbackYearlyPrice = "$79"
+        /// Fallback monthly price shown before StoreKit pricing is loaded.
+        static let fallbackMonthlyPriceUSD = Decimal(string: "9.99")!
+        static let fallbackMonthlyPriceNOK = Decimal(129)
+        /// Fallback yearly price shown before StoreKit pricing is loaded.
+        static let fallbackYearlyPriceUSD = Decimal(79)
+        static let fallbackYearlyPriceNOK = Decimal(1290)
 
         // MARK: - Usage Limits (free tier)
 

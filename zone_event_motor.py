@@ -16,8 +16,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from breath_reliability import summarize_breath_quality, is_breath_quality_reliable
-from phrase_review_v2 import build_runtime_event_phrase_map
-from tts_phrase_catalog import get_phrase_text
+from phrase_review_v2 import build_runtime_event_phrase_map, get_workout_phrase_text
 from workout_cue_catalog import (
     event_cooldown_key,
     get_event_catalog,
@@ -69,6 +68,7 @@ _RUNTIME_REVIEW_EVENT_KEYS = {
     "pause_detected": "pause_detected",
     "pause_resumed": "pause_resumed",
     "interval_countdown_30": "countdown_30",
+    "interval_countdown_10": "countdown_10",
     "interval_countdown_15": "countdown_15",
     "interval_countdown_5": "countdown_5",
     "interval_countdown_start": "countdown_start",
@@ -237,6 +237,7 @@ def _event_priority(event_type: str) -> int:
         "hr_signal_lost": 99,
         "hr_signal_restored": 98,
         "interval_countdown_5": 95,
+        "interval_countdown_10": 94,
         "interval_countdown_15": 94,
         "interval_countdown_30": 93,
         "interval_countdown_halfway": 92,
@@ -335,6 +336,16 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
     """Map a canonical event type to its phrase catalog ID (mirrors iOS utteranceID mapping)."""
     if not event_type:
         return None
+    normalized_phase = str(phase or "").strip().lower()
+    if normalized_phase in {"warmup", "recovery", "rest"}:
+        phase_countdown_map = {
+            "interval_countdown_30": "zone.countdown.warmup_recovery.30.1",
+            "interval_countdown_10": "zone.countdown.warmup_recovery.10.1",
+            "interval_countdown_5": "zone.countdown.warmup_recovery.5.1",
+            "interval_countdown_start": "zone.countdown.warmup_recovery.start.1",
+        }
+        if event_type in phase_countdown_map:
+            return phase_countdown_map[event_type]
     _map = {
         "warmup_started": "zone.phase.warmup.1",
         "main_started": "zone.main_started.1",
@@ -349,6 +360,7 @@ def _resolve_phrase_id(event_type: Optional[str], phase: str) -> Optional[str]:
         "no_sensors_notice": "zone.no_sensors.1",
         "watch_restored_notice": "zone.watch_restored.1",
         "interval_countdown_30": "zone.countdown.30",
+        "interval_countdown_10": None,
         "interval_countdown_15": "zone.countdown.15",
         "interval_countdown_5": "zone.countdown.5",
         "interval_countdown_start": "zone.countdown.start",
@@ -476,6 +488,34 @@ def _select_structure_instruction_event(
     return "structure_instruction_steady"
 
 
+def _prefer_structure_mode_motivation(
+    *,
+    state: Dict[str, Any],
+    canonical_workout_type: str,
+    canonical_phase: str,
+    target: Dict[str, Any],
+    elapsed_seconds: int,
+    config_module,
+) -> bool:
+    if canonical_phase in {"warmup", "recovery", "rest", "cooldown"}:
+        return False
+
+    if canonical_workout_type not in {"intervals", "easy_run"}:
+        return False
+
+    segment_key = str(target.get("segment_key") or canonical_phase)
+    prior_structure_segment_key = str(state.get("last_structure_instruction_segment_key") or "").strip()
+    if not prior_structure_segment_key or prior_structure_segment_key != segment_key:
+        return False
+
+    return _allow_motivation_event(
+        state=state,
+        workout_type=canonical_workout_type,
+        elapsed_seconds=elapsed_seconds,
+        config_module=config_module,
+    )
+
+
 def _pick_structure_phrase_id(
     *,
     state: Dict[str, Any],
@@ -519,6 +559,8 @@ def _pick_runtime_phrase_id(
     event_type: str,
     phase: str,
 ) -> Optional[str]:
+    if str(event_type or "").startswith("interval_countdown_"):
+        return _resolve_phrase_id(event_type, phase)
     phrase_ids = _runtime_review_phrase_ids_for_event(event_type)
     if not phrase_ids:
         return _resolve_phrase_id(event_type, phase)
@@ -1325,12 +1367,12 @@ def _resolve_sensor_fusion_mode(
     return "TIMING_ONLY"
 
 
-def _countdown_thresholds(recovery_seconds: int) -> List[int]:
-    if recovery_seconds < 30:
+def _prep_countdown_thresholds(total_seconds: int) -> List[int]:
+    if total_seconds < 10:
         return [5, 0]
-    if recovery_seconds < 45:
-        return [15, 5, 0]
-    return [30, 15, 5, 0]
+    if total_seconds < 30:
+        return [10, 5, 0]
+    return [30, 10, 5, 0]
 
 
 def _segment_halfway_remaining_threshold(total_seconds: Optional[int]) -> Optional[int]:
@@ -2293,13 +2335,13 @@ def _event_text(
 
     if event_type == "watch_disconnected_notice":
         if lang == "no":
-            return "Pulsklokken ble frakoblet."
-        return "Watch disconnected"
+            return "Klokken ble koblet fra."
+        return "Watch disconnected."
 
     if event_type == "hr_structure_mode_notice":
         if lang == "no":
-            return "Ingen pulssignal. Jeg fortsetter å coache"
-        return "No heart rate signal. I will continue coaching"
+            return "Mangler pulssignal. Jeg guider deg på tid og innsats."
+        return "No heart rate signal. I'll coach you by time and effort."
 
     if event_type == "no_sensors_notice":
         if lang == "no":
@@ -2312,15 +2354,26 @@ def _event_text(
         return "Watch connected and heart rate is back."
 
     if event_type == "interval_countdown_30":
+        if str(segment or "").strip().lower() in {"warmup", "recovery", "rest"}:
+            return "30 sekunder igjen. Gjør deg klar." if lang == "no" else "30 seconds left. Get ready."
         return "30 sekunder." if lang == "no" else "30 seconds left."
+
+    if event_type == "interval_countdown_10":
+        if str(segment or "").strip().lower() in {"warmup", "recovery", "rest"}:
+            return "Gjør deg klar. Starter snart." if lang == "no" else "Get ready. Starting soon."
+        return None
 
     if event_type == "interval_countdown_15":
         return "15" if lang == "no" else "15"
 
     if event_type == "interval_countdown_5":
+        if str(segment or "").strip().lower() in {"warmup", "recovery", "rest"}:
+            return "Fem." if lang == "no" else "Five."
         return "fem" if lang == "no" else "Five."
 
     if event_type == "interval_countdown_start":
+        if str(segment or "").strip().lower() in {"warmup", "recovery", "rest"}:
+            return "Kjør." if lang == "no" else "Go."
         return "Start" if lang == "no" else "Go"
 
     if event_type == "interval_countdown_halfway":
@@ -2334,8 +2387,8 @@ def _event_text(
 
     if event_type == "main_started":
         if lang == "no":
-            return "Nå er du i hoveddelen."
-        return "Main set now."
+            return "Hoveddelen starter nå."
+        return "Main set starts now."
 
     if event_type == "workout_finished":
         if lang == "no":
@@ -2401,45 +2454,45 @@ def _event_text(
 
     if event_type == "phase_change_work":
         if lang == "no":
-            return "Nå begynner vi." if tone != "motivational" else "Nå jobber vi."
-        return "Work starts now." if tone != "motivational" else "Time to work."
+            return "Drag starter nå. Øk farten." if tone != "motivational" else "Nå jobber vi."
+        return "Interval starts now. Bring up the pace." if tone != "motivational" else "Time to work."
 
     if event_type == "phase_change_rest":
         if lang == "no":
-            return "Pause nå."
-        return "Recovery now."
+            return "Pause starter nå."
+        return "Recovery starts now."
 
     if event_type == "phase_change_warmup":
         if lang == "no":
-            return "Oppvarming startet"
-        return "Warmup started"
+            return "Oppvarming starter nå."
+        return "Warmup starts now."
 
     if event_type == "phase_change_cooldown":
         if lang == "no":
-            return "Nå roer vi ned pulsen."
-        return "Cooldown now."
+            return "Nedtrapping starter nå."
+        return "Cooldown starts now."
 
     if event_type == "pause_detected":
         if lang == "no":
-            return "Du har pauset økten"
-        return "Workout paused"
+            return "Du har pauset økten."
+        return "Workout paused."
 
     if event_type == "pause_resumed":
         if lang == "no":
-            return "Økten fortsetter."
-        return "Workout has resumed"
+            return "Økten er i gang igjen."
+        return "Workout resumed."
 
     if event_type == "structure_instruction_work":
-        return "Kjør på nå." if lang == "no" else "Pick it up now."
+        return "Drag starter nå. Øk farten." if lang == "no" else "Interval starts now. Bring up the pace."
 
     if event_type == "structure_instruction_recovery":
-        return "Ro ned og hent deg inn." if lang == "no" else "Ease back and recover."
+        return "Pause nå. Ro ned og hent deg inn." if lang == "no" else "Recovery now. Ease off and reset."
 
     if event_type == "structure_instruction_steady":
-        return "Finn rytmen." if lang == "no" else "Settle into the pace."
+        return "Rolig tempo nå. Hold det jevnt." if lang == "no" else "Easy pace now. Keep it steady."
 
     if event_type == "structure_instruction_finish":
-        return "Trykk til nå!" if lang == "no" else "Final push now!"
+        return "Siste drag nå. Avslutt sterkt." if lang == "no" else "Final push now. Finish strong."
 
     if event_type == "max_silence_override":
         if segment == "work":
@@ -2617,6 +2670,7 @@ def evaluate_zone_tick(
     )
 
     phase_events: List[str] = []
+    countdown_phase_overrides: Dict[str, str] = {}
     if int(state.get("phase_id", 0)) <= 0:
         state["phase_id"] = 1
     previous_phase = state.get("canonical_phase")
@@ -2630,6 +2684,7 @@ def evaluate_zone_tick(
             phase_events.append("cooldown_started")
         if previous_phase == "warmup" and canonical_phase in {"main", "work", "recovery"}:
             phase_events.append("interval_countdown_start")
+            countdown_phase_overrides["interval_countdown_start"] = "warmup"
 
     if _should_emit_main_started(
         state=state,
@@ -2774,11 +2829,13 @@ def evaluate_zone_tick(
         phase_id = int(state.get("phase_id", 1))
         # Compatibility note: keep interval_countdown_* names for iOS v1 router.
         # Warmup meaning is disambiguated by canonical phase + key namespace.
-        for threshold in (30, 15, 5):
+        for threshold in (30, 10, 5):
             countdown_kind = f"countdown_{threshold}"
             event_key = f"{phase_id}:warmup:{countdown_kind}"
             if remaining <= threshold and not bool(fired.get(event_key)):
-                event_types.append(f"interval_countdown_{threshold}")
+                event_name = f"interval_countdown_{threshold}"
+                event_types.append(event_name)
+                countdown_phase_overrides[event_name] = "warmup"
                 fired[event_key] = True
                 logger.info(
                     "COUNTDOWN_EMIT phase=warmup threshold=%s phase_id=%s remaining=%s",
@@ -2799,12 +2856,13 @@ def evaluate_zone_tick(
         if recovery_seconds_total > 0:
             fired = state.setdefault("countdown_fired_map", {})
             phase_id = int(state.get("phase_id", 1))
-            for threshold in _countdown_thresholds(recovery_seconds_total):
+            for threshold in _prep_countdown_thresholds(recovery_seconds_total):
                 countdown_kind = "countdown_start" if threshold == 0 else f"countdown_{threshold}"
                 event_key = f"{phase_id}:recovery:{countdown_kind}"
                 if remaining <= threshold and not bool(fired.get(event_key)):
                     event_name = "interval_countdown_start" if threshold == 0 else f"interval_countdown_{threshold}"
                     event_types.append(event_name)
+                    countdown_phase_overrides[event_name] = "recovery"
                     fired[event_key] = True
                     logger.info(
                         "COUNTDOWN_EMIT phase=recovery threshold=%s phase_id=%s remaining=%s",
@@ -3041,13 +3099,23 @@ def evaluate_zone_tick(
                 if max_silence_allowed:
                     if instruction_mode == "structure_driven":
                         if not bool(state.get("structure_mode_notice_pending")):
-                            max_silence_candidate = _select_structure_instruction_event(
+                            if _prefer_structure_mode_motivation(
+                                state=state,
                                 canonical_workout_type=canonical_workout_type,
                                 canonical_phase=canonical_phase,
                                 target=target,
-                                workout_state=workout_state if isinstance(workout_state, dict) else None,
+                                elapsed_seconds=int(elapsed_seconds),
                                 config_module=config_module,
-                            )
+                            ):
+                                max_silence_candidate = "max_silence_motivation"
+                            else:
+                                max_silence_candidate = _select_structure_instruction_event(
+                                    canonical_workout_type=canonical_workout_type,
+                                    canonical_phase=canonical_phase,
+                                    target=target,
+                                    workout_state=workout_state if isinstance(workout_state, dict) else None,
+                                    config_module=config_module,
+                                )
                     elif sensor_fusion_mode == "HR_ZONE":
                         max_silence_candidate = "max_silence_override"
                     elif sensor_fusion_mode in {"BREATH_MOVEMENT", "BREATH_ONLY"}:
@@ -3115,7 +3183,7 @@ def evaluate_zone_tick(
             selected_runtime_phrase_id = _pick_runtime_phrase_id(
                 state=state,
                 event_type=primary_event,
-                phase=canonical_phase,
+                phase=countdown_phase_overrides.get(primary_event, canonical_phase),
             )
 
     coach_text = None
@@ -3127,10 +3195,11 @@ def evaluate_zone_tick(
                 state["last_max_silence_phase_id"] = int(state.get("phase_id", 1))
         if primary_event == "max_silence_motivation":
             state["last_motivation_spoken_elapsed"] = float(elapsed_seconds)
-        else:
-            # Tier A/B/C events reset the motivation barrier window.
-            if _event_priority(primary_event) >= 60:
-                state["last_high_priority_spoken_elapsed"] = float(elapsed_seconds)
+        if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+            state["last_structure_instruction_segment_key"] = str(target.get("segment_key") or canonical_phase)
+        # Tier A/B/C events reset the motivation barrier window.
+        if _event_priority(primary_event) >= 60:
+            state["last_high_priority_spoken_elapsed"] = float(elapsed_seconds)
         if primary_event == "hr_structure_mode_notice":
             state["structure_mode_notice_pending"] = False
             state["structure_mode_notice_sent"] = True
@@ -3141,12 +3210,12 @@ def evaluate_zone_tick(
             style=style,
             target_low=target.get("target_low"),
             target_high=target.get("target_high"),
-            segment=str(target.get("segment", "")),
+            segment=countdown_phase_overrides.get(primary_event, str(target.get("segment", ""))),
             workout_context_summary=workout_context_summary,
         )
         if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
             pending_structure_phrase_id = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(primary_event, canonical_phase)
-            structure_phrase_text = get_phrase_text(str(pending_structure_phrase_id or ""), lang)
+            structure_phrase_text = get_workout_phrase_text(str(pending_structure_phrase_id or ""), lang)
             if structure_phrase_text:
                 coach_text = structure_phrase_text
         if not coach_text and event_type:
@@ -3156,7 +3225,7 @@ def evaluate_zone_tick(
                 style=style,
                 target_low=target.get("target_low"),
                 target_high=target.get("target_high"),
-                segment=str(target.get("segment", "")),
+                segment=countdown_phase_overrides.get(event_type, str(target.get("segment", ""))),
                 workout_context_summary=workout_context_summary,
             )
         if not coach_text:
@@ -3237,7 +3306,7 @@ def evaluate_zone_tick(
         elif event_name in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
             _phrase = state.get("_pending_structure_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
         else:
-            _phrase = _resolve_phrase_id(event_name, canonical_phase)
+            _phrase = _resolve_phrase_id(event_name, countdown_phase_overrides.get(event_name, canonical_phase))
         events_payload.append({
             "event_type": event_name,
             "priority": _event_priority(event_name),

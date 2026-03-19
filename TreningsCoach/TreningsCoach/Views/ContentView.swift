@@ -14,6 +14,7 @@ struct MainTabView: View {
     @State private var selectedTab: TabItem = .home
     @State private var didTrackAppOpen = false
     @State private var deepLinkPaywallContext: PaywallContext?
+    @State private var isManageSubscriptionPresented = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -28,11 +29,16 @@ struct MainTabView: View {
                 .opacity(selectedTab == .workout ? 1 : 0)
                 .allowsHitTesting(selectedTab == .workout)
 
-            ProfileView(selectedTab: $selectedTab)
+            ProfileView(
+                selectedTab: $selectedTab,
+                isManageSubscriptionPresented: $isManageSubscriptionPresented
+            )
                 .opacity(selectedTab == .profile ? 1 : 0)
                 .allowsHitTesting(selectedTab == .profile)
 
-            if workoutViewModel.workoutState == .idle && !workoutViewModel.showComplete {
+            if workoutViewModel.workoutState == .idle
+                && !workoutViewModel.showComplete
+                && !isManageSubscriptionPresented {
                 CustomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
                     .transition(.move(edge: .bottom).combined(with: .opacity))

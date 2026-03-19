@@ -24,6 +24,16 @@ final class LiveCoachConversationViewModel: ObservableObject {
     private let isPremium: Bool
     private let liveVoiceTracker: LiveVoiceSessionTracker
 
+    private enum ConversationActivityState {
+        case ready
+        case connecting
+        case listening
+        case thinking
+        case speaking
+        case failed
+        case ended
+    }
+
     init(
         summaryContext: PostWorkoutSummaryContext,
         languageCode: String,
@@ -48,10 +58,11 @@ final class LiveCoachConversationViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        service.$connectionState
-            .sink { [weak self] state in
+        service.$didReceiveFirstAssistantResponse
+            .filter { $0 }
+            .sink { [weak self] _ in
                 guard let self else { return }
-                guard case .connected = state, !self.hasRecordedSuccessfulStart else { return }
+                guard !self.hasRecordedSuccessfulStart else { return }
                 self.hasRecordedSuccessfulStart = true
                 self.liveVoiceTracker.recordSession(isPremium: self.isPremium)
             }
@@ -88,32 +99,115 @@ final class LiveCoachConversationViewModel: ObservableObject {
     }
 
     var statusLabel: String {
-        switch service.connectionState {
-        case .idle:
+        let no = languageCode == "no"
+        switch conversationActivityState {
+        case .ready:
             return languageCode == "no" ? "Klar" : "Ready"
-        case .preparing:
-            return languageCode == "no" ? "Forbereder" : "Preparing"
         case .connecting:
-            return languageCode == "no" ? "Kobler til" : "Connecting"
-        case .connected:
-            return languageCode == "no" ? "Live" : "Live"
+            return no ? "Kobler til" : "Connecting"
+        case .listening:
+            return no ? "Lytter" : "Listening"
+        case .thinking:
+            return no ? "Tenker" : "Thinking"
+        case .speaking:
+            return no ? "Snakker" : "Speaking"
         case .failed:
-            return languageCode == "no" ? "Feilet" : "Failed"
+            return no ? "Feilet" : "Failed"
         case .ended:
-            return languageCode == "no" ? "Avsluttet" : "Ended"
+            return no ? "Avsluttet" : "Ended"
         }
     }
 
     var statusTint: Color {
-        switch service.connectionState {
-        case .connected:
+        switch conversationActivityState {
+        case .speaking:
             return Color(hex: "67E8F9")
+        case .listening:
+            return Color(hex: "A5F3FC")
+        case .thinking:
+            return Color(hex: "FCD34D")
         case .failed:
             return Color.red.opacity(0.85)
         case .ended:
             return Color.white.opacity(0.92)
         default:
             return Color.white.opacity(0.75)
+        }
+    }
+
+    var orbLabel: String {
+        let no = languageCode == "no"
+        switch conversationActivityState {
+        case .ready:
+            return no ? "Klar til a snakke om okten" : "Ready to talk about the workout"
+        case .connecting:
+            return no ? "Kobler til live coach..." : "Connecting to live coach..."
+        case .listening:
+            return no ? "Lytter etter sporsmalet ditt" : "Listening for your question"
+        case .thinking:
+            return no ? "Coach tenker pa oppfolgingen" : "Coach is thinking"
+        case .speaking:
+            return no ? "Coach svarer live" : "Coach is speaking live"
+        case .failed:
+            return failureMessage ?? (no ? "Live voice feilet" : "Live voice failed")
+        case .ended:
+            return no ? "Samtale avsluttet" : "Conversation ended"
+        }
+    }
+
+    var orbLabelTint: Color {
+        switch conversationActivityState {
+        case .speaking, .listening, .thinking:
+            return Color.white.opacity(0.94)
+        case .ended:
+            return Color.white.opacity(0.98)
+        case .failed:
+            return Color.red.opacity(0.92)
+        default:
+            return Color.white.opacity(0.86)
+        }
+    }
+
+    var orbSystemImage: String {
+        switch conversationActivityState {
+        case .speaking, .thinking:
+            return "waveform"
+        default:
+            return "mic.fill"
+        }
+    }
+
+    var shouldPulseOrb: Bool {
+        switch conversationActivityState {
+        case .listening, .thinking, .speaking:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var conversationActivityState: ConversationActivityState {
+        switch service.connectionState {
+        case .idle:
+            return .ready
+        case .preparing, .connecting:
+            return .connecting
+        case .failed:
+            return .failed
+        case .ended:
+            return .ended
+        case .connected:
+            if service.isSpeaking {
+                return .speaking
+            }
+            if let lastEntry = service.transcriptEntries.last,
+               lastEntry.role == .user || (lastEntry.role == .assistant && lastEntry.isPartial) {
+                return .thinking
+            }
+            if service.micState == .capturing {
+                return .listening
+            }
+            return .connecting
         }
     }
 
@@ -195,6 +289,7 @@ final class LiveCoachConversationViewModel: ObservableObject {
 struct LiveCoachConversationView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: LiveCoachConversationViewModel
+    private let transcriptBottomAnchor = "liveCoachTranscriptBottom"
 
     init(summaryContext: PostWorkoutSummaryContext, languageCode: String, userName: String, isPremium: Bool) {
         _viewModel = StateObject(
@@ -286,69 +381,53 @@ struct LiveCoachConversationView: View {
         VStack(spacing: 8) {
             ZStack {
                 // Pulsing ring when connected
-                if viewModel.isConnected {
+                if viewModel.shouldPulseOrb {
                     Circle()
                         .stroke(viewModel.statusTint.opacity(0.3), lineWidth: 3)
                         .frame(width: 72, height: 72)
                         .scaleEffect(1.15)
                         .opacity(0.6)
-                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: viewModel.isConnected)
+                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: viewModel.shouldPulseOrb)
                 }
                 Circle()
                     .fill(viewModel.statusTint.opacity(0.15))
                     .frame(width: 64, height: 64)
-                Image(systemName: viewModel.isConnected ? "waveform" : "mic.fill")
+                Image(systemName: viewModel.orbSystemImage)
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(viewModel.statusTint)
             }
-            Text(voiceOrbLabel)
+            Text(viewModel.orbLabel)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(voiceOrbLabelTint)
+                .foregroundStyle(viewModel.orbLabelTint)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
         }
         .padding(.vertical, 4)
     }
 
-    private var voiceOrbLabel: String {
-        let no = viewModel.languageCode == "no"
-        if viewModel.isConnected {
-            return no ? "Snakk med Coach" : "Talk to Coach"
-        }
-        if viewModel.isConversationEnded {
-            return no ? "Samtale avsluttet" : "Conversation ended"
-        }
-        if let failureMessage = viewModel.failureMessage, !failureMessage.isEmpty {
-            return failureMessage
-        }
-        return no ? "Kobler til..." : "Connecting..."
-    }
-
-    private var voiceOrbLabelTint: Color {
-        if viewModel.isConnected {
-            return Color.white.opacity(0.94)
-        }
-        if viewModel.isConversationEnded {
-            return Color.white.opacity(0.98)
-        }
-        if viewModel.failureMessage != nil {
-            return Color.red.opacity(0.92)
-        }
-        return Color.white.opacity(0.86)
-    }
-
     private var transcriptCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ScrollView {
-                VStack(spacing: 12) {
-                    ForEach(viewModel.transcriptEntries) { entry in
-                        transcriptBubble(entry: entry)
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 10) {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(viewModel.transcriptEntries) { entry in
+                            transcriptBubble(entry: entry)
+                        }
+                        if viewModel.transcriptEntries.isEmpty {
+                            emptyTranscriptState
+                        }
+                        Color.clear
+                            .frame(height: 1)
+                            .id(transcriptBottomAnchor)
                     }
-                    if viewModel.transcriptEntries.isEmpty {
-                        emptyTranscriptState
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onAppear {
+                scrollTranscriptToBottom(proxy, animated: false)
+            }
+            .onChange(of: transcriptScrollKey) { _, _ in
+                scrollTranscriptToBottom(proxy, animated: true)
             }
         }
         .padding(14)
@@ -361,6 +440,24 @@ struct LiveCoachConversationView: View {
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
         )
+    }
+
+    private var transcriptScrollKey: String {
+        guard let lastEntry = viewModel.transcriptEntries.last else {
+            return "empty"
+        }
+        return "\(lastEntry.id.uuidString)-\(lastEntry.text.count)-\(lastEntry.isPartial)"
+    }
+
+    private func scrollTranscriptToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
+        let scrollAction = {
+            proxy.scrollTo(transcriptBottomAnchor, anchor: .bottom)
+        }
+        if animated {
+            withAnimation(.easeOut(duration: 0.2), scrollAction)
+        } else {
+            scrollAction()
+        }
     }
 
     private var emptyTranscriptState: some View {

@@ -263,6 +263,21 @@ def test_intro_pages_do_not_wrap_content_in_transparent_outer_card() -> None:
     assert 'Text("Coachi")' not in intro_slice
 
 
+def test_identity_step_avoids_name_content_types_and_delays_keyboard_transition() -> None:
+    text = ONBOARDING_VIEW.read_text(encoding="utf-8")
+    identity_slice = text.split("private struct IdentityStepView: View {", 1)[1].split("private struct DataPurposeStepView: View {", 1)[0]
+
+    assert ".textContentType(.givenName)" not in identity_slice
+    assert ".textContentType(.familyName)" not in identity_slice
+    assert "contentType:" not in identity_slice
+    assert "continueAfterKeyboardDismiss()" in identity_slice
+    assert "focusedField = nil" in identity_slice
+    assert "UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)" in identity_slice
+    assert "Task { @MainActor in" in identity_slice
+    assert "await Task.yield()" in identity_slice
+    assert "focusedField = .firstName" in identity_slice
+
+
 def test_intro_only_ignores_vertical_safe_areas() -> None:
     text = INTRO_VIEW.read_text(encoding="utf-8")
     assert ".ignoresSafeArea(edges: [.top, .bottom])" in text

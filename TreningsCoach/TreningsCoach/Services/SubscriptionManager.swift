@@ -23,6 +23,18 @@ enum SubscriptionStatus: Equatable {
     case expired          // Lapsed subscription
 }
 
+enum SubscriptionBillingOption {
+    case monthly
+    case yearly
+}
+
+enum SubscriptionPurchaseOutcome: Equatable {
+    case success(SubscriptionStatus)
+    case pending
+    case userCancelled
+    case failed
+}
+
 // MARK: - SubscriptionManager
 
 @MainActor
@@ -35,13 +47,10 @@ final class SubscriptionManager: ObservableObject {
     @Published var status: SubscriptionStatus = .unknown
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published private(set) var hasLoadedProducts = false
 
     var isPremium: Bool {
         status == .premium || status == .trial
-    }
-
-    var hasLoadedProducts: Bool {
-        !products.isEmpty
     }
 
     var currentPlanLabel: String {
@@ -71,6 +80,14 @@ final class SubscriptionManager: ObservableObject {
             return "Premium"
         }
         return currentPlanLabel
+    }
+
+    var monthlyHasIntroOffer: Bool {
+        monthlyProduct?.subscription?.introductoryOffer != nil
+    }
+
+    var yearlyHasIntroOffer: Bool {
+        yearlyProduct?.subscription?.introductoryOffer != nil
     }
 
     // MARK: - Private State
@@ -122,6 +139,7 @@ final class SubscriptionManager: ObservableObject {
         guard !ids.isEmpty else { return }
         do {
             products = try await Product.products(for: ids)
+            hasLoadedProducts = !products.isEmpty
         } catch {
             // Non-fatal — sandbox or no connectivity. Products reload on next purchase attempt.
         }
@@ -135,9 +153,36 @@ final class SubscriptionManager: ObservableObject {
         products.first { $0.id == AppConfig.Subscription.yearlyProductID }
     }
 
+    func formattedPrice(for option: SubscriptionBillingOption, isNorwegian: Bool) -> String {
+        let amount = selectedPriceAmount(for: option) ?? fallbackPriceAmount(for: option, isNorwegian: isNorwegian)
+        return Self.formatCurrency(amount: amount, isNorwegian: isNorwegian)
+    }
+
+    func formattedRecurringPrice(for option: SubscriptionBillingOption, isNorwegian: Bool) -> String {
+        let unit: String
+        switch option {
+        case .monthly:
+            unit = isNorwegian ? "mnd" : "mo"
+        case .yearly:
+            unit = isNorwegian ? "år" : "yr"
+        }
+        return "\(formattedPrice(for: option, isNorwegian: isNorwegian))/\(unit)"
+    }
+
+    func formattedFreePrice(isNorwegian: Bool) -> String {
+        Self.formatCurrency(amount: 0, isNorwegian: isNorwegian)
+    }
+
+    func formattedYearlyPerMonthPrice(isNorwegian: Bool) -> String {
+        let yearlyAmount = selectedPriceAmount(for: .yearly) ?? fallbackPriceAmount(for: .yearly, isNorwegian: isNorwegian)
+        let unit = isNorwegian ? "mnd" : "mo"
+        return "\(Self.formatCurrency(amount: yearlyAmount / 12, isNorwegian: isNorwegian))/\(unit)"
+    }
+
     // MARK: - Purchase
 
-    func purchase(_ product: Product) async {
+    @discardableResult
+    func purchase(_ product: Product) async -> SubscriptionPurchaseOutcome {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -156,6 +201,7 @@ final class SubscriptionManager: ObservableObject {
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
                 await refreshStatus()
+                let refreshedStatus = status
                 // Cross-check with server (best-effort, non-blocking)
                 let txID = String(transaction.id)
                 Task {
@@ -164,15 +210,17 @@ final class SubscriptionManager: ObservableObject {
                         signedTransactionInfo: signedTransactionInfo
                     )
                 }
+                return .success(refreshedStatus)
             case .pending:
-                break   // Transaction awaiting approval (e.g., Ask to Buy)
+                return .pending   // Transaction awaiting approval (e.g., Ask to Buy)
             case .userCancelled:
-                break
+                return .userCancelled
             @unknown default:
-                break
+                return .failed
             }
         } catch {
             errorMessage = error.localizedDescription
+            return .failed
         }
     }
 
@@ -297,6 +345,41 @@ final class SubscriptionManager: ObservableObject {
         case .verified(let payload):
             return payload
         }
+    }
+
+    private func selectedPriceAmount(for option: SubscriptionBillingOption) -> Decimal? {
+        switch option {
+        case .monthly:
+            return monthlyProduct?.price
+        case .yearly:
+            return yearlyProduct?.price
+        }
+    }
+
+    private func fallbackPriceAmount(for option: SubscriptionBillingOption, isNorwegian: Bool) -> Decimal {
+        switch option {
+        case .monthly:
+            return isNorwegian ? AppConfig.Subscription.fallbackMonthlyPriceNOK : AppConfig.Subscription.fallbackMonthlyPriceUSD
+        case .yearly:
+            return isNorwegian ? AppConfig.Subscription.fallbackYearlyPriceNOK : AppConfig.Subscription.fallbackYearlyPriceUSD
+        }
+    }
+
+    private static func formatCurrency(amount: Decimal, isNorwegian: Bool) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: isNorwegian ? "nb_NO" : "en_US")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+
+        let number = NSDecimalNumber(decimal: amount)
+        let formattedAmount = formatter.string(from: number) ?? number.stringValue
+
+        if isNorwegian {
+            return "\(formattedAmount) kr"
+        }
+        return "$\(formattedAmount)"
     }
 }
 

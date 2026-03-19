@@ -78,6 +78,7 @@ struct ProfileView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
     @Binding var selectedTab: TabItem
+    @Binding var isManageSubscriptionPresented: Bool
     @State private var showingSignOutConfirmation = false
     @State private var showManageSubscription = false
     @State private var showAppUpdatePrompt = false
@@ -106,7 +107,7 @@ struct ProfileView: View {
             }
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $showManageSubscription) {
-                ManageSubscriptionView()
+                ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)
                     .environmentObject(subscriptionManager)
             }
         }
@@ -626,17 +627,17 @@ private struct ProfileValueRow: View {
 private struct ManageSubscriptionView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.openURL) private var openURL
+    @Binding var isManageSubscriptionPresented: Bool
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     private var inlinePlanDeckHeight: CGFloat {
-        min(max(UIScreen.main.bounds.height * 0.64, 560), 640)
+        min(max(UIScreen.main.bounds.height * 0.86, 760), 920)
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 20) {
-                subscriptionStatusCard
+            VStack(spacing: 18) {
                 WatchConnectedPremiumOfferStepView(
                     watchManager: PhoneWCManager.shared,
                     onBack: {},
@@ -646,23 +647,27 @@ private struct ManageSubscriptionView: View {
                 .environmentObject(subscriptionManager)
                 .frame(height: inlinePlanDeckHeight)
 
-                if hasPremiumAccess {
-                    Button(isNorwegian ? "Administrer i App Store" : "Manage in App Store") {
-                        subscriptionManager.manageSubscription()
+                VStack(spacing: 14) {
+                    if hasPremiumAccess {
+                        Button(isNorwegian ? "Administrer i App Store" : "Manage in App Store") {
+                            subscriptionManager.manageSubscription()
+                        }
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color(hex: "22C55E"))
+                        .clipShape(Capsule(style: .continuous))
+                        .frame(maxWidth: 320)
+                    }
+
+                    Button(isNorwegian ? "Gjenopprett kjøp" : "Restore purchases") {
+                        Task { await subscriptionManager.restorePurchases() }
                     }
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
+                    .foregroundColor(Color(hex: "5B4FD1"))
                 }
-
-                Button(isNorwegian ? "Gjenopprett kjøp" : "Restore purchases") {
-                    Task { await subscriptionManager.restorePurchases() }
-                }
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(Color(hex: "5B4FD1"))
                 .frame(maxWidth: .infinity)
-
-                includedItemsCard
 
                 HStack(spacing: 8) {
                     Button(isNorwegian ? "Brukervilkår" : "Terms") {
@@ -689,224 +694,11 @@ private struct ManageSubscriptionView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var subscriptionStatusCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            Text(
-                hasPremiumAccess
-                    ? (isNorwegian ? "Premium er aktivt. Du har tilgang til alle Coachi-funksjonene som er inkludert i planen din." : "Premium is active. You have access to the full Coachi set included in your plan.")
-                    : (isNorwegian ? "Gratisversjonen er aktiv. Her ser du hva som er inkludert i Gratis og hva Premium legger til." : "Free is active. Here is what is included in Free and what Premium adds.")
-            )
-            .font(.system(size: 15, weight: .medium))
-            .foregroundColor(CoachiTheme.textSecondary)
-
-            HStack(spacing: 10) {
-                planBadge(
-                    title: isNorwegian ? "Gratis" : "Free",
-                    isCurrent: !hasPremiumAccess,
-                    tint: Color(hex: "64748B")
-                )
-                planBadge(
-                    title: "Premium",
-                    isCurrent: hasPremiumAccess,
-                    tint: Color(hex: "5B4FD1")
-                )
-            }
-
-            currentPlanSummary
+        .onAppear {
+            isManageSubscriptionPresented = true
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(CoachiTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 10)
-    }
-
-    private var includedItemsCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Text(isNorwegian ? "Inkludert i abonnementet" : "Included in your plan")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(isNorwegian ? "Gratis" : "Free")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .frame(width: 82)
-
-                Text("Premium")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "5B4FD1"))
-                    .frame(width: 98)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .background(CoachiTheme.surfaceElevated)
-
-            ForEach(featureRows) { row in
-                ManageSubscriptionFeatureRow(row: row)
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(CoachiTheme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.28), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private var featureRows: [ManageSubscriptionFeatureRowData] {
-        SubscriptionComparisonCatalog.featureRows(isNorwegian: isNorwegian)
-    }
-
-    private var currentPlanSummary: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(isNorwegian ? "Min plan" : "My plan")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(CoachiTheme.textSecondary)
-
-            Text(localizedPlanStatus)
-                .font(.system(size: 17, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
-
-            Text(
-                hasPremiumAccess
-                    ? (isNorwegian ? "Abonnementet ditt administreres i App Store." : "Your subscription is managed in the App Store.")
-                    : (isNorwegian ? "Du kan oppgradere når du vil og sammenligne Gratis og Premium nedenfor." : "You can upgrade any time and compare Free and Premium below.")
-            )
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(CoachiTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 4)
-    }
-
-    private func planBadge(title: String, isCurrent: Bool, tint: Color) -> some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(isCurrent ? tint : tint.opacity(0.18))
-                .frame(width: 8, height: 8)
-            Text(isCurrent ? "\(title) · \(isNorwegian ? "Din plan" : "Current")" : title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(isCurrent ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            Capsule(style: .continuous)
-                .fill(isCurrent ? tint.opacity(0.12) : CoachiTheme.surfaceElevated)
-        )
-    }
-
-    private var localizedPlanStatus: String {
-        switch subscriptionManager.resolvedPlanLabel {
-        case "Checking":
-            return isNorwegian ? "Sjekker status" : "Checking status"
-        case "Free":
-            return isNorwegian ? "Gratis" : "Free"
-        case "Free Trial":
-            return isNorwegian ? "Gratis prøveperiode" : "Free trial"
-        case "Expired":
-            return isNorwegian ? "Utløpt" : "Expired"
-        default:
-            return subscriptionManager.resolvedPlanLabel
-        }
-    }
-}
-
-struct ManageSubscriptionFeatureRowData: Identifiable {
-    let id: String
-    let title: String
-    let freeValue: String
-    let premiumValue: String
-}
-
-enum SubscriptionComparisonCatalog {
-    static func featureRows(isNorwegian: Bool) -> [ManageSubscriptionFeatureRowData] {
-        [
-            ManageSubscriptionFeatureRowData(
-                id: "guided_workouts",
-                title: isNorwegian ? "Guidede økter" : "Guided workouts",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                id: "coach_score",
-                title: isNorwegian ? "Coachi Score" : "Coachi Score",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                id: "hr_zone_coaching",
-                title: isNorwegian ? "Pulssone-coaching" : "HR zone coaching",
-                freeValue: "✓",
-                premiumValue: "✓"
-            ),
-            ManageSubscriptionFeatureRowData(
-                id: "talk_to_coach_live",
-                title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
-                freeValue: isNorwegian ? "1/dag" : "1/day",
-                premiumValue: isNorwegian ? "3/dag" : "3/day"
-            ),
-            ManageSubscriptionFeatureRowData(
-                id: "workout_history",
-                title: isNorwegian ? "Økthistorikk" : "Workout history",
-                freeValue: isNorwegian ? "10 økter" : "10 workouts",
-                premiumValue: isNorwegian ? "Alle" : "All"
-            ),
-            ManageSubscriptionFeatureRowData(
-                id: "deep_workout_insights",
-                title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights",
-                freeValue: "—",
-                premiumValue: "✓"
-            ),
-        ]
-    }
-}
-
-private struct ManageSubscriptionFeatureRow: View {
-    let row: ManageSubscriptionFeatureRowData
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Text(row.title)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(CoachiTheme.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(row.freeValue)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .frame(width: 82)
-
-            Text(row.premiumValue)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(Color(hex: "5B4FD1"))
-                .frame(width: 98)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.0001))
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(CoachiTheme.borderSubtle.opacity(0.55))
-                .frame(height: 1)
-                .padding(.horizontal, 18)
+        .onDisappear {
+            isManageSubscriptionPresented = false
         }
     }
 }

@@ -1,13 +1,13 @@
 {
   "version": "v2",
-  "generated_at": "2026-03-17T19:13:54.188091+00:00",
+  "generated_at": "2026-03-19T15:21:43.900749+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
-  "total_files": 118,
-  "total_size_bytes": 2323148,
+  "total_files": 124,
+  "total_size_bytes": 2684521,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -361,6 +361,58 @@
       }
     },
     {
+      "id": "zone.countdown.warmup_recovery.10.1",
+      "en": {
+        "file": "en/zone.countdown.warmup_recovery.10.1.mp3",
+        "size": 24285,
+        "sha256": "ed651c81772dfc895b62afafafb5055214dfa788f55a9cc1d6c2963bf0e8a694"
+      },
+      "no": {
+        "file": "no/zone.countdown.warmup_recovery.10.1.mp3",
+        "size": 41004,
+        "sha256": "23eac13822629b18b51e77c58630fc37c8cbf1b9225a5d370f9376770c725e64"
+      }
+    },
+    {
+      "id": "zone.countdown.warmup_recovery.30.1",
+      "en": {
+        "file": "en/zone.countdown.warmup_recovery.30.1.mp3",
+        "size": 30137,
+        "sha256": "86db0a8a095cdf401217a53c1d53cbe4faf9259121438cc728f4e588a52b1327"
+      },
+      "no": {
+        "file": "no/zone.countdown.warmup_recovery.30.1.mp3",
+        "size": 33898,
+        "sha256": "0fd41ecc9bf730134945f6c33d00f61008c2fcf14f844a456c36124c832451f6"
+      }
+    },
+    {
+      "id": "zone.countdown.warmup_recovery.5.1",
+      "en": {
+        "file": "en/zone.countdown.warmup_recovery.5.1.mp3",
+        "size": 11328,
+        "sha256": "914e98bea6f1a0cd67c05a1fbf13a44593ccf4449b1d5ee6f0d0ff141abd1ed6"
+      },
+      "no": {
+        "file": "no/zone.countdown.warmup_recovery.5.1.mp3",
+        "size": 10075,
+        "sha256": "e0fa6ebc3a4172dde60be691b2a4b9c6521e51820f876a6362fda6d3bab74e1b"
+      }
+    },
+    {
+      "id": "zone.countdown.warmup_recovery.start.1",
+      "en": {
+        "file": "en/zone.countdown.warmup_recovery.start.1.mp3",
+        "size": 12164,
+        "sha256": "628ed7b3afe03e715dbbc0415df51740101cdd48976d264528ab16315c8aa626"
+      },
+      "no": {
+        "file": "no/zone.countdown.warmup_recovery.start.1.mp3",
+        "size": 13000,
+        "sha256": "0201d9e2e04044f96953be501d72838893af9c9a7f5f55d45e7721daffbe72ba"
+      }
+    },
+    {
       "id": "zone.hr_poor_enter.1",
       "en": {
         "file": "en/zone.hr_poor_enter.1.mp3",
@@ -390,13 +442,13 @@
       "id": "zone.hr_poor_timing.1",
       "en": {
         "file": "en/zone.hr_poor_timing.1.mp3",
-        "size": 42675,
-        "sha256": "2b8b9b359d18473bd595bd9252591ba0866a4250238e31e026b2d4e6cdc4872e"
+        "size": 47691,
+        "sha256": "8b5905b41fc87cfde0792df50e94f324ce562153c5c716c30fd051f9e68bbfaa"
       },
       "no": {
         "file": "no/zone.hr_poor_timing.1.mp3",
-        "size": 58140,
-        "sha256": "59e2c0b3b01a246b7644150b85b52fbd0512a48ed7449cf4cbc4a2594165ec18"
+        "size": 66499,
+        "sha256": "39d2add56904d11146a7e73c9d5fa3aae7799d6828935805b54db534d4c596e7"
       }
     },
     {
@@ -442,13 +494,13 @@
       "id": "zone.main_started.1",
       "en": {
         "file": "en/zone.main_started.1.mp3",
-        "size": 18016,
-        "sha256": "1e88f5a72b925a938d9c702f39167edb84fbd733dd5435a7470ed2ca5f5d0375"
+        "size": 24703,
+        "sha256": "e437858b56c1a1af78d42f5971948864afaa0d8745c2d470aed0e6468abbb8e6"
       },
       "no": {
         "file": "no/zone.main_started.1.mp3",
-        "size": 22613,
-        "sha256": "ed0ed4d53ddb606aa73ef97f2d62422ddbd96d30c3cacb8b081af05ebfc66abd"
+        "size": 37660,
+        "sha256": "d22aececa56c812f599b74dfd8f9898f2b560603207496639787c471acfa7f20"
       }
     },
     {
@@ -481,13 +533,13 @@
       "id": "zone.pause.detected.1",
       "en": {
         "file": "en/zone.pause.detected.1.mp3",
-        "size": 18016,
-        "sha256": "3faf67d341e3aa2547032fa073ef4bd829219d8adbee03aa8d7fc992a207fc1d"
+        "size": 19688,
+        "sha256": "aa63bfe33a20b2506ca0db86f57a5242dcae11353906342f4f06ff97f08ff30f"
       },
       "no": {
         "file": "no/zone.pause.detected.1.mp3",
-        "size": 18852,
-        "sha256": "22052d17d8786a0a5c379447329d0df624fda08a45323c0246c68b18fbd6fd06"
+        "size": 19688,
+        "sha256": "c8aff8ef4e04a8f3de14bec883418fb16c40e7bf7a7d1eddf44f59a701ae450e"
       }
     },
     {
@@ -495,64 +547,64 @@
       "en": {
         "file": "en/zone.pause.resumed.1.mp3",
         "size": 22613,
-        "sha256": "5b1d8a72056d2664c83e1058429fdf1b84162237b670c5b94f47f5a11ba8e7cd"
+        "sha256": "13a108dc912774012e7856e61881e1d7d7dfc6b9c792ad7de346a46d7afe2040"
       },
       "no": {
         "file": "no/zone.pause.resumed.1.mp3",
-        "size": 19688,
-        "sha256": "931ef7dd6ae109d6799351942b314b38105bbfe50a54bdd905f7833c7f5979bc"
+        "size": 21777,
+        "sha256": "fafd0e0b70043452a598b1366ef46cb67835b83069d2adc7bb0e178e47aa7dd1"
       }
     },
     {
       "id": "zone.phase.cooldown.1",
       "en": {
         "file": "en/zone.phase.cooldown.1.mp3",
-        "size": 16762,
-        "sha256": "1a66e9cbb4030f649cc6a0ecc12918cabe1586b14a0ba19f1c01bc64d6ca8563"
+        "size": 22613,
+        "sha256": "e5e8e89e68108b123183aa38fa3ced7d21d1de93d2f3086ad2482fb3ee39c3c4"
       },
       "no": {
         "file": "no/zone.phase.cooldown.1.mp3",
-        "size": 20942,
-        "sha256": "b8a6d937c25f3c2bf73b7d81f929bb01e00a6650034f70a257cc2da7d9e418c2"
+        "size": 21777,
+        "sha256": "9e4f1f5e14b3241e4e8591b2b4d2a319085c69ea218e9486917f4c1a53b33922"
       }
     },
     {
       "id": "zone.phase.rest.1",
       "en": {
         "file": "en/zone.phase.rest.1.mp3",
-        "size": 18016,
-        "sha256": "e0845823687d743b4fce97bc9929832c2ab70855eac8cb44a14b8c915396cb4c"
+        "size": 24285,
+        "sha256": "eb8aa9542929ea42977ec78d4b61305d779a3aabc13c6d11bd856f9e4c2ab774"
       },
       "no": {
         "file": "no/zone.phase.rest.1.mp3",
-        "size": 13836,
-        "sha256": "439ab4c08efc38a7912d3261cc8d545ca2c8ba3e55df99031fa89e8ad884df07"
+        "size": 21777,
+        "sha256": "2626f31dc1077e7de2160a6846882d53d4562ebaee9b0b133c0df238ac0c3dfc"
       }
     },
     {
       "id": "zone.phase.warmup.1",
       "en": {
         "file": "en/zone.phase.warmup.1.mp3",
-        "size": 17598,
-        "sha256": "9e0ffdc7b96395e5918bcc072c21c5c226522cbb779fe96f4b24c49cd4307504"
+        "size": 22613,
+        "sha256": "dad39a07d8d690e014ce01c291afdbeabcb73265e4dd243be5c99e7131533010"
       },
       "no": {
         "file": "no/zone.phase.warmup.1.mp3",
-        "size": 18852,
-        "sha256": "3c2d1f0248d8702942fd58482b74097ace6fb9c3b14f66edc591e4be57a5b832"
+        "size": 22613,
+        "sha256": "56fb4c4c51f6e531f784ac808990bf879376a1e53d1244d7fc7af31666f05bb8"
       }
     },
     {
       "id": "zone.phase.work.default.1",
       "en": {
         "file": "en/zone.phase.work.default.1.mp3",
-        "size": 20524,
-        "sha256": "ee13ac5024de17d86782f1fa920c9faa3b5e03dc985e31a0865ba61b62e9a24e"
+        "size": 38914,
+        "sha256": "ef24de3db2864f8c695bab189791a39f16dc9f46ec38477c3e3626882adc2e72"
       },
       "no": {
         "file": "no/zone.phase.work.default.1.mp3",
-        "size": 14254,
-        "sha256": "ae67fd5cbdf61cb23bc61cb5363905e768b90d24cc4596ef58a51a4d59fc1655"
+        "size": 41004,
+        "sha256": "dbe7ab7d714ce8834cd6c92b02603a34fe17353a13438d26c0cc7f6d4e61f633"
       }
     },
     {
@@ -611,39 +663,39 @@
       "id": "zone.structure.finish.1",
       "en": {
         "file": "en/zone.structure.finish.1.mp3",
-        "size": 19688,
-        "sha256": "65dc5e2783809f51055c222798313aa64d1063a01dc799f49b1f787c38edb7d8"
+        "size": 33898,
+        "sha256": "43da670994691c169145d32b24c8a5a1b98b01df83929c68186eb44ff6e6d62a"
       },
       "no": {
         "file": "no/zone.structure.finish.1.mp3",
-        "size": 15926,
-        "sha256": "246841bf25e4b7a26ba8085802e8b86358178f5acdbe24a0e40d9307faf6e2d5"
+        "size": 53124,
+        "sha256": "26bff058e4797cd75b93c4358a072c75be60e5318da57dacf29ee79ed6863a41"
       }
     },
     {
       "id": "zone.structure.recovery.1",
       "en": {
         "file": "en/zone.structure.recovery.1.mp3",
-        "size": 24703,
-        "sha256": "f5fd654611cb3261520715e69db8d48e3ce0794db804b5f6a4d03e59e92671dc"
+        "size": 42675,
+        "sha256": "ba21f025c987f2338c53d3f04f85d0511a4e3fd2c63ae99693d49fae559786fa"
       },
       "no": {
         "file": "no/zone.structure.recovery.1.mp3",
-        "size": 20524,
-        "sha256": "e9f5e2adf2ac2fdff990d39c18d64a60be03774c99c403835134a5be0e715ebf"
+        "size": 37660,
+        "sha256": "aaf683ed3de067bfa0b60687c1d0ef5a47bc2d4bd8cc77bb008a3be0e036ec2c"
       }
     },
     {
       "id": "zone.structure.steady.1",
       "en": {
         "file": "en/zone.structure.steady.1.mp3",
-        "size": 21777,
-        "sha256": "deff1d81357ac4a115144ff185e216bd3ccaa07bfc61e81697b7e124c1717d93"
+        "size": 32226,
+        "sha256": "44df506cad499fc222ab610c073a6e957072f34578159bbfd8ecddb783ca80ba"
       },
       "no": {
         "file": "no/zone.structure.steady.1.mp3",
-        "size": 15090,
-        "sha256": "0ac0e1d1522eddccd80cbbd94eaa658960a8c34e068e31443be7e301552503d7"
+        "size": 49363,
+        "sha256": "cf1f263b97fb6e093a5ed06d51867f307869b89f89ba99ce78954d30ddb4a06b"
       }
     },
     {
@@ -715,13 +767,13 @@
       "id": "zone.structure.work.1",
       "en": {
         "file": "en/zone.structure.work.1.mp3",
-        "size": 16762,
-        "sha256": "be80d099f86f492b813be05034f3afd67dae1c37757c667d7f2495ca646d05ae"
+        "size": 38914,
+        "sha256": "c0250105279a30c5db2b6c9308bd02dd42b3b43ed35eb2aa1f85247fd2a78529"
       },
       "no": {
         "file": "no/zone.structure.work.1.mp3",
-        "size": 13836,
-        "sha256": "1873a5bc63e97c2cfcc836324d755f85eb057ea3e1df4e3f7cf97aeb2cd81815"
+        "size": 41004,
+        "sha256": "b75d40fc3b2b823e18150b02eb865e85b2b2ab9f7c9d83441f12d2266981a4f5"
       }
     },
     {
@@ -729,12 +781,12 @@
       "en": {
         "file": "en/zone.watch_disconnected.1.mp3",
         "size": 20942,
-        "sha256": "8ad07f8ebe9513c1fd60bd2a63a92f0e6c2bdca608a0eb67d33e315bf159e6a5"
+        "sha256": "e78676d8934c5fc5bf9d75407c1a7f3c6b7b9cb247600c7c4ce55beb19ff2f5f"
       },
       "no": {
         "file": "no/zone.watch_disconnected.1.mp3",
-        "size": 27211,
-        "sha256": "711f168479da7fedbbca69323f0a4eb82d07a82b002302ef3f535f60f15bd547"
+        "size": 23449,
+        "sha256": "04c4dbc61d87485da732ade26d5da88ac7a6fb13d52926a606c92da224d89e5f"
       }
     },
     {
@@ -761,19 +813,6 @@
         "file": "no/zone.workout_finished.1.mp3",
         "size": 33898,
         "sha256": "2ae389f3be5066568a4343c5dd59419cf46977d77200314eae8a224e7ab3222d"
-      }
-    },
-    {
-      "id": "voice.preview.free_limit.1",
-      "en": {
-        "file": "en/voice.preview.free_limit.1.mp3",
-        "size": 80293,
-        "sha256": "3126f4d723e06e43e82c26bfc11ea997ab311dbd69df4d993b14951a448ead18"
-      },
-      "no": {
-        "file": "no/voice.preview.free_limit.1.mp3",
-        "size": 25539,
-        "sha256": "7fa54a5e75a9f45fa20fee0b161c23d7b367f19f09fbad972c1dc96b4e261b62"
       }
     }
   ]

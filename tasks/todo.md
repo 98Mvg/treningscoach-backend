@@ -29,6 +29,11 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-19: Kept the existing V2 workout-cue path and updated the active warmup/pause/resume/no-HR copy only in `phrase_review_v2.py`, `tts_phrase_catalog.py`, and the deterministic fallback text in `zone_event_motor.py`, without changing any event ids or introducing a parallel cue system.
+- 2026-03-19: Kept `WatchConnectedPremiumOfferStepView` as the single shared Free/Premium/14-day-trial deck source of truth, changed auto-rotation to 12 seconds, updated the shared comparison rows (`Coaching by analysing puls`, `5 days workout history`, `Full workout history`, `Single session feedback`, `Remembers past workouts`, `Choose coach voice (coming soon)`), and left purchase/current-plan logic untouched.
+- 2026-03-19: Hid the floating bottom tab bar on the existing `Manage Subscription` push path by wiring a single host-level suppression flag from `MainTabView` through `ProfileView` into `ManageSubscriptionView`, instead of trying to disable tab chrome inside the shared deck.
+- 2026-03-18: Kept the single shared Free/Premium/14-day trial deck as the purchase entry point and aligned its contract/tests to the current direct `SubscriptionManager` purchase path instead of an extra `Choose subscription` sheet.
+- 2026-03-18: Locked the shared plan deck copy so `Talk to Coach Live · 1/day` / `3/day` is presented as cleaner coach-conversation value copy on the cards (`Limited conversations with coach` / `Full conversations with coach`).
 - 2026-03-18: Moved the authenticated delete-account entry into `Personlig profil` directly under the email row with the clearer `Slett brukerkontoen din` copy, and removed the duplicate bottom placement on the same existing `DeleteAccountInfoView` path.
 - 2026-03-18: Reused the existing onboarding `Free -> Premium -> 14 dagers gratis prøveperiode` swiper from `Administrer abonnement` via a full-screen offers surface instead of sending `Se alle tilbudene` straight to the generic paywall or duplicating plan-card logic.
 - 2026-03-17: Moved the responsive overflow/hamburger navigation to the actual `coachi.no` runtime path in `templates/index_launch.html`/`backend/templates/index_launch.html`, and changed `main.py` default web variant fallback from `codex` to `launch` so preview/default truth matches the live site.
@@ -1086,3 +1091,268 @@ Updated: 2026-03-17
   - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
 - 2026-03-18: Hardened the Rex post-workout first-turn path again after a remaining bad opener leak. The primary policy still lives in xai_voice.py, but XAIRealtimeVoiceService.sendInitialAssistantKickoff() was sending a softer generic prompt that gave the model room to improvise exercise context. Tightened both ends of the same runtime path so the opening must stay generic/running-specific when the summary is sparse, and never claim a plank/squat unless the summary explicitly names it.
 - 2026-03-18: Inlined the shared Free/Premium/14-day-trial deck directly into Manage Subscription instead of routing through a separate full-screen offers step. Kept the single existing WatchConnectedPremiumOfferStepView, added a manage-subscription presentation mode, bound the initial card to SubscriptionManager.status, disabled the active-plan CTA, and replaced the old offset/drag pager with a native selection-driven pager plus clean auto-rotation timers.
+
+## Review — 2026-03-18 Manage Subscription deck cleanup and current-plan fix
+
+- Kept the single existing subscription flow on the current runtime path:
+  - [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
+  - shared deck in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift)
+  - existing purchase path in [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift)
+- Made the deck the primary content inside `Manage Subscription`:
+  - removed the extra top summary card
+  - removed the lower included-items comparison block
+  - kept only the shared Free/Premium/14-day-trial deck, `Administrer i App Store`, `Gjenopprett kjøp`, and legal links
+- Fixed current-plan resolution on the shared deck:
+  - prefer `SubscriptionManager.status`
+  - fall back to `SubscriptionManager.resolvedPlanLabel`
+  - only then fall back to coarse premium access
+  - reused that same resolved plan for the selected page, badge, disabled CTA, and visual emphasis
+- Restored CTA hierarchy on the shared cards:
+  - only the actual active plan shows the disabled `Current plan` / `Din plan` CTA
+  - premium/trial cards keep `Get Premium` / `Start 14-day free trial now`
+  - removed the card-level `Manage in App Store` takeover from the shared deck
+  - kept `Manage in App Store` only as the smaller secondary action below the deck
+- Fixed the trial-card title visibility by moving the top accent strip into real layout space instead of overlaying it over the title area
+- Kept the current `TabView(selection:)` pager and the 7-second manage-subscription auto-rotation intact
+- Updated focused verification coverage:
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py` -> `22 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Manage Subscription deck-only surface pass
+
+- Simplified [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) again so the body now shows only:
+  - the existing shared Free / Premium / 14-day trial deck
+  - terms and privacy links
+- Removed the remaining screen-level secondary subscription actions from `Manage Subscription`:
+  - `Administrer i App Store`
+  - `Gjenopprett kjøp`
+- Kept purchase and current-plan behavior on the existing shared deck itself:
+  - premium and trial cards still use their existing buy/trial CTAs
+  - the active plan still shows the existing disabled `Current plan` / `Din plan` state
+- Kept the single existing shared pager and purchase flow intact; no new subscription screen or duplicate logic was introduced
+- Updated focused verification coverage:
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py` -> `22 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Manage Subscription bottom-actions and trial-CTA visibility pass
+
+- Kept the same single `Manage Subscription -> shared offer deck -> Paywall` runtime path
+- Added the screen-level bottom actions back in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift), but only as centered footer actions below the deck:
+  - green `Manage in App Store` / `Administrer i App Store` capsule button
+  - centered `Restore purchases` / `Gjenopprett kjøp` text action
+  - centered terms/privacy links
+- Preserved the deck-first layout: no top summary card and no comparison table were reintroduced
+- Increased the inline deck height and tightened the inline trial-card spacing in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so the 14-day trial CTA remains visible
+- In inline manage-subscription mode, the trial savings badge is now suppressed to reduce vertical pressure and keep the primary trial button on-screen
+- Updated focused verification coverage:
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py` -> `22 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Manage Subscription trial CTA visibility follow-up
+
+- Kept the same single shared subscription deck and purchase flow; no new screen or pager logic was introduced
+- Increased the inline deck height again in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) so the trial card has more vertical room inside `Manage Subscription`
+- Tightened the inline shared trial card in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift):
+  - reduced the dense-layout spacer before the footer CTA
+  - shortened the inline trial detail text
+  - kept compact inline trial pricing spacing
+- Updated the shared trial card CTA copy on the deck to:
+  - `Start 14 days free trail now`
+- Updated focused verification coverage:
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+- Verification:
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py` -> `22 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Shared subscription deck source of truth, pricing rule, and onboarding name-step lag
+
+- Kept one existing subscription deck only on the current runtime path:
+  - [WatchConnectedPremiumOfferStepView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) remains the single card/layout implementation
+  - [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) stays a host-only surface
+  - onboarding after watch connect reuses the same deck instead of maintaining a second copy
+- Moved the shared plan catalog/content ownership out of [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) and into [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) so `Manage Subscription` and onboarding cannot drift
+- Unified deck behavior across both contexts:
+  - `TabView(selection:)` remains the only pager implementation
+  - auto-rotation now runs at `8s` in both onboarding and `Manage Subscription`
+  - current-plan resolution stays shared and still prefers `SubscriptionManager.status`, then resolved label, then coarse fallback
+- Hardened trial handling on the existing StoreKit path in [SubscriptionManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/SubscriptionManager.swift) and the shared deck:
+  - monthly and yearly trial eligibility now comes from actual introductory offers
+  - the trial card only shows eligible options
+  - the trial CTA disables cleanly when no intro offer is available instead of promising a false 14-day trial
+- Added one shared app-owned subscription pricing rule in [SubscriptionManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/SubscriptionManager.swift):
+  - Norwegian app language -> `kr`
+  - English app language -> `$`
+  - trailing `.00` / `,00` is removed when not needed
+  - free price uses `0 kr` / `$0`
+- Reused that formatter on the existing subscription UI path:
+  - shared deck in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift)
+  - existing paywall in [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift)
+- Fixed onboarding name-entry lag on the current identity step in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift):
+  - removed name-specific `textContentType` hints from the onboarding name fields
+  - delayed autofocus by one main-actor tick
+  - delayed continue until after focus/keyboard dismissal
+- Updated focused verification coverage:
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_onboarding_theme_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_theme_contract.py)
+- Verification:
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_onboarding_theme_contract.py` -> `49 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project /Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-19 V2 cue wording refresh
+
+- Kept the single existing V2 workout cue path:
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) remains the phrase source of truth
+  - [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py) mirrors the same ids and text
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) fallback text was updated in the same pass so runtime copy stays aligned if catalog lookup is bypassed
+- Strengthened the requested active phrases without changing any ids:
+  - `zone.phase.warmup.1` -> `Warmup starts now.` / `Oppvarming starter nå.`
+  - `zone.main_started.1` -> `Main set starts now.` / `Hoveddelen starter nå.`
+  - `zone.phase.work.default.1` -> `Interval starts now. Bring up the pace.` / `Drag starter nå. Øk farten.`
+  - `zone.phase.rest.1` -> `Recovery starts now.` / `Pause starter nå.`
+  - `zone.phase.cooldown.1` -> `Cooldown starts now.` / `Nedtrapping starter nå.`
+  - `zone.pause.detected.1` -> `Workout paused.` / `Du har pauset økten.`
+  - `zone.pause.resumed.1` -> `Workout resumed.` / `Økten er i gang igjen.`
+  - `zone.hr_poor_timing.1` -> `No heart rate signal. I'll coach you by time and effort.` / `Mangler pulssignal. Jeg guider deg på tid og innsats.`
+  - `zone.structure.work.1` -> `Interval starts now. Bring up the pace.` / `Drag starter nå. Øk farten.`
+  - `zone.structure.recovery.1` -> `Recovery now. Ease off and reset.` / `Pause nå. Ro ned og hent deg inn.`
+  - `zone.structure.steady.1` -> `Easy pace now. Keep it steady.` / `Rolig tempo nå. Hold det jevnt.`
+- Updated the focused canonical cue contract in [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py) so the approved Norwegian fallback and catalog copy match the new active wording
+
+## Review — 2026-03-19 Post-workout live coach startup, first turn, and streaming
+
+- Kept the single existing post-workout live coach runtime path:
+  - [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift) still owns the summary-sheet entrypoint
+  - [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift) and its shared view model still drive the transcript/live UI
+  - [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift) still owns the websocket/audio lifecycle
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) and [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) remain the only backend voice bootstrap path
+- Reduced startup latency on the current path by warming the backend when the workout summary sheet opens instead of waiting for `startIfNeeded()` alone
+- Fixed session-counting semantics on the current quota path:
+  - free-tier local usage is no longer counted on optimistic `.connected`
+  - `voice_session_started` now fires only after the first real assistant response begins
+  - added `voice_cta_tapped`, `voice_first_assistant_response`, and `voice_first_assistant_audio` telemetry on the current `/voice/telemetry` route
+- Improved first-turn quality in [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py):
+  - added a deterministic opening recap brief built only from `PostWorkoutSummaryContext`
+  - opening now explicitly requires workout reference, duration, one or two real stats, one short insight, and one question
+  - kept the existing running-only / no-invented-exercises guardrails
+  - tightened the iOS kickoff in [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift) so it no longer sends a second looser first-turn instruction
+- Improved streaming stability and perceived live quality without changing transport architecture:
+  - replaced unbounded per-tap audio send tasks with a bounded serial sender that caps queued mic payloads and drops the oldest unsent chunk under pressure
+  - kept the same websocket message shape and same existing service
+  - added listening / thinking / speaking UI states and transcript auto-scroll in [LiveCoachConversationView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/LiveCoachConversationView.swift)
+- Updated focused verification:
+  - [test_live_voice_mode_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_live_voice_mode_contract.py)
+  - [test_voice_session_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_voice_session_contract.py)
+  - [test_xai_voice_post_workout_prompt.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_xai_voice_post_workout_prompt.py)
+- Verification:
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `python3 -m py_compile main.py xai_voice.py` -> passed
+  - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_xai_voice_post_workout_prompt.py` -> `26 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project /Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-18 Shared 14-day promo trial card refresh
+
+- Kept the existing shared subscription deck as the single runtime path:
+  - [WatchConnectedPremiumOfferStepView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) remains the only Free/Premium/Trial card implementation
+  - [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) still hosts that same shared deck inline
+  - onboarding after `watchConnected` still reuses the same deck instead of creating a promo-only variant
+- Updated the existing trial card to match the reference in [14 days promo.png](/Users/mariusgaarder/Documents/treningscoach/Choose%20plan/14%20days%20promo.png):
+  - switched the trial accent from green to a promo blue treatment
+  - turned the top trial header into a taller integrated promo band
+  - removed the old trial pill/badge so the card headline carries the emphasis
+  - restyled the monthly/yearly selectors with darker filled tiles, blue selected border, and glow
+  - changed the shared trial CTA to use a blue promo gradient while keeping the same purchase logic
+- Increased the inline manage-subscription deck height in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) so the refreshed promo-style trial card keeps its CTA visible without adding vertical scrolling
+- Preserved the existing StoreKit-driven behavior:
+  - monthly/yearly intro-offer eligibility still controls which trial selectors are shown
+  - the existing direct `SubscriptionManager.purchase(...)` path is unchanged
+  - the existing `TabView(selection:)` pager and 8-second auto-rotation are unchanged
+- Updated focused verification coverage:
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+- Verification:
+  - `python3 scripts/generate_codebase_guide.py --check` -> `[OK] CODEBASE_GUIDE.md is in sync`
+  - `pytest -q tests_phaseb/test_monitor_management_contract.py tests_phaseb/test_subscription_paywall_contract.py tests_phaseb/test_onboarding_inspo_contract.py tests_phaseb/test_onboarding_theme_contract.py` -> `49 passed`
+  - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project /Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build` -> `BUILD SUCCEEDED`
+
+## Review — 2026-03-19 Warmup/recovery countdown split on existing V2 runtime path
+
+- Kept the single existing workout-cue runtime path and added phase-specific prep countdown ids only where the user asked:
+  - warmup/recovery now use `zone.countdown.warmup_recovery.{30,10,5,start}.1`
+  - work/main phases still use the generic countdown family
+  - no second countdown engine or parallel cue path was introduced
+- Updated the single source-of-truth cue surfaces together:
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py)
+  - [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+- Changed runtime behavior on the existing event path:
+  - warmup and recovery countdowns now emit `30 / 10 / 5 / start`
+  - the special warmup/recovery countdown family is chosen only for `phase == warmup` or recovery/rest
+  - generic countdown mapping remains in place for work/main segments
+  - warmup-end `start` keeps the warmup/recovery phrase id even when the canonical phase has already transitioned
+- Regenerated and resynced the V2 audio assets on the same pack path:
+  - `python3 tools/generate_audio_pack.py --version v2 --changed-only --sync-r2` -> generated `34` files (`27 changed`, `7 new`) and uploaded the refreshed V2 pack to R2
+  - `python3 tools/select_core_bundle.py --version v2` -> copied `124` bundle MP3s into [CoreAudioPack](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Resources/CoreAudioPack)
+- Updated focused verification:
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_workout_cue_catalog_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_cue_catalog_contract.py)
+  - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
+  - [test_audio_pack_manifest_coverage.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_audio_pack_manifest_coverage.py)
+  - [test_select_core_bundle.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_select_core_bundle.py)
+
+## Review — 2026-03-19 Shared Premium success popup on existing subscription path
+
+- Kept the single existing purchase/runtime path for Premium and trial entry:
+  - the shared [WatchConnectedPremiumOfferStepView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) still owns Premium and trial CTAs
+  - both onboarding and [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) still reuse that same shared deck
+  - no second subscription success flow or duplicate paywall route was introduced
+- Added one shared success presentation on the same deck path:
+  - [SubscriptionManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/SubscriptionManager.swift) now returns a verified purchase outcome after entitlement refresh
+  - [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) now shows a single Premium success popup for both Premium purchase and 14-day trial activation
+  - onboarding and `Manage Subscription` stay synced because the popup lives on the shared deck, not in the hosts
+- Preserved current behavior:
+  - the popup shows only after StoreKit reports a successful purchase and `refreshStatus()` completes
+  - onboarding continues through the existing `onContinue` path after the popup button
+  - `Manage Subscription` dismisses the popup and stays on the existing screen
+- Updated focused verification:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_monitor_management_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_monitor_management_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+
+## Review — 2026-03-19 Workout cue single source of truth + BOTH motivation
+
+- Kept the single existing workout cue runtime path:
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py) is now the authoring source for active workout cue text and metadata
+  - [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py) remains a compatibility shell and now derives workout cue entries from that authoring source instead of owning separate workout wording
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) now reads workout phrase text from the review source on the live runtime path
+  - [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) now uses the review source for V2 workout cue metadata
+- Extended the existing motivation path instead of creating a second one:
+  - interval and easy-run stage motivation rows are marked `BOTH`
+  - the no-HR structure-driven path can now reuse staged motivation after the first structure cue in the same segment, while preserving the initial structure guidance
+  - no parallel motivation runtime or duplicate phrase family was introduced
+- Updated validation/tests to match the approved stronger cue wording:
+  - raised workout cue word caps just enough for the approved longer structure/no-HR lines
+  - updated phrase review summary expectations to the current reviewed set
+- Updated focused verification:
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+  - [test_context_aware_max_silence.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_context_aware_max_silence.py)
+  - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
+  - [test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py)
+  - [test_workout_cue_catalog_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_cue_catalog_contract.py)

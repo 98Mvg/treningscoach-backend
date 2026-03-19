@@ -234,7 +234,7 @@ PHRASE_CATALOG = [
     # ZONE EVENTS — zone_event_motor.py (fixed text, no variables)
     # -----------------------------------------------------------------
 
-    {"id": "zone.watch_disconnected.1", "en": "Watch disconnected", "no": "Pulsklokken ble frakoblet.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.watch_disconnected.1", "en": "Watch disconnected.", "no": "Klokken ble koblet fra.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.no_sensors.1", "en": "Coaching by breath.", "no": "Coacher med pust.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.watch_restored.1", "en": "Watch connected and heart rate is back.", "no": "Klokken er tilkoblet, og pulsen er tilbake.", "persona": "personal_trainer", "priority": "core"},
 
@@ -243,16 +243,20 @@ PHRASE_CATALOG = [
     {"id": "zone.countdown.15", "en": "15", "no": "15", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.5", "en": "Five.", "no": "fem", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.start", "en": "Go", "no": "Start", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.warmup_recovery.30.1", "en": "30 seconds left. Get ready.", "no": "30 sekunder igjen. Gjør deg klar.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.warmup_recovery.10.1", "en": "Get ready. Starting soon.", "no": "Gjør deg klar. Starter snart.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.warmup_recovery.5.1", "en": "Five.", "no": "Fem.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.warmup_recovery.start.1", "en": "Go.", "no": "Kjør.", "persona": "personal_trainer", "priority": "core"},
 
     # phase changes
-    {"id": "zone.main_started.1", "en": "Main set now.", "no": "Nå er du i hoveddelen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.main_started.1", "en": "Main set starts now.", "no": "Hoveddelen starter nå.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.main_started.2", "en": "Workout starts now", "no": "Treningen starter nå.", "persona": "personal_trainer", "priority": "extended"},
     {"id": "zone.workout_finished.1", "en": "Workout finished. Nice work.", "no": "Økten er ferdig. Bra jobbet.", "persona": "personal_trainer", "priority": "core"},
 
     # HR signal
     {"id": "zone.hr_poor_enter.1", "en": "Heart rate signal is weak.", "no": "Pulssignalet er svakt.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.hr_poor_exit.1", "en": "Heart rate is back.", "no": "Pulsen er tilbake.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.hr_poor_timing.1", "en": "No heart rate signal. I will continue coaching", "no": "Ingen pulssignal. Jeg fortsetter å coache", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.hr_poor_timing.1", "en": "No heart rate signal. I'll coach you by time and effort.", "no": "Mangler pulssignal. Jeg guider deg på tid og innsats.", "persona": "personal_trainer", "priority": "core"},
 
     # above zone
     {"id": "zone.above.minimal.1", "en": "Ease off 10-15 seconds.", "no": "Litt ned 10-15 sekunder.", "persona": "personal_trainer", "priority": "core"},
@@ -274,26 +278,26 @@ PHRASE_CATALOG = [
     {"id": "zone.in_zone.default.3", "en": "Hold this phase.", "no": "Hold dette tempoet.", "persona": "personal_trainer", "priority": "extended"},
 
     # phase transitions
-    {"id": "zone.phase.work.default.1", "en": "Work starts now.", "no": "Nå begynner vi.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.work.default.1", "en": "Interval starts now. Bring up the pace.", "no": "Drag starter nå. Øk farten.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.phase.work.motivational.1", "en": "Time to work.", "no": "Nå jobber vi.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.rest.1", "en": "Recovery now.", "no": "Pause nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.warmup.1", "en": "Warmup started", "no": "Oppvarming startet", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.phase.cooldown.1", "en": "Cooldown now.", "no": "Nå roer vi ned pulsen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.rest.1", "en": "Recovery starts now.", "no": "Pause starter nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.warmup.1", "en": "Warmup starts now.", "no": "Oppvarming starter nå.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.phase.cooldown.1", "en": "Cooldown starts now.", "no": "Nedtrapping starter nå.", "persona": "personal_trainer", "priority": "core"},
 
     # pause detection
-    {"id": "zone.pause.detected.1", "en": "Workout paused", "no": "Du har pauset økten", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.pause.resumed.1", "en": "Workout has resumed", "no": "Økten fortsetter.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.detected.1", "en": "Workout paused.", "no": "Du har pauset økten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.pause.resumed.1", "en": "Workout resumed.", "no": "Økten er i gang igjen.", "persona": "personal_trainer", "priority": "core"},
 
     # structure-driven instruction (no live HR)
-    {"id": "zone.structure.work.1", "en": "Pick it up now.", "no": "Kjør på nå.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.structure.recovery.1", "en": "Ease back and recover.", "no": "Ro ned og hent deg inn.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.structure.steady.1", "en": "Settle into the pace.", "no": "Finn rytmen.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.work.1", "en": "Interval starts now. Bring up the pace.", "no": "Drag starter nå. Øk farten.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.recovery.1", "en": "Recovery now. Ease off and reset.", "no": "Pause nå. Ro ned og hent deg inn.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.steady.1", "en": "Easy pace now. Keep it steady.", "no": "Rolig tempo nå. Hold det jevnt.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.structure.steady.2", "en": "Stay with the rhythm.", "no": "Bli i rytmen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.structure.steady.3", "en": "Stay smooth and relaxed.", "no": "Rolig og avslappet.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.structure.steady.4", "en": "Control the effort here.", "no": "Kontroll på innsatsen.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.structure.steady.5", "en": "Keep the pace steady.", "no": "Hold tempoet jevnt.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.structure.steady.6", "en": "Hold the phase.", "no": "Hold det her.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.structure.finish.1", "en": "Final push now!", "no": "Trykk til nå!", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.structure.finish.1", "en": "Final push now. Finish strong.", "no": "Siste drag nå. Avslutt sterkt.", "persona": "personal_trainer", "priority": "core"},
 
     # max silence overrides
     {"id": "zone.silence.work.1", "en": "Hold the rhythm.", "no": "Hold rytmen.", "persona": "personal_trainer", "priority": "core"},
@@ -421,6 +425,37 @@ DYNAMIC_TEMPLATES = [
     {"id": "zone.above.bpm.1", "en": "Back off to {target_low}-{target_high} bpm.", "no": "Rolig ned mot {target_low}-{target_high} bpm.", "persona": "personal_trainer", "variables": {"target_low": [120, 130, 140, 150], "target_high": [135, 145, 155, 165]}},
     {"id": "zone.below.bpm.1", "en": "Build toward {target_low}-{target_high} bpm.", "no": "Løft rolig mot {target_low}-{target_high} bpm.", "persona": "personal_trainer", "variables": {"target_low": [120, 130, 140, 150], "target_high": [135, 145, 155, 165]}},
 ]
+
+
+def _merge_phrase_catalog_entries(base_catalog: list[dict], overrides: list[dict]) -> list[dict]:
+    merged = [dict(item) for item in base_catalog]
+    index_by_id = {
+        str(item.get("id", "")).strip(): idx
+        for idx, item in enumerate(merged)
+        if str(item.get("id", "")).strip()
+    }
+
+    for override in overrides:
+        phrase_id = str(override.get("id", "")).strip()
+        if not phrase_id:
+            continue
+        existing_index = index_by_id.get(phrase_id)
+        if existing_index is None:
+            index_by_id[phrase_id] = len(merged)
+            merged.append(dict(override))
+            continue
+        merged[existing_index] = {**merged[existing_index], **override}
+
+    return merged
+
+
+def _workout_phrase_overrides() -> list[dict]:
+    from phrase_review_v2 import build_workout_phrase_catalog_entries
+
+    return build_workout_phrase_catalog_entries()
+
+
+PHRASE_CATALOG = _merge_phrase_catalog_entries(PHRASE_CATALOG, _workout_phrase_overrides())
 
 
 # =============================================================================

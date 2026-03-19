@@ -70,7 +70,7 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "HistoryAndDataView()" in text
     assert "PersonalProfileSettingsView()" in text
     assert "HealthProfileView()" in text
-    assert "ManageSubscriptionView()" in text
+    assert "ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)" in text
     assert "AboutCoachiView()" in text
     assert text.count("DeleteAccountInfoView()") == 1
     assert 'title: "\\(L10n.aboutCoachi) · v\\(AppConfig.version)"' not in text
@@ -189,6 +189,13 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
 
 def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_header() -> None:
     profile_text = PROFILE_VIEW.read_text(encoding="utf-8")
+    content_text = (
+        REPO_ROOT
+        / "TreningsCoach"
+        / "TreningsCoach"
+        / "Views"
+        / "ContentView.swift"
+    ).read_text(encoding="utf-8")
     onboarding_text = (
         REPO_ROOT
         / "TreningsCoach"
@@ -199,13 +206,40 @@ def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_heade
     ).read_text(encoding="utf-8")
 
     assert "presentationMode: .manageSubscriptionInline" in profile_text
+    assert "WatchConnectedPremiumOfferStepView(" in profile_text
+    assert "Continue to your Premium Dashboard" not in profile_text
+    assert "struct ManageSubscriptionFeatureRowData: Identifiable" not in profile_text
+    assert "enum SubscriptionComparisonCatalog {" not in profile_text
     assert "OnboardingAtmosphereView(step: .premiumOffer)" not in profile_text
     assert ".fullScreenCover(isPresented: $showPlanOffers)" not in profile_text
+    assert 'Text(isNorwegian ? "Mine inkluderte elementer" : "My included items")' not in profile_text
+    assert 'Text(isNorwegian ? "Inkludert i abonnementet" : "Included in your plan")' not in profile_text
+    assert "private var subscriptionStatusCard: some View" not in profile_text
+    assert "private var includedItemsCard: some View" not in profile_text
+    assert '(isNorwegian ? "Administrer i App Store" : "Manage in App Store")' in profile_text
+    assert '(isNorwegian ? "Gjenopprett kjøp" : "Restore purchases")' in profile_text
+    assert '.frame(maxWidth: 320)' in profile_text
+    assert '.background(Color(hex: "22C55E"))' in profile_text
+    assert "min(max(UIScreen.main.bounds.height * 0.86, 760), 920)" in profile_text
+    assert 'Button(isNorwegian ? "Brukervilkår" : "Terms")' in profile_text
+    assert 'Button(isNorwegian ? "personvernerklæring" : "privacy policy")' in profile_text
+    assert "@Binding var isManageSubscriptionPresented: Bool" in profile_text
+    assert "ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)" in profile_text
+    assert "isManageSubscriptionPresented = true" in profile_text
+    assert "isManageSubscriptionPresented = false" in profile_text
+    assert "ProfileView(" in content_text
+    assert "isManageSubscriptionPresented: $isManageSubscriptionPresented" in content_text
+    assert "&& !isManageSubscriptionPresented" in content_text
+    assert "struct ManageSubscriptionFeatureRowData: Identifiable" in onboarding_text
+    assert "enum SubscriptionComparisonCatalog {" in onboarding_text
     assert "private var onboardingOfferBody: some View {" in onboarding_text
     assert "private var inlineManageSubscriptionBody: some View {" in onboarding_text
     assert "private var isInlineManageSubscription: Bool { presentationMode == .manageSubscriptionInline }" in onboarding_text
     assert "private var autoAdvanceIntervalSeconds: UInt64?" in onboarding_text
-    assert "return 7" in onboarding_text
+    assert "12" in onboarding_text
+    assert '.fullScreenCover(item: $purchaseSuccessState)' in onboarding_text
+    assert 'premiumSuccessScreen(for: state)' in onboarding_text
+    assert 'Color(hex: "2F7BFF")' in onboarding_text
 
 
 def test_manage_monitors_screen_matches_provider_list_contract() -> None:

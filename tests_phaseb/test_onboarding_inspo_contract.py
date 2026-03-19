@@ -134,14 +134,21 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '@State private var autoAdvanceTask: Task<Void, Never>?' in text
     assert '@State private var isPagerInteracting = false' in text
     assert '@State private var isAdvancingAutomatically = false' in text
+    assert '@State private var purchaseSuccessState: PremiumAccessSuccessState?' in text
     assert 'let presentationMode: PresentationMode' in text
     assert 'presentationMode: PresentationMode = .onboardingStep' in text
     assert 'private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }' in text
     assert 'private var showsCurrentPlanState: Bool { presentationMode == .manageSubscriptionInline }' in text
     assert 'private var selectsPremiumOnAppear: Bool { presentationMode == .onboardingStep }' in text
     assert 'private var autoAdvanceIntervalSeconds: UInt64?' in text
-    assert 'return 5' in text
-    assert 'return 7' in text
+    assert "12" in text
+    assert "Task { await subscriptionManager.loadProducts() }" in text
+    assert "syncSelectedTrialPlanToEligibility()" in text
+    assert 'if let resolvedLabelPlan = resolvedPlanSelection(from: subscriptionManager.resolvedPlanLabel)' in text
+    assert 'private func resolvedPlanSelection(from label: String) -> PlanSelection? {' in text
+    assert 'case "Free Trial":' in text
+    assert 'case "Premium":' in text
+    assert 'case "Free", "Expired", "Checking":' in text
     assert 'try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)' in text
     assert 'let layoutWidth = min(min(renderWidth, deviceWidth), 500)' in text
     assert 'let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))' in text
@@ -159,24 +166,76 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")' in text
     assert 'planBackground(for: selectedPlan)' in text
     assert '.ignoresSafeArea()' in text
+    assert 'return isNorwegian\n                        ? "Begrensede samtaler med coach"\n                        : "Limited conversations with coach"' in text
+    assert 'return isNorwegian\n                    ? "Fullverdige samtaler med coach"\n                    : "Full conversations with coach"' in text
+    assert 'title: isNorwegian ? "Coaching ved å analysere puls" : "Coaching by analysing puls"' in text
+    assert 'freeValue: isNorwegian ? "5 dagers økthistorikk" : "5 days workout history"' in text
+    assert 'premiumValue: isNorwegian ? "Full økthistorikk" : "Full workout history"' in text
+    assert 'title: isNorwegian ? "Tilbakemelding etter hver økt" : "Single session feedback"' in text
+    assert 'title: isNorwegian ? "Husker tidligere økter" : "Remembers past workouts"' in text
+    assert 'title: isNorwegian ? "Velg coach-stemme (kommer snart)" : "Choose coach voice (coming soon)"' in text
+    assert 'if row.id == "workout_history" {' in text
+    assert 'return plan == .free ? row.freeValue : row.premiumValue' in text
     assert 'return isNorwegian ? "Fortsett med Gratis" : "Continue with Free"' in text
     assert 'return isNorwegian ? "Få Premium" : "Get Premium"' in text
-    assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode nå" : "Start \\(trialDays)-day free trial now"' in text
+    assert 'return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode nå" : "Start \\(trialDays) days free trail now"' in text
+    assert 'Color(hex: "2F7BFF")' in text
+    assert 'if showsCurrentPlanState {' in text
+    assert 'return isNorwegian ? "Gratis plan" : "Free plan"' in text
+    assert 'case .premium:\n                return isNorwegian ? "Få Premium" : "Get Premium"' in text
+    assert 'case .trial:\n                return isNorwegian ? "Start \\(trialDays) dagers gratis prøveperiode nå" : "Start \\(trialDays) days free trail now"' in text
+    assert 'return isNorwegian ? "Administrer i App Store" : "Manage in App Store"' not in text
     assert 'private func planSummary(for plan: PlanSelection) -> String {' in text
     assert 'Start med Coachi-kjernene og oppgrader når du vil.' in text
     assert 'Lås opp hele Coachi-opplevelsen med mer innsikt, historikk og live coaching.' in text
     assert 'Prøv hele Coachi gratis i 14 dager med samme enkle oversikt som de andre planene.' in text
     assert 'ForEach(PlanSelection.allCases, id: \\.rawValue)' in text
     assert 'trialPricingOption(' in text
+    assert 'private var trialEligibleOptions: [PaywallPlanSelectionOption]' in text
+    assert 'if subscriptionManager.monthlyHasIntroOffer {' in text
+    assert 'if subscriptionManager.yearlyHasIntroOffer {' in text
+    assert 'if !subscriptionManager.hasLoadedProducts {' in text
+    assert 'Gratis prøveperiode er ikke tilgjengelig akkurat nå.' in text
     assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' not in text
+    assert 'if !isInlineManageSubscription, trialEligibleOptions.contains(.yearly), let savingsText = yearlySavingsText {' in text
     assert "return ScrollView(.vertical, showsIndicators: false)" not in plan_card_block
-    assert "Spacer(minLength: denseLayout ? 8 : 12)" in plan_card_block
+    assert "Spacer(minLength: denseLayout ? 4 : 12)" in plan_card_block
     assert 'let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan' in plan_card_block
+    assert 'let contentSpacing: CGFloat = denseLayout ? 12 : 18' in plan_card_block
+    assert 'let featureSpacing: CGFloat = denseLayout ? 10 : 14' in plan_card_block
+    assert 'let footerSpacing: CGFloat = denseLayout ? 6 : 10' in plan_card_block
+    assert 'Alle Coachi-funksjoner er inkludert i prøveperioden. Kjøpet fullføres i App Store.' in text
+    assert 'let headerHeight: CGFloat = {' in plan_card_block
+    assert 'case .trial:' in plan_card_block
+    assert 'planCardHeader(for: plan, accent: accent, isCurrentPlan: isCurrentPlan, height: headerHeight)' in plan_card_block
+    assert '.overlay(alignment: .top)' not in plan_card_block
     assert '.disabled(isActionDisabled)' in plan_card_block
-    assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' in text
+    assert 'headerBackground(for: plan, accent: accent)' in text
+    assert 'if plan == .premium && !hasPremiumAccess && !isCurrentPlan {' in text
+    assert '@State private var selectedTrialPlan: PaywallPlanSelectionOption = .yearly' in text
+    assert '@State private var showPaywall' not in text
+    assert 'paywallInitialPlan' not in text
+    assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' not in text
+    assert 'Task { await purchaseSelection(.yearly) }' in text
+    assert 'Task { await purchaseSelection(selectedTrialPlan) }' in text
+    assert 'let purchaseOutcome = await subscriptionManager.purchase(product)' in text
+    assert 'guard case let .success(status) = purchaseOutcome else { return }' in text
+    assert 'purchaseSuccessState = successState' in text
+    assert 'private enum PremiumAccessSuccessState: String, Identifiable' in text
+    assert '.fullScreenCover(item: $purchaseSuccessState)' in text
+    assert 'premiumSuccessScreen(for: state)' in text
+    assert 'Continue to your Premium Dashboard' in text
+    assert '"Your \\(trialDays)-day Coachi PREMIUM trial is now active!"' in text
+    assert 'You are now a Coachi PREMIUM user!' in text
+    assert 'Thank you for choosing the best. Prepare to unlock new heights!' in text
+    assert 'Unparalleled Insights:' in text
+    assert 'Personal Coaching:' in text
+    assert 'Precision HR Zones:' in text
+    assert "subscriptionManager.formattedFreePrice(isNorwegian: isNorwegian)" in text
+    assert "subscriptionManager.formattedPrice(for: .monthly, isNorwegian: isNorwegian)" in text
+    assert "subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)" in text
     assert 'Text(isNorwegian ? "Apple Watch koblet til" : "Apple Watch connected")' in text
     assert 'title: isNorwegian ? "Klokken er klar" : "Your watch is ready"' not in text
-    assert "PaywallView(context: .general, initialPlan: paywallInitialPlan)" in text
     assert "private func dismissKeyboardAndMove(to step: OnboardingStep)" in text
     assert "syncSelectionForCurrentContext(animated: false)" in text
 

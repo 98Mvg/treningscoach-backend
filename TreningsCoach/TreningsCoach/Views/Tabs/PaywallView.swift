@@ -373,9 +373,9 @@ struct PaywallView: View {
     private func planHasTrial(_ option: PaywallPlanSelectionOption) -> Bool {
         switch option {
         case .monthly:
-            return subscriptionManager.monthlyProduct?.subscription?.introductoryOffer != nil || !subscriptionManager.hasLoadedProducts
+            return subscriptionManager.monthlyHasIntroOffer
         case .yearly:
-            return subscriptionManager.yearlyProduct?.subscription?.introductoryOffer != nil || !subscriptionManager.hasLoadedProducts
+            return subscriptionManager.yearlyHasIntroOffer
         }
     }
 
@@ -741,30 +741,15 @@ struct PaywallView: View {
     // MARK: - Price Labels
 
     private var monthlyPriceLabel: String {
-        if let product = subscriptionManager.monthlyProduct {
-            return "\(product.displayPrice)/\(isNorwegian ? "mnd" : "mo")"
-        }
-        return "\(AppConfig.Subscription.fallbackMonthlyPrice)/\(isNorwegian ? "mnd" : "mo")"
+        subscriptionManager.formattedRecurringPrice(for: .monthly, isNorwegian: isNorwegian)
     }
 
     private var yearlyPriceLabel: String {
-        if let product = subscriptionManager.yearlyProduct {
-            return product.displayPrice
-        }
-        return AppConfig.Subscription.fallbackYearlyPrice
+        subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)
     }
 
     private var yearlySubtitle: String {
-        if let product = subscriptionManager.yearlyProduct {
-            // Show per-month breakdown if we can compute it
-            if let pricePerYear = product.price as Decimal?,
-               pricePerYear > 0 {
-                let perMonth = pricePerYear / 12
-                let formatted = product.priceFormatStyle.format(perMonth)
-                return isNorwegian ? "\(formatted)/mnd" : "\(formatted)/mo"
-            }
-        }
-        return isNorwegian ? "Beste verdi" : "Best value"
+        subscriptionManager.formattedYearlyPerMonthPrice(isNorwegian: isNorwegian)
     }
 }
 

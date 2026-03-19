@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
+from phrase_review_v2 import build_review_rows
 from zone_event_motor import (
     _motivation_stage_from_rep,
     _motivation_stage_from_elapsed,
@@ -145,6 +146,12 @@ def test_phrase_id_easy_run_s2_v1():
 
 def test_phrase_id_easy_run_s4_v2():
     assert _motivation_phrase_id("easy_run", stage=4, variant=2) == "easy_run.motivate.s4.2"
+
+
+def test_staged_motivation_review_rows_are_marked_both():
+    rows = {row.phrase_id: row for row in build_review_rows()}
+    assert rows["interval.motivate.s2.1"].mode == "BOTH"
+    assert rows["easy_run.motivate.s2.1"].mode == "BOTH"
 
 
 # --- Stage-only pool + anti-repeat ---

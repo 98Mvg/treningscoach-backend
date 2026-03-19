@@ -191,6 +191,105 @@ def _spoken_duration_text(summary_context: Mapping[str, Any], language: str) -> 
     return raw_duration_text or None
 
 
+def _opening_metric_candidates(summary_context: Mapping[str, Any], language: str) -> list[str]:
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    candidates: list[str] = []
+
+    average_hr = summary_context.get("average_heart_rate")
+    if average_hr is not None and int(average_hr) > 0:
+        label = "Gjennomsnittspuls" if is_norwegian else "Average heart rate"
+        candidates.append(f"{label}: {int(average_hr)} BPM")
+
+    distance_m = summary_context.get("distance_meters")
+    if distance_m is not None and float(distance_m) > 0:
+        distance_km = float(distance_m) / 1000.0
+        label = "Distanse" if is_norwegian else "Distance"
+        candidates.append(f"{label}: {distance_km:.2f} km")
+
+    zone_pct = _format_zone_pct(summary_context.get("zone_time_in_target_pct"))
+    if zone_pct:
+        label = "Tid i målsonen" if is_norwegian else "Time in target zone"
+        candidates.append(f"{label}: {zone_pct}")
+
+    coach_score = summary_context.get("coach_score")
+    if coach_score is not None:
+        label = "Coach score" if is_norwegian else "Coach score"
+        candidates.append(f"{label}: {coach_score}")
+
+    final_hr = str(summary_context.get("final_heart_rate_text") or "").strip()
+    if final_hr:
+        label = "Sluttpuls" if is_norwegian else "Final heart rate"
+        candidates.append(f"{label}: {final_hr}")
+
+    return candidates[:2]
+
+
+def _opening_insight_cue(summary_context: Mapping[str, Any], language: str) -> str:
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    zone_pct = _format_zone_pct(summary_context.get("zone_time_in_target_pct"))
+    overshoots = summary_context.get("zone_overshoots")
+    average_hr = summary_context.get("average_heart_rate")
+    coaching_style = str(summary_context.get("coaching_style") or "").strip()
+    distance_m = summary_context.get("distance_meters")
+    duration_seconds = _duration_seconds_from_context(summary_context)
+    coach_score_summary_line = str(summary_context.get("coach_score_summary_line") or "").strip()
+
+    if zone_pct:
+        if overshoots is not None and int(overshoots) > 0:
+            return (
+                f"Comment briefly on zone control using {zone_pct} time in zone and {int(overshoots)} overshoots."
+                if not is_norwegian
+                else f"Kommenter kort sonekontrollen med {zone_pct} tid i sonen og {int(overshoots)} overshoots."
+            )
+        return (
+            f"Comment briefly on steady zone control using {zone_pct} time in zone."
+            if not is_norwegian
+            else f"Kommenter kort jevn sonekontroll med {zone_pct} tid i sonen."
+        )
+
+    if average_hr is not None and int(average_hr) > 0 and coaching_style:
+        return (
+            f"Comment briefly on effort control using the chosen intensity '{coaching_style}' and average heart rate {int(average_hr)} BPM."
+            if not is_norwegian
+            else f"Kommenter kort innsatskontroll med valgt intensitet '{coaching_style}' og gjennomsnittspuls {int(average_hr)} BPM."
+        )
+
+    if distance_m is not None and float(distance_m) > 0 and duration_seconds and duration_seconds > 0:
+        pace_seconds = int(round(duration_seconds / (float(distance_m) / 1000.0)))
+        pace_minutes = pace_seconds // 60
+        pace_remainder = pace_seconds % 60
+        pace_text = f"{pace_minutes}:{pace_remainder:02d} min/km"
+        return (
+            f"Comment briefly on pacing using the approximate pace of {pace_text}."
+            if not is_norwegian
+            else f"Kommenter kort tempoet med omtrentlig fart på {pace_text}."
+        )
+
+    if coach_score_summary_line:
+        return coach_score_summary_line
+
+    return (
+        "Give one short running-specific insight grounded in the summary details above."
+        if not is_norwegian
+        else "Gi ett kort løpsspesifikt innblikk som er forankret i sammendraget over."
+    )
+
+
+def _opening_recap_brief(summary_context: Mapping[str, Any], language: str) -> dict[str, Any]:
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    workout_reference = _canonical_workout_reference(
+        str(summary_context.get("workout_mode") or "").strip(),
+        str(summary_context.get("workout_label") or "").strip(),
+        is_norwegian,
+    )
+    return {
+        "workout_reference": workout_reference,
+        "duration": _spoken_duration_text(summary_context, language),
+        "stats": _opening_metric_candidates(summary_context, language),
+        "insight_cue": _opening_insight_cue(summary_context, language),
+    }
+
+
 def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[str]:
     is_norwegian = str(language or "").strip().lower().startswith("no")
     lines: list[str] = []
@@ -442,6 +541,25 @@ def build_post_workout_voice_instructions(
         if history_lines
         else "- No stored workout history overview was provided."
     )
+    opening_brief = _opening_recap_brief(context, language)
+    opening_stats = opening_brief["stats"]
+    opening_stats_block = (
+        "\n".join(f"- {line}" for line in opening_stats)
+        if opening_stats
+        else (
+            "- No additional stat beyond duration is available; do not invent one."
+            if not is_norwegian
+            else "- Ingen ekstra statistikk utover varighet er tilgjengelig; ikke finn på noe."
+        )
+    )
+    opening_workout_line = (
+        opening_brief["workout_reference"]
+        or ("general running workout" if not is_norwegian else "generell løpeøkt")
+    )
+    opening_duration_line = (
+        opening_brief["duration"]
+        or ("No duration provided" if not is_norwegian else "Ingen varighet oppgitt")
+    )
 
     persona_text = PersonaManager.get_system_prompt(
         persona="personal_trainer",
@@ -474,12 +592,13 @@ def build_post_workout_voice_instructions(
         f"{activity_anchor}"
         f"{mode_awareness}\n"
         f"Speak in {language_name}. "
-        "YOUR OPENING MESSAGE is special and must follow these rules:\n"
-        "1. Start by acknowledging the specific workout just completed (use the workout reference and duration)\n"
-        "2. Mention one standout metric (average heart rate, distance, zone time, or coach score)\n"
-        "3. Give a brief, specific coaching insight based on the data\n"
-        "4. End with an open question about how the athlete felt\n"
-        "Your opening message may be up to 40 words and 3 sentences.\n"
+        "YOUR FIRST RESPONSE is a special post-workout recap and must follow these rules exactly:\n"
+        "1. Identify the workout just completed using the workout reference below.\n"
+        "2. Mention the duration.\n"
+        "3. Mention one or two real stats from the opening recap brief below.\n"
+        "4. Give one short workout-specific insight using the insight cue below.\n"
+        "5. End with exactly one open question.\n"
+        "Your opening response may be up to 45 words and 3 sentences.\n"
         "After the opening, return to the normal limit of 25 words / 2 sentences.\n\n"
         "CRITICAL — Workout type awareness:\n"
         "The athlete CHOSE this workout type before starting. Tailor ALL feedback to it.\n"
@@ -498,6 +617,13 @@ def build_post_workout_voice_instructions(
         "If the label says 'Intervals', talk about work/rest ratio, intensity peaks, and recovery.\n"
         "If the label says 'Workout', treat it as a general running workout focused on pace, breathing, cardio effort, and heart rate zones.\n"
         "Refer to the workout ONLY by its label. Do not invent activity details.\n"
+        "Opening recap brief (use this for the first response only):\n"
+        f"- Workout reference: {opening_workout_line}\n"
+        f"- Duration: {opening_duration_line}\n"
+        "- Stats to mention (choose one or two only):\n"
+        f"{opening_stats_block}\n"
+        f"- Insight cue: {opening_brief['insight_cue']}\n"
+        "Use the opening recap brief for the first response and do not invent extra stats or exercises.\n"
         "The athlete also chose an intensity level (Easy/Medium/Hard) before starting. "
         "Use this to gauge whether their heart rate, zone time, and effort match their intent. "
         "If average heart rate is available, prefer it over final heart rate for overall effort assessment. "

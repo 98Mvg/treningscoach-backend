@@ -252,6 +252,21 @@ struct WorkoutCompleteView: View {
                     liveCoachVM: vm,
                     subscriptionManager: subscriptionManager,
                     onStartCoaching: {
+                        Task {
+                            var metadata = vm.summaryContext.telemetryMetadata().reduce(into: [String: Any]()) { partialResult, entry in
+                                partialResult[entry.key] = entry.value
+                            }
+                            metadata["entry_point"] = "workout_summary_sheet"
+                            metadata["live_voice_available"] = liveVoiceIsAvailable
+                            metadata["is_premium"] = hasPremiumAccess
+                            if let remainingToday = liveVoiceTracker.remainingToday(isPremium: hasPremiumAccess) {
+                                metadata["remaining_today"] = remainingToday
+                            }
+                            _ = await BackendAPIService.shared.trackVoiceTelemetry(
+                                event: "voice_cta_tapped",
+                                metadata: metadata
+                            )
+                        }
                         if liveVoiceIsAvailable {
                             Task { await vm.startIfNeeded() }
                         } else {
@@ -282,7 +297,11 @@ struct WorkoutCompleteView: View {
             }
         }
         .onChange(of: showWorkoutSummary) { _, isPresented in
-            if !isPresented { summaryDetent = .medium }
+            if isPresented {
+                BackendAPIService.shared.wakeBackend()
+            } else {
+                summaryDetent = .medium
+            }
         }
         .sheet(isPresented: $showLiveVoicePaywall) {
             PaywallView(context: .liveVoice)

@@ -31,6 +31,70 @@ enum LiveVoiceDisconnectReason: String {
     case error
 }
 
+private final class OutboundAudioSender {
+    private let queue = DispatchQueue(label: "XAIRealtimeVoiceService.outboundAudio")
+    private let maxDepth: Int
+    private let failureHandler: @Sendable (String) -> Void
+    private weak var socket: URLSessionWebSocketTask?
+    private var pendingPayloads: [String] = []
+    private var isSending = false
+
+    init(maxDepth: Int, failureHandler: @escaping @Sendable (String) -> Void) {
+        self.maxDepth = maxDepth
+        self.failureHandler = failureHandler
+    }
+
+    func updateSocket(_ socket: URLSessionWebSocketTask?) {
+        queue.async {
+            self.socket = socket
+            if socket == nil {
+                self.pendingPayloads.removeAll()
+                self.isSending = false
+            }
+        }
+    }
+
+    func reset() {
+        queue.async {
+            self.pendingPayloads.removeAll()
+            self.isSending = false
+        }
+    }
+
+    func enqueue(_ payload: String) {
+        queue.async {
+            if self.pendingPayloads.count >= self.maxDepth {
+                self.pendingPayloads.removeFirst()
+            }
+            self.pendingPayloads.append(payload)
+            self.drainIfNeeded()
+        }
+    }
+
+    private func drainIfNeeded() {
+        guard !isSending else { return }
+        guard !pendingPayloads.isEmpty else { return }
+        guard let socket else {
+            pendingPayloads.removeAll()
+            return
+        }
+
+        isSending = true
+        let payload = pendingPayloads.removeFirst()
+        socket.send(.string(payload)) { error in
+            self.queue.async {
+                self.isSending = false
+                if error != nil {
+                    self.pendingPayloads.removeAll()
+                    self.failureHandler("Live voice connection dropped while sending audio.")
+                    return
+                }
+                self.drainIfNeeded()
+            }
+        }
+    }
+}
+
 @MainActor
 final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     @Published private(set) var connectionState: LiveVoiceConnectionState = .idle
@@ -43,6 +107,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     @Published private(set) var isQuotaExhausted: Bool = false
     @Published private(set) var isSpeaking: Bool = false
     @Published private(set) var lastDisconnectReason: LiveVoiceDisconnectReason?
+    @Published private(set) var didReceiveFirstAssistantResponse: Bool = false
+    @Published private(set) var didReceiveFirstAssistantAudio: Bool = false
 
     private let apiService: BackendAPIService
     private let summaryContext: PostWorkoutSummaryContext
@@ -67,9 +133,16 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     private var startupTimeoutTask: Task<Void, Never>?
     private var sessionBootstrap: VoiceSessionBootstrap?
     private var didSendStartTelemetry = false
+    private var didSendFirstAssistantResponseTelemetry = false
+    private var didSendFirstAssistantAudioTelemetry = false
     private var hasConnectedSession = false
     private var assistantDraftID: UUID?
     private var localClipPlayer: AVAudioPlayer?
+    private lazy var outboundAudioSender = OutboundAudioSender(maxDepth: 8) { [weak self] message in
+        Task { [weak self] in
+            await self?.handleFailure(message)
+        }
+    }
 
     init(
         apiService: BackendAPIService = .shared,
@@ -102,8 +175,12 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         turnCount = 0
         sessionDurationSeconds = 0
         didSendStartTelemetry = false
+        didSendFirstAssistantResponseTelemetry = false
+        didSendFirstAssistantAudioTelemetry = false
         hasConnectedSession = false
         assistantDraftID = nil
+        didReceiveFirstAssistantResponse = false
+        didReceiveFirstAssistantAudio = false
         apiService.wakeBackend()
 
         print("🎙️ [XAIVoice] start() — requesting mic permission")
@@ -147,6 +224,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             print("🎙️ [XAIVoice] openRealtimeSocket")
             try openRealtimeSocket(using: bootstrap)
             try await sendSessionUpdate(bootstrap.sessionUpdateJSON)
+            startAudioSenderLoopIfNeeded()
             try startAudioCapture()
 
             hasConnectedSession = true
@@ -154,26 +232,11 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             print("🎙️ [XAIVoice] connected ✅")
             micState = .capturing
             try await sendInitialAssistantKickoff()
-            startupTimeoutTask?.cancel()
-            startupTimeoutTask = nil
             appendSystemMessage(
                 languageCode == "no"
                     ? "Live voice er koblet til. Still et sporsmal om den siste okten."
                     : "Live voice is connected. Ask about the workout you just completed."
             )
-
-            if !didSendStartTelemetry {
-                didSendStartTelemetry = true
-                _ = await apiService.trackVoiceTelemetry(
-                    event: "voice_session_started",
-                    metadata: mergedTelemetryMetadata(
-                        extra: [
-                            "voice_session_id": bootstrap.voiceSessionId,
-                            "voice": bootstrap.voice,
-                        ]
-                    )
-                )
-            }
 
             sessionTimerTask = Task { [weak self] in
                 await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)
@@ -277,6 +340,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         let socket = URLSession.shared.webSocketTask(with: url, protocols: protocols)
         socket.resume()
         self.webSocketTask = socket
+        outboundAudioSender.updateSocket(socket)
         connectionState = .connecting
 
         receiveTask = Task { [weak self] in
@@ -297,8 +361,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         let instructions = languageCode == "no"
-            ? "Gi den påkrevde åpningsmeldingen for den nettopp fullførte løpeøkten nå. Følg de aktive sesjonsinstruksjonene nøyaktig. Bruk bare sammendraget fra denne økten i åpningen. Ikke nevn historikk, tidligere aktivitet eller spesifikke øvelser. Hvis sammendraget er generisk eller veldig kort, hold åpningen generell og løpsspesifikk."
-            : "Give the required opening message for the just-finished running workout now. Follow the active session instructions exactly. Use only the summary from this workout in the opening. Do not mention workout history, earlier activity, or specific exercises. If the summary is generic or very short, keep the opening generic and running-specific."
+            ? "Lever den påkrevde åpningsoppsummeringen nå. Følg de aktive sesjonsinstruksjonene nøyaktig."
+            : "Deliver the required opening recap now. Follow the active session instructions exactly."
         let payload: [String: Any] = [
             "type": "response.create",
             "response": [
@@ -336,9 +400,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             guard let rawPCM, !rawPCM.isEmpty else { return }
             let encoded = rawPCM.base64EncodedString()
             let payload = "{\"type\":\"input_audio_buffer.append\",\"audio\":\"\(encoded)\"}"
-            Task { [weak self] in
-                await self?.sendAudioAppend(payload)
-            }
+            self.enqueueAudioAppend(payload)
         }
 
         engine.prepare()
@@ -381,13 +443,12 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         return Data(bytes: channelData, count: byteCount)
     }
 
-    private func sendAudioAppend(_ payload: String) async {
-        guard let socket = webSocketTask else { return }
-        do {
-            try await socket.send(.string(payload))
-        } catch {
-            await handleFailure("Live voice connection dropped while sending audio.")
-        }
+    private func startAudioSenderLoopIfNeeded() {
+        outboundAudioSender.reset()
+    }
+
+    private func enqueueAudioAppend(_ payload: String) {
+        outboundAudioSender.enqueue(payload)
     }
 
     private func receiveLoop() async {
@@ -427,15 +488,19 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             }
         case "response.output_audio_transcript.delta", "response.audio_transcript.delta", "response.text.delta":
             if let delta = stringValue(in: event, keys: ["delta", "text"]), !delta.isEmpty {
+                await markFirstAssistantResponseIfNeeded(source: "text_delta")
                 appendAssistantDelta(delta)
             }
         case "response.output_audio.delta", "response.audio.delta":
             isSpeaking = true
+            await markFirstAssistantResponseIfNeeded(source: "audio_delta")
+            await markFirstAssistantAudioIfNeeded()
             if let audio = stringValue(in: event, keys: ["delta", "audio"]), !audio.isEmpty {
                 queuePlaybackChunk(base64Audio: audio)
             }
         case "response.output_audio.done", "response.audio.done", "response.done":
             isSpeaking = false
+            await markFirstAssistantResponseIfNeeded(source: "response_done")
             finalizeAssistantDraft()
         case "error":
             let message = stringValue(in: event, keys: ["message"]) ?? "Live voice failed."
@@ -489,6 +554,54 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         )
         assistantDraftID = nil
         turnCount += 1
+    }
+
+    private func markFirstAssistantResponseIfNeeded(source: String) async {
+        guard !didReceiveFirstAssistantResponse else { return }
+        didReceiveFirstAssistantResponse = true
+        startupTimeoutTask?.cancel()
+        startupTimeoutTask = nil
+
+        let metadata = mergedTelemetryMetadata(
+            extra: [
+                "voice_session_id": voiceSessionId ?? "",
+                "voice": sessionBootstrap?.voice ?? "",
+                "source": source,
+            ]
+        )
+
+        if !didSendStartTelemetry {
+            didSendStartTelemetry = true
+            _ = await apiService.trackVoiceTelemetry(
+                event: "voice_session_started",
+                metadata: metadata
+            )
+        }
+
+        if !didSendFirstAssistantResponseTelemetry {
+            didSendFirstAssistantResponseTelemetry = true
+            _ = await apiService.trackVoiceTelemetry(
+                event: "voice_first_assistant_response",
+                metadata: metadata
+            )
+        }
+    }
+
+    private func markFirstAssistantAudioIfNeeded() async {
+        guard !didReceiveFirstAssistantAudio else { return }
+        didReceiveFirstAssistantAudio = true
+
+        guard !didSendFirstAssistantAudioTelemetry else { return }
+        didSendFirstAssistantAudioTelemetry = true
+        _ = await apiService.trackVoiceTelemetry(
+            event: "voice_first_assistant_audio",
+            metadata: mergedTelemetryMetadata(
+                extra: [
+                    "voice_session_id": voiceSessionId ?? "",
+                    "voice": sessionBootstrap?.voice ?? "",
+                ]
+            )
+        )
     }
 
     private func queuePlaybackChunk(base64Audio: String) {
@@ -585,6 +698,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         sessionTimerTask = nil
         startupTimeoutTask?.cancel()
         startupTimeoutTask = nil
+        outboundAudioSender.updateSocket(nil)
+        outboundAudioSender.reset()
 
         if let engine = captureEngine {
             engine.inputNode.removeTap(onBus: 0)

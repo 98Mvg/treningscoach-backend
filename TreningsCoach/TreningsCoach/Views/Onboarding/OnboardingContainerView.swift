@@ -7,6 +7,7 @@
 //  -> Sensor connect/no sensor -> Premium bridge -> Notifications -> Main app
 //
 
+import StoreKit
 import SwiftUI
 import UIKit
 
@@ -686,9 +687,7 @@ private struct IdentityStepView: View {
             primaryTitle: L10n.continueButton,
             canContinue: canContinue,
             onPrimary: {
-                focusedField = nil
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                onContinue()
+                continueAfterKeyboardDismiss()
             }
         ) {
             VStack(spacing: 16) {
@@ -697,7 +696,6 @@ private struct IdentityStepView: View {
                     placeholder: L10n.firstNamePlaceholder,
                     text: $firstName,
                     focused: .firstName,
-                    contentType: .givenName,
                     submitLabel: .next
                 ) {
                     focusedField = .lastName
@@ -708,19 +706,19 @@ private struct IdentityStepView: View {
                     placeholder: L10n.lastNamePlaceholder,
                     text: $lastName,
                     focused: .lastName,
-                    contentType: .familyName,
                     submitLabel: .done
                 ) {
                     if canContinue {
-                        focusedField = nil
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        onContinue()
+                        continueAfterKeyboardDismiss()
                     }
                 }
             }
         }
         .onAppear {
-            focusedField = .firstName
+            Task { @MainActor in
+                await Task.yield()
+                focusedField = .firstName
+            }
         }
     }
 
@@ -729,7 +727,6 @@ private struct IdentityStepView: View {
         placeholder: String,
         text: Binding<String>,
         focused: Field,
-        contentType: UITextContentType?,
         submitLabel: SubmitLabel,
         onSubmit: @escaping () -> Void
     ) -> some View {
@@ -743,7 +740,6 @@ private struct IdentityStepView: View {
                 .foregroundColor(CoachiTheme.textPrimary)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
-                .textContentType(contentType)
                 .submitLabel(submitLabel)
                 .focused($focusedField, equals: focused)
                 .onSubmit(onSubmit)
@@ -755,6 +751,15 @@ private struct IdentityStepView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
                 )
+        }
+    }
+
+    private func continueAfterKeyboardDismiss() {
+        focusedField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        Task { @MainActor in
+            await Task.yield()
+            onContinue()
         }
     }
 }
@@ -1656,17 +1661,84 @@ struct SensorConnectOnboardingView: View {
 
 // NoSensorFallbackStepView removed — content merged into SensorConnectOnboardingView
 
+struct ManageSubscriptionFeatureRowData: Identifiable {
+    let id: String
+    let title: String
+    let freeValue: String
+    let premiumValue: String
+}
+
+enum SubscriptionComparisonCatalog {
+    static func featureRows(isNorwegian: Bool) -> [ManageSubscriptionFeatureRowData] {
+        [
+            ManageSubscriptionFeatureRowData(
+                id: "guided_workouts",
+                title: isNorwegian ? "Guidede økter" : "Guided workouts",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "coach_score",
+                title: isNorwegian ? "Coachi Score" : "Coachi Score",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "hr_zone_coaching",
+                title: isNorwegian ? "Coaching ved å analysere puls" : "Coaching by analysing puls",
+                freeValue: "✓",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "talk_to_coach_live",
+                title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live",
+                freeValue: isNorwegian ? "1/dag" : "1/day",
+                premiumValue: isNorwegian ? "3/dag" : "3/day"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "workout_history",
+                title: isNorwegian ? "Økthistorikk" : "Workout history",
+                freeValue: isNorwegian ? "5 dagers økthistorikk" : "5 days workout history",
+                premiumValue: isNorwegian ? "Full økthistorikk" : "Full workout history"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "single_session_feedback",
+                title: isNorwegian ? "Tilbakemelding etter hver økt" : "Single session feedback",
+                freeValue: "✓",
+                premiumValue: "—"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "deep_workout_insights",
+                title: isNorwegian ? "Dype øktoppsummeringer" : "Deep workout insights",
+                freeValue: "—",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "remembers_past_workouts",
+                title: isNorwegian ? "Husker tidligere økter" : "Remembers past workouts",
+                freeValue: "—",
+                premiumValue: "✓"
+            ),
+            ManageSubscriptionFeatureRowData(
+                id: "coach_voice_coming_soon",
+                title: isNorwegian ? "Velg coach-stemme (kommer snart)" : "Choose coach voice (coming soon)",
+                freeValue: "—",
+                premiumValue: "✓"
+            ),
+        ]
+    }
+}
+
 struct WatchConnectedPremiumOfferStepView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var watchManager: PhoneWCManager
-    @State private var showPaywall = false
     @State private var selectedPlan: PlanSelection = .free
     @State private var selectedTrialPlan: PaywallPlanSelectionOption = .yearly
-    @State private var paywallInitialPlan: PaywallPlanSelectionOption = .yearly
     @State private var autoAdvanceTask: Task<Void, Never>?
     @State private var isPagerInteracting = false
     @State private var isAdvancingAutomatically = false
+    @State private var purchaseSuccessState: PremiumAccessSuccessState?
 
     let onBack: () -> Void
     let onContinue: () -> Void
@@ -1683,6 +1755,13 @@ struct WatchConnectedPremiumOfferStepView: View {
         case trial
     }
 
+    private enum PremiumAccessSuccessState: String, Identifiable {
+        case premium
+        case trial
+
+        var id: String { rawValue }
+    }
+
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool { subscriptionManager.hasPremiumAccess }
     private var watchReady: Bool { watchManager.watchCapabilityState == .watchReady }
@@ -1692,11 +1771,11 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private var monthlyPriceText: String {
-        subscriptionManager.monthlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackMonthlyPrice
+        subscriptionManager.formattedPrice(for: .monthly, isNorwegian: isNorwegian)
     }
 
     private var yearlyPriceText: String {
-        subscriptionManager.yearlyProduct?.displayPrice ?? AppConfig.Subscription.fallbackYearlyPrice
+        subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)
     }
 
     private var trialDays: Int {
@@ -1704,7 +1783,18 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private var hasIntroOffer: Bool {
-        subscriptionManager.yearlyProduct?.subscription?.introductoryOffer != nil
+        !trialEligibleOptions.isEmpty
+    }
+
+    private var trialEligibleOptions: [PaywallPlanSelectionOption] {
+        var options: [PaywallPlanSelectionOption] = []
+        if subscriptionManager.monthlyHasIntroOffer {
+            options.append(.monthly)
+        }
+        if subscriptionManager.yearlyHasIntroOffer {
+            options.append(.yearly)
+        }
+        return options
     }
 
     private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }
@@ -1712,12 +1802,7 @@ struct WatchConnectedPremiumOfferStepView: View {
     private var showsCurrentPlanState: Bool { presentationMode == .manageSubscriptionInline }
     private var isInlineManageSubscription: Bool { presentationMode == .manageSubscriptionInline }
     private var autoAdvanceIntervalSeconds: UInt64? {
-        switch presentationMode {
-        case .onboardingStep:
-            return 5
-        case .manageSubscriptionInline:
-            return 7
-        }
+        12
     }
 
     private var resolvedCurrentPlan: PlanSelection {
@@ -1729,6 +1814,9 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .free, .expired:
             return .free
         case .unknown:
+            if let resolvedLabelPlan = resolvedPlanSelection(from: subscriptionManager.resolvedPlanLabel) {
+                return resolvedLabelPlan
+            }
             return hasPremiumAccess ? .premium : .free
         }
     }
@@ -1769,10 +1857,11 @@ struct WatchConnectedPremiumOfferStepView: View {
                 onboardingOfferBody
             }
         }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView(context: .general, initialPlan: paywallInitialPlan)
-        }
         .onAppear {
+            if !subscriptionManager.hasLoadedProducts {
+                Task { await subscriptionManager.loadProducts() }
+            }
+            syncSelectedTrialPlanToEligibility()
             syncSelectionForCurrentContext(animated: false)
             restartAutoAdvanceIfNeeded()
         }
@@ -1791,6 +1880,22 @@ struct WatchConnectedPremiumOfferStepView: View {
         }
         .onChange(of: subscriptionManager.hasPremiumAccess) { _, _ in
             syncSelectionForCurrentContext(animated: true)
+        }
+        .onChange(of: subscriptionManager.hasLoadedProducts) { _, _ in
+            syncSelectedTrialPlanToEligibility()
+        }
+        .onChange(of: purchaseSuccessState) { _, newValue in
+            if newValue != nil {
+                autoAdvanceTask?.cancel()
+                autoAdvanceTask = nil
+                isPagerInteracting = false
+            } else {
+                restartAutoAdvanceIfNeeded()
+            }
+        }
+        .fullScreenCover(item: $purchaseSuccessState) { state in
+            premiumSuccessScreen(for: state)
+                .interactiveDismissDisabled()
         }
     }
 
@@ -1973,7 +2078,7 @@ struct WatchConnectedPremiumOfferStepView: View {
     private func planCard(for plan: PlanSelection, availableHeight: CGFloat, compactLayout: Bool, topInset: CGFloat, bottomInset: CGFloat) -> some View {
         let accent = accentColor(for: plan)
         let badgeText = badgeText(for: plan)
-        let priceSuffix = isNorwegian ? "/mnd" : "/mo"
+        let premiumPriceSuffix = isNorwegian ? "/mnd" : "/mo"
         let isTrialPlan = plan == .trial
         let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan
         let isActionDisabled = isPlanActionDisabled(for: plan)
@@ -1984,126 +2089,130 @@ struct WatchConnectedPremiumOfferStepView: View {
         let featureSize: CGFloat = denseLayout ? 16 : 18
         let buttonVerticalPadding: CGFloat = denseLayout ? 14 : 16
         let cornerRadius: CGFloat = 28
-        let contentSpacing: CGFloat = denseLayout ? 14 : 18
-        let featureSpacing: CGFloat = denseLayout ? 12 : 14
-        let footerSpacing: CGFloat = denseLayout ? 8 : 10
+        let contentSpacing: CGFloat = denseLayout ? 12 : 18
+        let featureSpacing: CGFloat = denseLayout ? 10 : 14
+        let footerSpacing: CGFloat = denseLayout ? 6 : 10
+        let headerHeight: CGFloat = {
+            switch plan {
+            case .free:
+                return 8
+            case .premium:
+                return 44
+            case .trial:
+                return denseLayout ? 64 : 76
+            }
+        }()
 
-        return VStack(alignment: .leading, spacing: contentSpacing) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: denseLayout ? 8 : 10) {
-                    Text(planTitle(for: plan))
-                        .font(.system(size: titleSize, weight: .heavy))
-                        .foregroundColor(accent)
-                        .lineLimit(nil)
-                        .fixedSize(horizontal: false, vertical: true)
+        return VStack(spacing: 0) {
+            planCardHeader(for: plan, accent: accent, isCurrentPlan: isCurrentPlan, height: headerHeight)
 
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(priceHeadline(for: plan))
-                            .font(.system(size: priceSize, weight: .heavy))
+            VStack(alignment: .leading, spacing: contentSpacing) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: denseLayout ? 8 : 10) {
+                        Text(planTitle(for: plan))
+                            .font(.system(size: titleSize, weight: .heavy))
                             .foregroundColor(accent)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                        if !isTrialPlan {
-                            Text(priceSuffix)
-                                .font(.title3.weight(.semibold))
-                                .foregroundColor(accent.opacity(0.76))
-                        }
-                    }
-                }
-
-                Spacer(minLength: 12)
-
-                if let badgeText {
-                    Text(badgeText)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(badgeForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(badgeBackgroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
-                        )
-                }
-            }
-
-            Text(planSummary(for: plan))
-                .font(.system(size: denseLayout ? 14 : 16, weight: .medium))
-                .foregroundColor(CoachiTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Divider()
-                .overlay(CoachiTheme.borderSubtle.opacity(0.6))
-
-            if isTrialPlan {
-                trialFeaturesSection(accent: accent, compactLayout: denseLayout, featureSize: featureSize)
-            } else {
-                VStack(alignment: .leading, spacing: featureSpacing) {
-                    ForEach(planFeatures(for: plan), id: \.self) { feature in
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 16, weight: .bold))
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(priceHeadline(for: plan))
+                                .font(.system(size: priceSize, weight: .heavy))
                                 .foregroundColor(accent)
-                                .frame(width: 18, alignment: .center)
+                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
 
-                            Text(feature)
-                                .font(.system(size: featureSize, weight: .semibold))
-                                .foregroundColor(CoachiTheme.textPrimary)
-                                .fixedSize(horizontal: false, vertical: true)
+                            if plan == .premium {
+                                Text(premiumPriceSuffix)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundColor(accent.opacity(0.76))
+                            }
                         }
                     }
+
+                    Spacer(minLength: 12)
+
+                    if let badgeText {
+                        Text(badgeText)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(badgeForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(badgeBackgroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
+                            )
+                    }
                 }
-            }
 
-            Spacer(minLength: denseLayout ? 8 : 12)
-
-            VStack(alignment: .leading, spacing: footerSpacing) {
-                Text(detailText(for: plan))
-                    .font(.system(size: denseLayout ? 14 : 15, weight: .semibold))
+                Text(planSummary(for: plan))
+                    .font(.system(size: denseLayout ? 14 : 16, weight: .medium))
                     .foregroundColor(CoachiTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Button {
-                    handlePlanAction(for: plan)
-                } label: {
-                    Text(buttonTitle(for: plan))
-                        .font(.headline.weight(.bold))
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(primaryButtonForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, buttonVerticalPadding)
-                        .background(primaryButtonBackgroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
-                        .clipShape(Capsule(style: .continuous))
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .stroke(primaryButtonBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: 2)
-                        )
+                Divider()
+                    .overlay(CoachiTheme.borderSubtle.opacity(0.6))
+
+                if isTrialPlan {
+                    trialFeaturesSection(accent: accent, compactLayout: denseLayout, featureSize: featureSize)
+                } else {
+                    VStack(alignment: .leading, spacing: featureSpacing) {
+                        ForEach(planFeatures(for: plan), id: \.self) { feature in
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(accent)
+                                    .frame(width: 18, alignment: .center)
+
+                                Text(feature)
+                                    .font(.system(size: featureSize, weight: .semibold))
+                                    .foregroundColor(CoachiTheme.textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
-                .disabled(isActionDisabled)
-                .opacity(isActionDisabled ? 0.94 : 1)
+
+                Spacer(minLength: denseLayout ? 4 : 12)
+
+                VStack(alignment: .leading, spacing: footerSpacing) {
+                    Text(detailText(for: plan))
+                        .font(.system(size: denseLayout ? 14 : 15, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Button {
+                        handlePlanAction(for: plan)
+                    } label: {
+                        Text(buttonTitle(for: plan))
+                            .font(.headline.weight(.bold))
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(primaryButtonForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, buttonVerticalPadding)
+                            .background {
+                                primaryButtonBackground(for: plan, accent: accent, isCurrentPlan: isCurrentPlan)
+                            }
+                            .clipShape(Capsule(style: .continuous))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(primaryButtonBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: 2)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isActionDisabled)
+                    .opacity(isActionDisabled ? 0.94 : 1)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(cardPadding)
+            .padding(.top, topInset)
+            .padding(.bottom, bottomInset)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(cardPadding)
-        .padding(.top, topInset)
-        .padding(.bottom, bottomInset)
         .frame(height: availableHeight, alignment: .topLeading)
         .background(cardBackground(for: plan))
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(accent)
-                .frame(height: plan != .free ? 44 : 6)
-                .overlay {
-                    if plan != .free && !hasPremiumAccess && !isCurrentPlan {
-                        Text(plan == .trial ? (isNorwegian ? "GRATIS PRØVE" : "FREE TRIAL") : (isNorwegian ? "ANBEFALT" : "RECOMMENDED"))
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white.opacity(0.96))
-                    }
-                }
-        }
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(planBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: planBorderWidth(for: plan, isCurrentPlan: isCurrentPlan))
@@ -2111,8 +2220,77 @@ struct WatchConnectedPremiumOfferStepView: View {
         .shadow(color: accent.opacity(planShadowOpacity(for: plan, isCurrentPlan: isCurrentPlan)), radius: selectedPlan == plan ? 18 : 12, x: 0, y: 12)
     }
 
+    private func planCardHeader(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool, height: CGFloat) -> some View {
+        Rectangle()
+            .fill(.clear)
+            .frame(height: height)
+            .background {
+                headerBackground(for: plan, accent: accent)
+            }
+            .clipped()
+            .overlay(alignment: .bottom) {
+                if plan == .trial {
+                    Rectangle()
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.34 : 0.16))
+                        .frame(height: 4)
+                }
+            }
+            .overlay {
+                if plan == .premium && !hasPremiumAccess && !isCurrentPlan {
+                    Text(isNorwegian ? "ANBEFALT" : "RECOMMENDED")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white.opacity(0.96))
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func headerBackground(for plan: PlanSelection, accent: Color) -> some View {
+        switch plan {
+        case .trial:
+            LinearGradient(
+                colors: [
+                    Color(hex: "132F8A"),
+                    Color(hex: "2C7CFF"),
+                    Color(hex: "1E3FAF"),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .overlay(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(colorScheme == .dark ? 0.14 : 0.20),
+                        Color.clear,
+                        Color.white.opacity(colorScheme == .dark ? 0.08 : 0.12),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        default:
+            accent
+        }
+    }
+
     private func planFeatures(for plan: PlanSelection) -> [String] {
         featureRows.compactMap { row in
+            if row.id == "talk_to_coach_live" {
+                if plan == .free {
+                    return isNorwegian
+                        ? "Begrensede samtaler med coach"
+                        : "Limited conversations with coach"
+                }
+
+                return isNorwegian
+                    ? "Fullverdige samtaler med coach"
+                    : "Full conversations with coach"
+            }
+
+            if row.id == "workout_history" {
+                return plan == .free ? row.freeValue : row.premiumValue
+            }
+
             let value = plan == .free ? row.freeValue : row.premiumValue
             guard value != "—" else { return nil }
             if value == "✓" {
@@ -2136,7 +2314,7 @@ struct WatchConnectedPremiumOfferStepView: View {
     private func priceHeadline(for plan: PlanSelection) -> String {
         switch plan {
         case .free:
-            return "$0.00"
+            return subscriptionManager.formattedFreePrice(isNorwegian: isNorwegian)
         case .premium:
             return monthlyPriceText
         case .trial:
@@ -2151,7 +2329,7 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .premium:
             return Color(hex: "22C55E")
         case .trial:
-            return Color(hex: "22C55E")
+            return Color(hex: "2F7BFF")
         }
     }
 
@@ -2172,7 +2350,11 @@ struct WatchConnectedPremiumOfferStepView: View {
             )
         case .trial:
             return LinearGradient(
-                colors: [CoachiTheme.surface, accent.opacity(colorScheme == .dark ? 0.18 : 0.10), CoachiTheme.surfaceElevated],
+                colors: [
+                    Color(hex: colorScheme == .dark ? "141C28" : "15253B"),
+                    Color(hex: colorScheme == .dark ? "18293A" : "1E314D"),
+                    Color(hex: colorScheme == .dark ? "101723" : "1A2940"),
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -2191,7 +2373,7 @@ struct WatchConnectedPremiumOfferStepView: View {
             case .premium:
                 return "Premium"
             case .trial:
-                return isNorwegian ? "Prøv gratis" : "Try free"
+                return nil
             }
         }
 
@@ -2199,7 +2381,13 @@ struct WatchConnectedPremiumOfferStepView: View {
             return plan == selectedPlan ? (isNorwegian ? "Aktiv" : "Active") : nil
         }
 
-        return plan == .free ? (isNorwegian ? "Din plan" : "Current plan") : (plan == .premium ? "Premium" : (isNorwegian ? "Prøv gratis" : "Try free"))
+        if plan == .free {
+            return isNorwegian ? "Din plan" : "Current plan"
+        }
+        if plan == .premium {
+            return "Premium"
+        }
+        return nil
     }
 
     private func detailText(for plan: PlanSelection) -> String {
@@ -2228,14 +2416,19 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .premium:
             if hasIntroOffer {
                 return isNorwegian
-                    ? "\(trialDays) dager gratis, deretter \(yearlyPriceText)/år i App Store."
-                    : "\(trialDays)-day free trial, then \(yearlyPriceText)/year in the App Store."
+                    ? "\(trialDays) dager gratis tilgjengelig i App Store med måneds- eller årsvalg."
+                    : "\(trialDays)-day free trial available in the App Store with monthly or yearly plans."
             }
 
             return isNorwegian
                 ? "Tilgjengelig i App Store. Årlig plan fra \(yearlyPriceText)."
                 : "Available in the App Store. Yearly plan from \(yearlyPriceText)."
         case .trial:
+            if subscriptionManager.hasLoadedProducts && trialEligibleOptions.isEmpty {
+                return isNorwegian
+                    ? "Gratis prøveperiode er ikke tilgjengelig akkurat nå."
+                    : "Free trial is not available right now."
+            }
             return isNorwegian
                 ? "Alle Coachi-funksjoner er inkludert i prøveperioden. Kjøpet fullføres i App Store."
                 : "All Coachi features are included during the trial. The purchase still completes in the App Store."
@@ -2264,12 +2457,15 @@ struct WatchConnectedPremiumOfferStepView: View {
             return isNorwegian ? "Din plan" : "Current plan"
         }
 
-        if showsCurrentPlanState, hasPremiumAccess {
-            return isNorwegian ? "Administrer i App Store" : "Manage in App Store"
-        }
-
-        if showsCurrentPlanState, plan == .free {
-            return isNorwegian ? "Gratis plan" : "Free plan"
+        if showsCurrentPlanState {
+            switch plan {
+            case .free:
+                return isNorwegian ? "Gratis plan" : "Free plan"
+            case .premium:
+                return isNorwegian ? "Få Premium" : "Get Premium"
+            case .trial:
+                return isNorwegian ? "Start \(trialDays) dagers gratis prøveperiode nå" : "Start \(trialDays) days free trail now"
+            }
         }
 
         if hasPremiumAccess {
@@ -2282,15 +2478,74 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .premium:
             return isNorwegian ? "Få Premium" : "Get Premium"
         case .trial:
-            return isNorwegian ? "Start \(trialDays) dagers gratis prøveperiode nå" : "Start \(trialDays)-day free trial now"
+            return isNorwegian ? "Start \(trialDays) dagers gratis prøveperiode nå" : "Start \(trialDays) days free trail now"
         }
+    }
+
+    private var successHeadlineText: String {
+        isNorwegian ? "Gratulerer!" : "Congratulations!"
+    }
+
+    private func successSubtitle(for state: PremiumAccessSuccessState) -> String {
+        switch state {
+        case .premium:
+            return isNorwegian
+                ? "Du er nå en Coachi PREMIUM-bruker!"
+                : "You are now a Coachi PREMIUM user!"
+        case .trial:
+            return isNorwegian
+                ? "Din \(trialDays) dagers Coachi PREMIUM-prøveperiode er nå aktiv!"
+                : "Your \(trialDays)-day Coachi PREMIUM trial is now active!"
+        }
+    }
+
+    private var successBodyText: String {
+        isNorwegian
+            ? "Takk for at du valgte det beste. Gjør deg klar til å låse opp nye høyder."
+            : "Thank you for choosing the best. Prepare to unlock new heights!"
+    }
+
+    private var successContinueTitle: String {
+        if presentationMode == .manageSubscriptionInline {
+            return isNorwegian
+                ? "Fortsett til Premium-oversikten"
+                : "Continue to your Premium Dashboard"
+        }
+        return isNorwegian ? "Fortsett" : "Continue"
+    }
+
+    private var successFeatureItems: [(icon: String, title: String, body: String)] {
+        [
+            (
+                "chart.bar.fill",
+                isNorwegian ? "Uslåelig innsikt:" : "Unparalleled Insights:",
+                isNorwegian ? "Full historikk og dyp analyse" : "All-time history & deep analytics"
+            ),
+            (
+                "bubble.left.and.bubble.right.fill",
+                isNorwegian ? "Personlig coaching:" : "Personal Coaching:",
+                isNorwegian ? "Fullverdige samtaler med coach" : "Full conversations with coach"
+            ),
+            (
+                "heart.text.square.fill",
+                isNorwegian ? "Presise pulssoner:" : "Precision HR Zones:",
+                isNorwegian ? "Elite coaching med pulssoner" : "Elite heart rate coaching"
+            ),
+        ]
     }
 
     private func handlePlanAction(for plan: PlanSelection) {
         guard !isPlanActionDisabled(for: plan) else { return }
 
-        if showsCurrentPlanState, hasPremiumAccess {
-            subscriptionManager.manageSubscription()
+        if showsCurrentPlanState {
+            switch plan {
+            case .free:
+                return
+            case .premium:
+                Task { await purchaseSelection(.yearly) }
+            case .trial:
+                Task { await purchaseSelection(selectedTrialPlan) }
+            }
             return
         }
 
@@ -2303,17 +2558,15 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .free:
             onContinue()
         case .premium:
-            paywallInitialPlan = .yearly
-            showPaywall = true
+            Task { await purchaseSelection(.yearly) }
         case .trial:
-            paywallInitialPlan = selectedTrialPlan
-            showPaywall = true
+            Task { await purchaseSelection(selectedTrialPlan) }
         }
     }
 
     private func trialFeaturesSection(accent: Color, compactLayout: Bool, featureSize: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: compactLayout ? 14 : 16) {
-            VStack(alignment: .leading, spacing: compactLayout ? 10 : 12) {
+        VStack(alignment: .leading, spacing: compactLayout ? 12 : 16) {
+            VStack(alignment: .leading, spacing: compactLayout ? 8 : 12) {
                 ForEach(planFeatures(for: .premium), id: \.self) { feature in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "checkmark")
@@ -2329,28 +2582,38 @@ struct WatchConnectedPremiumOfferStepView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: compactLayout ? 10 : 12) {
-                HStack(spacing: 12) {
-                    trialPricingOption(
-                        title: isNorwegian ? "Månedlig" : "Monthly",
-                        price: monthlyPriceText,
-                        suffix: isNorwegian ? "/mnd" : "/mo",
-                        option: .monthly,
-                        accent: accent,
-                        compactLayout: compactLayout
-                    )
+            VStack(alignment: .leading, spacing: compactLayout ? 8 : 12) {
+                if !subscriptionManager.hasLoadedProducts {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                            .tint(accent)
 
-                    trialPricingOption(
-                        title: isNorwegian ? "Årlig" : "Yearly",
-                        price: yearlyPriceText,
-                        suffix: isNorwegian ? "/år" : "/yr",
-                        option: .yearly,
-                        accent: accent,
-                        compactLayout: compactLayout
-                    )
+                        Text(isNorwegian ? "Laster prøvealternativer..." : "Loading trial options...")
+                            .font(.system(size: compactLayout ? 14 : 15, weight: .semibold))
+                            .foregroundColor(CoachiTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else if trialEligibleOptions.isEmpty {
+                    Text(isNorwegian ? "Gratis prøveperiode er ikke tilgjengelig akkurat nå." : "Free trial is not available right now.")
+                        .font(.system(size: compactLayout ? 14 : 15, weight: .semibold))
+                        .foregroundColor(CoachiTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    HStack(spacing: 12) {
+                        ForEach(trialEligibleOptions, id: \.self) { option in
+                            trialPricingOption(
+                                title: option == .monthly ? (isNorwegian ? "Månedlig" : "Monthly") : (isNorwegian ? "Årlig" : "Yearly"),
+                                price: option == .monthly ? monthlyPriceText : yearlyPriceText,
+                                suffix: option == .monthly ? (isNorwegian ? "/mnd" : "/mo") : (isNorwegian ? "/år" : "/yr"),
+                                option: option,
+                                accent: accent,
+                                compactLayout: compactLayout
+                            )
+                        }
+                    }
                 }
 
-                if let savingsText = yearlySavingsText {
+                if !isInlineManageSubscription, trialEligibleOptions.contains(.yearly), let savingsText = yearlySavingsText {
                     HStack {
                         Spacer()
                         Text(savingsText)
@@ -2377,6 +2640,7 @@ struct WatchConnectedPremiumOfferStepView: View {
         compactLayout: Bool
     ) -> some View {
         let isSelected = selectedTrialPlan == option
+        let optionPadding: CGFloat = compactLayout ? 14 : 16
 
         return Button {
             selectedTrialPlan = option
@@ -2412,14 +2676,26 @@ struct WatchConnectedPremiumOfferStepView: View {
                         .foregroundColor(CoachiTheme.textSecondary)
                 }
             }
-            .padding(16)
+            .padding(optionPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CoachiTheme.surfaceElevated.opacity(colorScheme == .dark ? 0.96 : 0.98))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: colorScheme == .dark ? "162334" : "1C2B43"),
+                                Color(hex: colorScheme == .dark ? "1A2637" : "22344D"),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isSelected ? accent : CoachiTheme.borderSubtle.opacity(0.45), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? accent : accent.opacity(0.28), lineWidth: isSelected ? 2.5 : 1.2)
             )
+            .shadow(color: isSelected ? accent.opacity(0.30) : .clear, radius: 14, x: 0, y: 8)
         }
         .buttonStyle(.plain)
     }
@@ -2506,11 +2782,25 @@ struct WatchConnectedPremiumOfferStepView: View {
         return plan == .free && !hasPremiumAccess ? accent : .white
     }
 
-    private func primaryButtonBackgroundColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
+    @ViewBuilder
+    private func primaryButtonBackground(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> some View {
         if isCurrentPlan {
-            return CoachiTheme.surface
+            CoachiTheme.surface
+        } else if plan == .trial {
+            LinearGradient(
+                colors: [
+                    Color(hex: "1E4DDE"),
+                    Color(hex: "3294FF"),
+                    Color(hex: "213DCC"),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        } else if plan == .free && !hasPremiumAccess {
+            CoachiTheme.surface
+        } else {
+            accent
         }
-        return plan == .free && !hasPremiumAccess ? CoachiTheme.surface : accent
     }
 
     private func primaryButtonBorderColor(for plan: PlanSelection, accent: Color, isCurrentPlan: Bool) -> Color {
@@ -2521,10 +2811,288 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func isPlanActionDisabled(for plan: PlanSelection) -> Bool {
+        if subscriptionManager.isLoading {
+            return true
+        }
+        if plan == .trial, (!subscriptionManager.hasLoadedProducts || trialEligibleOptions.isEmpty) {
+            return true
+        }
         if showsCurrentPlanState, plan == resolvedCurrentPlan {
             return true
         }
         return showsCurrentPlanState && plan == .free
+    }
+
+    private func purchaseSelection(_ option: PaywallPlanSelectionOption) async {
+        if selectedProduct(for: option) == nil {
+            await subscriptionManager.loadProducts()
+            syncSelectedTrialPlanToEligibility()
+        }
+
+        guard let product = selectedProduct(for: option) else { return }
+        let purchaseOutcome = await subscriptionManager.purchase(product)
+        guard case let .success(status) = purchaseOutcome else { return }
+        guard let successState = successState(for: status) else { return }
+        purchaseSuccessState = successState
+    }
+
+    private func selectedProduct(for option: PaywallPlanSelectionOption) -> Product? {
+        switch option {
+        case .monthly:
+            return subscriptionManager.monthlyProduct
+        case .yearly:
+            return subscriptionManager.yearlyProduct
+        }
+    }
+
+    private func syncSelectedTrialPlanToEligibility() {
+        guard !trialEligibleOptions.isEmpty else { return }
+        if !trialEligibleOptions.contains(selectedTrialPlan), let firstEligible = trialEligibleOptions.first {
+            selectedTrialPlan = firstEligible
+        }
+    }
+
+    private func successState(for status: SubscriptionStatus) -> PremiumAccessSuccessState? {
+        switch status {
+        case .trial:
+            return .trial
+        case .premium:
+            return .premium
+        default:
+            return nil
+        }
+    }
+
+    @ViewBuilder
+    private func premiumSuccessScreen(for state: PremiumAccessSuccessState) -> some View {
+        ZStack {
+            CoachiTheme.bgDeep
+                .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [
+                    Color(hex: "050B1A"),
+                    Color(hex: "0B1730"),
+                    Color(hex: "111827"),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                ZStack(alignment: .top) {
+                    VStack(spacing: 18) {
+                        Text(successHeadlineText)
+                            .font(.system(size: 42, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .shadow(color: Color(hex: "4FA3FF").opacity(0.65), radius: 18, x: 0, y: 0)
+                            .multilineTextAlignment(.center)
+
+                        Text(successSubtitle(for: state))
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.96))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        premiumSuccessBadge
+                    }
+                    .padding(.top, 84)
+                    .padding(.horizontal, 32)
+
+                    premiumSuccessHeader
+                }
+
+                VStack(alignment: .leading, spacing: 22) {
+                    Text(successBodyText)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.92))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 24)
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.12))
+
+                    VStack(alignment: .leading, spacing: 18) {
+                        ForEach(Array(successFeatureItems.enumerated()), id: \.offset) { _, item in
+                            HStack(alignment: .top, spacing: 14) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(Color(hex: "2F7BFF"))
+                                    .frame(width: 18)
+
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: item.icon)
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundStyle(Color(hex: "2F7BFF"))
+                                        .frame(width: 20)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.title)
+                                            .font(.system(size: 15, weight: .heavy))
+                                            .foregroundStyle(.white)
+
+                                        Text(item.body)
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundStyle(.white.opacity(0.78))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 24)
+
+                    Button {
+                        let shouldContinueOnboarding = presentationMode == .onboardingStep
+                        purchaseSuccessState = nil
+                        if shouldContinueOnboarding {
+                            onContinue()
+                        }
+                    } label: {
+                        Text(successContinueTitle)
+                            .font(.system(size: 18, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(hex: "213DCC"),
+                                        Color(hex: "2F7BFF"),
+                                        Color(hex: "1E4DDE"),
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule(style: .continuous))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(Color(hex: "5DB0FF").opacity(0.85), lineWidth: 2)
+                            )
+                            .shadow(color: Color(hex: "2F7BFF").opacity(0.42), radius: 18, x: 0, y: 10)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 30)
+                .padding(.bottom, 42)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(Color(hex: "171C24"))
+                .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
+                .offset(y: -20)
+            }
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 34, weight: .regular))
+                .foregroundStyle(.white.opacity(0.8))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 26)
+                .padding(.bottom, 26)
+        }
+    }
+
+    private var premiumSuccessHeader: some View {
+        ZStack(alignment: .top) {
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "2F7BFF").opacity(0.72),
+                            Color(hex: "1D4ED8").opacity(0.42),
+                            Color.clear,
+                        ],
+                        center: .top,
+                        startRadius: 24,
+                        endRadius: 340
+                    )
+                )
+                .frame(height: 340)
+                .offset(y: -126)
+
+            Circle()
+                .fill(Color.white.opacity(0.18))
+                .frame(width: 4, height: 4)
+                .offset(x: -138, y: 92)
+
+            Circle()
+                .fill(Color.white.opacity(0.22))
+                .frame(width: 3, height: 3)
+                .offset(x: 148, y: 116)
+
+            Circle()
+                .fill(Color.white.opacity(0.14))
+                .frame(width: 5, height: 5)
+                .offset(x: -42, y: 64)
+        }
+        .frame(height: 260)
+    }
+
+    private var premiumSuccessBadge: some View {
+        ZStack {
+            Capsule(style: .continuous)
+                .fill(Color(hex: "9C6B1A"))
+                .frame(width: 18, height: 86)
+                .rotationEffect(.degrees(22))
+                .offset(x: -24, y: 38)
+
+            Capsule(style: .continuous)
+                .fill(Color(hex: "5D87D9"))
+                .frame(width: 18, height: 86)
+                .rotationEffect(.degrees(-22))
+                .offset(x: 24, y: 38)
+
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "2F7BFF"),
+                            Color(hex: "1737C8"),
+                        ],
+                        center: .center,
+                        startRadius: 12,
+                        endRadius: 72
+                    )
+                )
+                .frame(width: 118, height: 118)
+                .shadow(color: Color(hex: "2F7BFF").opacity(0.55), radius: 22, x: 0, y: 0)
+
+            Circle()
+                .stroke(Color(hex: "F6D47A"), lineWidth: 7)
+                .frame(width: 106, height: 106)
+
+            Circle()
+                .stroke(Color.white.opacity(0.20), lineWidth: 3)
+                .frame(width: 90, height: 90)
+
+            Image(systemName: "star.fill")
+                .font(.system(size: 38, weight: .black))
+                .foregroundStyle(Color(hex: "F5C356"))
+                .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 4)
+        }
+        .frame(height: 170)
+        .padding(.top, 6)
+    }
+
+    private func resolvedPlanSelection(from label: String) -> PlanSelection? {
+        switch label {
+        case "Free Trial":
+            return .trial
+        case "Premium":
+            return .premium
+        case "Free", "Expired", "Checking":
+            return .free
+        default:
+            return nil
+        }
     }
 
     private var pagerInteractionGesture: some Gesture {
