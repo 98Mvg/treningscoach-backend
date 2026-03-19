@@ -38,9 +38,13 @@ def test_subscription_manager_exposes_manage_subscription_path():
     assert 'return "\\(formattedAmount) kr"' in content
     assert 'return "$\\(formattedAmount)"' in content
     assert "fallbackMonthlyPriceUSD" in config
+    assert 'static let fallbackMonthlyPriceUSD = Decimal(string: "9.9")!' in config
     assert "fallbackMonthlyPriceNOK" in config
+    assert "static let fallbackMonthlyPriceNOK = Decimal(99)" in config
     assert "fallbackYearlyPriceUSD" in config
+    assert "static let fallbackYearlyPriceUSD = Decimal(99)" in config
     assert "fallbackYearlyPriceNOK" in config
+    assert "static let fallbackYearlyPriceNOK = Decimal(799)" in config
 
 
 def test_paywall_exposes_restore_and_manage_subscription_buttons():
@@ -121,3 +125,5 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert "subscriptionManager.formattedFreePrice" in onboarding
     assert "subscriptionManager.formattedPrice(for: .monthly, isNorwegian: isNorwegian)" in onboarding
     assert "subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)" in onboarding
+    assert 'Task { await purchaseSelection(.monthly) }' in onboarding
+    assert 'Task { await purchaseSelection(.yearly) }' not in onboarding

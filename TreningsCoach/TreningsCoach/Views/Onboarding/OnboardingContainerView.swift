@@ -2542,7 +2542,7 @@ struct WatchConnectedPremiumOfferStepView: View {
             case .free:
                 return
             case .premium:
-                Task { await purchaseSelection(.yearly) }
+                Task { await purchaseSelection(.monthly) }
             case .trial:
                 Task { await purchaseSelection(selectedTrialPlan) }
             }
@@ -2558,7 +2558,7 @@ struct WatchConnectedPremiumOfferStepView: View {
         case .free:
             onContinue()
         case .premium:
-            Task { await purchaseSelection(.yearly) }
+            Task { await purchaseSelection(.monthly) }
         case .trial:
             Task { await purchaseSelection(selectedTrialPlan) }
         }
@@ -2701,12 +2701,10 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private var yearlySavingsText: String? {
-        guard
-            let monthly = subscriptionManager.monthlyProduct?.price,
-            let yearly = subscriptionManager.yearlyProduct?.price
-        else {
-            return nil
-        }
+        let monthly = subscriptionManager.monthlyProduct?.price
+            ?? (isNorwegian ? AppConfig.Subscription.fallbackMonthlyPriceNOK : AppConfig.Subscription.fallbackMonthlyPriceUSD)
+        let yearly = subscriptionManager.yearlyProduct?.price
+            ?? (isNorwegian ? AppConfig.Subscription.fallbackYearlyPriceNOK : AppConfig.Subscription.fallbackYearlyPriceUSD)
 
         let monthlyDouble = NSDecimalNumber(decimal: monthly).doubleValue
         let yearlyDouble = NSDecimalNumber(decimal: yearly).doubleValue

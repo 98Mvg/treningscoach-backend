@@ -198,6 +198,8 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'Gratis prøveperiode er ikke tilgjengelig akkurat nå.' in text
     assert 'Text(isNorwegian ? "Pris etter prøvetid" : "Pricing after trial")' not in text
     assert 'if !isInlineManageSubscription, trialEligibleOptions.contains(.yearly), let savingsText = yearlySavingsText {' in text
+    assert '?? (isNorwegian ? AppConfig.Subscription.fallbackMonthlyPriceNOK : AppConfig.Subscription.fallbackMonthlyPriceUSD)' in text
+    assert '?? (isNorwegian ? AppConfig.Subscription.fallbackYearlyPriceNOK : AppConfig.Subscription.fallbackYearlyPriceUSD)' in text
     assert "return ScrollView(.vertical, showsIndicators: false)" not in plan_card_block
     assert "Spacer(minLength: denseLayout ? 4 : 12)" in plan_card_block
     assert 'let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan' in plan_card_block
@@ -216,7 +218,7 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '@State private var showPaywall' not in text
     assert 'paywallInitialPlan' not in text
     assert 'PaywallView(context: .general, initialPlan: paywallInitialPlan)' not in text
-    assert 'Task { await purchaseSelection(.yearly) }' in text
+    assert text.count('Task { await purchaseSelection(.monthly) }') == 2
     assert 'Task { await purchaseSelection(selectedTrialPlan) }' in text
     assert 'let purchaseOutcome = await subscriptionManager.purchase(product)' in text
     assert 'guard case let .success(status) = purchaseOutcome else { return }' in text

@@ -38,6 +38,7 @@ from tts_phrase_catalog import (  # noqa: E402
     expand_dynamic_templates,
     get_all_static_phrases,
     get_core_phrases,
+    get_phrase_by_id,
 )
 from workout_cue_catalog import validate_active_workout_cue_phrase  # noqa: E402
 

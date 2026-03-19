@@ -310,11 +310,11 @@ struct AppConfig {
         static let trialDurationDays = 14
 
         /// Fallback monthly price shown before StoreKit pricing is loaded.
-        static let fallbackMonthlyPriceUSD = Decimal(string: "9.99")!
-        static let fallbackMonthlyPriceNOK = Decimal(129)
+        static let fallbackMonthlyPriceUSD = Decimal(string: "9.9")!
+        static let fallbackMonthlyPriceNOK = Decimal(99)
         /// Fallback yearly price shown before StoreKit pricing is loaded.
-        static let fallbackYearlyPriceUSD = Decimal(79)
-        static let fallbackYearlyPriceNOK = Decimal(1290)
+        static let fallbackYearlyPriceUSD = Decimal(99)
+        static let fallbackYearlyPriceNOK = Decimal(799)
 
         // MARK: - Usage Limits (free tier)
 

@@ -1,6 +1,6 @@
 # Phrase Catalog Review
 
-Total phrases: **230**
+Total phrases: **240**
 
 Tips:
 - Use the CSV for fast filtering in Numbers/Excel.
@@ -234,7 +234,7 @@ Tips:
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 136 | `zone.watch_disconnected.1` | context |  | personal_trainer | core | Watch disconnected | Pulsklokken ble frakoblet. |
+| 136 | `zone.watch_disconnected.1` | context |  | personal_trainer | core | Watch disconnected. | Klokken ble koblet fra. |
 ## zone.no_sensors
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
@@ -251,209 +251,223 @@ Tips:
 |---:|---|---|---|---|---|---|---|
 | 139 | `zone.countdown.30` | progress |  | personal_trainer | core | 30 seconds left. | 30 sekunder. |
 | 140 | `zone.countdown.15` | progress |  | personal_trainer | core | 15 | 15 |
-| 141 | `zone.countdown.5` | progress |  | personal_trainer | core | 5! | fem |
+| 141 | `zone.countdown.5` | progress |  | personal_trainer | core | Five. | fem |
 | 142 | `zone.countdown.start` | progress |  | personal_trainer | core | Go | Start |
+| 143 | `zone.countdown.warmup_recovery.30.1` | progress |  | personal_trainer | core | 30 seconds left. Get ready. | 30 sekunder igjen. Gjør deg klar. |
+| 144 | `zone.countdown.warmup_recovery.10.1` | progress |  | personal_trainer | core | Get ready. Starting soon. | Gjør deg klar. Starter snart. |
+| 145 | `zone.countdown.warmup_recovery.5.1` | progress |  | personal_trainer | core | Five. | Fem. |
+| 146 | `zone.countdown.warmup_recovery.start.1` | progress |  | personal_trainer | core | Go. | Kjør. |
 ## zone.main_started
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 143 | `zone.main_started.1` | context |  | personal_trainer | core | Main set now. | Nå er du i hoveddelen. |
+| 147 | `zone.main_started.1` | context |  | personal_trainer | core | Main set starts now. | Hoveddelen starter nå. |
+| 148 | `zone.main_started.2` |  |  | personal_trainer | core | Workout starts now | Treningen starter nå. |
 ## zone.workout_finished
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 144 | `zone.workout_finished.1` | progress |  | personal_trainer | core | Workout finished. Nice work. | Økten er ferdig. Bra jobbet. |
+| 149 | `zone.workout_finished.1` | progress |  | personal_trainer | core | Workout finished. Nice work. | Økten er ferdig. Bra jobbet. |
 ## zone.hr_poor_enter
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 145 | `zone.hr_poor_enter.1` | context |  | personal_trainer | core | Heart rate signal is weak. | Pulssignalet er svakt. |
+| 150 | `zone.hr_poor_enter.1` | context |  | personal_trainer | core | Heart rate signal is weak. | Pulssignalet er svakt. |
 ## zone.hr_poor_exit
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 146 | `zone.hr_poor_exit.1` | context |  | personal_trainer | core | Heart rate is back. | Pulsen er tilbake. |
+| 151 | `zone.hr_poor_exit.1` | context |  | personal_trainer | core | Heart rate is back. | Pulsen er tilbake. |
 ## zone.hr_poor_timing
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 147 | `zone.hr_poor_timing.1` | context |  | personal_trainer | core | No heart rate signal. I will continue coaching | Ingen pulssignal. Jeg fortsetter å coache |
+| 152 | `zone.hr_poor_timing.1` | context |  | personal_trainer | core | No heart rate signal. I'll coach you by time and effort. | Mangler pulssignal. Jeg guider deg på tid og innsats. |
 ## zone.above
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 148 | `zone.above.minimal.1` | instruction |  | personal_trainer | core | Ease off 10-15 seconds. | Litt ned 10-15 sekunder. |
-| 149 | `zone.above.default.1` | instruction |  | personal_trainer | core | Ease back slightly. | Ro ned litt. |
+| 153 | `zone.above.minimal.1` | instruction |  | personal_trainer | core | Ease off 10-15 seconds. | Litt ned 10-15 sekunder. |
+| 154 | `zone.above.default.1` | instruction |  | personal_trainer | core | Ease back slightly. | Ro ned litt. |
+| 155 | `zone.above.default.2` | instruction |  | personal_trainer | core | Heart rate slightly above target. | Pulsen er litt høy. |
 ## zone.above_ease
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 150 | `zone.above_ease.minimal.1` |  |  | personal_trainer | core | HR still climbing. Ease down. | Pulsen stiger. Rolig ned. |
-| 151 | `zone.above_ease.default.1` |  |  | personal_trainer | core | Still high. Ease down 20 seconds. | Fortsatt høy. Ro ned 20 sekunder. |
+| 156 | `zone.above_ease.minimal.1` |  |  | personal_trainer | core | HR still climbing. Ease down. | Pulsen stiger. Rolig ned. |
+| 157 | `zone.above_ease.default.1` |  |  | personal_trainer | core | Still high. Ease down 20 seconds. | Fortsatt høy. Ro ned 20 sekunder. |
 ## zone.below
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 152 | `zone.below.minimal.1` | instruction |  | personal_trainer | core | Build slightly now. | Bygg litt opp nå. |
-| 153 | `zone.below.default.1` | instruction |  | personal_trainer | core | Pick it up. | Øk litt nå. |
+| 158 | `zone.below.minimal.1` | instruction |  | personal_trainer | core | Build slightly now. | Bygg litt opp nå. |
+| 159 | `zone.below.default.1` | instruction |  | personal_trainer | core | Pick it up. | Øk litt nå. |
 ## zone.below_push
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 154 | `zone.below_push.minimal.1` |  |  | personal_trainer | core | You're moving. Add a little. | Du er i gang. Litt opp. |
-| 155 | `zone.below_push.default.1` |  |  | personal_trainer | core | You're moving. Pick it up slightly. | Du er i gang. Øk litt. |
+| 160 | `zone.below_push.minimal.1` |  |  | personal_trainer | core | You're moving. Add a little. | Du er i gang. Litt opp. |
+| 161 | `zone.below_push.default.1` |  |  | personal_trainer | core | You're moving. Pick it up slightly. | Du er i gang. Øk litt. |
 ## zone.in_zone
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 156 | `zone.in_zone.minimal.1` | instruction |  | personal_trainer | core | Good. Stay here. | Bli her. |
-| 157 | `zone.in_zone.default.1` | instruction |  | personal_trainer | core | Stay right here. | Bli her. |
+| 162 | `zone.in_zone.minimal.1` | instruction |  | personal_trainer | core | Good. Stay here. | Bli her. |
+| 163 | `zone.in_zone.default.1` | instruction |  | personal_trainer | core | Stay right here. | Bli her. |
+| 164 | `zone.in_zone.default.2` | instruction |  | personal_trainer | core | You are in correct zone. | Hold tempoet. |
+| 165 | `zone.in_zone.default.3` | instruction |  | personal_trainer | core | Hold this phase. | Hold dette tempoet. |
 ## zone.phase
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 158 | `zone.phase.work.default.1` | context |  | personal_trainer | core | Work starts now. | Nå begynner innsatsen. |
-| 159 | `zone.phase.work.motivational.1` | context |  | personal_trainer | core | Time to work. | Nå jobber vi. |
-| 160 | `zone.phase.rest.1` | context |  | personal_trainer | core | Recovery now. | Pause nå. |
-| 161 | `zone.phase.warmup.1` | context |  | personal_trainer | core | Prepare for the session. | Forbered deg på økten. |
-| 162 | `zone.phase.cooldown.1` | context |  | personal_trainer | core | Cooldown now. | Nå roer vi ned. |
+| 166 | `zone.phase.work.default.1` | context |  | personal_trainer | core | Interval starts now. Bring up the pace. | Drag starter nå. Øk farten. |
+| 167 | `zone.phase.work.motivational.1` | context |  | personal_trainer | core | Time to work. | Nå jobber vi. |
+| 168 | `zone.phase.rest.1` | context |  | personal_trainer | core | Recovery starts now. | Pause starter nå. |
+| 169 | `zone.phase.warmup.1` | context |  | personal_trainer | core | Warmup starts now. | Oppvarming starter nå. |
+| 170 | `zone.phase.cooldown.1` | context |  | personal_trainer | core | Cooldown starts now. | Nedtrapping starter nå. |
 ## zone.pause
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 163 | `zone.pause.detected.1` | context |  | personal_trainer | core | Paused session | Pauset økten. |
-| 164 | `zone.pause.resumed.1` | context |  | personal_trainer | core | You're moving again. | Du er i gang igjen. |
+| 171 | `zone.pause.detected.1` | context |  | personal_trainer | core | Workout paused. | Du har pauset økten. |
+| 172 | `zone.pause.resumed.1` | context |  | personal_trainer | core | Workout resumed. | Økten er i gang igjen. |
 ## zone.structure
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 165 | `zone.structure.work.1` | instruction |  | personal_trainer | core | Pick it up now. | Kjør på nå. |
-| 166 | `zone.structure.recovery.1` | instruction |  | personal_trainer | core | Ease back and recover. | Ro ned og hent deg inn. |
-| 167 | `zone.structure.steady.1` | instruction |  | personal_trainer | core | Settle into the pace. | Finn rytmen. |
-| 168 | `zone.structure.steady.2` | instruction |  | personal_trainer | core | Stay with the rhythm. | Bli i rytmen. |
-| 169 | `zone.structure.steady.3` | instruction |  | personal_trainer | core | Stay smooth and relaxed. | Rolig og avslappet. |
-| 170 | `zone.structure.steady.4` | instruction |  | personal_trainer | core | Control the effort here. | Kontroll på innsatsen. |
-| 171 | `zone.structure.steady.5` | instruction |  | personal_trainer | core | Keep the pace steady. | Hold tempoet jevnt. |
-| 172 | `zone.structure.steady.6` | instruction |  | personal_trainer | core | Hold the phase. | Hold det her. |
-| 173 | `zone.structure.finish.1` | instruction |  | personal_trainer | core | Final push now! | Trykk til nå! |
+| 173 | `zone.structure.work.1` | instruction |  | personal_trainer | core | Interval starts now. Bring up the pace. | Drag starter nå. Øk farten. |
+| 174 | `zone.structure.recovery.1` | instruction |  | personal_trainer | core | Recovery now. Ease off and reset. | Pause nå. Ro ned og hent deg inn. |
+| 175 | `zone.structure.steady.1` | instruction |  | personal_trainer | core | Easy pace now. Keep it steady. | Rolig tempo nå. Hold det jevnt. |
+| 176 | `zone.structure.steady.2` | instruction |  | personal_trainer | core | Stay with the rhythm. | Bli i rytmen. |
+| 177 | `zone.structure.steady.3` | instruction |  | personal_trainer | core | Stay smooth and relaxed. | Rolig og avslappet. |
+| 178 | `zone.structure.steady.4` | instruction |  | personal_trainer | core | Control the effort here. | Kontroll på innsatsen. |
+| 179 | `zone.structure.steady.5` | instruction |  | personal_trainer | core | Keep the pace steady. | Hold tempoet jevnt. |
+| 180 | `zone.structure.steady.6` | instruction |  | personal_trainer | core | Hold the phase. | Hold det her. |
+| 181 | `zone.structure.finish.1` | instruction |  | personal_trainer | core | Final push now. Finish strong. | Siste drag nå. Avslutt sterkt. |
 ## zone.silence
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 174 | `zone.silence.work.1` | instruction |  | personal_trainer | core | Hold the rhythm. | Hold rytmen. |
-| 175 | `zone.silence.rest.1` | instruction |  | personal_trainer | core | Relax your shoulders. | Senk skuldrene. |
-| 176 | `zone.silence.default.1` | instruction |  | personal_trainer | core | Find your pace. | Finn rytmen. |
+| 182 | `zone.silence.work.1` | instruction |  | personal_trainer | core | Hold the rhythm. | Hold rytmen. |
+| 183 | `zone.silence.rest.1` | instruction |  | personal_trainer | core | Relax your shoulders. | Senk skuldrene. |
+| 184 | `zone.silence.default.1` | instruction |  | personal_trainer | core | Find your pace. | Finn rytmen. |
 ## zone.feel
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 177 | `zone.feel.easy_run.1` |  |  | personal_trainer | core | Steady effort. Stay comfortable. | Jevn innsats. Hold det behagelig. |
-| 178 | `zone.feel.easy_run.2` |  |  | personal_trainer | core | Find your rhythm and hold it. | Finn rytmen din og hold den. |
-| 179 | `zone.feel.easy_run.3` |  |  | personal_trainer | core | Easy and controlled. You set the pace. | Rolig og kontrollert. Du bestemmer tempoet. |
-| 180 | `zone.feel.work.1` |  |  | personal_trainer | core | Push hard but controlled. | Hold en jevn rytme |
-| 181 | `zone.feel.work.2` |  |  | personal_trainer | core | Strong effort now. Stay focused. | Sterk innsats nå. Hold fokus. |
-| 182 | `zone.feel.recovery.1` |  |  | personal_trainer | core | Ease off. Let your body recover. | Slipp av. La kroppen hente seg inn. |
-| 183 | `zone.feel.recovery.2` |  |  | personal_trainer | core | Relax and breathe. Recovery counts. | Slapp av og pust. Hvile teller. |
+| 185 | `zone.feel.easy_run.1` |  |  | personal_trainer | core | Steady effort. Stay comfortable. | Jevn innsats. Hold det behagelig. |
+| 186 | `zone.feel.easy_run.2` |  |  | personal_trainer | core | Find your rhythm and hold it. | Finn rytmen din og hold den. |
+| 187 | `zone.feel.easy_run.3` |  |  | personal_trainer | core | Easy and controlled. You set the pace. | Rolig og kontrollert. Du bestemmer tempoet. |
+| 188 | `zone.feel.work.1` |  |  | personal_trainer | core | Push hard but controlled. | Hold en jevn rytme |
+| 189 | `zone.feel.work.2` |  |  | personal_trainer | core | Strong effort now. Stay focused. | Sterk innsats nå. Hold fokus. |
+| 190 | `zone.feel.recovery.1` |  |  | personal_trainer | core | Ease off. Let your body recover. | Slipp av. La kroppen hente seg inn. |
+| 191 | `zone.feel.recovery.2` |  |  | personal_trainer | core | Relax and breathe. Recovery counts. | Slapp av og pust. Hvile teller. |
 ## zone.breath
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 184 | `zone.breath.easy_run.1` |  |  | personal_trainer | core | Match your breathing to your pace. | Tilpass pusten til tempoet. |
-| 185 | `zone.breath.easy_run.2` |  |  | personal_trainer | core | Smooth breaths. You're doing well. | Jevn pust. Du gjør det bra. |
-| 186 | `zone.breath.work.1` |  |  | personal_trainer | core | Breathe through the effort. | Herlig |
-| 187 | `zone.breath.recovery.1` |  |  | personal_trainer | core | Slow your breathing down. | Senk pustetakten. |
+| 192 | `zone.breath.easy_run.1` |  |  | personal_trainer | core | Match your breathing to your pace. | Tilpass pusten til tempoet. |
+| 193 | `zone.breath.easy_run.2` |  |  | personal_trainer | core | Smooth breaths. You're doing well. | Jevn pust. Du gjør det bra. |
+| 194 | `zone.breath.work.1` |  |  | personal_trainer | core | Breathe through the effort. | Herlig |
+| 195 | `zone.breath.recovery.1` |  |  | personal_trainer | core | Slow your breathing down. | Senk pustetakten. |
 ## motivation.1
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 188 | `motivation.1` | motivation | legacy_fallback | personal_trainer | core | Nice work! | Hold det sterkt. |
+| 196 | `motivation.1` | motivation | legacy_fallback | personal_trainer | core | Nice work! | Hold det sterkt. |
 ## motivation.2
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 189 | `motivation.2` | motivation | legacy_fallback | personal_trainer | core | Keep it up. | Bra jobba! |
+| 197 | `motivation.2` | motivation | legacy_fallback | personal_trainer | core | Keep it up. | Bra jobba! |
 ## motivation.3
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 190 | `motivation.3` | motivation | legacy_fallback | personal_trainer | core | That's the effort I want to see. | Det skal kjennes litt. Det er prisen for endring.. |
+| 198 | `motivation.3` | motivation | legacy_fallback | personal_trainer | core | That's the effort I want to see. | Det skal kjennes litt. Det er prisen for endring.. |
 ## motivation.4
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 191 | `motivation.4` | motivation | legacy_fallback | personal_trainer | core | One step at a time. You got this. | Ett steg om gangen. Du klarer det. |
+| 199 | `motivation.4` | motivation | legacy_fallback | personal_trainer | core | One step at a time. You got this. | Ett steg om gangen. Du klarer det. |
 ## motivation.5
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 192 | `motivation.5` | motivation | legacy_fallback | personal_trainer | core | Discipline beats motivation. Keep going. | Disiplin slår motivasjon. Fortsett. |
+| 200 | `motivation.5` | motivation | legacy_fallback | personal_trainer | core | Discipline beats motivation. Keep going. | Disiplin slår motivasjon. Fortsett. |
 ## motivation.6
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 193 | `motivation.6` | motivation | legacy_fallback | personal_trainer | core | This is where it counts. | Det er nå det gjelder. |
+| 201 | `motivation.6` | motivation | legacy_fallback | personal_trainer | core | This is where it counts. | Det er nå det gjelder. |
 ## motivation.7
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 194 | `motivation.7` | motivation | legacy_fallback | personal_trainer | core | You showed up. thats the hard part. | Du møtte opp. Det er det vanskelige. |
+| 202 | `motivation.7` | motivation | legacy_fallback | personal_trainer | core | You showed up. thats the hard part. | Du møtte opp. Det er det vanskelige. |
 ## motivation.8
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 195 | `motivation.8` | motivation | legacy_fallback | personal_trainer | core | Trust the process. | Stol på prosessen. |
+| 203 | `motivation.8` | motivation | legacy_fallback | personal_trainer | core | Trust the process. | Stol på prosessen. |
 ## motivation.9
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 196 | `motivation.9` | motivation | legacy_fallback | personal_trainer | core | Every rep matters. | Hvert steg teller. |
+| 204 | `motivation.9` | motivation | legacy_fallback | personal_trainer | core | Every rep matters. | Hvert steg teller. |
 ## motivation.10
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 197 | `motivation.10` | motivation | legacy_fallback | personal_trainer | core | Finish what you started. | Fullfør det du begynte på. |
+| 205 | `motivation.10` | motivation | legacy_fallback | personal_trainer | core | Finish what you started. | Fullfør det du begynte på. |
 ## coach.no
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 198 | `coach.no.supportive.1` |  |  | personal_trainer | core | Beautiful. Smooth and steady. | Nydelig. Jevnt og rolig. |
-| 199 | `coach.no.supportive.2` |  |  | personal_trainer | core | Focus on breath and rhythm. | Fokuser på pust og rytme. |
-| 200 | `coach.no.supportive.3` |  |  | personal_trainer | core | Come on now. | Kom igjen nå. |
-| 201 | `coach.no.supportive.4` |  |  | personal_trainer | core | Good. Breathe easy. | Bra. Pust rolig. |
-| 202 | `coach.no.supportive.5` |  |  | personal_trainer | core | Settle your pace. | Finn ditt tempo. |
-| 203 | `coach.no.supportive.6` |  |  | personal_trainer | core | Relax. You earned it. | Slapp av. Du fortjener det. |
-| 204 | `coach.no.pressing.1` |  |  | personal_trainer | core | Nice work. | Bra jobba. |
-| 205 | `coach.no.pressing.2` |  |  | personal_trainer | core | Keep it steady. | Hold det jevnt. |
-| 206 | `coach.no.pressing.3` |  |  | personal_trainer | core | Hold the rhythm. | Hold rytmen. |
-| 207 | `coach.no.pressing.4` |  |  | personal_trainer | core | Good rhythm. | Bra rytme. |
-| 208 | `coach.no.intense.1` |  |  | personal_trainer | core | All the way! Drive your legs! | Helt inn nå! Trøkk i beina! |
-| 209 | `coach.no.intense.2` |  |  | personal_trainer | core | Time to work! Smooth and strong. | Nå må du jobbe! Jevnt og godt. |
-| 210 | `coach.no.intense.3` |  |  | personal_trainer | core | One more. Don't stop. | En til. Ikke stopp. |
-| 211 | `coach.no.intense.4` |  |  | personal_trainer | core | Finish the rep. Now. | Fullfør draget. Nå. |
-| 212 | `coach.no.intense.5` |  |  | personal_trainer | core | Discipline. Execute. | Disiplin. Gjennomfør. |
-| 213 | `coach.no.peak.1` |  |  | personal_trainer | core | Finish strong! | Kjør på nå! |
-| 214 | `coach.no.peak.2` |  |  | personal_trainer | core | All the way in. | Helt inn! |
+| 206 | `coach.no.supportive.1` |  |  | personal_trainer | core | Beautiful. Smooth and steady. | Nydelig. Jevnt og rolig. |
+| 207 | `coach.no.supportive.2` |  |  | personal_trainer | core | Focus on breath and rhythm. | Fokuser på pust og rytme. |
+| 208 | `coach.no.supportive.3` |  |  | personal_trainer | core | Come on now. | Kom igjen nå. |
+| 209 | `coach.no.supportive.4` |  |  | personal_trainer | core | Good. Breathe easy. | Bra. Pust rolig. |
+| 210 | `coach.no.supportive.5` |  |  | personal_trainer | core | Settle your pace. | Finn ditt tempo. |
+| 211 | `coach.no.supportive.6` |  |  | personal_trainer | core | Relax. You earned it. | Slapp av. Du fortjener det. |
+| 212 | `coach.no.pressing.1` |  |  | personal_trainer | core | Nice work. | Bra jobba. |
+| 213 | `coach.no.pressing.2` |  |  | personal_trainer | core | Keep it steady. | Hold det jevnt. |
+| 214 | `coach.no.pressing.3` |  |  | personal_trainer | core | Hold the rhythm. | Hold rytmen. |
+| 215 | `coach.no.pressing.4` |  |  | personal_trainer | core | Good rhythm. | Bra rytme. |
+| 216 | `coach.no.intense.1` |  |  | personal_trainer | core | All the way! Drive your legs! | Helt inn nå! Trøkk i beina! |
+| 217 | `coach.no.intense.2` |  |  | personal_trainer | core | Time to work! Smooth and strong. | Nå må du jobbe! Jevnt og godt. |
+| 218 | `coach.no.intense.3` |  |  | personal_trainer | core | One more. Don't stop. | En til. Ikke stopp. |
+| 219 | `coach.no.intense.4` |  |  | personal_trainer | core | Finish the rep. Now. | Fullfør draget. Nå. |
+| 220 | `coach.no.intense.5` |  |  | personal_trainer | core | Discipline. Execute. | Disiplin. Gjennomfør. |
+| 221 | `coach.no.peak.1` |  |  | personal_trainer | core | Finish strong! | Kjør på nå! |
+| 222 | `coach.no.peak.2` |  |  | personal_trainer | core | All the way in. | Helt inn! |
 ## interval.motivate
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 215 | `interval.motivate.s1.1` | motivation | start | personal_trainer | core | Control your breath. | Kontroller pusten. |
-| 216 | `interval.motivate.s1.2` | motivation | start | personal_trainer | core | Good start. | God start. |
-| 217 | `interval.motivate.s2.1` | motivation | steady | personal_trainer | core | Nice work. | Bra jobba. |
-| 218 | `interval.motivate.s2.2` | motivation | steady | personal_trainer | core | Hold the rhythm. | Hold det sterkt. |
-| 219 | `interval.motivate.s3.1` | motivation | push | personal_trainer | core | Perfect! | Hold rytmen. |
-| 220 | `interval.motivate.s3.2` | motivation | push | personal_trainer | core | Stay with it! | Stå i det! |
-| 221 | `interval.motivate.s4.1` | motivation | finish | personal_trainer | core | Finish strong! | Kjør på nå! |
-| 222 | `interval.motivate.s4.2` | motivation | finish | personal_trainer | core | All the way in. | Helt inn! |
+| 223 | `interval.motivate.s1.1` | motivation | start | personal_trainer | core | Control your breath. | Kontroller pusten. |
+| 224 | `interval.motivate.s1.2` | motivation | start | personal_trainer | core | Good start. | God start. |
+| 225 | `interval.motivate.s2.1` | motivation | steady | personal_trainer | core | Nice work. | Bra jobba. |
+| 226 | `interval.motivate.s2.2` | motivation | steady | personal_trainer | core | Hold the rhythm. | Hold rytmen. |
+| 227 | `interval.motivate.s3.1` | motivation | push | personal_trainer | core | Perfect! | Herlig! |
+| 228 | `interval.motivate.s3.2` | motivation | push | personal_trainer | core | Stay with it! | Stå i det! |
+| 229 | `interval.motivate.s4.1` | motivation | finish | personal_trainer | core | Finish strong! | Kjør på nå! |
+| 230 | `interval.motivate.s4.2` | motivation | finish | personal_trainer | core | All the way in. | Helt inn! |
 ## easy_run.motivate
 
 | # | id | catalog | stage | persona | priority | English | Norwegian |
 |---:|---|---|---|---|---|---|---|
-| 223 | `easy_run.motivate.s1.1` | motivation | start | personal_trainer | core | Focus on breath and rhythm. | Fokuser på pust og rytme. |
-| 224 | `easy_run.motivate.s1.2` | motivation | start | personal_trainer | core | Settle your pace. | Finn ditt tempo. |
-| 225 | `easy_run.motivate.s2.1` | motivation | steady | personal_trainer | core | Good rhythm. | Bra rytme. |
-| 226 | `easy_run.motivate.s2.2` | motivation | steady | personal_trainer | core | Keep it steady. | Hold det jevnt. |
-| 227 | `easy_run.motivate.s3.1` | motivation | push | personal_trainer | core | Nice work! | Bra jobba! |
-| 228 | `easy_run.motivate.s3.2` | motivation | push | personal_trainer | core | Keep it strong. | Herlig! |
-| 229 | `easy_run.motivate.s4.1` | motivation | finish | personal_trainer | core | Stay smooth. | Hold det rolig. |
-| 230 | `easy_run.motivate.s4.2` | motivation | finish | personal_trainer | core | Keep it steady. | Hold det jevnt. |
+| 231 | `easy_run.motivate.s1.1` | motivation | start | personal_trainer | core | Focus on breath and rhythm. | Fokuser på pust og rytme. |
+| 232 | `easy_run.motivate.s1.2` | motivation | start | personal_trainer | core | Settle your pace. | Finn ditt tempo. |
+| 233 | `easy_run.motivate.s2.1` | motivation | steady | personal_trainer | core | Good rhythm. | Bra rytme. |
+| 234 | `easy_run.motivate.s2.2` | motivation | steady | personal_trainer | core | Keep it steady. | Hold det jevnt. |
+| 235 | `easy_run.motivate.s3.1` | motivation | push | personal_trainer | core | Nice work! | Bra jobba! |
+| 236 | `easy_run.motivate.s3.2` | motivation | push | personal_trainer | core | Keep it strong. | Hold det sterkt. |
+| 237 | `easy_run.motivate.s4.1` | motivation | finish | personal_trainer | core | Stay smooth. | Hold det rolig. |
+| 238 | `easy_run.motivate.s4.2` | motivation | finish | personal_trainer | core | Keep it steady. | Hold det jevnt. |
+## zone.countdown
+
+| # | id | catalog | stage | persona | priority | English | Norwegian |
+|---:|---|---|---|---|---|---|---|
+| 239 | `zone.countdown.halfway.dynamic` | progress |  | personal_trainer | core | You are halfway through | Du er halvveis nå. |
+| 240 | `zone.countdown.session_halfway.dynamic` | progress |  | personal_trainer | core | You are halfway through the workout | Du er halvveis nå. |

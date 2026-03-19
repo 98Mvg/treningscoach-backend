@@ -1356,3 +1356,49 @@ Updated: 2026-03-17
   - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
   - [test_phrase_catalog_v2_review.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_phrase_catalog_v2_review.py)
   - [test_workout_cue_catalog_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_cue_catalog_contract.py)
+
+## Review — 2026-03-19 Premium monthly deck price + purchase routing
+
+- Kept the single existing subscription deck/runtime path:
+  - [ManageSubscriptionView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift) still hosts the shared [WatchConnectedPremiumOfferStepView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift)
+  - onboarding still reuses that same shared deck
+  - no new Premium card, no duplicate paywall flow, and no parallel purchase path were introduced
+- Fixed the product mismatch at the shared CTA:
+  - the Premium card in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) now purchases the monthly SKU instead of the yearly SKU in both onboarding and `Manage Subscription`
+  - this keeps the Premium monthly card price and the purchased App Store product aligned
+- Tightened the fallback monthly USD amount in [Config.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Config.swift):
+  - USD fallback monthly price is now `9.9`
+  - NOK fallback monthly price remains `129`
+- Tightened the shared yearly trial pricing on the same path:
+  - USD fallback yearly price is now `99`
+  - the shared trial card savings math in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) now falls back to configured monthly/yearly prices when StoreKit products are not loaded yet
+  - this keeps the yearly trial option and savings text aligned even during cold product loads
+- Updated NOK card fallback pricing on the same shared path:
+  - NOK fallback monthly price is now `99`
+  - NOK fallback yearly price is now `799`
+  - the same shared savings math now rounds that NOK fallback pair to a `33%` yearly discount
+- Updated focused verification:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+
+## Review — 2026-03-19 NOK pricing update + V2 pack verification path
+
+- Kept the single existing shared subscription card/runtime path:
+  - [Config.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Config.swift) still owns the fallback monthly/yearly subscription pair
+  - [WatchConnectedPremiumOfferStepView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift) still reuses that same pair for `Manage Subscription` and onboarding
+  - no separate pricing table or deck variant was introduced
+- Updated shared NOK fallback pricing:
+  - monthly NOK fallback is now `99`
+  - yearly NOK fallback is now `799`
+  - shared yearly savings math now rounds that pair to a `33%` yearly discount before StoreKit loads
+- Verified and refreshed the existing V2 audio-pack path:
+  - refreshed [output/phrase_review](/Users/mariusgaarder/Documents/treningscoach/output/phrase_review) and [output/spreadsheet](/Users/mariusgaarder/Documents/treningscoach/output/spreadsheet) exports from the current phrase sources
+  - fixed a missing `get_phrase_by_id` import in [tools/generate_audio_pack.py](/Users/mariusgaarder/Documents/treningscoach/tools/generate_audio_pack.py) so the V2 generator works again on the current tool path
+  - verified local V2 pack status against build cache: `124 phrases`, `0 missing`, `0 changed`
+  - refreshed bundled [CoreAudioPack](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Resources/CoreAudioPack) from the current V2 manifest
+- Updated focused verification:
+  - [test_onboarding_inspo_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_onboarding_inspo_contract.py)
+  - [test_subscription_paywall_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_subscription_paywall_contract.py)
+  - [test_generate_audio_pack_sample_and_latest.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_generate_audio_pack_sample_and_latest.py)
+  - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
+  - [test_select_core_bundle.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_select_core_bundle.py)
