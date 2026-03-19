@@ -1506,3 +1506,10 @@ Updated: 2026-03-17
 - Remaining blocker:
   - real regenerated V2 MP3s were not produced because `tools/generate_audio_pack.py` requires `ELEVENLABS_API_KEY`
   - bundled `CoreAudioPack` was refreshed from the existing local V2 output, but the changed `Start` audio cannot be regenerated or synced to R2 until that key is available
+
+## Review — 2026-03-19 Workout guest login fallback actions
+
+- Kept the existing guest coaching prompt path in [ActiveWorkoutView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ActiveWorkoutView.swift) and the existing auth surface in [AuthView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift); no second auth or paywall flow was introduced
+- Added workout-only fallback actions inside `AuthView(mode: .login)` so a failed sign-in from the workout prompt no longer dead-ends the user
+- Wired those fallback actions back to the existing local workout continuation path and the existing [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) `.general` route
+- Left onboarding auth unchanged by gating the extra actions behind an explicit `allowsContinueWithoutAccountInLoginMode` flag passed only from the active workout host

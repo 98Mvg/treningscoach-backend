@@ -20,6 +20,8 @@ struct AuthView: View {
     let mode: AuthFlowMode
     let onContinue: () -> Void
     let onContinueWithoutAccount: () -> Void
+    let onSeePremium: (() -> Void)?
+    let allowsContinueWithoutAccountInLoginMode: Bool
 
     @FocusState private var focusedField: Field?
 
@@ -31,6 +33,20 @@ struct AuthView: View {
     @State private var showTermsValidationError = false
     @State private var showTermsSheet = false
     @State private var showPrivacySheet = false
+
+    init(
+        mode: AuthFlowMode,
+        onContinue: @escaping () -> Void,
+        onContinueWithoutAccount: @escaping () -> Void,
+        onSeePremium: (() -> Void)? = nil,
+        allowsContinueWithoutAccountInLoginMode: Bool = false
+    ) {
+        self.mode = mode
+        self.onContinue = onContinue
+        self.onContinueWithoutAccount = onContinueWithoutAccount
+        self.onSeePremium = onSeePremium
+        self.allowsContinueWithoutAccountInLoginMode = allowsContinueWithoutAccountInLoginMode
+    }
 
     private enum Field: Hashable {
         case email
@@ -72,6 +88,10 @@ struct AuthView: View {
 
     private var canContinueWithoutAccount: Bool {
         hasAcceptedRequiredTerms && !authManager.isLoading
+    }
+
+    private var showsWorkoutLoginFallbackActions: Bool {
+        mode == .login && allowsContinueWithoutAccountInLoginMode
     }
 
     private var appleButtonTitle: String {
@@ -160,6 +180,13 @@ struct AuthView: View {
                             .multilineTextAlignment(.center)
                             .frame(width: contentWidth, alignment: .center)
                             .padding(.top, 14)
+                    }
+
+                    if showsWorkoutLoginFallbackActions {
+                        loginFallbackCard(contentWidth: contentWidth)
+                            .padding(.top, 18)
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 18)
                     }
 
                     Spacer().frame(height: bottomInset)
@@ -422,6 +449,49 @@ struct AuthView: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func loginFallbackCard(contentWidth: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(L10n.current == .no ? "Hvis innlogging ikke virker akkurat nå" : "If sign-in isn't working right now")
+                .font(.title3.weight(.bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            Text(
+                L10n.current == .no
+                    ? "Du kan fortsette lokalt med begrenset coaching, eller se Premium mens vi holder deg i flyt."
+                    : "You can continue locally with limited coaching, or see Premium while we keep your workout moving."
+            )
+            .font(.footnote.weight(.medium))
+            .foregroundColor(CoachiTheme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            secondaryActionButton(
+                title: L10n.current == .no ? "Fortsett lokalt" : "Continue local",
+                disabled: !canContinueWithoutAccount
+            ) {
+                hideKeyboard()
+                onContinueWithoutAccount()
+            }
+
+            if let onSeePremium {
+                secondaryActionButton(
+                    title: L10n.current == .no ? "Se Premium" : "See Premium",
+                    disabled: authManager.isLoading
+                ) {
+                    hideKeyboard()
+                    onSeePremium()
+                }
+            }
+        }
+        .padding(22)
+        .frame(width: contentWidth, alignment: .leading)
+        .background(CoachiTheme.surface.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.36), lineWidth: 1)
+        )
     }
 
     private enum SocialIcon {

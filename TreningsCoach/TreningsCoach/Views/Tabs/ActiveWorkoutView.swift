@@ -149,11 +149,20 @@ struct ActiveWorkoutView: View {
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $viewModel.guestCoachingAuthSheetPresented) {
-            AuthView(mode: .login) {
-                viewModel.guestCoachingAuthSheetPresented = false
-            } onContinueWithoutAccount: {
-                viewModel.guestCoachingAuthSheetPresented = false
-            }
+            AuthView(
+                mode: .login,
+                onContinue: {
+                    viewModel.guestCoachingAuthSheetPresented = false
+                },
+                onContinueWithoutAccount: {
+                    viewModel.guestCoachingAuthSheetPresented = false
+                },
+                onSeePremium: {
+                    viewModel.guestCoachingAuthSheetPresented = false
+                    viewModel.guestCoachingPaywallPresented = true
+                },
+                allowsContinueWithoutAccountInLoginMode: true
+            )
             .environmentObject(authManager)
         }
         .sheet(isPresented: $viewModel.guestCoachingPaywallPresented) {
