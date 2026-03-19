@@ -439,8 +439,405 @@ def test_structure_driven_easy_run_can_switch_to_staged_motivation_after_first_s
             breath_signal_quality=None,
         )
     )
-    assert second_forced["event_type"] == "max_silence_motivation"
+    assert second_forced["event_type"] == "easy_run_in_target_sustained"
     assert second_forced["phrase_id"].startswith("easy_run.motivate.")
+    assert second_forced["should_speak"] is True
+
+
+def test_structure_driven_easy_run_uses_go_by_feel_tone_after_first_structure_cue():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=None,
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=None,
+            )
+        )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_steady"
+
+    engine_state = state.setdefault("zone_engine", {})
+    engine_state["last_motivation_spoken_elapsed"] = 200.0
+    engine_state["last_easy_run_motivation_elapsed"] = 200.0
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=240,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_go_by_feel"
+    assert second_forced["phrase_id"] in {
+        "zone.silence.work.1",
+        "zone.silence.default.1",
+    }
+    assert second_forced["should_speak"] is True
+
+
+def test_structure_driven_easy_run_medium_breath_confidence_keeps_phase_neutral_tone():
+    state = {}
+    medium_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.62,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=0.8,
+                breath_summary=medium_conf_breath_summary,
+            )
+        )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_steady"
+
+    engine_state = state.setdefault("zone_engine", {})
+    engine_state["last_motivation_spoken_elapsed"] = 200.0
+    engine_state["last_easy_run_motivation_elapsed"] = 200.0
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=240,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_go_by_feel"
+    assert second_forced["phrase_id"] in {
+        "zone.silence.rest.1",
+        "zone.silence.default.1",
+    }
+    assert second_forced["should_speak"] is True
+
+
+def test_structure_driven_easy_run_high_confidence_heavy_breath_uses_breath_tone():
+    state = {}
+    high_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.85,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=0.8,
+                breath_summary=high_conf_breath_summary,
+                breath_intensity="intense",
+            )
+        )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_steady"
+
+    engine_state = state.setdefault("zone_engine", {})
+    engine_state["last_motivation_spoken_elapsed"] = 200.0
+    engine_state["last_easy_run_motivation_elapsed"] = 200.0
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=240,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_breath_guide"
+    assert second_forced["phrase_id"] in {
+        "zone.silence.rest.1",
+        "zone.silence.default.1",
+    }
+    assert second_forced["should_speak"] is True
+
+
+def test_structure_driven_interval_work_high_confidence_stable_breath_keeps_phase_push_tone():
+    state = {}
+    high_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.85,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=0,
+            heart_rate=120,
+            phase="warmup",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_work"
+
+    engine_state = state.setdefault("zone_engine", {})
+    engine_state["last_motivation_spoken_elapsed"] = 720.0
+    engine_state["motivation_phase_2"] = {"count": 3, "used_slots": {0, 1, 2}}
+    engine_state["last_motivation_phase_id"] = 2
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=700,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_go_by_feel"
+    assert second_forced["phrase_id"] in {
+        "zone.silence.work.1",
+        "zone.silence.default.1",
+    }
+    assert second_forced["should_speak"] is True
+
+
+def test_structure_driven_interval_work_high_confidence_heavy_breath_uses_control_tone():
+    state = {}
+    high_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.85,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=0,
+            heart_rate=120,
+            phase="warmup",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+
+    first_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    assert first_forced["event_type"] == "structure_instruction_work"
+
+    engine_state = state.setdefault("zone_engine", {})
+    engine_state["last_motivation_spoken_elapsed"] = 720.0
+    engine_state["motivation_phase_2"] = {"count": 3, "used_slots": {0, 1, 2}}
+    engine_state["last_motivation_phase_id"] = 2
+    second_forced = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=700,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    assert second_forced["event_type"] == "max_silence_breath_guide"
+    assert second_forced["phrase_id"] in {
+        "zone.silence.rest.1",
+        "zone.silence.default.1",
+    }
     assert second_forced["should_speak"] is True
 
 
@@ -487,7 +884,7 @@ def test_easy_run_max_silence_budget_blocks_repeated_forced_cue():
     assert second_forced_attempt["event_type"] != "max_silence_motivation"
 
 
-def test_timeline_summary_caps_max_silence_when_hr_missing():
+def test_timeline_summary_caps_max_silence_only_with_high_confidence_breath():
     state = {}
 
     # First tick: stable HR so we get an initial spoken event and anchor silence timing.
@@ -515,7 +912,7 @@ def test_timeline_summary_caps_max_silence_when_hr_missing():
                     "cue_interval_seconds": 20,
                     "cue_due": False,
                     "quality_sample_count": 8,
-                    "quality_median": 0.62,
+                    "quality_median": 0.82,
                     "quality_reliable": True,
                 },
             )
@@ -534,10 +931,63 @@ def test_timeline_summary_caps_max_silence_when_hr_missing():
                 "cue_interval_seconds": 20,
                 "cue_due": True,
                 "quality_sample_count": 8,
-                "quality_median": 0.62,
+                "quality_median": 0.82,
                 "quality_reliable": True,
             },
         )
     )
     assert forced["should_speak"] is True
     assert forced["event_type"] == "structure_instruction_steady"
+
+
+def test_timeline_summary_does_not_cap_max_silence_at_medium_breath_confidence():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            heart_rate=145,
+            breath_signal_quality=0.8,
+        )
+    )
+
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=0.8,
+                breath_summary={
+                    "cue_interval_seconds": 20,
+                    "cue_due": False,
+                    "quality_sample_count": 8,
+                    "quality_median": 0.62,
+                    "quality_reliable": True,
+                },
+            )
+        )
+
+    not_forced_yet = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=34,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary={
+                "cue_interval_seconds": 20,
+                "cue_due": True,
+                "quality_sample_count": 8,
+                "quality_median": 0.62,
+                "quality_reliable": True,
+            },
+        )
+    )
+    assert not_forced_yet["should_speak"] is False

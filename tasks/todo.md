@@ -29,6 +29,10 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-19: Kept the single existing `NO_HR` hierarchy in `zone_event_motor.py` and refined breath into a high-confidence modifier only: it now tightens anti-silence timing only when confidence is genuinely high, and after the first structure cue it refines runtime phrase selection on the same path instead of introducing a parallel motivation path.
+- 2026-03-19: Kept the single existing `zone_event_motor.py` runtime path and made staged motivation truly `BOTH` for intervals and easy/free run by letting the same motivation engine unlock in structure-driven mode after the first structure cue in the current segment, instead of keeping sustained motivation `FULL_HR`-only.
+- 2026-03-19: Added focused runtime coverage proving free run stays on the easy-run path with `plan_free_run` as the only no-warmup exception, and proving no-HR interval/easy-run workouts can now escalate from structure cues into the staged motivation families on the same path.
+- 2026-03-19: Kept the existing easy-run/free-run runtime path and refined it so `plan_free_run` still skips warmup and auto-finish, but can now emit halfway progress when a real free-run target duration exists. The same `zone_event_motor.py` path also now picks structure-driven motivation phrases from small internal tone buckets for `interval` and `easy_run`, while fallback/max-silence reuses only existing `zone.silence.*` IDs.
 - 2026-03-19: Kept the existing V2 workout-cue path and updated the active warmup/pause/resume/no-HR copy only in `phrase_review_v2.py`, `tts_phrase_catalog.py`, and the deterministic fallback text in `zone_event_motor.py`, without changing any event ids or introducing a parallel cue system.
 - 2026-03-19: Kept `WatchConnectedPremiumOfferStepView` as the single shared Free/Premium/14-day-trial deck source of truth, changed auto-rotation to 12 seconds, updated the shared comparison rows (`Coaching by analysing puls`, `5 days workout history`, `Full workout history`, `Single session feedback`, `Remembers past workouts`, `Choose coach voice (coming soon)`), and left purchase/current-plan logic untouched.
 - 2026-03-19: Hid the floating bottom tab bar on the existing `Manage Subscription` push path by wiring a single host-level suppression flag from `MainTabView` through `ProfileView` into `ManageSubscriptionView`, instead of trying to disable tab chrome inside the shared deck.
@@ -1402,3 +1406,40 @@ Updated: 2026-03-17
   - [test_generate_audio_pack_sample_and_latest.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_generate_audio_pack_sample_and_latest.py)
   - [test_r2_audio_pack_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_r2_audio_pack_contract.py)
   - [test_select_core_bundle.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_select_core_bundle.py)
+
+## Review — 2026-03-19 NO_HR breath tone refinement
+
+- Kept the single existing workout coach runtime path:
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py) still passes the same breath fields into [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) still owns the same NO_HR hierarchy and event families
+  - no second motivation path, no new event family, and no breath-first controller were introduced
+- Tightened the NO_HR fallback policy so phase stays in charge of intent:
+  - low breath confidence now ignores breath and stays on deterministic phase-neutral fallback
+  - medium confidence adds only a mild calming bias inside the same phase
+  - high confidence can refine tone, but only within the current phase
+  - heavy breathing in work can switch to control/breath guidance, while stable breathing keeps push tone in work and steady/calm tone in easy or recovery
+- Tightened anti-silence timing so breath only shortens silence when confidence is genuinely high, not merely barely reliable
+- Updated focused verification:
+  - [test_context_aware_max_silence.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_context_aware_max_silence.py)
+  - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)
+
+## Review — 2026-03-19 NO_HR tone buckets + free run parity
+
+- Kept the single existing runtime path:
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py) remains the only workout cue/motivation selector
+  - no new phrase ids, no new MP3 files, and no parallel motivation system were introduced
+- Added a small internal runtime mapping in [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py):
+  - `phase_family -> tone_bucket -> candidate_phrase_ids`
+  - `interval` and `easy_run` structure-driven motivation now select from existing `interval.motivate.*` / `easy_run.motivate.*` ids
+  - fallback/max-silence now selects only from existing `zone.silence.work.1`, `zone.silence.rest.1`, and `zone.silence.default.1`
+- Kept HR-driven motivation timing/logic unchanged and applied tone-bucket phrase selection only in `NO_HR` / `structure_driven`
+- Tightened free-run parity on the existing easy-run path:
+  - free run still skips warmup and never auto-emits `workout_finished`
+  - free run can emit halfway only when a target duration exists
+- Updated focused verification:
+  - [test_context_aware_max_silence.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_context_aware_max_silence.py)
+  - [test_zone_motivation_stages.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_motivation_stages.py)
+  - [test_zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_event_motor.py)
+  - [test_canonical_event_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_canonical_event_contract.py)

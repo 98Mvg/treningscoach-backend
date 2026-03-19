@@ -328,6 +328,471 @@ def test_easy_run_motivation_respects_cooldown():
         assert gap >= 120, f"Cooldown violated: {gap}s between motivations"
 
 
+def test_easy_run_motivation_can_fire_in_structure_mode_after_first_structure_cue():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=0,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                workout_mode="easy_run",
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=None,
+                phase="intense",
+            )
+        )
+
+    first_structure = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert first_structure["event_type"] == "structure_instruction_steady"
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=170,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["phrase_id"].startswith("easy_run.motivate.")
+
+
+def test_easy_run_structure_mode_low_breath_confidence_uses_neutral_bucket():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=0,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                workout_mode="easy_run",
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=None,
+                phase="intense",
+            )
+        )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=170,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["phrase_id"] in {
+        "easy_run.motivate.s2.1",
+        "easy_run.motivate.s2.2",
+        "easy_run.motivate.s4.2",
+    }
+
+
+def test_easy_run_structure_mode_medium_breath_confidence_uses_supportive_bucket():
+    state = {}
+    medium_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.62,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=0,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    for second in [9, 13]:
+        evaluate_zone_tick(
+            **_base_tick(
+                workout_state=state,
+                workout_mode="easy_run",
+                elapsed_seconds=second,
+                heart_rate=None,
+                hr_quality="poor",
+                watch_connected=False,
+                watch_status="disconnected",
+                breath_signal_quality=0.8,
+                breath_summary=medium_conf_breath_summary,
+                breath_intensity="moderate",
+                phase="intense",
+            )
+        )
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=110,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            elapsed_seconds=170,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=medium_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["phrase_id"] in {
+        "easy_run.motivate.s3.1",
+        "easy_run.motivate.s3.2",
+    }
+
+
+def test_interval_motivation_can_fire_in_structure_mode_after_first_structure_cue():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=0,
+            heart_rate=120,
+            phase="warmup",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+
+    notice = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert notice["event_type"] == "hr_structure_mode_notice"
+
+    first_structure = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert first_structure["event_type"] == "structure_instruction_work"
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=691,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "interval_in_target_sustained"
+    assert motivated["phrase_id"].startswith("interval.motivate.")
+
+
+def test_interval_structure_mode_high_confidence_stable_breath_uses_push_bucket():
+    state = {}
+    high_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.85,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=0,
+            heart_rate=120,
+            phase="warmup",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=691,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "interval_in_target_sustained"
+    assert motivated["phrase_id"] in {
+        "interval.motivate.s3.1",
+        "interval.motivate.s3.2",
+        "interval.motivate.s4.1",
+        "interval.motivate.s4.2",
+    }
+
+
+def test_interval_structure_mode_high_confidence_heavy_breath_uses_calm_bucket():
+    state = {}
+    high_conf_breath_summary = {
+        "cue_interval_seconds": 20,
+        "cue_due": False,
+        "quality_sample_count": 8,
+        "quality_median": 0.85,
+        "quality_reliable": True,
+    }
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=0,
+            heart_rate=120,
+            phase="warmup",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+
+    motivated = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=691,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    assert motivated["event_type"] == "interval_in_target_sustained"
+    assert motivated["phrase_id"] in {
+        "interval.motivate.s1.1",
+        "interval.motivate.s2.2",
+        "interval.motivate.s3.2",
+    }
+
+
 def test_motivation_phrase_id_contains_stage():
     """Deterministic motivation now resolves to staged phrase IDs only."""
     state = {}

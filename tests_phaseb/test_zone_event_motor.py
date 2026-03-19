@@ -93,6 +93,81 @@ def test_no_hr_startup_emits_structure_notice_without_sensor_specific_cues():
     assert "no_sensors_notice" not in events
 
 
+def test_free_run_starts_in_main_like_easy_run_without_warmup_events():
+    state = {"plan_free_run": True}
+    result = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            elapsed_seconds=0,
+            phase="intense",
+            heart_rate=145,
+        )
+    )
+    events = [item.get("event_type") for item in result.get("events", []) if isinstance(item, dict)]
+    assert result["event_type"] == "main_started"
+    assert result["should_speak"] is True
+    assert "warmup_started" not in events
+    assert "interval_countdown_30" not in events
+    assert "interval_countdown_10" not in events
+    assert "interval_countdown_5" not in events
+
+
+def test_free_run_without_target_duration_does_not_emit_halfway():
+    state = {"plan_free_run": True}
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=1800,
+            heart_rate=140,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_halfway" not in events
+
+
+def test_free_run_with_target_duration_can_emit_halfway_without_auto_finish():
+    state = {
+        "plan_free_run": True,
+        "plan_main_s": 3600,
+    }
+
+    halfway_tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=1800,
+            heart_rate=140,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    halfway_events = [item.get("event_type") for item in halfway_tick.get("events", []) if isinstance(item, dict)]
+    assert "interval_countdown_halfway" in halfway_events
+    assert "workout_finished" not in halfway_events
+
+    end_tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=3605,
+            heart_rate=141,
+            hr_quality="good",
+            watch_connected=True,
+            watch_status="connected",
+        )
+    )
+    end_events = [item.get("event_type") for item in end_tick.get("events", []) if isinstance(item, dict)]
+    assert "workout_finished" not in end_events
+
+
 def test_watch_starting_suppresses_structure_and_sensor_notices_during_grace():
     state = {}
     result = evaluate_zone_tick(
