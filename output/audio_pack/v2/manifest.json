@@ -1,13 +1,13 @@
 {
   "version": "v2",
-  "generated_at": "2026-03-19T15:21:43.900749+00:00",
+  "generated_at": "2026-03-19T20:42:34.585090+00:00",
   "voice": "elevenlabs_flash_v2_5",
   "languages": [
     "en",
     "no"
   ],
   "total_files": 124,
-  "total_size_bytes": 2684521,
+  "total_size_bytes": 2686610,
   "phrases": [
     {
       "id": "easy_run.motivate.s1.1",
@@ -351,8 +351,8 @@
       "id": "zone.countdown.start",
       "en": {
         "file": "en/zone.countdown.start.mp3",
-        "size": 9239,
-        "sha256": "45971e7da7c56fcb60a45d4d32e5aa778098c05f67e0fbe8c04fbcf65be145e6"
+        "size": 11328,
+        "sha256": "5b0136c7d64439c6b451dcc5f822dfce5232ee5cdf694102a4211a7c96eae7c3"
       },
       "no": {
         "file": "no/zone.countdown.start.mp3",
@@ -403,13 +403,13 @@
       "id": "zone.countdown.warmup_recovery.start.1",
       "en": {
         "file": "en/zone.countdown.warmup_recovery.start.1.mp3",
-        "size": 12164,
-        "sha256": "628ed7b3afe03e715dbbc0415df51740101cdd48976d264528ab16315c8aa626"
+        "size": 13000,
+        "sha256": "3a9418d9bd28395aa3636acb92e440c73da0004ffc6bb0034e81425b5d91a187"
       },
       "no": {
         "file": "no/zone.countdown.warmup_recovery.start.1.mp3",
-        "size": 13000,
-        "sha256": "0201d9e2e04044f96953be501d72838893af9c9a7f5f55d45e7721daffbe72ba"
+        "size": 12164,
+        "sha256": "638c5f0a97e530e38f7820de306819ff25dfc59d9cbab8aef9db90471ab72d94"
       }
     },
     {
