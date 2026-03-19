@@ -2642,8 +2642,8 @@ def _event_text(
 
     if event_type == "interval_countdown_start":
         if str(segment or "").strip().lower() in {"warmup", "recovery", "rest"}:
-            return "Kjør." if lang == "no" else "Go."
-        return "Start" if lang == "no" else "Go"
+            return "Start."
+        return "Start"
 
     if event_type == "interval_countdown_halfway":
         return "Du er halvveis nå." if lang == "no" else "You are halfway through"

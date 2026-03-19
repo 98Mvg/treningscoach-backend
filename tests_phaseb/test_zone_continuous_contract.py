@@ -248,6 +248,50 @@ def test_continuous_tts_failure_preserves_free_run_zone_event(monkeypatch):
     assert payload["debug_trace_id"]
 
 
+def test_canonical_elapsed_drives_warmup_remaining_countdown(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "_compute_server_authoritative_elapsed", lambda **kwargs: (90, 10.0))
+
+    session_id = main.session_manager.create_session(user_id="canonical_warmup_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="warmup")
+    state = main.session_manager.get_workout_state(session_id)
+    state["is_first_breath"] = False
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "warmup",
+            "elapsed_seconds": "80",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+            "warmup_seconds": "120",
+            "heart_rate": "135",
+            "watch_connected": "true",
+            "watch_status": "connected",
+            "hr_quality": "good",
+            "hr_confidence": "0.9",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    events = [item for item in payload.get("events", []) if isinstance(item, dict)]
+    assert any(item.get("event_type") == "interval_countdown_30" for item in events)
+    countdown = next(item for item in events if item.get("event_type") == "interval_countdown_30")
+    assert countdown.get("phrase_id") == "zone.countdown.warmup_recovery.30.1"
+
+
 def test_ios_continuous_response_decodes_and_logs_backend_trace_id() -> None:
     model_text = MODELS.read_text(encoding="utf-8")
     view_model_text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
@@ -256,6 +300,7 @@ def test_ios_continuous_response_decodes_and_logs_backend_trace_id() -> None:
     assert 'case debugTraceID = "debug_trace_id"' in model_text
     assert 'trace_id=\\(response.debugTraceID ?? "none")' in view_model_text
     assert '🚨 BACKEND_FAILSAFE trace_id=\\(traceID) reason=\\(response.reason ?? "none")' in view_model_text
+
 
 
 def test_continuous_zone_contract_exposes_zone_fields(monkeypatch, tmp_path):

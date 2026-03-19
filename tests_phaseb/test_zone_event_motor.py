@@ -1328,6 +1328,8 @@ def test_interval_warmup_end_emits_countdown_sequence():
     )
     events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_start" in events_start
+    assert "main_started" in events_start
+    assert tick_start["event_type"] == "interval_countdown_start"
     assert tick_start["phrase_id"] == "zone.countdown.warmup_recovery.start.1"
 
 
@@ -1398,6 +1400,8 @@ def test_easy_run_warmup_end_emits_countdown_sequence():
     )
     events_start = [item.get("event_type") for item in tick_start.get("events", []) if isinstance(item, dict)]
     assert "interval_countdown_start" in events_start
+    assert "main_started" in events_start
+    assert tick_start["event_type"] == "interval_countdown_start"
     assert tick_start["phrase_id"] == "zone.countdown.warmup_recovery.start.1"
 
 

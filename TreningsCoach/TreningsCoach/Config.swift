@@ -268,7 +268,9 @@ struct AppConfig {
         static let defaultInterval: TimeInterval = 8.0
         static let minInterval: TimeInterval = 5.0
         static let maxInterval: TimeInterval = 15.0
+        static let startupInitialTickDelay: TimeInterval = 2.0
         static let chunkDuration: TimeInterval = 8.0
+        static let startupChunkDuration: TimeInterval = 2.0
         static let minChunkBytes: Int = 8000
         static let maxWorkoutDuration: TimeInterval = 45 * 60
         static let autoTimeoutMessage = "Great workout! Remember to tap Stop when done."

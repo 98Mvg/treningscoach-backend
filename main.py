@@ -3626,14 +3626,6 @@ def coach_continuous():
                 workout_state["plan_interval_work_s"] = max(1, int(interval_plan["work_s"]))
             if interval_plan.get("recovery_s") is not None:
                 workout_state["plan_interval_recovery_s"] = max(0, int(interval_plan["recovery_s"]))
-            resolved_warmup_seconds = _coerce_int(warmup_seconds_raw)
-            if phase == "warmup" and resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
-                # Keep timing config inside shared workout_state to avoid signature drift.
-                # Primary input for countdown logic is remaining seconds, not total duration.
-                remaining = max(0, int(resolved_warmup_seconds) - max(0, int(elapsed_seconds)))
-                workout_state["warmup_remaining_s"] = remaining
-            elif phase != "warmup":
-                workout_state.pop("warmup_remaining_s", None)
             if bool(getattr(config, "SERVER_CLOCK_ENABLED", True)):
                 client_elapsed_seconds = int(elapsed_seconds)
                 paused_flag = bool(_coerce_bool(paused_raw))
@@ -3655,6 +3647,14 @@ def coach_continuous():
                         phase,
                         paused_flag,
                     )
+            resolved_warmup_seconds = _coerce_int(warmup_seconds_raw)
+            if phase == "warmup" and resolved_warmup_seconds is not None and resolved_warmup_seconds >= 0:
+                # Keep timing config inside shared workout_state to avoid signature drift.
+                # Primary input for countdown logic is remaining seconds, not total duration.
+                remaining = max(0, int(resolved_warmup_seconds) - max(0, int(elapsed_seconds)))
+                workout_state["warmup_remaining_s"] = remaining
+            elif phase != "warmup":
+                workout_state.pop("warmup_remaining_s", None)
         latency_state = _ensure_latency_strategy_state(workout_state)
 
         # Enrich breath data with smoothing + structured schema

@@ -242,11 +242,11 @@ PHRASE_CATALOG = [
     {"id": "zone.countdown.30", "en": "30 seconds left.", "no": "30 sekunder.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.15", "en": "15", "no": "15", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.5", "en": "Five.", "no": "fem", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.start", "en": "Go", "no": "Start", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.start", "en": "Start", "no": "Start", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.warmup_recovery.30.1", "en": "30 seconds left. Get ready.", "no": "30 sekunder igjen. Gjør deg klar.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.warmup_recovery.10.1", "en": "Get ready. Starting soon.", "no": "Gjør deg klar. Starter snart.", "persona": "personal_trainer", "priority": "core"},
     {"id": "zone.countdown.warmup_recovery.5.1", "en": "Five.", "no": "Fem.", "persona": "personal_trainer", "priority": "core"},
-    {"id": "zone.countdown.warmup_recovery.start.1", "en": "Go.", "no": "Kjør.", "persona": "personal_trainer", "priority": "core"},
+    {"id": "zone.countdown.warmup_recovery.start.1", "en": "Start.", "no": "Start.", "persona": "personal_trainer", "priority": "core"},
 
     # phase changes
     {"id": "zone.main_started.1", "en": "Main set starts now.", "no": "Hoveddelen starter nå.", "persona": "personal_trainer", "priority": "core"},

@@ -798,6 +798,7 @@ class WorkoutViewModel: ObservableObject {
         activeSessionPlan = buildSessionPlanFromSelections()
         let selectedIntensity = coachingStyle.rawValue
         resetGuestBackendSuppression()
+        BackendAPIService.shared.wakeBackend()
         clearWatchStartPendingState()
         activeWatchRequestId = nil
         isWatchBackedContinuousSession = false
@@ -1317,6 +1318,8 @@ class WorkoutViewModel: ObservableObject {
     private var lastEventSpeechPriority: Int = -1
     private var lastResolvedUtteranceID: String?
     private var lastResolvedEventType: String?
+    private var startupCoachingRequestPending = false
+    private var startupContextCueHandledEventType: String?
     private let maxSpeechTranscriptEntries = 120
     private var talkCaptureTask: Task<Void, Never>?
     private let workoutTalkCaptureSeconds: TimeInterval = 4.0
@@ -2216,6 +2219,14 @@ class WorkoutViewModel: ObservableObject {
             return (response.audioURL != nil, "event_router_no_utterance_audio_fallback")
         }
 
+        if isStartupContextCue(selected.eventType),
+           startupContextCueHandledEventType == selected.eventType {
+            print("🔇 EVENT_SUPPRESSED reason=startup_context_cue_already_handled event=\(selected.eventType)")
+            lastResolvedUtteranceID = nil
+            lastResolvedEventType = nil
+            return (false, "startup_context_cue_already_handled")
+        }
+
         // Collision window: legitimate audio dedup to prevent overlapping playback.
         let selectedPriorityInfo = resolvedEventPriority(for: selected)
         let selectedPriority = selectedPriorityInfo.value
@@ -2238,6 +2249,9 @@ class WorkoutViewModel: ObservableObject {
         } else {
             lastEventSpeechAt = now
             lastEventSpeechPriority = selectedPriority
+        }
+        if isStartupContextCue(selected.eventType) {
+            startupContextCueHandledEventType = selected.eventType
         }
         lastResolvedUtteranceID = utteranceID
         lastResolvedEventType = selected.eventType
@@ -2953,6 +2967,9 @@ class WorkoutViewModel: ObservableObject {
             sessionStartTime = Date()
             workoutDuration = 0
             continuousSessionGeneration = UUID()
+            coachingInterval = AppConfig.ContinuousCoaching.defaultInterval
+            startupCoachingRequestPending = true
+            startupContextCueHandledEventType = nil
 
             // Generate unique session ID
             sessionId = "session_\(UUID().uuidString)"
@@ -3166,6 +3183,50 @@ class WorkoutViewModel: ObservableObject {
         currentLanguage == "no"
             ? "Coach kjører lokalt uten backend akkurat nå. Fortsett kontrollert."
             : "Coach is running locally without backend right now. Keep it controlled."
+    }
+
+    private func isStartupContextCue(_ eventType: String) -> Bool {
+        eventType == "warmup_started" || eventType == "main_started"
+    }
+
+    private func startupFallbackCue() -> GuestFallbackCue {
+        if currentPhase == .warmup {
+            return GuestFallbackCue(
+                utteranceID: "zone.phase.warmup.1",
+                eventType: "warmup_started",
+                transcriptText: currentLanguage == "no" ? "Oppvarming starter nå." : "Warmup starts now."
+            )
+        }
+        return GuestFallbackCue(
+            utteranceID: "zone.main_started.1",
+            eventType: "main_started",
+            transcriptText: currentLanguage == "no" ? "Hoveddelen starter nå." : "Main set starts now."
+        )
+    }
+
+    private func playStartupFallbackCueIfNeeded(reason: String) async {
+        guard startupContextCueHandledEventType == nil else { return }
+
+        let fallback = startupFallbackCue()
+        startupContextCueHandledEventType = fallback.eventType
+        lastResolvedEventType = fallback.eventType
+        lastResolvedUtteranceID = fallback.utteranceID
+
+        let didPlay = await playCoachAudio(
+            nil,
+            utteranceID: fallback.utteranceID,
+            eventType: fallback.eventType,
+            transcriptText: fallback.transcriptText,
+            allowRemotePackFetch: false,
+            allowBackendTTSFallback: false
+        )
+        coachMessage = fallback.transcriptText
+        coachingStatusLine = nil
+        if didPlay {
+            print("🛟 STARTUP_LOCAL_FALLBACK reason=\(reason) utterance=\(fallback.utteranceID) event=\(fallback.eventType)")
+        } else {
+            print("🤐 STARTUP_LOCAL_FALLBACK_MISSING reason=\(reason) utterance=\(fallback.utteranceID)")
+        }
     }
 
     private func guestFallbackCue(for elapsedSeconds: Int) -> GuestFallbackCue {
@@ -3417,6 +3478,8 @@ class WorkoutViewModel: ObservableObject {
         lastEventSpeechPriority = -1
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
+        startupCoachingRequestPending = false
+        startupContextCueHandledEventType = nil
         resetGuestBackendSuppression()
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
@@ -3486,11 +3549,16 @@ class WorkoutViewModel: ObservableObject {
         coachingTickCount += 1
         let tickNumber = coachingTickCount
         let tickElapsedSeconds = Int(workoutDuration)
+        let isStartupTick = startupCoachingRequestPending
+        startupCoachingRequestPending = false
+        let captureDuration = isStartupTick
+            ? AppConfig.ContinuousCoaching.startupChunkDuration
+            : AppConfig.ContinuousCoaching.chunkDuration
         print("🔄 Coaching tick #\(tickNumber) at \(tickElapsedSeconds)s | phase: \(currentPhase.rawValue) | interval: \(Int(coachingInterval))s")
 
         // 1. Get latest chunk WITHOUT stopping recording
         guard let audioChunk = continuousRecordingManager.getLatestChunk(
-            duration: AppConfig.ContinuousCoaching.chunkDuration
+            duration: captureDuration
         ) else {
             print("⚠️ No audio chunk available, retrying next tick")
             AudioPipelineDiagnostics.shared.recordBreathAnalysisError("No audio chunk available (buffer empty?)")
@@ -3604,6 +3672,9 @@ class WorkoutViewModel: ObservableObject {
                     serverWaitSeconds: response.waitSeconds
                 ) {
                     print("⚠️ STALE_COACHING_RESPONSE_IGNORED session=\(tickSessionID) request_elapsed=\(tickElapsedSeconds)s current_elapsed=\(Int(self.workoutDuration))s response_s=\(String(format: "%.1f", responseTime))")
+                    if isStartupTick {
+                        await playStartupFallbackCueIfNeeded(reason: "startup_response_stale")
+                    }
                     scheduleNextTick()
                     return
                 }
@@ -3680,7 +3751,7 @@ class WorkoutViewModel: ObservableObject {
                     response.breathAnalysis,
                     responseTime: responseTime,
                     chunkBytes: chunkBytes,
-                    chunkDur: AppConfig.ContinuousCoaching.chunkDuration,
+                    chunkDur: captureDuration,
                     reason: response.reason,
                     shouldSpeak: response.shouldSpeak,
                     coachText: response.text
@@ -3713,6 +3784,11 @@ class WorkoutViewModel: ObservableObject {
                     }
                 } else {
                     print("🤐 Coach silent via \(eventSpeechDecision.reason)")
+                }
+                if isStartupTick,
+                   startupContextCueHandledEventType == nil,
+                   (response.reason == "continuous_failsafe" || response.brainSource == "failsafe") {
+                    await playStartupFallbackCueIfNeeded(reason: "startup_backend_failsafe")
                 }
 
                 // 5. Adjust next interval dynamically
@@ -3752,6 +3828,9 @@ class WorkoutViewModel: ObservableObject {
                     errorDetail = error.localizedDescription
                 }
                 AudioPipelineDiagnostics.shared.recordBreathAnalysisError(errorDetail)
+                if isStartupTick {
+                    await playStartupFallbackCueIfNeeded(reason: "startup_request_failed")
+                }
             }
 
             // Always schedule next tick (loop continues)
@@ -3830,8 +3909,11 @@ class WorkoutViewModel: ObservableObject {
         guard isContinuousMode else { return }
 
         coachingTimer?.invalidate()
+        let scheduledInterval = startupCoachingRequestPending
+            ? AppConfig.ContinuousCoaching.startupInitialTickDelay
+            : coachingInterval
         coachingTimer = Timer.scheduledTimer(
-            withTimeInterval: coachingInterval,
+            withTimeInterval: scheduledInterval,
             repeats: false
         ) { [weak self] _ in
             Task { @MainActor in

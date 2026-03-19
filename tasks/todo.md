@@ -1481,3 +1481,28 @@ Updated: 2026-03-17
   - print `trace_id=` in the standard backend response log line
   - print an explicit `BACKEND_FAILSAFE trace_id=...` line when `continuous_failsafe` / `failsafe` is returned
 - Added focused contract coverage in [test_zone_continuous_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_zone_continuous_contract.py) for the Swift decode key and log path
+
+## Review — 2026-03-19 Faster first workout cue + countdown start copy sync
+
+- Kept the single existing workout coaching path:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+- Improved startup responsiveness without changing steady-state talk frequency:
+  - workout start now calls `BackendAPIService.shared.wakeBackend()` immediately
+  - the first continuous tick uses a one-time `2s` delay and `2s` chunk on the existing loop
+  - after that first tick, cadence returns to the normal continuous path
+- Added immediate local startup fallback on first-request failure/failsafe/stale response so the workout does not wait for the next tick before speaking a first cue
+- Added startup context-cue dedup on iOS so an early fallback or startup `main_started` / `warmup_started` does not double-fire again on the next normal tick
+- Tightened countdown timing by computing `warmup_remaining_s` from canonical server elapsed in [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py)
+- Updated countdown start copy from `Go` / `Kjør.` to `Start` / `Start.` in:
+  - [phrase_review_v2.py](/Users/mariusgaarder/Documents/treningscoach/phrase_review_v2.py)
+  - [tts_phrase_catalog.py](/Users/mariusgaarder/Documents/treningscoach/tts_phrase_catalog.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+- Verification passed:
+  - focused `pytest` suite: `97 passed`
+  - pack/bundle contract suite: `46 passed`
+  - iOS `xcodebuild`: `BUILD SUCCEEDED`
+- Remaining blocker:
+  - real regenerated V2 MP3s were not produced because `tools/generate_audio_pack.py` requires `ELEVENLABS_API_KEY`
+  - bundled `CoreAudioPack` was refreshed from the existing local V2 output, but the changed `Start` audio cannot be regenerated or synced to R2 until that key is available

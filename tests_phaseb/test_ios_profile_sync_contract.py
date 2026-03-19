@@ -24,6 +24,12 @@ BACKEND_API_SERVICE = (
     / "Services"
     / "BackendAPIService.swift"
 )
+CONFIG = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Config.swift"
+)
 AUTH_MANAGER = (
     REPO_ROOT
     / "TreningsCoach"
@@ -96,6 +102,34 @@ def test_workout_start_triggers_profile_upsert():
     assert 'await self.syncProfileSnapshotToBackend(reason: "workout_start")' in text
     assert "private func kickOffWorkoutStartBackgroundPreparation()" in text
     assert "private func syncProfileSnapshotToBackend(reason: String) async" in text
+
+
+def test_workout_start_prewarms_backend_and_uses_one_time_startup_tick():
+    text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+    config_text = CONFIG.read_text(encoding="utf-8")
+    start_block = text.split("func startWorkout() {", 1)[1].split("private func startContinuousWorkoutInternal", 1)[0]
+
+    assert "BackendAPIService.shared.wakeBackend()" in start_block
+    assert "startupCoachingRequestPending = true" in text
+    assert "let isStartupTick = startupCoachingRequestPending" in text
+    assert "? AppConfig.ContinuousCoaching.startupChunkDuration" in text
+    assert "duration: captureDuration" in text
+    assert "? AppConfig.ContinuousCoaching.startupInitialTickDelay" in text
+    assert "static let startupInitialTickDelay: TimeInterval = 2.0" in config_text
+    assert "static let startupChunkDuration: TimeInterval = 2.0" in config_text
+
+
+def test_startup_failure_falls_back_immediately_and_deduplicates_context_cues():
+    text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+
+    assert "private func playStartupFallbackCueIfNeeded(reason: String) async" in text
+    assert 'utteranceID: "zone.main_started.1"' in text
+    assert 'utteranceID: "zone.phase.warmup.1"' in text
+    assert 'reason: "startup_request_failed"' in text
+    assert 'reason: "startup_response_stale"' in text
+    assert 'reason: "startup_backend_failsafe"' in text
+    assert "startupContextCueHandledEventType == selected.eventType" in text
+    assert '"startup_context_cue_already_handled"' in text
 
 
 def test_workout_start_does_not_prefetch_audio_pack_before_first_tick():
