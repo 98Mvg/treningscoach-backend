@@ -36,6 +36,7 @@ Updated: 2026-03-17
 
 ## Session-Specific Lessons
 
+- 2026-03-19: Guest workout gating should never pre-suppress `/coach/continuous` into silence. Keep the single authenticated continuous-coaching path, add only a narrow explicit guest-preview allowance on that endpoint, track the preview locally in `WorkoutViewModel`, and when the limit is reached fall back to existing local cue-pack phrases plus existing auth/paywall surfaces instead of returning dead air.
 - 2026-03-19: If `SessionManager` is configured for database-backed runtime sessions, never assume the runtime table exists in production. Keep the intended DB path, but make missing-table detection explicit and fall back to the existing in-memory session map instead of letting `/coach/continuous` crash into `continuous_failsafe`.
 - 2026-03-19: When changing live workout cue wording, update all three phrase truth surfaces together: `phrase_review_v2.py`, `tts_phrase_catalog.py`, and `zone_event_motor.py` deterministic fallback text. If one lags, canonical phrase contracts fail even though event ids stay unchanged.
 - 2026-03-19: Phrase metadata saying `BOTH` is not enough. Always inspect the runtime gate in `zone_event_motor.py` too, or the engine can stay `FULL_HR`-only while the catalog/tests look correct.

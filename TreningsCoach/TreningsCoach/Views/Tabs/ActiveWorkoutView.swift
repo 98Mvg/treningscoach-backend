@@ -148,6 +148,31 @@ struct ActiveWorkoutView: View {
             .presentationDetents([.height(320), .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $viewModel.guestCoachingAuthSheetPresented) {
+            AuthView(mode: .login) {
+                viewModel.guestCoachingAuthSheetPresented = false
+            } onContinueWithoutAccount: {
+                viewModel.guestCoachingAuthSheetPresented = false
+            }
+            .environmentObject(authManager)
+        }
+        .sheet(isPresented: $viewModel.guestCoachingPaywallPresented) {
+            PaywallView(context: .general)
+        }
+        .confirmationDialog(
+            viewModel.guestCoachingPromptTitle,
+            isPresented: $viewModel.guestCoachingPromptPresented
+        ) {
+            Button(L10n.current == .no ? "Logg inn" : "Sign in") {
+                viewModel.guestCoachingAuthSheetPresented = true
+            }
+            Button(L10n.current == .no ? "Se Premium" : "See Premium") {
+                viewModel.guestCoachingPaywallPresented = true
+            }
+            Button(L10n.current == .no ? "Fortsett lokalt" : "Continue local", role: .cancel) {}
+        } message: {
+            Text(viewModel.guestCoachingPromptMessage)
+        }
         .alert(
             L10n.current == .no ? "Avslutte økten?" : "End workout?",
             isPresented: $showStopConfirmation

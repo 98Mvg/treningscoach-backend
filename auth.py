@@ -344,6 +344,16 @@ def require_mobile_auth(f):
             return f(*args, **kwargs)
 
         auth_header = request.headers.get("Authorization")
+        guest_preview_requested = (
+            request.path == "/coach/continuous"
+            and (request.headers.get("X-Coachi-Guest-Preview") or "").strip() == "1"
+        )
+        if guest_preview_requested and (not auth_header or not auth_header.startswith("Bearer ")):
+            g.current_user_id = None
+            g.current_user_email = None
+            g.mobile_auth_mode = "guest_preview"
+            return f(*args, **kwargs)
+
         if not auth_header or not auth_header.startswith("Bearer "):
             return jsonify(
                 {

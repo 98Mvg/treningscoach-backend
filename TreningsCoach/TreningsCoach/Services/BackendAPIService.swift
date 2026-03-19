@@ -591,6 +591,7 @@ class BackendAPIService {
         hrMax: Int? = nil,
         restingHR: Int? = nil,
         age: Int? = nil,
+        allowGuestPreview: Bool = false,
         breathAnalysisEnabled: Bool = true,
         micPermissionGranted: Bool = true
     ) async throws -> ContinuousCoachResponse {
@@ -629,6 +630,7 @@ class BackendAPIService {
             hrMax: hrMax,
             restingHR: restingHR,
             age: age,
+            allowGuestPreview: allowGuestPreview,
             breathAnalysisEnabled: breathAnalysisEnabled,
             micPermissionGranted: micPermissionGranted
         )
@@ -1136,12 +1138,16 @@ class BackendAPIService {
         hrMax: Int? = nil,
         restingHR: Int? = nil,
         age: Int? = nil,
+        allowGuestPreview: Bool = false,
         breathAnalysisEnabled: Bool = true,
         micPermissionGranted: Bool = true
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        addAuthHeader(to: &request)
+        let didAttachAuth = addAuthHeader(to: &request)
+        if allowGuestPreview && !didAttachAuth {
+            request.setValue("1", forHTTPHeaderField: "X-Coachi-Guest-Preview")
+        }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")

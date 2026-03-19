@@ -260,3 +260,68 @@ def test_save_workout_accepts_mobile_field_aliases():
 
     with main.app.app_context():
         _delete_user_and_workouts(user_id)
+
+
+def test_guest_preview_header_allows_coach_continuous_without_bearer_token(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(
+        main.breath_analyzer,
+        "analyze",
+        lambda _path: {
+            "intensity": "moderate",
+            "tempo": 16.0,
+            "volume": 35.0,
+            "breath_regularity": 0.55,
+            "inhale_exhale_ratio": 0.7,
+            "signal_quality": 0.8,
+            "respiratory_rate": 16.0,
+        },
+    )
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+
+    session_id = main.session_manager.create_session(user_id="guest_preview_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        headers={
+            "Authorization": "",
+            "X-Coachi-Guest-Preview": "1",
+        },
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "12",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "coaching_style": "normal",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert "should_speak" in payload
+    assert payload.get("reason")
+
+
+def test_guest_preview_header_does_not_open_workout_talk_without_auth():
+    client = main.app.test_client()
+
+    response = client.post(
+        "/coach/talk",
+        headers={
+            "Authorization": "",
+            "X-Coachi-Guest-Preview": "1",
+        },
+        json={"message": "How am I doing?"},
+    )
+
+    assert response.status_code == 401
+    assert response.get_json()["error_code"] == "authentication_required"

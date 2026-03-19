@@ -121,6 +121,18 @@ class WorkoutViewModel: ObservableObject {
         let repsLeft: Int
     }
 
+    private struct GuestFallbackCue {
+        let utteranceID: String
+        let eventType: String
+        let transcriptText: String
+    }
+
+    private enum GuestCoachingLimitReason {
+        case previewWindowEnded
+        case previewAlreadyUsed
+        case authRequired
+    }
+
     private let spotifyPromptPendingKey = "spotify_prompt_pending"
     private let spotifyPromptSeenKey = "spotify_prompt_seen"
     private let coachScoreHistoryKey = "coach_score_history_v1"
@@ -129,6 +141,10 @@ class WorkoutViewModel: ObservableObject {
     private let workoutIntensityPreferenceKey = "workout_intensity_preference"
     private let breathAnalysisEnabledKey = "breath_analysis_enabled"
     private let easyRunSessionModePreferenceKey = "easy_run_session_mode"
+    private let guestCoachingPreviewSessionsUsedKey = "guest_coaching_preview_sessions_used_v1"
+    private let guestCoachingPreviewMaxSessions = 1
+    private let guestCoachingPreviewMaxSeconds = 90
+    private let guestLocalFallbackMinimumGapSeconds = 35
 
     // MARK: - Published Properties
 
@@ -246,6 +262,9 @@ class WorkoutViewModel: ObservableObject {
     @Published var recoveryLine: String = ""
     @Published var isSpotifyConnected: Bool = UserDefaults.standard.bool(forKey: "spotify_connected")
     @Published var showSpotifyConnectSheet: Bool = false
+    @Published var guestCoachingPromptPresented: Bool = false
+    @Published var guestCoachingAuthSheetPresented: Bool = false
+    @Published var guestCoachingPaywallPresented: Bool = false
     @Published private(set) var speechTranscript: [SpeechTranscriptEntry] = []
     private var timedEasyRunWarmupBackup: Int = 2
     private var timedEasyRunDurationBackup: Int = 30
@@ -436,6 +455,40 @@ class WorkoutViewModel: ObservableObject {
             return currentLanguage == "no" ? "Intervaller" : "Intervals"
         case .standard:
             return currentLanguage == "no" ? "Økt" : "Workout"
+        }
+    }
+
+    var guestCoachingPromptTitle: String {
+        switch guestCoachingLimitReason {
+        case .previewWindowEnded:
+            return currentLanguage == "no" ? "Gjestepreviewen er brukt opp" : "Guest preview finished"
+        case .previewAlreadyUsed:
+            return currentLanguage == "no" ? "Logg inn for mer coaching" : "Sign in for more coaching"
+        case .authRequired:
+            return currentLanguage == "no" ? "Innlogging kreves for full coaching" : "Sign in required for full coaching"
+        case .none:
+            return currentLanguage == "no" ? "Coaching begrenset" : "Coaching limited"
+        }
+    }
+
+    var guestCoachingPromptMessage: String {
+        switch guestCoachingLimitReason {
+        case .previewWindowEnded:
+            return currentLanguage == "no"
+                ? "Du har brukt den gratis coach-previewen. Fortsett lokalt, eller logg inn eller oppgrader for full coaching."
+                : "You used the free coaching preview. Continue locally, or sign in or upgrade for full coaching."
+        case .previewAlreadyUsed:
+            return currentLanguage == "no"
+                ? "Gratis gjestecoaching er brukt opp på denne enheten. Logg inn eller oppgrader for å fortsette med full coaching."
+                : "Guest coaching is already used on this device. Sign in or upgrade to keep full coaching."
+        case .authRequired:
+            return currentLanguage == "no"
+                ? "Backend krever innlogging for videre coaching. Fortsett lokalt, eller logg inn eller oppgrader."
+                : "The backend now requires sign-in for more coaching. Continue locally, or sign in or upgrade."
+        case .none:
+            return currentLanguage == "no"
+                ? "Fortsetter lokalt med begrenset coaching."
+                : "Continuing locally with limited coaching."
         }
     }
 
@@ -1247,6 +1300,10 @@ class WorkoutViewModel: ObservableObject {
     private var didRetryPendingWatchStartAfterReachability = false
     private var watchHRStartupGraceDeadline: Date?
     private var guestBackendSuppressed = false
+    private var guestPreviewSessionConsumedThisWorkout = false
+    private var guestPreviewPromptShownThisWorkout = false
+    private var lastGuestFallbackCueElapsedSeconds: Int?
+    private var guestCoachingLimitReason: GuestCoachingLimitReason?
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
     private var watchLaunchTask: Task<Void, Never>?
@@ -2853,7 +2910,6 @@ class WorkoutViewModel: ObservableObject {
     private func startContinuousWorkoutInternal(preservePendingWatchStart: Bool = false) {
         guard !isContinuousMode else { return }
         resetGuestBackendSuppression()
-        primeGuestBackendSuppressionIfNeeded()
         if !preservePendingWatchStart {
             clearWatchStartPendingState()
         }
@@ -2904,6 +2960,7 @@ class WorkoutViewModel: ObservableObject {
             lastEventSpeechPriority = -1
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
+            primeGuestCoachingPreviewIfNeeded()
 
             // Auto-detect initial phase
             autoDetectPhase()
@@ -2996,38 +3053,183 @@ class WorkoutViewModel: ObservableObject {
 
     private func shouldSuppressProtectedBackendRequests() -> Bool {
         if authManager.hasUsableSession() {
-            guestBackendSuppressed = false
+            resetGuestBackendSuppression()
             return false
+        }
+        guard !AppConfig.Auth.requireSignInForWorkoutStart else {
+            return guestBackendSuppressed
+        }
+        if guestPreviewSessionConsumedThisWorkout && Int(workoutDuration) < guestCoachingPreviewMaxSeconds {
+            return false
+        }
+        if !guestBackendSuppressed {
+            let reason: GuestCoachingLimitReason = guestPreviewSessionConsumedThisWorkout
+                ? .previewWindowEnded
+                : .previewAlreadyUsed
+            suppressProtectedBackendRequestsForGuest(reason: reason)
         }
         return guestBackendSuppressed
     }
 
-    private func suppressProtectedBackendRequestsForGuest() {
-        guard !AppConfig.Auth.requireSignInForWorkoutStart else { return }
-        guestBackendSuppressed = true
-        coachingStatusLine = currentLanguage == "no"
-            ? "Backend krever innlogging nå. Fortsetter lokalt."
-            : "Backend currently requires sign-in. Continuing locally."
-        print("⚠️ GUEST_BACKEND_SUPPRESSED active=true")
+    private func persistedGuestCoachingPreviewSessionsUsed() -> Int {
+        max(0, UserDefaults.standard.integer(forKey: guestCoachingPreviewSessionsUsedKey))
     }
 
-    private func primeGuestBackendSuppressionIfNeeded() {
+    private func hasAvailableGuestPreviewSession() -> Bool {
+        persistedGuestCoachingPreviewSessionsUsed() < guestCoachingPreviewMaxSessions
+    }
+
+    private func shouldAllowGuestPreviewBackendRequests(at elapsedSeconds: Int) -> Bool {
+        guard !authManager.hasUsableSession(),
+              !AppConfig.Auth.requireSignInForWorkoutStart,
+              !guestBackendSuppressed,
+              guestPreviewSessionConsumedThisWorkout else {
+            return false
+        }
+        return elapsedSeconds < guestCoachingPreviewMaxSeconds
+    }
+
+    private func guestCoachingStatusLine(for reason: GuestCoachingLimitReason) -> String {
+        switch reason {
+        case .previewWindowEnded:
+            return currentLanguage == "no"
+                ? "Gjestepreviewen er ferdig. Fortsetter lokalt."
+                : "Guest preview ended. Continuing locally."
+        case .previewAlreadyUsed:
+            return currentLanguage == "no"
+                ? "Gjestecoaching er brukt opp. Fortsetter lokalt."
+                : "Guest coaching already used. Continuing locally."
+        case .authRequired:
+            return currentLanguage == "no"
+                ? "Backend krever innlogging nå. Fortsetter lokalt."
+                : "Backend currently requires sign-in. Continuing locally."
+        }
+    }
+
+    private func suppressProtectedBackendRequestsForGuest(reason: GuestCoachingLimitReason) {
+        guard !AppConfig.Auth.requireSignInForWorkoutStart else { return }
+        guestBackendSuppressed = true
+        guestCoachingLimitReason = reason
+        coachingStatusLine = guestCoachingStatusLine(for: reason)
+        presentGuestCoachingPromptIfNeeded(reason: reason)
+        print("⚠️ GUEST_BACKEND_SUPPRESSED active=true reason=\(String(describing: reason))")
+    }
+
+    private func presentGuestCoachingPromptIfNeeded(reason: GuestCoachingLimitReason) {
+        guard !guestPreviewPromptShownThisWorkout else { return }
+        guestPreviewPromptShownThisWorkout = true
+        guestCoachingLimitReason = reason
+        guestCoachingPromptPresented = true
+        trackAnalyticsEvent(
+            "guest_coaching_prompt_shown",
+            metadata: [
+                "reason": String(describing: reason),
+                "elapsed_seconds": Int(workoutDuration.rounded()),
+                "workout_mode": selectedWorkoutMode.rawValue,
+            ]
+        )
+    }
+
+    private func primeGuestCoachingPreviewIfNeeded() {
         guard !AppConfig.Auth.requireSignInForWorkoutStart,
               !authManager.hasUsableSession() else {
             return
         }
-        suppressProtectedBackendRequestsForGuest()
+        if hasAvailableGuestPreviewSession() {
+            guestPreviewSessionConsumedThisWorkout = true
+            UserDefaults.standard.set(
+                persistedGuestCoachingPreviewSessionsUsed() + 1,
+                forKey: guestCoachingPreviewSessionsUsedKey
+            )
+            coachingStatusLine = currentLanguage == "no"
+                ? "Gjestepreview aktiv. Full coaching er tilgjengelig i 90 sekunder."
+                : "Guest preview active. Full coaching is available for 90 seconds."
+            print("⚠️ GUEST_BACKEND_PREVIEW active=true max_s=\(guestCoachingPreviewMaxSeconds)")
+            return
+        }
+        suppressProtectedBackendRequestsForGuest(reason: .previewAlreadyUsed)
         print("⚠️ GUEST_BACKEND_PRESET active=true")
     }
 
     private func resetGuestBackendSuppression() {
         guestBackendSuppressed = false
+        guestPreviewSessionConsumedThisWorkout = false
+        guestPreviewPromptShownThisWorkout = false
+        lastGuestFallbackCueElapsedSeconds = nil
+        guestCoachingLimitReason = nil
+        guestCoachingPromptPresented = false
+        guestCoachingAuthSheetPresented = false
+        guestCoachingPaywallPresented = false
     }
 
     private func localGuestModeTalkFallback() -> String {
         currentLanguage == "no"
             ? "Coach kjører lokalt uten backend akkurat nå. Fortsett kontrollert."
             : "Coach is running locally without backend right now. Keep it controlled."
+    }
+
+    private func guestFallbackCue(for elapsedSeconds: Int) -> GuestFallbackCue {
+        if elapsedSeconds <= 20 {
+            return GuestFallbackCue(
+                utteranceID: "zone.main_started.1",
+                eventType: "main_started",
+                transcriptText: currentLanguage == "no" ? "Økten er i gang." : "Workout has started."
+            )
+        }
+        if currentPhase == .warmup {
+            return GuestFallbackCue(
+                utteranceID: "zone.phase.warmup.1",
+                eventType: "warmup_started",
+                transcriptText: currentLanguage == "no" ? "Oppvarming starter nå." : "Warmup starts now."
+            )
+        }
+        if currentPhase == .cooldown {
+            return GuestFallbackCue(
+                utteranceID: "zone.phase.cooldown.1",
+                eventType: "cooldown_started",
+                transcriptText: currentLanguage == "no" ? "Nedtrapping starter nå." : "Cooldown starts now."
+            )
+        }
+        if runtimeWorkoutMode == .easyRun {
+            return GuestFallbackCue(
+                utteranceID: "easy_run.motivate.s2.1",
+                eventType: "max_silence_motivation",
+                transcriptText: currentLanguage == "no" ? "Hold det jevnt." : "Keep it steady."
+            )
+        }
+        return GuestFallbackCue(
+            utteranceID: "zone.silence.work.1",
+            eventType: "max_silence_go_by_feel",
+            transcriptText: currentLanguage == "no" ? "Hold kontroll på farten." : "Stay in control of the pace."
+        )
+    }
+
+    private func handleSuppressedGuestCoachingTick(elapsedSeconds: Int) async {
+        coachingStatusLine = guestCoachingLimitReason.map(guestCoachingStatusLine(for:))
+            ?? (currentLanguage == "no"
+                ? "Fortsetter lokalt med begrenset coaching."
+                : "Continuing locally with limited coaching.")
+
+        let gap = elapsedSeconds - (lastGuestFallbackCueElapsedSeconds ?? .min)
+        guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
+
+        let fallback = guestFallbackCue(for: elapsedSeconds)
+        let didPlay = await playCoachAudio(
+            nil,
+            utteranceID: fallback.utteranceID,
+            eventType: fallback.eventType,
+            transcriptText: fallback.transcriptText,
+            allowRemotePackFetch: false,
+            allowBackendTTSFallback: false
+        )
+        if didPlay {
+            coachMessage = fallback.transcriptText
+            lastGuestFallbackCueElapsedSeconds = elapsedSeconds
+            print("🗣️ GUEST_LOCAL_FALLBACK utterance=\(fallback.utteranceID) event=\(fallback.eventType)")
+        } else {
+            coachMessage = fallback.transcriptText
+            print("🤐 GUEST_LOCAL_FALLBACK_MISSING utterance=\(fallback.utteranceID)")
+        }
     }
 
     private func persistCompletedWorkoutIfNeeded(durationSeconds: Int, intensity: String) {
@@ -3321,11 +3523,14 @@ class WorkoutViewModel: ObservableObject {
         // deterministic owner of workout event timing and selection. The iOS
         // client only transports state and renders the chosen output.
         if shouldSuppressProtectedBackendRequests() {
-            coachingStatusLine = currentLanguage == "no"
-                ? "Backend krever innlogging nå. Fortsetter lokalt."
-                : "Backend currently requires sign-in. Continuing locally."
             print("⚠️ COACHING_BACKEND_SUPPRESSED session=\(sessionId ?? "unknown")")
-            scheduleNextTick()
+            Task {
+                await handleSuppressedGuestCoachingTick(elapsedSeconds: tickElapsedSeconds)
+                guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
+                    return
+                }
+                scheduleNextTick()
+            }
             return
         }
 
@@ -3382,6 +3587,7 @@ class WorkoutViewModel: ObservableObject {
                     hrMax: storedHRMax,
                     restingHR: storedRestingHR,
                     age: storedAge,
+                    allowGuestPreview: shouldAllowGuestPreviewBackendRequests(at: tickElapsedSeconds),
                     breathAnalysisEnabled: useBreathingMicCues,
                     micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted
                 )
@@ -3605,7 +3811,7 @@ class WorkoutViewModel: ObservableObject {
 
         // Pre-launch guest mode: keep workout running locally even if backend currently enforces auth.
         if !AppConfig.Auth.requireSignInForWorkoutStart, !authManager.hasUsableSession() {
-            suppressProtectedBackendRequestsForGuest()
+            suppressProtectedBackendRequestsForGuest(reason: .authRequired)
             print("⚠️ Ignoring auth failure in guest mode; continuing local workout")
             return false
         }

@@ -29,6 +29,7 @@ Updated: 2026-03-17
 
 ## Progress Log
 
+- 2026-03-19: Reworked guest workout coaching on the single existing `WorkoutViewModel -> BackendAPIService -> /coach/continuous` path so guests get one locally tracked 90-second backend preview instead of immediate silence, `/coach/continuous` alone accepts an explicit guest-preview header without opening other protected endpoints, and post-limit ticks now reuse bundled/local cue-pack phrases plus existing `AuthView`/`PaywallView` prompts instead of dead-air `COACHING_BACKEND_SUPPRESSED`.
 - 2026-03-19: Fixed the `/coach/continuous` production-crash path on the existing `SessionManager` runtime by making runtime-session storage configurable via `RUNTIME_SESSION_STORAGE_BACKEND` and automatically falling back to the existing in-memory session map when the `runtime_session_states` table is missing, instead of letting DB-backed session reads/writes crash the coaching tick into `continuous_failsafe`.
 - 2026-03-19: Kept the single existing `NO_HR` hierarchy in `zone_event_motor.py` and refined breath into a high-confidence modifier only: it now tightens anti-silence timing only when confidence is genuinely high, and after the first structure cue it refines runtime phrase selection on the same path instead of introducing a parallel motivation path.
 - 2026-03-19: Kept the single existing `zone_event_motor.py` runtime path and made staged motivation truly `BOTH` for intervals and easy/free run by letting the same motivation engine unlock in structure-driven mode after the first structure cue in the current segment, instead of keeping sustained motivation `FULL_HR`-only.
@@ -94,6 +95,14 @@ Updated: 2026-03-17
 
 ## Review Results
 
+- `pytest -q tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_ios_continuous_auth_guard_contract.py tests_phaseb/test_zone_continuous_contract.py`
+  - result: `30 passed`
+- `python3 -m py_compile auth.py main.py tests_phaseb/test_auth_and_workout_security.py tests_phaseb/test_ios_continuous_auth_guard_contract.py tests_phaseb/test_zone_continuous_contract.py`
+  - result: passed
+- `python3 scripts/generate_codebase_guide.py --check`
+  - result: `CODEBASE_GUIDE.md is in sync`
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project TreningsCoach/TreningsCoach.xcodeproj -scheme TreningsCoach -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath /Users/mariusgaarder/Documents/treningscoach/build/DerivedData CODE_SIGNING_ALLOWED=NO build`
+  - result: `BUILD SUCCEEDED`
 - `pytest -q tests_phaseb/test_live_voice_mode_contract.py tests_phaseb/test_live_voice_rollout_contract.py tests_phaseb/test_voice_session_contract.py tests_phaseb/test_config_env_overrides.py`
   - result: `47 passed`
 - `python3 -m py_compile config.py main.py xai_voice.py`
