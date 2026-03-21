@@ -335,8 +335,28 @@ struct WorkoutCompleteView: View {
             .environmentObject(authManager)
         }
         .sheet(isPresented: $showLiveVoicePaywall) {
-            PaywallView(context: .liveVoice)
-                .environmentObject(subscriptionManager)
+            NavigationStack {
+                ScrollView(showsIndicators: false) {
+                    WatchConnectedPremiumOfferStepView(
+                        watchManager: PhoneWCManager.shared,
+                        onBack: { showLiveVoicePaywall = false },
+                        onContinue: { showLiveVoicePaywall = false },
+                        presentationMode: .manageSubscriptionInline
+                    )
+                    .environmentObject(subscriptionManager)
+                    .frame(height: max(UIScreen.main.bounds.height * 0.86, 760))
+                }
+                .background(CoachiTheme.bg.ignoresSafeArea())
+                .navigationTitle(L10n.current == .no ? "Administrer abonnement" : "Manage subscription")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(L10n.current == .no ? "Tilbake" : "Back") {
+                            showLiveVoicePaywall = false
+                        }
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showShareOptions) {
             WorkoutShareDestinationsSheet(
@@ -1051,8 +1071,28 @@ private struct WorkoutSummarySheet: View {
             }
         }
         .sheet(isPresented: $showTimeLimitPaywall) {
-            PaywallView(context: .liveVoice)
-                .environmentObject(subscriptionManager)
+            NavigationStack {
+                ScrollView(showsIndicators: false) {
+                    WatchConnectedPremiumOfferStepView(
+                        watchManager: PhoneWCManager.shared,
+                        onBack: { showTimeLimitPaywall = false },
+                        onContinue: { showTimeLimitPaywall = false },
+                        presentationMode: .manageSubscriptionInline
+                    )
+                    .environmentObject(subscriptionManager)
+                    .frame(height: max(UIScreen.main.bounds.height * 0.86, 760))
+                }
+                .background(CoachiTheme.bg.ignoresSafeArea())
+                .navigationTitle(isNorwegian ? "Administrer abonnement" : "Manage subscription")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(isNorwegian ? "Tilbake" : "Back") {
+                            showTimeLimitPaywall = false
+                        }
+                    }
+                }
+            }
         }
     }
 
