@@ -40,6 +40,14 @@ WAVEFORM_VIEW = (
     / "Components"
     / "WaveformView.swift"
 )
+TIMER_RING_VIEW = (
+    REPO_ROOT
+    / "TreningsCoach"
+    / "TreningsCoach"
+    / "Views"
+    / "Components"
+    / "TimerRingView.swift"
+)
 CONFIG_SWIFT = (
     REPO_ROOT
     / "TreningsCoach"
@@ -66,6 +74,10 @@ def _workout_view_model_text() -> str:
 
 def _waveform_view_text() -> str:
     return WAVEFORM_VIEW.read_text(encoding="utf-8")
+
+
+def _timer_ring_view_text() -> str:
+    return TIMER_RING_VIEW.read_text(encoding="utf-8")
 
 
 def _config_text() -> str:
@@ -127,6 +139,19 @@ def test_active_workout_shows_live_hr_degraded_banner_hook() -> None:
     text = _active_workout_view_text()
     assert "if let liveBanner = viewModel.liveHRBannerText {" in text
     assert "Text(liveBanner)" in text
+
+
+def test_active_workout_timer_ring_uses_live_timeline_progress() -> None:
+    text = _active_workout_view_text()
+    assert "TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in" in text
+    assert "progress: viewModel.ringProgress(at: context.date)" in text
+
+
+def test_timer_ring_view_does_not_add_one_second_lag_animation() -> None:
+    text = _timer_ring_view_text()
+    assert '.animation(.easeInOut(duration: 1), value: safeProgress)' not in text
+    assert ".trim(from: 0, to: CGFloat(safeProgress))" in text
+    assert ".rotationEffect(.degrees(360 * safeProgress - 90))" in text
 
 
 def test_hidden_workout_tab_disables_animated_background() -> None:

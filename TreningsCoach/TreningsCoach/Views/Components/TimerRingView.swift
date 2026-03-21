@@ -30,14 +30,12 @@ struct TimerRingView: View {
                 )
                 .frame(width: size, height: size)
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 1), value: safeProgress)
 
             if safeProgress > 0.01 {
                 Circle().fill(CoachiTheme.primary).frame(width: lineWidth * 1.5, height: lineWidth * 1.5)
                     .glow(color: CoachiTheme.primary, radius: 8)
                     .offset(y: -size / 2)
                     .rotationEffect(.degrees(360 * safeProgress - 90))
-                    .animation(.easeInOut(duration: 1), value: safeProgress)
             }
         }
     }

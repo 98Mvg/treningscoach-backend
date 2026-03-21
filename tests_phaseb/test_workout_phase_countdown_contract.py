@@ -40,11 +40,22 @@ def test_view_model_exposes_phase_countdown_text_contract():
     assert "workoutMode: runtimeWorkoutMode" in text
 
 
+def test_view_model_exposes_live_segment_ring_progress_contract():
+    text = WORKOUT_VIEW_MODEL.read_text(encoding="utf-8")
+    assert "func ringProgress(at date: Date) -> Double {" in text
+    assert "let elapsed = liveElapsedTime(at: date)" in text
+    assert "if let intervalProgress = intervalRingProgress(elapsedTime: elapsed) {" in text
+    assert "if isEasyRunFreeRunActive {" in text
+    assert "private func liveElapsedTime(at date: Date) -> TimeInterval {" in text
+    assert "private func intervalRingProgress(elapsedTime: TimeInterval) -> Double?" in text
+    assert "private func buildIntervalRingProgress(" in text
+
+
 def test_active_workout_view_renders_phase_countdown_panel():
     text = ACTIVE_WORKOUT_VIEW.read_text(encoding="utf-8")
     assert "phaseCountdownPanel" in text
-    assert "Text(viewModel.phaseCountdownPrimaryText)" in text
-    assert "viewModel.phaseCountdownSecondaryText" in text
+    assert "if let secondary = viewModel.phaseCountdownSecondaryText {" in text
+    assert "if let tertiary = viewModel.phaseCountdownTertiaryText {" in text
 
 
 def test_interval_picker_caps_and_sensitivity_are_applied():
@@ -60,11 +71,11 @@ def test_circular_dial_visual_progress_is_value_synced():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "private var displayProgress: Double {" in text
     assert "normalizedProgress(for: displayValue)" in text
-    assert "private func nearestValue(forVisualAngle angle: Double) -> Int" in text
+    assert "private func nearestValue(forVisualAngle angle: Double, previousValue: Int? = nil) -> Int" in text
     assert "let normalized = min(1.0, max(0.0, angle / 360.0))" in text
     assert "private func snapToNearestStepAndCommit()" in text
     assert "selectedValue = snapped" in text
     assert "currentAngle = normalizedProgress(for: snapped) * 360.0" in text
     assert ".stroke(CoachiTheme.dialMagenta" in text
-    assert "let newPreview = nearestValue(forVisualAngle: angle)" in text
-    assert "currentAngle = normalizedProgress(for: newPreview) * 360.0" in text
+    assert "let newPreview = nearestValue(forVisualAngle: angle, previousValue: oldPreview)" in text
+    assert "currentAngle = angle" in text

@@ -48,8 +48,14 @@ struct ActiveWorkoutView: View {
                             .frame(width: ringSize + 34, height: ringSize + 34)
                             .blur(radius: 10)
 
-                        TimerRingView(progress: viewModel.phaseProgress, size: ringSize, lineWidth: 12)
-                            .allowsHitTesting(false)
+                        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                            TimerRingView(
+                                progress: viewModel.ringProgress(at: context.date),
+                                size: ringSize,
+                                lineWidth: 12
+                            )
+                        }
+                        .allowsHitTesting(false)
 
                         VStack(spacing: max(4, ringSize * 0.02)) {
                             Text(viewModel.timerRingTimeText)

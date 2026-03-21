@@ -1630,3 +1630,21 @@ Updated: 2026-03-17
   - removed the `Int.min` sentinel subtraction
   - now gate on `if let lastGuestFallbackCueElapsedSeconds`
   - when the startup guest fallback actually speaks, mark `lastGuestFallbackCueElapsedSeconds` so the next local guest tick respects the silence gap instead of acting like no cue has been spoken
+
+## Review — 2026-03-21 Workout timer ring sync
+
+- Fixed stepped workout ring progress on the existing active workout screen path:
+  - [ActiveWorkoutView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ActiveWorkoutView.swift)
+  - [TimerRingView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Components/TimerRingView.swift)
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [test_workout_ui_gesture_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_ui_gesture_contract.py)
+  - [test_workout_phase_countdown_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_workout_phase_countdown_contract.py)
+- Root cause:
+  - the ring was driven by a coarse phase-level `phaseProgress`
+  - interval work and recovery both lived inside `.intense`, so the ring drifted from the real segment timing
+  - UI updates came from a 1 Hz elapsed timer plus a 1-second ease animation, which made the arc and dot visibly lag
+- Fix:
+  - moved the ring to a `TimelineView` on the existing workout screen
+  - added live `ringProgress(at:)` in `WorkoutViewModel` so progress is derived from actual segment timing
+  - made interval ring progress segment-aware from the local session plan
+  - removed the per-step 1-second ring animation so the arc and dot track the live value instead of easing behind it

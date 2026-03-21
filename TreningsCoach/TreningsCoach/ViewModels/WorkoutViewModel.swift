@@ -285,29 +285,9 @@ class WorkoutViewModel: ObservableObject {
         breathAnalysis?.intensityLevel ?? .moderate
     }
 
-    // Computed: phase progress (0.0 to 1.0)
+    // Computed: timer-ring progress on the current segment (0.0 to 1.0)
     var phaseProgress: Double {
-        let warmupSecs = configuredWarmupDuration
-        let intenseSecs = configuredIntenseDuration
-        let cooldownSecs = configuredCooldownDuration
-        let phaseDuration: TimeInterval
-        let phaseStart: TimeInterval
-
-        switch currentPhase {
-        case .warmup:
-            phaseDuration = warmupSecs
-            phaseStart = 0
-        case .intense:
-            phaseDuration = intenseSecs
-            phaseStart = warmupSecs
-        case .cooldown:
-            phaseDuration = cooldownSecs
-            phaseStart = warmupSecs + intenseSecs
-        }
-
-        guard phaseDuration > 0 else { return 0 }
-        let phaseElapsed = max(0, elapsedTime - phaseStart)
-        return min(phaseElapsed / phaseDuration, 1.0)
+        ringProgress(at: Date())
     }
 
     // Formatted elapsed time for Coachi display (MM:SS)
@@ -839,11 +819,13 @@ class WorkoutViewModel: ObservableObject {
         workoutContextSummaryReceivedAt = nil
         lastCoachiProgressAward = nil
         completedWorkoutSnapshot = nil
-        // If no warmup selected, start directly in intense phase
+        // If no warmup selected, start directly in intense phase.
         if configuredWarmupDuration == 0 {
             hasSkippedWarmup = true
+            mainSegmentStartElapsedTime = 0
         } else {
             hasSkippedWarmup = false
+            mainSegmentStartElapsedTime = configuredWarmupDuration
         }
         switch watchCapabilityState {
         case .watchReady, .watchInstalledNotReachable:
@@ -918,6 +900,7 @@ class WorkoutViewModel: ObservableObject {
         showComplete = false
         elapsedTime = 0
         workoutDuration = 0
+        mainSegmentStartElapsedTime = 0
         sessionStartTime = nil
         coachingTickCount = 0
         continuousSessionGeneration = nil
@@ -1105,6 +1088,36 @@ class WorkoutViewModel: ObservableObject {
         summaryIntervalProgress ?? fallbackIntervalProgress
     }
 
+    func ringProgress(at date: Date) -> Double {
+        let elapsed = liveElapsedTime(at: date)
+        let mainPhaseStart = max(0, mainSegmentStartElapsedTime)
+        let intenseSecs = configuredIntenseDuration
+        let cooldownSecs = configuredCooldownDuration
+
+        if !hasSkippedWarmup, mainPhaseStart > 0, elapsed < mainPhaseStart {
+            let warmupElapsed = max(0, min(mainPhaseStart, elapsed))
+            return min(max(warmupElapsed / mainPhaseStart, 0), 1)
+        }
+
+        if let intervalProgress = intervalRingProgress(elapsedTime: elapsed) {
+            return intervalProgress
+        }
+
+        if isEasyRunFreeRunActive {
+            return 0
+        }
+
+        let cooldownStart = mainPhaseStart + intenseSecs
+        if intenseSecs > 0, elapsed < cooldownStart {
+            let phaseElapsed = max(0, min(intenseSecs, elapsed - mainPhaseStart))
+            return min(max(phaseElapsed / intenseSecs, 0), 1)
+        }
+
+        guard cooldownSecs > 0 else { return 0 }
+        let cooldownElapsed = max(0, min(cooldownSecs, elapsed - cooldownStart))
+        return min(max(cooldownElapsed / cooldownSecs, 0), 1)
+    }
+
     private var summaryIntervalProgress: IntervalProgressState? {
         guard runtimeWorkoutMode == .intervals,
               let summary = workoutContextSummary else {
@@ -1129,6 +1142,66 @@ class WorkoutViewModel: ObservableObject {
             doneReps: doneReps,
             repsLeft: repsLeft
         )
+    }
+
+    private func liveElapsedTime(at date: Date) -> TimeInterval {
+        let frozenElapsed = max(0, elapsedTime)
+        guard workoutState == .active,
+              !isPaused,
+              let start = sessionStartTime else {
+            return frozenElapsed
+        }
+        return max(frozenElapsed, date.timeIntervalSince(start))
+    }
+
+    private func intervalRingProgress(elapsedTime: TimeInterval) -> Double? {
+        guard runtimeWorkoutMode == .intervals else { return nil }
+
+        let repeats = max(1, effectiveSessionPlan.intervalRepeats ?? max(2, selectedIntervalSets))
+        let workSeconds = TimeInterval(max(1, effectiveSessionPlan.intervalWorkSeconds ?? max(1, selectedIntervalWorkMinutes) * 60))
+        let recoverySeconds = TimeInterval(max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakMinutes) * 60))
+        let mainPhaseStart = max(0, mainSegmentStartElapsedTime)
+        let intenseDuration = configuredIntenseDuration
+        let elapsedInIntense = max(0, elapsedTime - mainPhaseStart)
+
+        guard intenseDuration > 0, elapsedInIntense < intenseDuration else { return nil }
+
+        return buildIntervalRingProgress(
+            elapsedInIntense: elapsedInIntense,
+            repeats: repeats,
+            workSeconds: workSeconds,
+            recoverySeconds: recoverySeconds
+        )
+    }
+
+    private func buildIntervalRingProgress(
+        elapsedInIntense: TimeInterval,
+        repeats: Int,
+        workSeconds: TimeInterval,
+        recoverySeconds: TimeInterval
+    ) -> Double? {
+        guard repeats > 0, workSeconds > 0 else { return nil }
+
+        var cursor: TimeInterval = 0
+        for rep in 1 ... repeats {
+            let workEnd = cursor + workSeconds
+            if elapsedInIntense <= workEnd {
+                let elapsedInSegment = max(0, min(workSeconds, elapsedInIntense - cursor))
+                return min(max(elapsedInSegment / workSeconds, 0), 1)
+            }
+            cursor = workEnd
+
+            if rep < repeats, recoverySeconds > 0 {
+                let recoveryEnd = cursor + recoverySeconds
+                if elapsedInIntense <= recoveryEnd {
+                    let elapsedInSegment = max(0, min(recoverySeconds, elapsedInIntense - cursor))
+                    return min(max(elapsedInSegment / recoverySeconds, 0), 1)
+                }
+                cursor = recoveryEnd
+            }
+        }
+
+        return nil
     }
 
     private var fallbackIntervalProgress: IntervalProgressState? {
@@ -1271,6 +1344,7 @@ class WorkoutViewModel: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var sessionStartTime: Date?
     private var workoutDuration: TimeInterval = 0
+    private var mainSegmentStartElapsedTime: TimeInterval = 0
     private var hasSkippedWarmup = false
     private var coachingTickCount: Int = 0
     private var continuousSessionGeneration: UUID?
@@ -1405,6 +1479,7 @@ class WorkoutViewModel: ObservableObject {
         guard isContinuousMode else { return }
         print("⏩ Skipping warmup — jumping to intense phase")
         hasSkippedWarmup = true
+        mainSegmentStartElapsedTime = liveElapsedTime(at: Date())
         currentPhase = .intense
     }
 
@@ -2985,7 +3060,7 @@ class WorkoutViewModel: ObservableObject {
             }
             startMotionMonitoring()
 
-            // Start 1-second timer to update elapsed time (drives the timer ring UI)
+            // Start 1-second timer to keep workout text and state current.
             elapsedTimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     guard let self = self, let start = self.sessionStartTime else { return }
@@ -3443,6 +3518,7 @@ class WorkoutViewModel: ObservableObject {
         wakeWordResumeTask?.cancel()
         wakeWordResumeTask = nil
         sessionId = nil
+        mainSegmentStartElapsedTime = 0
         hasSkippedWarmup = false
         consecutiveChunkFailures = 0
         consecutiveBackendFailures = 0
