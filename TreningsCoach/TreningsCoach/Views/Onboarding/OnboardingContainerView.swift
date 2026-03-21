@@ -224,7 +224,7 @@ struct OnboardingContainerView: View {
 
     @State private var currentStep: OnboardingStep = .welcome
     @State private var formState = OnboardingFormState()
-    @State private var authMode: AuthFlowMode = .register
+    @State private var skipAccountStepAfterLanguage = false
     @State private var selectedLanguage: AppLanguage = L10n.current
     @State private var notificationBackStep: OnboardingStep = .sensorConnect
     @State private var finishingOnboarding = false
@@ -239,15 +239,15 @@ struct OnboardingContainerView: View {
                     FeaturesPageView(
                         mode: .intro,
                         onPrimary: {
-                            authMode = .register
+                            skipAccountStepAfterLanguage = false
                             move(to: .language)
                         },
-                        primaryTitle: L10n.register,
+                        primaryTitle: L10n.continueButton,
                         onSecondary: {
-                            authMode = .login
+                            skipAccountStepAfterLanguage = true
                             move(to: .language)
                         },
-                        secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"
+                        secondaryTitle: L10n.continueWithoutAccount
                     )
                     .transition(stepTransition)
 
@@ -255,7 +255,7 @@ struct OnboardingContainerView: View {
                     LanguageSelectionView { language in
                         selectedLanguage = language
                         L10n.set(language)
-                        move(to: .auth)
+                        move(to: skipAccountStepAfterLanguage ? .identity : .auth)
                     }
                     .transition(stepTransition)
 
@@ -270,9 +270,10 @@ struct OnboardingContainerView: View {
                     .transition(stepTransition)
 
                 case .auth:
-                    AuthView(mode: authMode) {
-                        if authMode == .login {
-                            // Returning user — skip profile setup and go straight to main app.
+                    AuthView(mode: .register) {
+                        if let currentUser = authManager.currentUser,
+                           authManager.lastAuthCreatedNewUser == false,
+                           currentUser.hasCompletedProfileSetup {
                             let displayName = authManager.currentUser?.resolvedDisplayName ?? ""
                             appViewModel.completeOnboardingForReturningUser(
                                 displayName: displayName,
@@ -290,7 +291,7 @@ struct OnboardingContainerView: View {
                     IdentityStepView(
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
-                        onBack: { move(to: .auth) },
+                        onBack: { move(to: skipAccountStepAfterLanguage ? .language : .auth) },
                         onContinue: { dismissKeyboardAndMove(to: .features) }
                     )
                     .transition(stepTransition)
@@ -496,9 +497,7 @@ struct OnboardingContainerView: View {
         if formState.doesEnduranceTraining {
             steps.insert(.frequencyAndDuration, at: 5)
         }
-        if currentStep == .premiumOffer {
-            steps.insert(.premiumOffer, at: steps.count - 1)
-        }
+        // premiumOffer excluded — no progress bar on plan selection
         return steps
     }
 
@@ -1802,7 +1801,7 @@ struct WatchConnectedPremiumOfferStepView: View {
     private var showsCurrentPlanState: Bool { presentationMode == .manageSubscriptionInline }
     private var isInlineManageSubscription: Bool { presentationMode == .manageSubscriptionInline }
     private var autoAdvanceIntervalSeconds: UInt64? {
-        12
+        nil
     }
 
     private var resolvedCurrentPlan: PlanSelection {
@@ -1911,44 +1910,20 @@ struct WatchConnectedPremiumOfferStepView: View {
             let contentSideInset: CGFloat = (layoutWidth < 390 ? 18 : 24) + horizontalSafeInset
             let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))
             let compactLayout = layoutWidth < 390 || renderHeight < 780
-            let headerAndFooterHeight = watchReady ? 280.0 : 252.0
-            let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)
+            // Page indicator dots only — no title row
+            let chromeHeight: CGFloat = (watchReady ? 60.0 : 0.0) + 28.0
+            let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - chromeHeight)
 
             ZStack {
                 planBackground(for: selectedPlan)
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    HStack(alignment: .top, spacing: 14) {
-                        backButton
-
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(titleText)
-                                .font(.system(size: compactLayout ? 30 : 34, weight: .heavy))
-                                .foregroundColor(highContrastForeground(for: selectedPlan))
-                                .lineLimit(nil)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            Text(subtitleText)
-                                .font(.system(size: compactLayout ? 15 : 16, weight: .medium))
-                                .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.82))
-                                .lineLimit(nil)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: contentWidth, alignment: .leading)
-                    .padding(.top, safeTop + 12)
-
                     if watchReady {
                         watchReadyBadge
                             .frame(width: contentWidth, alignment: .leading)
-                            .padding(.top, 16)
+                            .padding(.top, safeTop + 6)
                     }
-
-                    Spacer(minLength: 18)
 
                     planPager(
                         cardWidth: contentWidth,
@@ -1958,18 +1933,11 @@ struct WatchConnectedPremiumOfferStepView: View {
                         bottomInset: 0
                     )
                     .frame(width: contentWidth, height: availablePagerHeight)
+                    .padding(.top, watchReady ? 6 : safeTop + 4)
 
-                    VStack(spacing: 16) {
-                        pageIndicator
-
-                        Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(highContrastForeground(for: selectedPlan).opacity(0.78))
-                            .multilineTextAlignment(.center)
-                            .frame(width: contentWidth, alignment: .center)
-                    }
-                    .padding(.top, 18)
-                    .padding(.bottom, safeBottom + 12)
+                    pageIndicator
+                    .padding(.top, 6)
+                    .padding(.bottom, safeBottom)
                 }
                 .frame(width: layoutWidth, height: renderHeight, alignment: .top)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -2108,7 +2076,7 @@ struct WatchConnectedPremiumOfferStepView: View {
 
             VStack(alignment: .leading, spacing: contentSpacing) {
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: denseLayout ? 8 : 10) {
+                    VStack(alignment: .leading, spacing: denseLayout ? 6 : 8) {
                         Text(planTitle(for: plan))
                             .font(.system(size: titleSize, weight: .heavy))
                             .foregroundColor(accent)
@@ -2146,11 +2114,6 @@ struct WatchConnectedPremiumOfferStepView: View {
                     }
                 }
 
-                Text(planSummary(for: plan))
-                    .font(.system(size: denseLayout ? 14 : 16, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
                 Divider()
                     .overlay(CoachiTheme.borderSubtle.opacity(0.6))
 
@@ -2174,36 +2137,29 @@ struct WatchConnectedPremiumOfferStepView: View {
                     }
                 }
 
-                Spacer(minLength: denseLayout ? 4 : 12)
+                Spacer(minLength: 4)
 
-                VStack(alignment: .leading, spacing: footerSpacing) {
-                    Text(detailText(for: plan))
-                        .font(.system(size: denseLayout ? 14 : 15, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Button {
-                        handlePlanAction(for: plan)
-                    } label: {
-                        Text(buttonTitle(for: plan))
-                            .font(.headline.weight(.bold))
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(primaryButtonForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, buttonVerticalPadding)
-                            .background {
-                                primaryButtonBackground(for: plan, accent: accent, isCurrentPlan: isCurrentPlan)
-                            }
-                            .clipShape(Capsule(style: .continuous))
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(primaryButtonBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: 2)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isActionDisabled)
-                    .opacity(isActionDisabled ? 0.94 : 1)
+                Button {
+                    handlePlanAction(for: plan)
+                } label: {
+                    Text(buttonTitle(for: plan))
+                        .font(.headline.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(primaryButtonForegroundColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, buttonVerticalPadding)
+                        .background {
+                            primaryButtonBackground(for: plan, accent: accent, isCurrentPlan: isCurrentPlan)
+                        }
+                        .clipShape(Capsule(style: .continuous))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(primaryButtonBorderColor(for: plan, accent: accent, isCurrentPlan: isCurrentPlan), lineWidth: 2)
+                        )
                 }
+                .buttonStyle(.plain)
+                .disabled(isActionDisabled)
+                .opacity(isActionDisabled ? 0.94 : 1)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(cardPadding)
