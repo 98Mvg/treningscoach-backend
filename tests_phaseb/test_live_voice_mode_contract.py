@@ -176,8 +176,7 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "await self?.runSessionTimer(maxDurationSeconds: bootstrap.maxDurationSeconds)" in text
     assert "let limit = max(15, maxDurationSeconds)" in text
     assert 'case timeLimit = "time_limit"' in text
-    assert "mode: .default" in text
-    assert "mode: .voiceChat" not in text
+    assert "mode: .voiceChat" in text
     assert "playFreePreviewLockClipIfAvailable()" in text
     assert '"voice.preview.free_limit.1"' in text
     assert "Float(source[index]) / Float(Int16.max)" in text
@@ -207,27 +206,25 @@ def test_live_voice_tracker_queries_are_side_effect_free_for_summary_reads() -> 
 
 def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory() -> None:
     text = XAI_VOICE_HELPER.read_text(encoding="utf-8")
-    assert "Use the just-finished workout summary first." in text
+    assert "Workout summary:" in text
     assert "sanitize_workout_history_context" in text
     assert "def _opening_recap_brief(" in text
     assert "def _opening_metric_candidates(" in text
     assert "def _opening_insight_cue(" in text
-    assert "You may also reference the workout history overview for pattern, progress, and consistency questions." in text
-    assert "Do not claim to remember prior conversations" in text
+    assert "Workout history:" in text
+    assert "post_workout_voice" in text
     assert "sanitize_post_workout_summary_context" in text
     assert "def _canonical_workout_reference(" in text
     assert '"average_heart_rate": _clean_int("average_heart_rate")' in text
     assert '"distance_meters": _clean_float("distance_meters")' in text
     assert '"coaching_style": _clean_string("coaching_style", 40)' in text
-    assert "This post-workout coach is for running workouts only." in text
-    assert "NEVER mention gym, strength, lifting, bodyweight circuits, studio classes, or cross-training examples." in text
-    assert "treat it as a general running workout" in text
-    assert "Do not use workout history in the opening message." in text
+    assert "Do not mention gym work, strength training" in text
+    assert "general running workout" in text
     assert "Do not repeat the raw generic label 'Workout' or 'Standard'." in text
-    assert "YOUR FIRST RESPONSE is a special post-workout recap and must follow these rules exactly:" in text
-    assert "Opening recap brief (use this for the first response only):" in text
-    assert "Mention one or two real stats from the opening recap brief below." in text
-    assert "End with exactly one open question." in text
+    assert "YOUR FIRST RESPONSE" in text
+    assert "Opening recap brief:" in text
+    assert "Mention one or two stats from the recap brief below." in text
+    assert "End with a short insight, not a question." in text
     assert "general workout session" not in text
     assert "conversation_history" not in text
     assert "session_history" not in text

@@ -177,11 +177,12 @@ XAI_VOICE_AGENT_WEBSOCKET_URL = (
 ).strip()
 XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT = _env_int("XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT", 12)
 XAI_VOICE_AGENT_CLIENT_SECRET_TIMEOUT_SECONDS = _env_float("XAI_VOICE_AGENT_CLIENT_SECRET_TIMEOUT_SECONDS", 20.0)
-# VAD turn detection — lower silence_duration_ms = faster response after user stops talking.
-# 200ms matches LiveKit's optimized default; raise if false triggers are a problem.
-XAI_VOICE_AGENT_VAD_THRESHOLD = _env_float("XAI_VOICE_AGENT_VAD_THRESHOLD", 0.5)
+# VAD turn detection — silence_duration_ms controls how long the server waits
+# after the user stops speaking before triggering an AI response.
+# 700ms allows natural speech pauses; tune via env var if needed.
+XAI_VOICE_AGENT_VAD_THRESHOLD = _env_float("XAI_VOICE_AGENT_VAD_THRESHOLD", 0.6)
 XAI_VOICE_AGENT_VAD_PREFIX_PADDING_MS = _env_int("XAI_VOICE_AGENT_VAD_PREFIX_PADDING_MS", 300)
-XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS = _env_int("XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 300)
+XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS = _env_int("XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 700)
 
 # Security posture
 JWT_ACCESS_TOKEN_MAX_DAYS = _env_int("JWT_ACCESS_TOKEN_MAX_DAYS", 7)

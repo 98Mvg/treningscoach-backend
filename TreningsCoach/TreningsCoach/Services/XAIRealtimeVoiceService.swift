@@ -137,6 +137,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     private var didSendFirstAssistantAudioTelemetry = false
     private var hasConnectedSession = false
     private var assistantDraftID: UUID?
+    /// Read from audio capture thread to suppress mic input while AI is speaking.
+    private var isOutputActive = false
     private var localClipPlayer: AVAudioPlayer?
     private lazy var outboundAudioSender = OutboundAudioSender(maxDepth: 8) { [weak self] message in
         Task { [weak self] in
@@ -306,7 +308,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
     private func configureAudioSession() throws {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setActive(false)
-        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+        try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
         try audioSession.setActive(true)
     }
 
@@ -396,6 +398,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 2_048, format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
+            guard !self.isOutputActive else { return }
             let rawPCM = self.convertBufferToPCM16(buffer, using: converter, targetFormat: targetFormat)
             guard let rawPCM, !rawPCM.isEmpty else { return }
             let encoded = rawPCM.base64EncodedString()
@@ -493,6 +496,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             }
         case "response.output_audio.delta", "response.audio.delta":
             isSpeaking = true
+            isOutputActive = true
             await markFirstAssistantResponseIfNeeded(source: "audio_delta")
             await markFirstAssistantAudioIfNeeded()
             if let audio = stringValue(in: event, keys: ["delta", "audio"]), !audio.isEmpty {
@@ -500,6 +504,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             }
         case "response.output_audio.done", "response.audio.done", "response.done":
             isSpeaking = false
+            isOutputActive = false
             await markFirstAssistantResponseIfNeeded(source: "response_done")
             finalizeAssistantDraft()
         case "error":
@@ -717,6 +722,7 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         webSocketTask = nil
         micState = .idle
         isSpeaking = false
+        isOutputActive = false
     }
 
     private var isFreeTierSession: Bool {
