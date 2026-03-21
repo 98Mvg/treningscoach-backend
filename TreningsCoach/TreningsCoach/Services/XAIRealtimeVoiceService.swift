@@ -559,6 +559,17 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         )
         assistantDraftID = nil
         turnCount += 1
+
+        // Free-tier turn limit: disconnect after N coach responses (whichever hits first: this or time limit)
+        if isFreeTierSession && turnCount >= AppConfig.LiveVoice.freeTurnLimit {
+            isQuotaExhausted = true
+            appendSystemMessage(
+                languageCode == "no"
+                    ? "Gratispreviewen er ferdig. Oppgrader for å fortsette samtalen."
+                    : "Your free preview has ended. Upgrade to keep talking."
+            )
+            Task { await disconnect(reason: .timeLimit) }
+        }
     }
 
     private func markFirstAssistantResponseIfNeeded(source: String) async {
@@ -645,6 +656,9 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         guard !Task.isCancelled else { return }
+        if isFreeTierSession {
+            isQuotaExhausted = true
+        }
         appendSystemMessage(
             isFreeTierSession
                 ? (

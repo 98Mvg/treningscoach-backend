@@ -20,6 +20,7 @@ struct WorkoutCompleteView: View {
     @State private var finalBPMText = "0 BPM"
     @StateObject private var liveVoiceTracker = LiveVoiceSessionTracker.shared
     @State private var showLiveVoicePaywall = false
+    @State private var showLiveVoiceAuth = false
     @State private var showWorkoutSummary = false
     @State private var summaryDetent: PresentationDetent = .medium
     @State private var showShareOptions = false
@@ -269,7 +270,14 @@ struct WorkoutCompleteView: View {
                         }
                         if liveVoiceIsAvailable {
                             Task { await vm.startIfNeeded() }
+                        } else if !hasLiveVoiceAccountAccess {
+                            // Guest: show sign-in, not paywall
+                            showWorkoutSummary = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                showLiveVoiceAuth = true
+                            }
                         } else {
+                            // Signed in but quota exhausted: show paywall
                             showWorkoutSummary = false
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                 showLiveVoicePaywall = true
@@ -302,6 +310,29 @@ struct WorkoutCompleteView: View {
             } else {
                 summaryDetent = .medium
             }
+        }
+        .sheet(isPresented: $showLiveVoiceAuth) {
+            AuthView(
+                mode: .login,
+                onContinue: {
+                    showLiveVoiceAuth = false
+                    // Auto-start voice session after successful login
+                    if let vm = liveCoachVM {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            Task { await vm.startIfNeeded() }
+                        }
+                    }
+                },
+                onContinueWithoutAccount: {
+                    showLiveVoiceAuth = false
+                },
+                onSeePremium: {
+                    showLiveVoiceAuth = false
+                    showLiveVoicePaywall = true
+                },
+                allowsContinueWithoutAccountInLoginMode: true
+            )
+            .environmentObject(authManager)
         }
         .sheet(isPresented: $showLiveVoicePaywall) {
             PaywallView(context: .liveVoice)
@@ -432,7 +463,7 @@ struct WorkoutCompleteView: View {
             return L10n.current == .no ? "Premium live coach" : "Premium live coach"
         }
         if !hasLiveVoiceAccountAccess {
-            return L10n.current == .no ? "Logg inn for å bruke live" : "Sign in to use live"
+            return L10n.current == .no ? "Logg inn for å snakke med coachen" : "Sign in to talk to your coach"
         }
         return L10n.current == .no
             ? "Dagens gratispreview er brukt"
@@ -442,8 +473,8 @@ struct WorkoutCompleteView: View {
     private var liveVoiceQuotaDetailText: String {
         if !hasLiveVoiceAccountAccess {
             return L10n.current == .no
-                ? "Logg inn for å starte live coach-samtaler."
-                : "Sign in to start live coach conversations."
+                ? "Opprett en gratis konto og få 30 sekunder coaching."
+                : "Create a free account and get 30 seconds of coaching."
         }
 
         if hasPremiumAccess {

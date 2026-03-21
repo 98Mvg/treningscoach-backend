@@ -229,6 +229,9 @@ struct AppConfig {
         static let defaultMaxDurationSeconds: Int = premiumMaxDurationSeconds
         static let freeSessionsPerDay: Int = 2
         static let premiumSessionsPerDay: Int = 3
+        /// Max coach responses for free tier (opening + N user→coach turns).
+        /// 3 = opening recap + 2 user exchanges. Whichever hits first: this or freeMaxDurationSeconds.
+        static let freeTurnLimit: Int = 3
     }
 
     // MARK: - Workout Talk
