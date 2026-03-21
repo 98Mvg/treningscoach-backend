@@ -3262,8 +3262,10 @@ class WorkoutViewModel: ObservableObject {
         coachingStatusLine = guestCoachingLimitReason.map(guestCoachingStatusLine(for:))
             ?? nil
 
-        let gap = elapsedSeconds - (lastGuestFallbackCueElapsedSeconds ?? .min)
-        guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
+        if let lastGuestFallbackCueElapsedSeconds {
+            let gap = elapsedSeconds - lastGuestFallbackCueElapsedSeconds
+            guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
+        }
 
         let fallback = guestFallbackCue(for: elapsedSeconds)
         let didPlay = await playCoachAudio(
@@ -3552,6 +3554,9 @@ class WorkoutViewModel: ObservableObject {
             Task {
                 if isStartupTick {
                     await playStartupFallbackCueIfNeeded(reason: "guest_local_workout")
+                    if self.pendingStartupSpokenCue != nil {
+                        self.lastGuestFallbackCueElapsedSeconds = tickElapsedSeconds
+                    }
                 } else {
                     await handleSuppressedGuestCoachingTick(elapsedSeconds: tickElapsedSeconds)
                 }

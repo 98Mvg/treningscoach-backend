@@ -1618,3 +1618,15 @@ Updated: 2026-03-17
 - Verification passed:
   - focused guest workout contract suite: `6 passed`
   - iOS `xcodebuild`: `BUILD SUCCEEDED`
+
+## Review — 2026-03-21 Guest local workout overflow fix
+
+- Fixed a Swift runtime overflow in the guest local workout fallback path in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift).
+- Root cause:
+  - guest local fallback spacing used `elapsedSeconds - (lastGuestFallbackCueElapsedSeconds ?? .min)`
+  - subtracting `Int.min` traps in Swift with `arithmetic overflow`
+  - the new guest-local-through-summary path made that branch hot on the second guest coaching tick
+- Fix:
+  - removed the `Int.min` sentinel subtraction
+  - now gate on `if let lastGuestFallbackCueElapsedSeconds`
+  - when the startup guest fallback actually speaks, mark `lastGuestFallbackCueElapsedSeconds` so the next local guest tick respects the silence gap instead of acting like no cue has been spoken
