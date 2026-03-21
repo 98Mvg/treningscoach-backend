@@ -98,6 +98,8 @@ struct PaywallView: View {
 
     let context: PaywallContext
     @State private var selectedPlan: PaywallPlanSelectionOption
+    @State private var showPurchaseAuthSheet = false
+    @State private var pendingPurchaseOption: PaywallPlanSelectionOption?
 
     private var isNorwegian: Bool { L10n.current == .no }
     private var hasPremiumAccess: Bool {
@@ -138,6 +140,20 @@ struct PaywallView: View {
             }
         }
         .interactiveDismissDisabled(subscriptionManager.isLoading)
+        .sheet(isPresented: $showPurchaseAuthSheet) {
+            AuthView(
+                mode: .login,
+                onContinue: {
+                    showPurchaseAuthSheet = false
+                    resumePendingPurchaseIfNeeded()
+                },
+                onContinueWithoutAccount: {
+                    showPurchaseAuthSheet = false
+                    pendingPurchaseOption = nil
+                }
+            )
+            .environmentObject(authManager)
+        }
         .onAppear {
             trackPaywallEvent("paywall_shown", context: contextKey)
         }
@@ -260,18 +276,7 @@ struct PaywallView: View {
                 context: contextKey,
                 metadata: ["plan": selectedPlan == .yearly ? "yearly" : "monthly"]
             )
-            Task {
-                switch selectedPlan {
-                case .monthly:
-                    if let product = subscriptionManager.monthlyProduct {
-                        await subscriptionManager.purchase(product)
-                    }
-                case .yearly:
-                    if let product = subscriptionManager.yearlyProduct {
-                        await subscriptionManager.purchase(product)
-                    }
-                }
-            }
+            startPurchaseFlow(for: selectedPlan)
         } label: {
             Text(primaryCTAString)
                 .font(.system(size: 19, weight: .bold))
@@ -594,9 +599,8 @@ struct PaywallView: View {
 
     private var yearlyButton: some View {
         Button {
-            guard let product = subscriptionManager.yearlyProduct else { return }
             trackPaywallEvent("paywall_cta_tapped", context: contextKey, metadata: ["plan": "yearly", "has_trial": hasIntroOffer])
-            Task { await subscriptionManager.purchase(product) }
+            startPurchaseFlow(for: .yearly)
         } label: {
             ZStack(alignment: .topTrailing) {
                 HStack {
@@ -664,9 +668,8 @@ struct PaywallView: View {
 
     private var monthlyButton: some View {
         Button {
-            guard let product = subscriptionManager.monthlyProduct else { return }
             trackPaywallEvent("paywall_cta_tapped", context: contextKey, metadata: ["plan": "monthly"])
-            Task { await subscriptionManager.purchase(product) }
+            startPurchaseFlow(for: .monthly)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -750,6 +753,38 @@ struct PaywallView: View {
 
     private var yearlySubtitle: String {
         subscriptionManager.formattedYearlyPerMonthPrice(isNorwegian: isNorwegian)
+    }
+
+    private func startPurchaseFlow(for option: PaywallPlanSelectionOption) {
+        if !authManager.isAuthenticated {
+            pendingPurchaseOption = option
+            showPurchaseAuthSheet = true
+            return
+        }
+
+        Task {
+            await performPurchase(for: option)
+        }
+    }
+
+    private func resumePendingPurchaseIfNeeded() {
+        guard authManager.isAuthenticated, let option = pendingPurchaseOption else { return }
+        pendingPurchaseOption = nil
+        Task {
+            await performPurchase(for: option)
+        }
+    }
+
+    private func performPurchase(for option: PaywallPlanSelectionOption) async {
+        guard authManager.isAuthenticated else { return }
+        switch option {
+        case .monthly:
+            guard let product = subscriptionManager.monthlyProduct else { return }
+            await subscriptionManager.purchase(product)
+        case .yearly:
+            guard let product = subscriptionManager.yearlyProduct else { return }
+            await subscriptionManager.purchase(product)
+        }
     }
 }
 

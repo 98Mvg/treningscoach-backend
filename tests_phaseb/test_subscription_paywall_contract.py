@@ -51,6 +51,9 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     content = PAYWALL.read_text()
     assert "enum PaywallPlanSelectionOption" in content
     assert "init(context: PaywallContext, initialPlan: PaywallPlanSelectionOption = .yearly)" in content
+    assert "@EnvironmentObject private var authManager: AuthManager" in content
+    assert "@State private var showPurchaseAuthSheet = false" in content
+    assert "@State private var pendingPurchaseOption: PaywallPlanSelectionOption?" in content
     assert '"Restore Purchases"' in content
     assert '"Choose subscription"' in content
     assert '"Keep Talking with Your Coach"' in content
@@ -74,6 +77,14 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     assert "subscriptionManager.formattedRecurringPrice(for: .monthly, isNorwegian: isNorwegian)" in content
     assert "subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)" in content
     assert "subscriptionManager.formattedYearlyPerMonthPrice(isNorwegian: isNorwegian)" in content
+    assert ".sheet(isPresented: $showPurchaseAuthSheet)" in content
+    assert "AuthView(" in content
+    assert "mode: .login" in content
+    assert "if !authManager.isAuthenticated {" in content
+    assert "pendingPurchaseOption = option" in content
+    assert "showPurchaseAuthSheet = true" in content
+    assert "resumePendingPurchaseIfNeeded()" in content
+    assert "await performPurchase(for: option)" in content
 
 
 def test_profile_premium_section_exposes_reviewer_visible_subscription_actions():
@@ -119,9 +130,13 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert '@State private var purchaseSuccessState: PremiumAccessSuccessState?' in onboarding
     assert 'private enum PremiumAccessSuccessState: String, Identifiable' in onboarding
     assert '.fullScreenCover(item: $purchaseSuccessState)' in onboarding
-    assert 'Continue to your Premium Dashboard' in onboarding
+    assert 'Continue to your Premium Dashboard' not in onboarding
     assert '"Your \\(trialDays)-day Coachi PREMIUM trial is now active!"' in onboarding
-    assert 'You are now a Coachi PREMIUM user!' in onboarding
+    assert 'You are now a Coachi PREMIUM member!' in onboarding
+    assert 'Congratulations! You now have full access to all app features.' in onboarding
+    assert 'Coaching by analyzing pulse' in onboarding
+    assert 'Full conversations with a coach' in onboarding
+    assert 'Image(systemName: "sparkles")' not in onboarding
     assert "subscriptionManager.formattedFreePrice" in onboarding
     assert "subscriptionManager.formattedPrice(for: .monthly, isNorwegian: isNorwegian)" in onboarding
     assert "subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)" in onboarding

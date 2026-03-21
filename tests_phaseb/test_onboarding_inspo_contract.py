@@ -61,7 +61,7 @@ def test_onboarding_includes_full_profile_and_hr_steps() -> None:
     assert ".notificationPermission," in guided_block
     assert ".dataPurpose," not in guided_block
     assert "steps.insert(.frequencyAndDuration, at: 5)" in guided_block
-    assert "steps.insert(.premiumOffer, at: steps.count - 1)" in guided_block
+    assert "premiumOffer excluded — no progress bar on plan selection" in guided_block
     assert "if formState.doesEnduranceTraining" in guided_block
 
 
@@ -87,17 +87,20 @@ def test_post_auth_explainer_starts_with_personalized_hello_page() -> None:
 
 def test_onboarding_routes_to_profile_completion_path() -> None:
     text = _onboarding_text()
-    assert "@State private var authMode: AuthFlowMode = .register" in text
-    assert "primaryTitle: L10n.register" in text
-    assert 'secondaryTitle: L10n.current == .no ? "Jeg har allerede en bruker" : "I already have an account"' in text
-    assert "authMode = .register" in text
-    assert "authMode = .login" in text
+    assert "@State private var skipAccountStepAfterLanguage = false" in text
+    assert "primaryTitle: L10n.continueButton" in text
+    assert "secondaryTitle: L10n.continueWithoutAccount" in text
+    assert "skipAccountStepAfterLanguage = false" in text
+    assert "skipAccountStepAfterLanguage = true" in text
     assert "move(to: .language)" in text
-    assert "AuthView(mode: authMode)" in text
+    assert "move(to: skipAccountStepAfterLanguage ? .identity : .auth)" in text
+    assert "AuthView(mode: .register)" in text
+    assert "authManager.lastAuthCreatedNewUser == false" in text
+    assert "currentUser.hasCompletedProfileSetup" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? \"\"" in text
     assert "move(to: .identity)" in text
     assert "} onContinueWithoutAccount: {" in text
-    assert "onBack: { move(to: .auth) }" in text
+    assert "onBack: { move(to: skipAccountStepAfterLanguage ? .language : .auth) }" in text
     assert "onContinue: { dismissKeyboardAndMove(to: .features) }" in text
     assert "onSecondary: { move(to: .identity) }" in text
     assert "onPrimary: { move(to: .birthAndGender) }" in text
@@ -135,6 +138,9 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '@State private var isPagerInteracting = false' in text
     assert '@State private var isAdvancingAutomatically = false' in text
     assert '@State private var purchaseSuccessState: PremiumAccessSuccessState?' in text
+    assert '@EnvironmentObject private var authManager: AuthManager' in text
+    assert '@State private var showPurchaseAuthSheet = false' in text
+    assert '@State private var pendingPurchaseOption: PaywallPlanSelectionOption?' in text
     assert 'let presentationMode: PresentationMode' in text
     assert 'presentationMode: PresentationMode = .onboardingStep' in text
     assert 'private var showsOnboardingChrome: Bool { presentationMode == .onboardingStep }' in text
@@ -153,7 +159,7 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'let layoutWidth = min(min(renderWidth, deviceWidth), 500)' in text
     assert 'let contentWidth = max(0.0, layoutWidth - (contentSideInset * 2))' in text
     assert 'let compactLayout = layoutWidth < 390 || renderHeight < 780' in text
-    assert 'let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - headerAndFooterHeight)' in text
+    assert 'let availablePagerHeight = max(380.0, renderHeight - safeTop - safeBottom - chromeHeight)' in text
     assert 'TabView(selection: $selectedPlan)' in text
     assert '.tabViewStyle(.page(indexDisplayMode: .never))' in text
     assert '.simultaneousGesture(pagerInteractionGesture)' in text
@@ -163,7 +169,6 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '.frame(height: 630)' not in text
     assert 'DragGesture(minimumDistance: 24)' not in text
     assert 'DragGesture(minimumDistance: 10)' in text
-    assert 'Text(isNorwegian ? "Sveip mellom Gratis, Premium og 14 dagers gratis prøveperiode" : "Swipe between Free, Premium, and a 14-day free trial")' in text
     assert 'planBackground(for: selectedPlan)' in text
     assert '.ignoresSafeArea()' in text
     assert 'return isNorwegian\n                        ? "Begrensede samtaler med coach"\n                        : "Limited conversations with coach"' in text
@@ -201,7 +206,8 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert '?? (isNorwegian ? AppConfig.Subscription.fallbackMonthlyPriceNOK : AppConfig.Subscription.fallbackMonthlyPriceUSD)' in text
     assert '?? (isNorwegian ? AppConfig.Subscription.fallbackYearlyPriceNOK : AppConfig.Subscription.fallbackYearlyPriceUSD)' in text
     assert "return ScrollView(.vertical, showsIndicators: false)" not in plan_card_block
-    assert "Spacer(minLength: denseLayout ? 4 : 12)" in plan_card_block
+    assert "Spacer(minLength: 12)" in plan_card_block
+    assert "Spacer(minLength: 4)" in plan_card_block
     assert 'let isCurrentPlan = showsCurrentPlanState && plan == resolvedCurrentPlan' in plan_card_block
     assert 'let contentSpacing: CGFloat = denseLayout ? 12 : 18' in plan_card_block
     assert 'let featureSpacing: CGFloat = denseLayout ? 10 : 14' in plan_card_block
@@ -223,16 +229,24 @@ def test_watch_connected_onboarding_offer_reuses_existing_paywall_path() -> None
     assert 'let purchaseOutcome = await subscriptionManager.purchase(product)' in text
     assert 'guard case let .success(status) = purchaseOutcome else { return }' in text
     assert 'purchaseSuccessState = successState' in text
+    assert 'guard authManager.isAuthenticated else {' in text
+    assert 'pendingPurchaseOption = option' in text
+    assert 'showPurchaseAuthSheet = true' in text
+    assert 'await performPurchaseSelection(option)' in text
     assert 'private enum PremiumAccessSuccessState: String, Identifiable' in text
     assert '.fullScreenCover(item: $purchaseSuccessState)' in text
+    assert '.sheet(isPresented: $showPurchaseAuthSheet)' in text
+    assert 'resumePendingPurchaseIfNeeded()' in text
     assert 'premiumSuccessScreen(for: state)' in text
-    assert 'Continue to your Premium Dashboard' in text
+    assert 'Continue to your Premium Dashboard' not in text
     assert '"Your \\(trialDays)-day Coachi PREMIUM trial is now active!"' in text
-    assert 'You are now a Coachi PREMIUM user!' in text
-    assert 'Thank you for choosing the best. Prepare to unlock new heights!' in text
-    assert 'Unparalleled Insights:' in text
-    assert 'Personal Coaching:' in text
-    assert 'Precision HR Zones:' in text
+    assert 'You are now a Coachi PREMIUM member!' in text
+    assert 'Congratulations! You now have full access to all app features.' in text
+    assert 'Congratulations! You now have full access to all app features during your trial.' in text
+    assert 'Coaching by analyzing pulse' in text
+    assert 'Full conversations with a coach' in text
+    assert 'Deep workout insights' in text
+    assert 'Image(systemName: "sparkles")' not in text
     assert "subscriptionManager.formattedFreePrice(isNorwegian: isNorwegian)" in text
     assert "subscriptionManager.formattedPrice(for: .monthly, isNorwegian: isNorwegian)" in text
     assert "subscriptionManager.formattedPrice(for: .yearly, isNorwegian: isNorwegian)" in text

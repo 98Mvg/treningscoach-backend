@@ -1729,6 +1729,7 @@ enum SubscriptionComparisonCatalog {
 }
 
 struct WatchConnectedPremiumOfferStepView: View {
+    @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var watchManager: PhoneWCManager
@@ -1738,6 +1739,8 @@ struct WatchConnectedPremiumOfferStepView: View {
     @State private var isPagerInteracting = false
     @State private var isAdvancingAutomatically = false
     @State private var purchaseSuccessState: PremiumAccessSuccessState?
+    @State private var showPurchaseAuthSheet = false
+    @State private var pendingPurchaseOption: PaywallPlanSelectionOption?
 
     let onBack: () -> Void
     let onContinue: () -> Void
@@ -1895,6 +1898,20 @@ struct WatchConnectedPremiumOfferStepView: View {
         .fullScreenCover(item: $purchaseSuccessState) { state in
             premiumSuccessScreen(for: state)
                 .interactiveDismissDisabled()
+        }
+        .sheet(isPresented: $showPurchaseAuthSheet) {
+            AuthView(
+                mode: .login,
+                onContinue: {
+                    showPurchaseAuthSheet = false
+                    resumePendingPurchaseIfNeeded()
+                },
+                onContinueWithoutAccount: {
+                    showPurchaseAuthSheet = false
+                    pendingPurchaseOption = nil
+                }
+            )
+            .environmentObject(authManager)
         }
     }
 
@@ -2446,8 +2463,8 @@ struct WatchConnectedPremiumOfferStepView: View {
         switch state {
         case .premium:
             return isNorwegian
-                ? "Du er nå en Coachi PREMIUM-bruker!"
-                : "You are now a Coachi PREMIUM user!"
+                ? "Du er nå et Coachi PREMIUM-medlem!"
+                : "You are now a Coachi PREMIUM member!"
         case .trial:
             return isNorwegian
                 ? "Din \(trialDays) dagers Coachi PREMIUM-prøveperiode er nå aktiv!"
@@ -2455,38 +2472,30 @@ struct WatchConnectedPremiumOfferStepView: View {
         }
     }
 
-    private var successBodyText: String {
-        isNorwegian
-            ? "Takk for at du valgte det beste. Gjør deg klar til å låse opp nye høyder."
-            : "Thank you for choosing the best. Prepare to unlock new heights!"
+    private func successBodyText(for state: PremiumAccessSuccessState) -> String {
+        switch state {
+        case .premium:
+            return isNorwegian
+                ? "Gratulerer! Du har nå full tilgang til alle appfunksjoner."
+                : "Congratulations! You now have full access to all app features."
+        case .trial:
+            return isNorwegian
+                ? "Gratulerer! Du har nå full tilgang til alle appfunksjoner i prøveperioden."
+                : "Congratulations! You now have full access to all app features during your trial."
+        }
     }
 
     private var successContinueTitle: String {
-        if presentationMode == .manageSubscriptionInline {
-            return isNorwegian
-                ? "Fortsett til Premium-oversikten"
-                : "Continue to your Premium Dashboard"
-        }
         return isNorwegian ? "Fortsett" : "Continue"
     }
 
-    private var successFeatureItems: [(icon: String, title: String, body: String)] {
+    private var successFeatureItems: [String] {
         [
-            (
-                "chart.bar.fill",
-                isNorwegian ? "Uslåelig innsikt:" : "Unparalleled Insights:",
-                isNorwegian ? "Full historikk og dyp analyse" : "All-time history & deep analytics"
-            ),
-            (
-                "bubble.left.and.bubble.right.fill",
-                isNorwegian ? "Personlig coaching:" : "Personal Coaching:",
-                isNorwegian ? "Fullverdige samtaler med coach" : "Full conversations with coach"
-            ),
-            (
-                "heart.text.square.fill",
-                isNorwegian ? "Presise pulssoner:" : "Precision HR Zones:",
-                isNorwegian ? "Elite coaching med pulssoner" : "Elite heart rate coaching"
-            ),
+            isNorwegian ? "Coachi Score" : "Coachi Score",
+            isNorwegian ? "Coaching ved å analysere puls" : "Coaching by analyzing pulse",
+            isNorwegian ? "Fullverdige samtaler med en coach" : "Full conversations with a coach",
+            isNorwegian ? "Full økthistorikk" : "Full workout history",
+            isNorwegian ? "Dyp treningsinnsikt" : "Deep workout insights",
         ]
     }
 
@@ -2778,6 +2787,15 @@ struct WatchConnectedPremiumOfferStepView: View {
     }
 
     private func purchaseSelection(_ option: PaywallPlanSelectionOption) async {
+        guard authManager.isAuthenticated else {
+            pendingPurchaseOption = option
+            showPurchaseAuthSheet = true
+            return
+        }
+        await performPurchaseSelection(option)
+    }
+
+    private func performPurchaseSelection(_ option: PaywallPlanSelectionOption) async {
         if selectedProduct(for: option) == nil {
             await subscriptionManager.loadProducts()
             syncSelectedTrialPlanToEligibility()
@@ -2788,6 +2806,14 @@ struct WatchConnectedPremiumOfferStepView: View {
         guard case let .success(status) = purchaseOutcome else { return }
         guard let successState = successState(for: status) else { return }
         purchaseSuccessState = successState
+    }
+
+    private func resumePendingPurchaseIfNeeded() {
+        guard authManager.isAuthenticated, let option = pendingPurchaseOption else { return }
+        pendingPurchaseOption = nil
+        Task {
+            await performPurchaseSelection(option)
+        }
     }
 
     private func selectedProduct(for option: PaywallPlanSelectionOption) -> Product? {
@@ -2858,11 +2884,11 @@ struct WatchConnectedPremiumOfferStepView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 22) {
-                    Text(successBodyText)
+                    Text(successBodyText(for: state))
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(.white.opacity(0.92))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 24)
 
                     Divider()
@@ -2875,24 +2901,10 @@ struct WatchConnectedPremiumOfferStepView: View {
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundStyle(Color(hex: "2F7BFF"))
                                     .frame(width: 18)
-
-                                HStack(alignment: .top, spacing: 10) {
-                                    Image(systemName: item.icon)
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(Color(hex: "2F7BFF"))
-                                        .frame(width: 20)
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.title)
-                                            .font(.system(size: 15, weight: .heavy))
-                                            .foregroundStyle(.white)
-
-                                        Text(item.body)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundStyle(.white.opacity(0.78))
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
+                                Text(item)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
@@ -2944,13 +2956,6 @@ struct WatchConnectedPremiumOfferStepView: View {
                 .padding(.bottom, 30)
                 .offset(y: -20)
             }
-
-            Image(systemName: "sparkles")
-                .font(.system(size: 34, weight: .regular))
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, 26)
-                .padding(.bottom, 26)
         }
     }
 
