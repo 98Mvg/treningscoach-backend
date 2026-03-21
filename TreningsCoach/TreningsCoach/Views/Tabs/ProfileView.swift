@@ -364,35 +364,6 @@ struct ProfileView: View {
 
     private var signOutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if authManager.isAuthenticated {
-                NavigationLink {
-                    DeleteAccountInfoView()
-                        .environmentObject(authManager)
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(CoachiTheme.danger)
-                            .frame(width: 30)
-
-                        Text(L10n.current == .no ? "Slett konto" : "Delete account")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(CoachiTheme.danger)
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(CoachiTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 18)
-                    .padding(.bottom, 8)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-
             if authManager.isAuthenticated || isGuestMode {
                 Button {
                     showingSignOutConfirmation = true
@@ -991,6 +962,35 @@ private struct PersonalProfileSettingsView: View {
                     trailingIcon: nil,
                     valueColor: emailDisplayLine == unavailableEmailText ? CoachiTheme.textSecondary : CoachiTheme.textPrimary
                 )
+
+                if authManager.isAuthenticated {
+                    settingsDivider
+
+                    NavigationLink {
+                        DeleteAccountInfoView()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                                .foregroundColor(CoachiTheme.danger)
+                                .frame(width: 30)
+
+                            Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(CoachiTheme.danger)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(CoachiTheme.textTertiary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 sectionHeader(L10n.current == .no ? "App" : "App")
 

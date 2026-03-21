@@ -1514,11 +1514,11 @@ Updated: 2026-03-17
 - Wired those fallback actions back to the existing local workout continuation path and the existing [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift) `.general` route
 - Left onboarding auth unchanged by gating the extra actions behind an explicit `allowsContinueWithoutAccountInLoginMode` flag passed only from the active workout host
 
-## Review — 2026-03-19 Delete account moved back to root profile
+## Review — 2026-03-19 Delete account restored inside Personal Profile
 
 - Kept the single existing delete-account runtime path:
-  - root settings entry in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
+  - nested settings entry in [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
   - destination [DeleteAccountInfoView](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
   - backend delete through [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) -> `DELETE /auth/me`
-- Moved the visible `Delete account` entry back to the root profile screen and removed the duplicate nested entry from `PersonalProfileSettingsView`
+- Restored the visible delete-account entry under `Your profile -> Personal profile`
 - Kept the actual destructive confirmation and deletion logic unchanged inside the existing `DeleteAccountInfoView`

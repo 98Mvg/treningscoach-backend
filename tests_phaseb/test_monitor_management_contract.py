@@ -73,11 +73,6 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)" in text
     assert "AboutCoachiView()" in text
     assert text.count("DeleteAccountInfoView()") == 1
-    root_slice = text[text.index("private var signOutSection: some View {"):text.index("private func exitCurrentMode() {")]
-    assert 'Text(L10n.current == .no ? "Slett konto" : "Delete account")' in root_slice
-    assert 'Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")' not in root_slice
-    assert 'Text(L10n.signOut)' in root_slice
-    assert root_slice.index('Text(L10n.current == .no ? "Slett konto" : "Delete account")') < root_slice.index('Text(L10n.signOut)')
     assert 'title: "\\(L10n.aboutCoachi) · v\\(AppConfig.version)"' not in text
     assert "confirmationDialog(" in text
     assert 'Text("\\(L10n.appVersionLabel) \\(AppConfig.version)")' in text
@@ -98,8 +93,10 @@ def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     assert "authManager.updateProfileAvatar(imageData: jpegData)" in text
     assert 'title: L10n.current == .no ? "Navn" : "Name",' in text
     assert 'title: L10n.current == .no ? "E-post" : "Email",' in text
-    assert 'Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")' not in personal_slice
+    assert 'Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")' in personal_slice
     assert 'Text(L10n.current == .no ? "Slett konto" : "Delete account")' not in personal_slice
+    assert personal_slice.index('title: L10n.current == .no ? "E-post" : "Email",') < personal_slice.index('Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")')
+    assert personal_slice.index('Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")') < personal_slice.index('sectionHeader(L10n.current == .no ? "App" : "App")')
     assert 'title: L10n.current == .no ? "Navn: \\(appViewModel.userProfile.name)" : "Name: \\(appViewModel.userProfile.name)"' not in text
     assert '"\\(L10n.experienceLevel): \\(appViewModel.trainingLevelDisplayName)"' not in text
     assert "sectionHeader(L10n.account)" not in personal_slice
