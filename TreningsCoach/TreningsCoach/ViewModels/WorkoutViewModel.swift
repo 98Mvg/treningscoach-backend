@@ -3065,17 +3065,10 @@ class WorkoutViewModel: ObservableObject {
             resetGuestBackendSuppression()
             return false
         }
-        guard !AppConfig.Auth.requireSignInForWorkoutStart else {
-            return guestBackendSuppressed
-        }
-        if guestPreviewSessionConsumedThisWorkout && Int(workoutDuration) < guestCoachingPreviewMaxSeconds {
+        // Guests get full backend coaching during workouts.
+        // Monetization gate is post-workout (Talk to Coach → AuthView).
+        if !AppConfig.Auth.requireSignInForWorkoutStart {
             return false
-        }
-        if !guestBackendSuppressed {
-            let reason: GuestCoachingLimitReason = guestPreviewSessionConsumedThisWorkout
-                ? .previewWindowEnded
-                : .previewAlreadyUsed
-            suppressProtectedBackendRequestsForGuest(reason: reason)
         }
         return guestBackendSuppressed
     }
@@ -3140,24 +3133,9 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func primeGuestCoachingPreviewIfNeeded() {
-        guard !AppConfig.Auth.requireSignInForWorkoutStart,
-              !authManager.hasUsableSession() else {
-            return
-        }
-        if hasAvailableGuestPreviewSession() {
-            guestPreviewSessionConsumedThisWorkout = true
-            UserDefaults.standard.set(
-                persistedGuestCoachingPreviewSessionsUsed() + 1,
-                forKey: guestCoachingPreviewSessionsUsedKey
-            )
-            coachingStatusLine = currentLanguage == "no"
-                ? "Gjestepreview aktiv. Full coaching er tilgjengelig i 90 sekunder."
-                : "Guest preview active. Full coaching is available for 90 seconds."
-            print("⚠️ GUEST_BACKEND_PREVIEW active=true max_s=\(guestCoachingPreviewMaxSeconds)")
-            return
-        }
-        suppressProtectedBackendRequestsForGuest(reason: .previewAlreadyUsed)
-        print("⚠️ GUEST_BACKEND_PRESET active=true")
+        // Guests always get full backend coaching during workouts.
+        // The monetization gate is post-workout: Talk to Coach → AuthView → login.
+        return
     }
 
     private func resetGuestBackendSuppression() {
