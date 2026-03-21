@@ -218,13 +218,13 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     assert '"average_heart_rate": _clean_int("average_heart_rate")' in text
     assert '"distance_meters": _clean_float("distance_meters")' in text
     assert '"coaching_style": _clean_string("coaching_style", 40)' in text
-    assert "Do not mention gym work, strength training" in text
+    assert "Start with cardio effort, pacing" in text
     assert "general running workout" in text
     assert "Do not repeat the raw generic label 'Workout' or 'Standard'." in text
     assert "YOUR FIRST RESPONSE" in text
     assert "Opening recap brief:" in text
     assert "Mention one or two stats from the recap brief below." in text
-    assert "End with a short insight, not a question." in text
+    assert "End with a short insight or one question." in text
     assert "general workout session" not in text
     assert "conversation_history" not in text
     assert "session_history" not in text

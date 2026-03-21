@@ -24,7 +24,7 @@ def test_post_workout_voice_instructions_treat_mmss_as_seconds() -> None:
     assert "Do not reinterpret it as a hold, plank, set, or any non-running exercise." in instructions
     assert "YOUR FIRST RESPONSE" in instructions
     assert "Mention one or two stats from the recap brief below." in instructions
-    assert "End with a short insight, not a question." in instructions
+    assert "End with a short insight or one question." in instructions
 
 
 def test_post_workout_voice_instructions_keep_generic_workout_running_only() -> None:
@@ -49,9 +49,9 @@ def test_post_workout_voice_instructions_keep_generic_workout_running_only() -> 
     assert "Workout: general running workout" in instructions
     assert "Workout: Workout" not in instructions
     assert "For this opening, refer to the workout as 'general running workout'." in instructions
-    # Topic limits now live in the post_workout_voice persona
-    assert "Running only" in instructions
-    assert "Never invent stats" in instructions
+    # Context awareness lives in the post_workout_voice persona
+    assert "Do not assume exercises that were not done" in instructions
+    assert "Only invent or assume details that are clearly implied" in instructions
     assert "Opening recap brief:" in instructions
     assert "- Workout: general running workout" in instructions
     assert "- Duration: 12 minutes 30 seconds" in instructions

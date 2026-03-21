@@ -447,24 +447,22 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — en rolig løpetur med lavt tempo. "
-                "Fokuser på aerob base, pustekontroll, og jevn innsats. "
-                "Ikke nevn intervaller, sprints, eller høy intensitet."
+                "Start med aerob base, pustekontroll, og jevn innsats."
             )
         return (
             f"The athlete chose '{label}' — a low-effort easy run. "
-            "Focus on aerobic base building, breathing control, and steady effort. "
-            "Do not mention intervals, sprints, or high intensity."
+            "Start with aerobic base building, breathing control, and steady effort."
         )
 
     if mode == "interval" or "intervall" in label_lower or "interval" in label_lower:
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — intervalltrening med vekslende høy- og lavinnsats. "
-                "Fokuser på jobb/hvile-forhold, intensitetstopper, og restitusjon mellom intervallene."
+                "Start med jobb/hvile-forhold, intensitetstopper, og restitusjon mellom intervallene."
             )
         return (
             f"The athlete chose '{label}' — interval training with alternating high/low effort. "
-            "Focus on work/rest ratio, intensity peaks, and recovery between intervals."
+            "Start with work/rest ratio, intensity peaks, and recovery between intervals."
         )
 
     # Generic "Workout" or unknown mode
@@ -472,25 +470,21 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
         if is_norwegian:
             return (
                 "Utøveren valgte en generell løpeøkt. "
-                "Fokuser på kondisjon, tempo, pust, pulssoner, og total varighet. "
-                "Ikke nevn gym, styrke, spesifikke øvelser eller andre treningsformer."
+                "Start med kondisjon, tempo, pust, pulssoner, og total varighet."
             )
         return (
             "The athlete chose a general running workout. "
-            "Focus on cardio effort, pacing, breathing, heart rate zones, and total duration. "
-            "Do not mention gym work, strength training, specific exercises, or non-running activities."
+            "Start with cardio effort, pacing, breathing, heart rate zones, and total duration."
         )
 
     if is_norwegian:
         return (
             f"Utøveren valgte '{label}' — en generell løpeøkt. "
-            "Fokuser på kondisjon, tempo, pust, pulssoner, og total varighet. "
-            "Ikke nevn gym, styrke, spesifikke øvelser eller andre treningsformer."
+            "Start med kondisjon, tempo, pust, pulssoner, og total varighet."
         )
     return (
         f"The athlete chose '{label}' — a general running workout. "
-        "Focus on cardio effort, pacing, breathing, heart rate zones, and total duration. "
-        "Do not mention gym work, strength training, specific exercises, or non-running activities."
+        "Start with cardio effort, pacing, breathing, heart rate zones, and total duration."
     )
 
 
@@ -596,7 +590,7 @@ def build_post_workout_voice_instructions(
         "YOUR FIRST RESPONSE — opening recap (up to 45 words, 3 sentences):\n"
         "1. Name the workout and duration.\n"
         "2. Mention one or two stats from the recap brief below.\n"
-        "3. End with a short insight, not a question.\n\n"
+        "3. End with a short insight or one question.\n\n"
         f"{opening_reference_rule}\n"
         "Interpret timer strings literally (00:07 = 7 seconds, not 7 minutes).\n"
         f"{short_duration_guard}"
