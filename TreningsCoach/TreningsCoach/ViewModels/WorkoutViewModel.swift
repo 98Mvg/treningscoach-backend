@@ -3893,9 +3893,9 @@ class WorkoutViewModel: ObservableObject {
     private func handleAuthFailureIfNeeded(_ error: Error) -> Bool {
         guard isAuthFailure(error) else { return false }
 
-        // Pre-launch guest mode: keep workout running locally even if backend currently enforces auth.
+        // Guest mode: silently continue local workout. No prompt, no suppression.
+        // Monetization gate is post-workout (Talk to Coach → AuthView).
         if !AppConfig.Auth.requireSignInForWorkoutStart, !authManager.hasUsableSession() {
-            suppressProtectedBackendRequestsForGuest(reason: .authRequired)
             print("⚠️ Ignoring auth failure in guest mode; continuing local workout")
             return false
         }
