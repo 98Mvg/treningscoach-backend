@@ -2969,7 +2969,6 @@ class WorkoutViewModel: ObservableObject {
             lastEventSpeechPriority = -1
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
-            primeGuestCoachingPreviewIfNeeded()
 
             // Auto-detect initial phase
             autoDetectPhase()
@@ -3065,10 +3064,10 @@ class WorkoutViewModel: ObservableObject {
             resetGuestBackendSuppression()
             return false
         }
-        // Guests get full backend coaching during workouts.
-        // Monetization gate is post-workout (Talk to Coach → AuthView).
+        // Guest workouts stay fully local through the summary screen.
+        // The only auth gate is post-workout Talk to Coach.
         if !AppConfig.Auth.requireSignInForWorkoutStart {
-            return false
+            return true
         }
         return guestBackendSuppressed
     }
@@ -3082,13 +3081,8 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func shouldAllowGuestPreviewBackendRequests(at elapsedSeconds: Int) -> Bool {
-        guard !authManager.hasUsableSession(),
-              !AppConfig.Auth.requireSignInForWorkoutStart,
-              !guestBackendSuppressed,
-              guestPreviewSessionConsumedThisWorkout else {
-            return false
-        }
-        return elapsedSeconds < guestCoachingPreviewMaxSeconds
+        _ = elapsedSeconds
+        return false
     }
 
     private func guestCoachingStatusLine(for reason: GuestCoachingLimitReason) -> String {
@@ -3133,9 +3127,8 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func primeGuestCoachingPreviewIfNeeded() {
-        // Guests always get full backend coaching during workouts.
-        // The monetization gate is post-workout: Talk to Coach → AuthView → login.
-        return
+        // Guest workouts intentionally avoid protected backend coaching
+        // until the post-workout Talk to Coach auth gate.
     }
 
     private func resetGuestBackendSuppression() {
@@ -3267,9 +3260,7 @@ class WorkoutViewModel: ObservableObject {
 
     private func handleSuppressedGuestCoachingTick(elapsedSeconds: Int) async {
         coachingStatusLine = guestCoachingLimitReason.map(guestCoachingStatusLine(for:))
-            ?? (currentLanguage == "no"
-                ? "Fortsetter lokalt med begrenset coaching."
-                : "Continuing locally with limited coaching.")
+            ?? nil
 
         let gap = elapsedSeconds - (lastGuestFallbackCueElapsedSeconds ?? .min)
         guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
@@ -3556,6 +3547,22 @@ class WorkoutViewModel: ObservableObject {
             : AppConfig.ContinuousCoaching.chunkDuration
         print("🔄 Coaching tick #\(tickNumber) at \(tickElapsedSeconds)s | phase: \(currentPhase.rawValue) | interval: \(Int(coachingInterval))s")
 
+        if shouldSuppressProtectedBackendRequests() {
+            print("⚠️ COACHING_BACKEND_SUPPRESSED session=\(sessionId ?? "unknown")")
+            Task {
+                if isStartupTick {
+                    await playStartupFallbackCueIfNeeded(reason: "guest_local_workout")
+                } else {
+                    await handleSuppressedGuestCoachingTick(elapsedSeconds: tickElapsedSeconds)
+                }
+                guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
+                    return
+                }
+                scheduleNextTick()
+            }
+            return
+        }
+
         // 1. Get latest chunk WITHOUT stopping recording
         guard let audioChunk = continuousRecordingManager.getLatestChunk(
             duration: captureDuration
@@ -3586,21 +3593,6 @@ class WorkoutViewModel: ObservableObject {
 
         // Chunk extraction recovered.
         consecutiveChunkFailures = 0
-
-        // Architecture boundary: the backend's zone_event_motor remains the
-        // deterministic owner of workout event timing and selection. The iOS
-        // client only transports state and renders the chosen output.
-        if shouldSuppressProtectedBackendRequests() {
-            print("⚠️ COACHING_BACKEND_SUPPRESSED session=\(sessionId ?? "unknown")")
-            Task {
-                await handleSuppressedGuestCoachingTick(elapsedSeconds: tickElapsedSeconds)
-                guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
-                    return
-                }
-                scheduleNextTick()
-            }
-            return
-        }
 
         // 2. Send to backend (background task)
         Task {
@@ -3655,7 +3647,7 @@ class WorkoutViewModel: ObservableObject {
                     hrMax: storedHRMax,
                     restingHR: storedRestingHR,
                     age: storedAge,
-                    allowGuestPreview: shouldAllowGuestPreviewBackendRequests(at: tickElapsedSeconds),
+                    allowGuestPreview: false,
                     breathAnalysisEnabled: useBreathingMicCues,
                     micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted,
                     clientSpokenCue: pendingStartupSpokenCue

@@ -1542,3 +1542,79 @@ Updated: 2026-03-17
 - Hardened nearby motivation phrase dedupe with a larger recent-history window plus per-phrase reuse cooldowns to stop obvious repeats
 - Verification passed:
   - focused regression suite: `174 passed`
+
+## Review — 2026-03-21 Unified onboarding auth continue flow
+
+- Kept the single existing auth path:
+  - [AuthView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/AuthView.swift)
+  - [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift)
+  - [auth_routes.py](/Users/mariusgaarder/Documents/treningscoach/auth_routes.py)
+  - [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift)
+- Removed the misleading onboarding register-vs-login split and switched onboarding entry to a unified continue flow
+- Added additive `is_new_user` on auth success responses so the app can let the backend decide whether the identity was new or existing
+- Routed onboarding after auth from real account state instead of the button the user tapped:
+  - new or incomplete-profile account -> continue profile onboarding
+  - existing account with completed profile -> skip to the main app
+- Preserved the separate workout/live-voice login fallback path by keeping `AuthFlowMode.login` for those hosts while unifying the main auth entry copy
+- Verification passed:
+  - focused auth/onboarding suite: `58 passed`
+  - iOS `xcodebuild`: `BUILD SUCCEEDED`
+
+## Review — 2026-03-21 Pre-launch threat hardening
+
+- Kept the single existing workout/auth/profile runtime paths and hardened them in place:
+  - [auth.py](/Users/mariusgaarder/Documents/treningscoach/auth.py)
+  - [web_routes.py](/Users/mariusgaarder/Documents/treningscoach/web_routes.py)
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py)
+  - [database.py](/Users/mariusgaarder/Documents/treningscoach/database.py)
+  - [auth_routes.py](/Users/mariusgaarder/Documents/treningscoach/auth_routes.py)
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift)
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
+- Replaced the bare `X-Coachi-Guest-Preview: 1` bypass with a narrow signed guest preview token on the existing paths:
+  - `/app/runtime` now mints an additive `guest_preview` bootstrap when the app supplies its anonymous id
+  - `/coach/continuous` accepts anonymous workout coaching only with that token and the matching anonymous id
+  - guest workout requests are now rate-limited by anonymous id instead of only IP fallback
+- Kept free workout coaching on the existing path by priming the guest preview token at workout start and attaching it automatically on unauthenticated `/coach/continuous` requests
+- Disabled custom avatar uploads for launch:
+  - backend now rejects avatar upload attempts with `avatar_upload_disabled`
+  - profile UI still displays the current avatar, but no longer exposes a custom upload surface
+- Moved non-critical outbound work off the request path:
+  - account welcome email
+  - waitlist welcome email
+  - PostHog web analytics forwarding
+  - auth OTP/password-reset email remained on the blocking path
+- Added production startup validation for the real launch-risk combinations:
+  - missing `DATABASE_URL`
+  - localhost-only `CORS_ALLOWED_ORIGINS`
+  - App Store notifications enabled without trusted roots
+  - email sending enabled without a complete provider
+  - Supabase auth enabled without `SUPABASE_SERVICE_ROLE_KEY`
+- Added explicit external-Postgres engine options and an Alembic migration for the workout history query index:
+  - [20260321_0005_add_workout_history_user_date_index.py](/Users/mariusgaarder/Documents/treningscoach/alembic/versions/20260321_0005_add_workout_history_user_date_index.py)
+- Added the operational restore runbook:
+  - [2026-03-21-supabase-backup-and-restore-runbook.md](/Users/mariusgaarder/Documents/treningscoach/docs/plans/2026-03-21-supabase-backup-and-restore-runbook.md)
+- Verification passed:
+  - focused backend/contract suite: `89 passed`
+
+## Review — 2026-03-21 Guest workouts stay local through summary
+
+- Aligned unsigned guest workouts with signed-in free workout flow on the single existing runtime path:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [WorkoutCompleteView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutCompleteView.swift)
+  - [test_ios_continuous_auth_guard_contract.py](/Users/mariusgaarder/Documents/treningscoach/tests_phaseb/test_ios_continuous_auth_guard_contract.py)
+- Guest workouts no longer enter auth-protected continuous coaching requests during the active workout:
+  - no `/coach/continuous` guest retry loop
+  - no repeated `401 Missing or invalid Authorization header`
+  - no workout-time auth or paywall interruption required to finish the workout
+- Guests now stay on the local workout runtime through:
+  - workout start
+  - workout runtime
+  - workout stop
+  - post-workout summary/results
+- Kept the auth gate only on post-workout `Talk to Coach`:
+  - signed-out tap opens the unified login flow
+  - successful auth resumes `Talk to Coach` automatically without a second tap
+- Verification passed:
+  - focused guest workout contract suite: `6 passed`
+  - iOS `xcodebuild`: `BUILD SUCCEEDED`
