@@ -145,6 +145,7 @@ class WorkoutViewModel: ObservableObject {
     private let guestCoachingPreviewMaxSessions = 1
     private let guestCoachingPreviewMaxSeconds = 90
     private let guestLocalFallbackMinimumGapSeconds = 35
+    private let guestLocalFallbackUtteranceRepeatCooldownSeconds = 180
 
     // MARK: - Published Properties
 
@@ -1378,6 +1379,8 @@ class WorkoutViewModel: ObservableObject {
     private var guestPreviewSessionConsumedThisWorkout = false
     private var guestPreviewPromptShownThisWorkout = false
     private var lastGuestFallbackCueElapsedSeconds: Int?
+    private var lastAnnouncedGuestPhaseEntryKey: String?
+    private var previousGuestFallbackUtteranceID: String?
     private var guestCoachingLimitReason: GuestCoachingLimitReason?
     private var latestWatchStatusForBackend: String = "no_live_hr"
     private var watchStartAckTimeoutTask: Task<Void, Never>?
@@ -3211,6 +3214,8 @@ class WorkoutViewModel: ObservableObject {
         guestPreviewSessionConsumedThisWorkout = false
         guestPreviewPromptShownThisWorkout = false
         lastGuestFallbackCueElapsedSeconds = nil
+        lastAnnouncedGuestPhaseEntryKey = nil
+        previousGuestFallbackUtteranceID = nil
         guestCoachingLimitReason = nil
         guestCoachingPromptPresented = false
         guestCoachingAuthSheetPresented = false
@@ -3225,6 +3230,19 @@ class WorkoutViewModel: ObservableObject {
 
     private func isStartupContextCue(_ eventType: String) -> Bool {
         eventType == "warmup_started" || eventType == "main_started"
+    }
+
+    private func phaseEntryKey(for eventType: String) -> String? {
+        switch eventType {
+        case "warmup_started":
+            return "warmup"
+        case "main_started":
+            return "main"
+        case "cooldown_started":
+            return "cooldown"
+        default:
+            return nil
+        }
     }
 
     private func registerSpokenCueMemory(
@@ -3268,6 +3286,93 @@ class WorkoutViewModel: ObservableObject {
         )
     }
 
+    private func currentGuestPhaseEntryCueIfNeeded() -> GuestFallbackCue? {
+        let phaseKey: String
+        let cue: GuestFallbackCue
+
+        switch currentPhase {
+        case .warmup:
+            phaseKey = "warmup"
+            cue = GuestFallbackCue(
+                utteranceID: "zone.phase.warmup.1",
+                eventType: "warmup_started",
+                transcriptText: currentLanguage == "no" ? "Oppvarming starter nå." : "Warmup starts now."
+            )
+        case .intense:
+            phaseKey = "main"
+            cue = GuestFallbackCue(
+                utteranceID: "zone.main_started.1",
+                eventType: "main_started",
+                transcriptText: currentLanguage == "no" ? "Hoveddelen starter nå." : "Main set starts now."
+            )
+        case .cooldown:
+            phaseKey = "cooldown"
+            cue = GuestFallbackCue(
+                utteranceID: "zone.phase.cooldown.1",
+                eventType: "cooldown_started",
+                transcriptText: currentLanguage == "no" ? "Nedtrapping starter nå." : "Cooldown starts now."
+            )
+        }
+
+        guard lastAnnouncedGuestPhaseEntryKey != phaseKey else { return nil }
+        return cue
+    }
+
+    private func easyRunGuestFallbackCue() -> GuestFallbackCue? {
+        let recentUtteranceIDs = Set([lastResolvedUtteranceID, previousGuestFallbackUtteranceID].compactMap { $0 })
+        let candidates = [
+            GuestFallbackCue(
+                utteranceID: "easy_run.motivate.s2.1",
+                eventType: "max_silence_motivation",
+                transcriptText: currentLanguage == "no" ? "Bra rytme." : "Good rhythm."
+            ),
+            GuestFallbackCue(
+                utteranceID: "easy_run.motivate.s2.2",
+                eventType: "max_silence_motivation",
+                transcriptText: currentLanguage == "no" ? "Hold det jevnt." : "Keep it steady."
+            ),
+        ]
+
+        if let freshCandidate = candidates.first(where: { !recentUtteranceIDs.contains($0.utteranceID) }) {
+            return freshCandidate
+        }
+
+        return nil
+    }
+
+    private func shouldSuppressGuestFallbackReplay(_ fallback: GuestFallbackCue) -> Bool {
+        let cooldown = TimeInterval(guestLocalFallbackUtteranceRepeatCooldownSeconds)
+        guard let lastEventSpeechAt,
+              Date().timeIntervalSince(lastEventSpeechAt) < cooldown,
+              fallback.utteranceID == lastResolvedUtteranceID || fallback.utteranceID == previousGuestFallbackUtteranceID else {
+            return false
+        }
+        let age = Date().timeIntervalSince(lastEventSpeechAt)
+        guard age < cooldown else { return false }
+        print("🔇 GUEST_LOCAL_FALLBACK_SUPPRESSED reason=duplicate utterance=\(fallback.utteranceID) age_s=\(Int(age))")
+        return true
+    }
+
+    private func registerGuestLocalFallbackPlayback(
+        _ fallback: GuestFallbackCue,
+        elapsedSeconds: Int,
+        startupCueID: String? = nil
+    ) {
+        coachMessage = fallback.transcriptText
+        lastGuestFallbackCueElapsedSeconds = elapsedSeconds
+        previousGuestFallbackUtteranceID = lastResolvedUtteranceID
+        registerSpokenCueMemory(
+            utteranceID: fallback.utteranceID,
+            eventType: fallback.eventType,
+            priority: eventPriority(for: fallback.eventType),
+            spokenElapsedSeconds: startupCueID == nil ? nil : max(0, elapsedSeconds),
+            startupCueID: startupCueID
+        )
+        if let phaseKey = phaseEntryKey(for: fallback.eventType) {
+            lastAnnouncedGuestPhaseEntryKey = phaseKey
+        }
+    }
+
     private func playStartupFallbackCueIfNeeded(reason: String) async {
         guard pendingStartupSpokenCue == nil else { return }
 
@@ -3281,56 +3386,52 @@ class WorkoutViewModel: ObservableObject {
             allowRemotePackFetch: false,
             allowBackendTTSFallback: false
         )
-        coachMessage = fallback.transcriptText
         coachingStatusLine = nil
         if didPlay {
-            registerSpokenCueMemory(
-                utteranceID: fallback.utteranceID,
-                eventType: fallback.eventType,
-                priority: eventPriority(for: fallback.eventType),
-                spokenElapsedSeconds: Int(workoutDuration),
+            registerGuestLocalFallbackPlayback(
+                fallback,
+                elapsedSeconds: Int(workoutDuration),
                 startupCueID: "startup_\(fallback.eventType)_\(Int(workoutDuration))"
             )
             print("🛟 STARTUP_LOCAL_FALLBACK reason=\(reason) utterance=\(fallback.utteranceID) event=\(fallback.eventType)")
         } else {
+            coachMessage = fallback.transcriptText
             print("🤐 STARTUP_LOCAL_FALLBACK_MISSING reason=\(reason) utterance=\(fallback.utteranceID)")
         }
     }
 
-    private func guestFallbackCue(for elapsedSeconds: Int) -> GuestFallbackCue {
-        if elapsedSeconds <= 20 {
+    private func guestFallbackCue(for _: Int) -> GuestFallbackCue? {
+        if let entryCue = currentGuestPhaseEntryCueIfNeeded() {
+            return entryCue
+        }
+
+        switch currentPhase {
+        case .warmup, .cooldown:
+            return nil
+        case .intense:
+            if runtimeWorkoutMode == .easyRun {
+                return easyRunGuestFallbackCue()
+            }
+            if resolvedPhaseKey == "recovery" {
+                return GuestFallbackCue(
+                    utteranceID: "zone.silence.rest.1",
+                    eventType: "max_silence_go_by_feel",
+                    transcriptText: currentLanguage == "no" ? "Senk skuldrene." : "Relax your shoulders."
+                )
+            }
+            if resolvedPhaseKey == "work" || resolvedPhaseKey == "main" {
+                return GuestFallbackCue(
+                    utteranceID: "zone.silence.work.1",
+                    eventType: "max_silence_go_by_feel",
+                    transcriptText: currentLanguage == "no" ? "Hold rytmen." : "Hold the rhythm."
+                )
+            }
             return GuestFallbackCue(
-                utteranceID: "zone.main_started.1",
-                eventType: "main_started",
-                transcriptText: currentLanguage == "no" ? "Økten er i gang." : "Workout has started."
+                utteranceID: "zone.silence.default.1",
+                eventType: "max_silence_go_by_feel",
+                transcriptText: currentLanguage == "no" ? "Finn rytmen." : "Find your pace."
             )
         }
-        if currentPhase == .warmup {
-            return GuestFallbackCue(
-                utteranceID: "zone.phase.warmup.1",
-                eventType: "warmup_started",
-                transcriptText: currentLanguage == "no" ? "Oppvarming starter nå." : "Warmup starts now."
-            )
-        }
-        if currentPhase == .cooldown {
-            return GuestFallbackCue(
-                utteranceID: "zone.phase.cooldown.1",
-                eventType: "cooldown_started",
-                transcriptText: currentLanguage == "no" ? "Nedtrapping starter nå." : "Cooldown starts now."
-            )
-        }
-        if runtimeWorkoutMode == .easyRun {
-            return GuestFallbackCue(
-                utteranceID: "easy_run.motivate.s2.1",
-                eventType: "max_silence_motivation",
-                transcriptText: currentLanguage == "no" ? "Hold det jevnt." : "Keep it steady."
-            )
-        }
-        return GuestFallbackCue(
-            utteranceID: "zone.silence.work.1",
-            eventType: "max_silence_go_by_feel",
-            transcriptText: currentLanguage == "no" ? "Hold kontroll på farten." : "Stay in control of the pace."
-        )
     }
 
     private func handleSuppressedGuestCoachingTick(elapsedSeconds: Int) async {
@@ -3342,7 +3443,8 @@ class WorkoutViewModel: ObservableObject {
             guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
         }
 
-        let fallback = guestFallbackCue(for: elapsedSeconds)
+        guard let fallback = guestFallbackCue(for: elapsedSeconds) else { return }
+        guard !shouldSuppressGuestFallbackReplay(fallback) else { return }
         let didPlay = await playCoachAudio(
             nil,
             utteranceID: fallback.utteranceID,
@@ -3352,8 +3454,7 @@ class WorkoutViewModel: ObservableObject {
             allowBackendTTSFallback: false
         )
         if didPlay {
-            coachMessage = fallback.transcriptText
-            lastGuestFallbackCueElapsedSeconds = elapsedSeconds
+            registerGuestLocalFallbackPlayback(fallback, elapsedSeconds: elapsedSeconds)
             print("🗣️ GUEST_LOCAL_FALLBACK utterance=\(fallback.utteranceID) event=\(fallback.eventType)")
         } else {
             coachMessage = fallback.transcriptText

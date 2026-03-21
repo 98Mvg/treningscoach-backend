@@ -1648,3 +1648,16 @@ Updated: 2026-03-17
   - added live `ringProgress(at:)` in `WorkoutViewModel` so progress is derived from actual segment timing
   - made interval ring progress segment-aware from the local session plan
   - removed the per-step 1-second ring animation so the arc and dot track the live value instead of easing behind it
+
+## Review — 2026-03-21 Guest local fallback cue replay
+
+- Fixed guest local fallback replay so unsigned workouts follow the same phase-entry behavior as signed-in free workouts on the existing runtime path in [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift).
+- Root cause:
+  - the startup local fallback correctly announced `warmup_started`
+  - later periodic guest fallback still selected entry cues from raw phase state, so it could replay `warmup_started` mid-warmup
+  - easy-run guest fallback also had no local utterance rotation memory, so nearby anti-silence cues could repeat the same line like `Good rhythm.`
+- Fix:
+  - track the last announced guest phase-entry key and only emit warmup/main/cooldown entry cues on a real guest-local phase change
+  - reuse the same spoken-memory registration path for startup and periodic guest fallback
+  - suppress replay of nearby guest-local fallback utterances and rotate easy-run fallback between the existing local variants
+  - prefer silence in warmup/cooldown once the real entry cue has already been spoken instead of using entry cues as generic anti-silence filler

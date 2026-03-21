@@ -58,6 +58,20 @@ def test_guest_continuous_start_keeps_summary_flow_clean_and_prompt_free() -> No
     assert "if let lastGuestFallbackCueElapsedSeconds {" in text
 
 
+def test_guest_local_fallback_shares_playback_memory_and_does_not_reuse_entry_cues_as_generic_silence_breakers() -> None:
+    text = WORKOUT_VM.read_text(encoding="utf-8")
+    assert "private var lastAnnouncedGuestPhaseEntryKey: String?" in text
+    assert "private func phaseEntryKey(for eventType: String) -> String?" in text
+    assert "private func currentGuestPhaseEntryCueIfNeeded() -> GuestFallbackCue?" in text
+    assert "private func registerGuestLocalFallbackPlayback(" in text
+    assert "private func shouldSuppressGuestFallbackReplay(_ fallback: GuestFallbackCue) -> Bool {" in text
+    assert "registerGuestLocalFallbackPlayback(" in text
+    assert "if let entryCue = currentGuestPhaseEntryCueIfNeeded() {" in text
+    assert "guard let fallback = guestFallbackCue(for: elapsedSeconds) else { return }" in text
+    assert "guard !shouldSuppressGuestFallbackReplay(fallback) else { return }" in text
+    assert "if elapsedSeconds <= 20 {" not in text
+
+
 def test_active_workout_view_still_uses_existing_auth_and_paywall_surfaces_when_explicitly_requested() -> None:
     text = ACTIVE_WORKOUT_VIEW.read_text(encoding="utf-8")
     assert ".sheet(isPresented: $viewModel.guestCoachingAuthSheetPresented)" in text
