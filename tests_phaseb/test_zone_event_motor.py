@@ -476,6 +476,119 @@ def test_main_started_does_not_reappear_late_if_state_is_recreated():
     assert state["zone_engine"]["main_started_emitted"] is True
 
 
+def test_client_spoken_startup_main_started_suppresses_next_backend_main_started():
+    state = {}
+
+    tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="easy_run",
+            phase="intense",
+            elapsed_seconds=2,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            client_spoken_cue={
+                "cue_id": "startup_main_2",
+                "event_type": "main_started",
+                "spoken_elapsed_s": 2,
+            },
+        )
+    )
+
+    events = [item.get("event_type") for item in tick.get("events", []) if isinstance(item, dict)]
+    assert "main_started" not in events
+    assert tick["event_type"] == "hr_structure_mode_notice"
+    assert state["zone_engine"]["main_started_emitted"] is True
+
+
+def test_no_hr_structure_instruction_work_requires_real_segment_transition():
+    state = {}
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="warmup",
+            elapsed_seconds=0,
+            heart_rate=120,
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=610,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=631,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+
+    mid_work_tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=661,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    mid_work_events = [item.get("event_type") for item in mid_work_tick.get("events", []) if isinstance(item, dict)]
+    assert "structure_instruction_work" not in mid_work_events
+    assert mid_work_tick["event_type"] != "structure_instruction_work"
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=840,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    work_reentry_tick = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            phase="intense",
+            elapsed_seconds=1020,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+        )
+    )
+    assert work_reentry_tick["event_type"] == "structure_instruction_work"
+
+
 def test_runtime_phrase_picker_rotates_main_started_variants():
     state = {}
 

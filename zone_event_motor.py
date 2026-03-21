@@ -33,6 +33,11 @@ _MOTIVATION_EVENT_TYPES = (
     "max_silence_motivation",
 )
 
+_SUSTAINED_MOTIVATION_EVENT_TYPES = (
+    "interval_in_target_sustained",
+    "easy_run_in_target_sustained",
+)
+
 _STRUCTURE_INSTRUCTION_EVENT_TYPES = (
     "structure_instruction_work",
     "structure_instruction_recovery",
@@ -44,6 +49,18 @@ _FALLBACK_TONE_EVENT_TYPES = (
     "max_silence_breath_guide",
     "max_silence_go_by_feel",
 )
+
+_STARTUP_CONTEXT_EVENT_TYPES = (
+    "warmup_started",
+    "main_started",
+)
+
+_TRANSITION_CONTEXT_EVENT_TYPES = (
+    "interval_countdown_start",
+    "warmup_started",
+    "main_started",
+    "cooldown_started",
+) + _STRUCTURE_INSTRUCTION_EVENT_TYPES
 
 _STRUCTURE_INSTRUCTION_PHRASE_IDS = {
     "structure_instruction_work": ("zone.structure.work.1",),
@@ -541,12 +558,62 @@ def _select_structure_instruction_event(
     return "structure_instruction_steady"
 
 
+def _segment_transition_key(*, phase_id: int, segment_key: str) -> str:
+    normalized_segment_key = str(segment_key or "").strip()
+    return f"{int(phase_id)}:{normalized_segment_key}" if normalized_segment_key else str(int(phase_id))
+
+
+def _register_transition_context(
+    *,
+    state: Dict[str, Any],
+    event_type: Optional[str],
+    segment_transition_key: str,
+) -> None:
+    if not event_type or not segment_transition_key:
+        return
+    if event_type in _TRANSITION_CONTEXT_EVENT_TYPES:
+        state["last_transition_context_key"] = segment_transition_key
+        if event_type in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
+            state["last_announced_structure_transition_key"] = segment_transition_key
+
+
+def _ingest_client_spoken_cue(
+    *,
+    state: Dict[str, Any],
+    client_spoken_cue: Optional[Dict[str, Any]],
+    segment_transition_key: str,
+) -> None:
+    if not isinstance(client_spoken_cue, dict):
+        return
+
+    cue_id = str(client_spoken_cue.get("cue_id") or "").strip()
+    event_type = str(client_spoken_cue.get("event_type") or "").strip()
+    spoken_elapsed_s = _safe_float(client_spoken_cue.get("spoken_elapsed_s"))
+    if not cue_id or not event_type or spoken_elapsed_s is None:
+        return
+    if str(state.get("last_ingested_client_spoken_cue_id") or "").strip() == cue_id:
+        return
+
+    state["last_ingested_client_spoken_cue_id"] = cue_id
+    state["last_spoken_elapsed"] = float(spoken_elapsed_s)
+    if _event_priority(event_type) >= 60:
+        state["last_high_priority_spoken_elapsed"] = float(spoken_elapsed_s)
+    if event_type == "main_started":
+        state["main_started_emitted"] = True
+    _register_transition_context(
+        state=state,
+        event_type=event_type,
+        segment_transition_key=segment_transition_key,
+    )
+
+
 def _prefer_structure_mode_motivation(
     *,
     state: Dict[str, Any],
     canonical_workout_type: str,
     canonical_phase: str,
     target: Dict[str, Any],
+    segment_transition_key: str,
     elapsed_seconds: int,
     config_module,
 ) -> bool:
@@ -556,9 +623,8 @@ def _prefer_structure_mode_motivation(
     if canonical_workout_type not in {"intervals", "easy_run"}:
         return False
 
-    segment_key = str(target.get("segment_key") or canonical_phase)
-    prior_structure_segment_key = str(state.get("last_structure_instruction_segment_key") or "").strip()
-    if not prior_structure_segment_key or prior_structure_segment_key != segment_key:
+    transition_context_key = str(state.get("last_transition_context_key") or "").strip()
+    if not transition_context_key or transition_context_key != segment_transition_key:
         return False
 
     return _allow_motivation_event(
@@ -848,6 +914,10 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     state.setdefault("movement_candidate_state", "unknown")
     state.setdefault("movement_candidate_since", 0.0)
     state.setdefault("last_segment_key", None)
+    state.setdefault("last_seen_segment_transition_key", None)
+    state.setdefault("last_transition_context_key", None)
+    state.setdefault("last_announced_structure_transition_key", None)
+    state.setdefault("last_ingested_client_spoken_cue_id", None)
     state.setdefault("style_last_any_elapsed", None)
     state.setdefault("style_last_by_type", {})
     state.setdefault("style_history", [])
@@ -876,6 +946,7 @@ def _zone_state(workout_state: Dict[str, Any]) -> Dict[str, Any]:
     state.setdefault("last_motivation_spoken_elapsed", None)
     state.setdefault("last_max_silence_elapsed", None)
     state.setdefault("last_max_silence_phase_id", None)
+    state.setdefault("motivation_phrase_last_spoken_elapsed", {})
     metrics = state.setdefault("metrics", {})
     metrics.setdefault("total_main_set_ticks", 0)
     metrics.setdefault("in_zone_ticks", 0)
@@ -2102,6 +2173,8 @@ def _motivation_stage_phrase_ids_for_context(
 def _pick_motivation_phrase_id(
     *,
     state: Dict[str, Any],
+    workout_type: str = "intervals",
+    elapsed_seconds: int = 0,
     stage_phrase_ids: Optional[List[str]],
     config_module,
 ) -> str:
@@ -2117,7 +2190,7 @@ def _pick_motivation_phrase_id(
     if not candidates:
         return "interval.motivate.s2.1"
 
-    recent_k = int(getattr(config_module, "MOTIVATION_RECENT_HISTORY_SIZE", 2))
+    recent_k = int(getattr(config_module, "MOTIVATION_RECENT_HISTORY_SIZE", 4))
     recent_k = max(0, min(8, recent_k))
     recent = [
         str(item).strip()
@@ -2126,13 +2199,42 @@ def _pick_motivation_phrase_id(
     ]
     recent = recent[-recent_k:] if recent_k > 0 else []
 
+    phrase_last_spoken = state.setdefault("motivation_phrase_last_spoken_elapsed", {})
+    reuse_cooldown_seconds = 90 if workout_type == "intervals" else 180
+    previous_phrase_id = recent[-1] if recent else None
+
     filtered = [phrase_id for phrase_id in candidates if phrase_id not in recent]
     if not filtered:
-        filtered = candidates
+        filtered = list(candidates)
 
-    rotation_index = int(state.get("motivation_rotation_index", 0))
-    selected = filtered[rotation_index % len(filtered)]
-    state["motivation_rotation_index"] = rotation_index + 1
+    cooled = [
+        phrase_id
+        for phrase_id in filtered
+        if (
+            _safe_float(phrase_last_spoken.get(phrase_id)) is None
+            or (float(elapsed_seconds) - float(_safe_float(phrase_last_spoken.get(phrase_id)) or 0.0))
+            >= float(reuse_cooldown_seconds)
+        )
+    ]
+    if cooled:
+        filtered = cooled
+
+    if len(filtered) > 1 and previous_phrase_id in filtered:
+        without_previous = [phrase_id for phrase_id in filtered if phrase_id != previous_phrase_id]
+        if without_previous:
+            filtered = without_previous
+
+    if not filtered:
+        filtered = list(candidates)
+
+    selected = min(
+        filtered,
+        key=lambda phrase_id: (
+            _safe_float(phrase_last_spoken.get(phrase_id)) or float("-inf"),
+            candidates.index(phrase_id),
+        ),
+    )
+    phrase_last_spoken[selected] = float(elapsed_seconds)
 
     updated_recent = recent + [selected]
     if recent_k > 0:
@@ -2321,6 +2423,8 @@ def _evaluate_interval_motivation(
     stage = _motivation_stage_from_rep(rep_index)
     phrase_id = _pick_motivation_phrase_id(
         state=state,
+        workout_type="intervals",
+        elapsed_seconds=int(elapsed_seconds),
         stage_phrase_ids=candidate_phrase_ids or _motivation_stage_phrase_ids("intervals", stage),
         config_module=config_module,
     )
@@ -2362,6 +2466,8 @@ def _evaluate_easy_run_motivation(
 
     phrase_id = _pick_motivation_phrase_id(
         state=state,
+        workout_type="easy_run",
+        elapsed_seconds=int(elapsed_seconds),
         stage_phrase_ids=candidate_phrase_ids or _motivation_stage_phrase_ids("easy_run", stage),
         config_module=config_module,
     )
@@ -2822,6 +2928,7 @@ def evaluate_zone_tick(
     breath_summary: Any = None,
     session_id: Optional[str] = None,
     paused: Any = None,
+    client_spoken_cue: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     _ = persona  # Persona must not influence event decisions.
     state = _zone_state(workout_state)
@@ -2965,6 +3072,21 @@ def evaluate_zone_tick(
             phase_events.append("interval_countdown_start")
             countdown_phase_overrides["interval_countdown_start"] = "warmup"
 
+    segment_key = str(target.get("segment_key") or canonical_phase).strip()
+    phase_id_value = int(state.get("phase_id", 1))
+    segment_transition_key = _segment_transition_key(
+        phase_id=phase_id_value,
+        segment_key=segment_key,
+    )
+    previous_segment_transition_key = str(state.get("last_seen_segment_transition_key") or "").strip()
+    just_entered_segment = bool(segment_transition_key) and previous_segment_transition_key != segment_transition_key
+    state["last_seen_segment_transition_key"] = segment_transition_key
+    _ingest_client_spoken_cue(
+        state=state,
+        client_spoken_cue=client_spoken_cue,
+        segment_transition_key=segment_transition_key,
+    )
+
     if _should_emit_main_started(
         state=state,
         previous_phase=previous_phase,
@@ -3019,6 +3141,22 @@ def evaluate_zone_tick(
         and not bool(state.get("structure_mode_notice_sent"))
     ):
         state["structure_mode_notice_pending"] = True
+
+    transition_structure_event: Optional[str] = None
+    if (
+        instruction_mode == "structure_driven"
+        and just_entered_segment
+        and not pause_flag
+        and not bool(state.get("structure_mode_notice_pending"))
+        and canonical_phase in {"main", "work", "recovery", "rest"}
+    ):
+        transition_structure_event = _select_structure_instruction_event(
+            canonical_workout_type=canonical_workout_type,
+            canonical_phase=canonical_phase,
+            target=target,
+            workout_state=workout_state if isinstance(workout_state, dict) else None,
+            config_module=config_module,
+        )
 
     zone_status = "hr_unstable" if not hr_available else "timing_control"
     transition_event = None
@@ -3092,6 +3230,9 @@ def evaluate_zone_tick(
             continue
         if candidate_event and candidate_event not in event_types:
             event_types.append(candidate_event)
+
+    if transition_structure_event and transition_structure_event not in event_types:
+        event_types.append(transition_structure_event)
 
     if (
         instruction_mode == "structure_driven"
@@ -3382,20 +3523,17 @@ def evaluate_zone_tick(
                 if max_silence_allowed:
                     if instruction_mode == "structure_driven":
                         if not bool(state.get("structure_mode_notice_pending")):
-                            segment_key = str(target.get("segment_key") or canonical_phase).strip()
-                            prior_structure_segment_key = str(
-                                state.get("last_structure_instruction_segment_key") or ""
-                            ).strip()
                             if _prefer_structure_mode_motivation(
                                 state=state,
                                 canonical_workout_type=canonical_workout_type,
                                 canonical_phase=canonical_phase,
                                 target=target,
+                                segment_transition_key=segment_transition_key,
                                 elapsed_seconds=int(elapsed_seconds),
                                 config_module=config_module,
                             ):
                                 max_silence_candidate = "max_silence_motivation"
-                            elif prior_structure_segment_key == segment_key:
+                            else:
                                 (
                                     max_silence_candidate,
                                     state["_pending_fallback_phrase_id"],
@@ -3404,14 +3542,6 @@ def evaluate_zone_tick(
                                     segment=str(target.get("segment", "")),
                                     breath_guidance_level=breath_guidance_level,
                                     breath_intensity=breath_intensity,
-                                )
-                            else:
-                                max_silence_candidate = _select_structure_instruction_event(
-                                    canonical_workout_type=canonical_workout_type,
-                                    canonical_phase=canonical_phase,
-                                    target=target,
-                                    workout_state=workout_state if isinstance(workout_state, dict) else None,
-                                    config_module=config_module,
                                 )
                     elif sensor_fusion_mode == "HR_ZONE":
                         max_silence_candidate = "max_silence_override"
@@ -3470,6 +3600,8 @@ def evaluate_zone_tick(
                         )
                         state["_pending_motivation_phrase_id"] = _pick_motivation_phrase_id(
                             state=state,
+                            workout_type=canonical_workout_type,
+                            elapsed_seconds=int(elapsed_seconds),
                             stage_phrase_ids=stage_phrase_ids,
                             config_module=config_module,
                         )
@@ -3503,6 +3635,9 @@ def evaluate_zone_tick(
                 event_type=primary_event,
                 phase=countdown_phase_overrides.get(primary_event, canonical_phase),
             )
+    motivation_basis: Optional[str] = None
+    if primary_event in _SUSTAINED_MOTIVATION_EVENT_TYPES:
+        motivation_basis = "structure_progress" if instruction_mode == "structure_driven" else "hr_target"
 
     coach_text = None
     if should_speak and primary_event:
@@ -3516,13 +3651,14 @@ def evaluate_zone_tick(
         if primary_event in _STRUCTURE_INSTRUCTION_EVENT_TYPES:
             structure_segment_key = str(target.get("segment_key") or canonical_phase)
             state["last_structure_instruction_segment_key"] = structure_segment_key
-            if instruction_mode == "structure_driven" and canonical_workout_type in {"intervals", "easy_run"}:
-                state["motivation_context_key"] = structure_segment_key
-                if _safe_float(state.get("motivation_in_zone_since")) is None:
-                    state["motivation_in_zone_since"] = float(elapsed_seconds)
         # Tier A/B/C events reset the motivation barrier window.
         if _event_priority(primary_event) >= 60:
             state["last_high_priority_spoken_elapsed"] = float(elapsed_seconds)
+        _register_transition_context(
+            state=state,
+            event_type=primary_event,
+            segment_transition_key=segment_transition_key,
+        )
         if primary_event == "hr_structure_mode_notice":
             state["structure_mode_notice_pending"] = False
             state["structure_mode_notice_sent"] = True
@@ -3637,12 +3773,17 @@ def evaluate_zone_tick(
             _phrase = state.get("_pending_fallback_phrase_id") or _resolve_phrase_id(event_name, canonical_phase)
         else:
             _phrase = _resolve_phrase_id(event_name, countdown_phase_overrides.get(event_name, canonical_phase))
+        event_payload = dict(event_payload_base)
+        if event_name in _SUSTAINED_MOTIVATION_EVENT_TYPES:
+            event_payload["motivation_basis"] = (
+                "structure_progress" if instruction_mode == "structure_driven" else "hr_target"
+            )
         events_payload.append({
             "event_type": event_name,
             "priority": _event_priority(event_name),
             "phrase_id": _phrase,
             "ts": now_ts,
-            "payload": dict(event_payload_base),
+            "payload": event_payload,
         })
 
     resolved_priority = _event_priority(primary_event) if primary_event else 0
@@ -3731,6 +3872,11 @@ def evaluate_zone_tick(
         key=lambda item: _safe_int(item.get("priority")) or 0,
         reverse=True,
     )
+    motivation_basis = (
+        "structure_progress" if primary_event in _SUSTAINED_MOTIVATION_EVENT_TYPES and instruction_mode == "structure_driven"
+        else "hr_target" if primary_event in _SUSTAINED_MOTIVATION_EVENT_TYPES
+        else None
+    )
 
     # Clean up pending motivation state
     state.pop("_pending_motivation_phrase_id", None)
@@ -3753,6 +3899,7 @@ def evaluate_zone_tick(
                 "should_speak": should_speak,
                 "reason": reason,
                 "silence_seconds": _silence_secs,
+                "motivation_basis": motivation_basis,
                 "sensor_mode": sensor_mode,
                 "sensor_fusion_mode": sensor_fusion_mode,
                 "movement_available": bool(movement_available),
@@ -3803,6 +3950,7 @@ def evaluate_zone_tick(
         "zone_status": zone_status,
         "zone_state": canonical_zone,
         "delta_to_band": delta_to_band,
+        "motivation_basis": motivation_basis,
         "target_zone_label": target.get("target_zone_label"),
         "target_hr_low": target.get("target_low"),
         "target_hr_high": target.get("target_high"),

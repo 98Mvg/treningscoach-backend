@@ -160,8 +160,14 @@ def test_pick_motivation_phrase_id_uses_stage_pool_for_max_silence():
     state = {}
     stage_ids = _motivation_stage_phrase_ids("easy_run", stage=2)
     picked = [
-        _pick_motivation_phrase_id(state=state, stage_phrase_ids=stage_ids, config_module=config)
-        for _ in range(3)
+        _pick_motivation_phrase_id(
+            state=state,
+            workout_type="easy_run",
+            elapsed_seconds=index * 200,
+            stage_phrase_ids=stage_ids,
+            config_module=config,
+        )
+        for index in range(3)
     ]
     assert all(pid in stage_ids for pid in picked)
     assert picked[0] != picked[1], "Expected anti-repeat while alternatives exist"
@@ -171,8 +177,14 @@ def test_pick_motivation_phrase_id_stays_within_stage_pool():
     state = {}
     stage_ids = _motivation_stage_phrase_ids("intervals", stage=1)
     picked = [
-        _pick_motivation_phrase_id(state=state, stage_phrase_ids=stage_ids, config_module=config)
-        for _ in range(4)
+        _pick_motivation_phrase_id(
+            state=state,
+            workout_type="intervals",
+            elapsed_seconds=index * 95,
+            stage_phrase_ids=stage_ids,
+            config_module=config,
+        )
+        for index in range(4)
     ]
     assert picked[0] in stage_ids
     assert any(pid in stage_ids for pid in picked), "Stage pool should stay eligible"
@@ -328,7 +340,7 @@ def test_easy_run_motivation_respects_cooldown():
         assert gap >= 120, f"Cooldown violated: {gap}s between motivations"
 
 
-def test_easy_run_motivation_can_fire_in_structure_mode_after_first_structure_cue():
+def test_easy_run_structure_mode_uses_staged_max_silence_motivation():
     state = {}
 
     evaluate_zone_tick(
@@ -355,30 +367,15 @@ def test_easy_run_motivation_can_fire_in_structure_mode_after_first_structure_cu
                 watch_connected=False,
                 watch_status="disconnected",
                 breath_signal_quality=None,
-                phase="intense",
-            )
-        )
-
-    first_structure = evaluate_zone_tick(
-        **_base_tick(
-            workout_state=state,
-            workout_mode="easy_run",
-            elapsed_seconds=110,
-            heart_rate=None,
-            hr_quality="poor",
-            watch_connected=False,
-            watch_status="disconnected",
-            breath_signal_quality=None,
             phase="intense",
         )
     )
-    assert first_structure["event_type"] == "structure_instruction_steady"
 
     motivated = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="easy_run",
-            elapsed_seconds=170,
+            elapsed_seconds=100,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -387,7 +384,7 @@ def test_easy_run_motivation_can_fire_in_structure_mode_after_first_structure_cu
             phase="intense",
         )
     )
-    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["event_type"] == "max_silence_motivation"
     assert motivated["phrase_id"].startswith("easy_run.motivate.")
 
 
@@ -422,25 +419,11 @@ def test_easy_run_structure_mode_low_breath_confidence_uses_neutral_bucket():
             )
         )
 
-    evaluate_zone_tick(
-        **_base_tick(
-            workout_state=state,
-            workout_mode="easy_run",
-            elapsed_seconds=110,
-            heart_rate=None,
-            hr_quality="poor",
-            watch_connected=False,
-            watch_status="disconnected",
-            breath_signal_quality=None,
-            phase="intense",
-        )
-    )
-
     motivated = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="easy_run",
-            elapsed_seconds=170,
+            elapsed_seconds=100,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -449,7 +432,7 @@ def test_easy_run_structure_mode_low_breath_confidence_uses_neutral_bucket():
             phase="intense",
         )
     )
-    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["event_type"] == "max_silence_motivation"
     assert motivated["phrase_id"] in {
         "easy_run.motivate.s2.1",
         "easy_run.motivate.s2.2",
@@ -499,11 +482,11 @@ def test_easy_run_structure_mode_medium_breath_confidence_uses_supportive_bucket
             )
         )
 
-    evaluate_zone_tick(
+    motivated = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="easy_run",
-            elapsed_seconds=110,
+            elapsed_seconds=100,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -515,29 +498,14 @@ def test_easy_run_structure_mode_medium_breath_confidence_uses_supportive_bucket
         )
     )
 
-    motivated = evaluate_zone_tick(
-        **_base_tick(
-            workout_state=state,
-            workout_mode="easy_run",
-            elapsed_seconds=170,
-            heart_rate=None,
-            hr_quality="poor",
-            watch_connected=False,
-            watch_status="disconnected",
-            breath_signal_quality=0.8,
-            breath_summary=medium_conf_breath_summary,
-            breath_intensity="moderate",
-            phase="intense",
-        )
-    )
-    assert motivated["event_type"] == "easy_run_in_target_sustained"
+    assert motivated["event_type"] == "max_silence_motivation"
     assert motivated["phrase_id"] in {
         "easy_run.motivate.s3.1",
         "easy_run.motivate.s3.2",
     }
 
 
-def test_interval_motivation_can_fire_in_structure_mode_after_first_structure_cue():
+def test_interval_motivation_basis_is_structure_progress_in_no_hr_mode():
     state = {}
 
     evaluate_zone_tick(
@@ -578,11 +546,11 @@ def test_interval_motivation_can_fire_in_structure_mode_after_first_structure_cu
     )
     assert notice["event_type"] == "hr_structure_mode_notice"
 
-    first_structure = evaluate_zone_tick(
+    recovery_transition = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=661,
+            elapsed_seconds=840,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -591,13 +559,55 @@ def test_interval_motivation_can_fire_in_structure_mode_after_first_structure_cu
             phase="intense",
         )
     )
-    assert first_structure["event_type"] == "structure_instruction_work"
+    assert recovery_transition["event_type"] == "structure_instruction_recovery"
+
+    work_transition = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=1020,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    assert work_transition["event_type"] == "structure_instruction_work"
+
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=1080,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
+    evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=1160,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=None,
+            phase="intense",
+        )
+    )
 
     motivated = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=691,
+            elapsed_seconds=1225,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -607,6 +617,7 @@ def test_interval_motivation_can_fire_in_structure_mode_after_first_structure_cu
         )
     )
     assert motivated["event_type"] == "interval_in_target_sustained"
+    assert motivated["motivation_basis"] == "structure_progress"
     assert motivated["phrase_id"].startswith("interval.motivate.")
 
 
@@ -662,11 +673,11 @@ def test_interval_structure_mode_high_confidence_stable_breath_uses_push_bucket(
             phase="intense",
         )
     )
-    evaluate_zone_tick(
+    recovery_transition = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=661,
+            elapsed_seconds=840,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -677,12 +688,12 @@ def test_interval_structure_mode_high_confidence_stable_breath_uses_push_bucket(
             phase="intense",
         )
     )
-
-    motivated = evaluate_zone_tick(
+    assert recovery_transition["event_type"] == "structure_instruction_recovery"
+    work_transition = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=691,
+            elapsed_seconds=1020,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -693,8 +704,24 @@ def test_interval_structure_mode_high_confidence_stable_breath_uses_push_bucket(
             phase="intense",
         )
     )
-    assert motivated["event_type"] == "interval_in_target_sustained"
-    assert motivated["phrase_id"] in {
+    assert work_transition["event_type"] == "structure_instruction_work"
+    early_motivation = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=1080,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="moderate",
+            phase="intense",
+        )
+    )
+    assert early_motivation["event_type"] == "max_silence_motivation"
+    assert early_motivation["phrase_id"] in {
         "interval.motivate.s3.1",
         "interval.motivate.s3.2",
         "interval.motivate.s4.1",
@@ -754,11 +781,11 @@ def test_interval_structure_mode_high_confidence_heavy_breath_uses_calm_bucket()
             phase="intense",
         )
     )
-    evaluate_zone_tick(
+    recovery_transition = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=661,
+            elapsed_seconds=840,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -769,12 +796,12 @@ def test_interval_structure_mode_high_confidence_heavy_breath_uses_calm_bucket()
             phase="intense",
         )
     )
-
-    motivated = evaluate_zone_tick(
+    assert recovery_transition["event_type"] == "structure_instruction_recovery"
+    work_transition = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
             workout_mode="interval",
-            elapsed_seconds=691,
+            elapsed_seconds=1020,
             heart_rate=None,
             hr_quality="poor",
             watch_connected=False,
@@ -785,8 +812,24 @@ def test_interval_structure_mode_high_confidence_heavy_breath_uses_calm_bucket()
             phase="intense",
         )
     )
-    assert motivated["event_type"] == "interval_in_target_sustained"
-    assert motivated["phrase_id"] in {
+    assert work_transition["event_type"] == "structure_instruction_work"
+    early_motivation = evaluate_zone_tick(
+        **_base_tick(
+            workout_state=state,
+            workout_mode="interval",
+            elapsed_seconds=1080,
+            heart_rate=None,
+            hr_quality="poor",
+            watch_connected=False,
+            watch_status="disconnected",
+            breath_signal_quality=0.8,
+            breath_summary=high_conf_breath_summary,
+            breath_intensity="intense",
+            phase="intense",
+        )
+    )
+    assert early_motivation["event_type"] == "max_silence_motivation"
+    assert early_motivation["phrase_id"] in {
         "interval.motivate.s1.1",
         "interval.motivate.s2.2",
         "interval.motivate.s3.2",

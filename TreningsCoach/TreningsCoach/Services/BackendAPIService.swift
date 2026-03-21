@@ -593,7 +593,8 @@ class BackendAPIService {
         age: Int? = nil,
         allowGuestPreview: Bool = false,
         breathAnalysisEnabled: Bool = true,
-        micPermissionGranted: Bool = true
+        micPermissionGranted: Bool = true,
+        clientSpokenCue: ClientSpokenCue? = nil
     ) async throws -> ContinuousCoachResponse {
         let url = URL(string: "\(baseURL)/coach/continuous")!
         let request = try createContinuousMultipartRequest(
@@ -632,7 +633,8 @@ class BackendAPIService {
             age: age,
             allowGuestPreview: allowGuestPreview,
             breathAnalysisEnabled: breathAnalysisEnabled,
-            micPermissionGranted: micPermissionGranted
+            micPermissionGranted: micPermissionGranted,
+            clientSpokenCue: clientSpokenCue
         )
 
         let (data, response) = try await performRequestWithBackendAvailability(
@@ -1140,7 +1142,8 @@ class BackendAPIService {
         age: Int? = nil,
         allowGuestPreview: Bool = false,
         breathAnalysisEnabled: Bool = true,
-        micPermissionGranted: Bool = true
+        micPermissionGranted: Bool = true,
+        clientSpokenCue: ClientSpokenCue? = nil
     ) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1286,6 +1289,13 @@ class BackendAPIService {
         }
         if let movementSource = movementSource, !movementSource.isEmpty {
             workoutState["movement_state"] = movementSource
+        }
+        if let clientSpokenCue {
+            workoutState["client_spoken_cue"] = [
+                "cue_id": clientSpokenCue.cueID,
+                "event_type": clientSpokenCue.eventType,
+                "spoken_elapsed_s": clientSpokenCue.spokenElapsedSeconds,
+            ]
         }
         if let workoutStateJSON = jsonString(workoutState) {
             appendField(name: "workout_state", value: workoutStateJSON)

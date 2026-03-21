@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import main
+from workout_contracts import normalize_continuous_contract
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -158,7 +159,7 @@ def test_continuous_zone_tick_signature_drift_does_not_500(monkeypatch, tmp_path
     assert payload["decision_owner"] == "zone_event"
     assert payload["reason"] == "zone_no_change"
     warning_messages = "\n".join(record.getMessage() for record in caplog.records)
-    assert "Zone tick compat fallback: dropping unsupported kwargs" not in warning_messages
+    assert "Zone tick compat fallback: dropping unsupported kwargs=['client_spoken_cue']" in warning_messages
 
 
 def test_continuous_internal_exception_returns_failsafe_200(monkeypatch, tmp_path):
@@ -298,8 +299,130 @@ def test_ios_continuous_response_decodes_and_logs_backend_trace_id() -> None:
 
     assert "let debugTraceID: String?" in model_text
     assert 'case debugTraceID = "debug_trace_id"' in model_text
+    assert "let motivationBasis: String?" in model_text
+    assert 'case motivationBasis = "motivation_basis"' in model_text
     assert 'trace_id=\\(response.debugTraceID ?? "none")' in view_model_text
     assert '🚨 BACKEND_FAILSAFE trace_id=\\(traceID) reason=\\(response.reason ?? "none")' in view_model_text
+
+
+def test_continuous_contract_normalizes_client_spoken_cue() -> None:
+    normalized = normalize_continuous_contract(
+        {
+            "session_id": "sess_123",
+            "phase": "intense",
+            "elapsed_seconds": "12",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "easy_run",
+            "workout_state": {
+                "client_spoken_cue": {
+                    "cue_id": "startup_main_12",
+                    "event_type": "MAIN_STARTED",
+                    "spoken_elapsed_s": "12",
+                }
+            },
+        }
+    )
+
+    assert normalized["workout_state"].client_spoken_cue is not None
+    assert normalized["workout_state"].client_spoken_cue.cue_id == "startup_main_12"
+    assert normalized["workout_state"].client_spoken_cue.event_type == "main_started"
+    assert normalized["workout_state"].client_spoken_cue.spoken_elapsed_s == 12
+
+
+def test_continuous_zone_response_surfaces_motivation_basis(monkeypatch, tmp_path):
+    fake_audio = tmp_path / "dummy.mp3"
+    fake_audio.write_bytes(b"ID3")
+
+    monkeypatch.setattr(main, "generate_voice", lambda *args, **kwargs: str(fake_audio))
+    monkeypatch.setattr(main.breath_analyzer, "analyze", _mock_breath_analysis)
+    monkeypatch.setattr(main.voice_intelligence, "add_human_variation", lambda text: text)
+    monkeypatch.setattr(
+        main,
+        "_call_evaluate_zone_tick_compat",
+        lambda **kwargs: {
+            "handled": True,
+            "should_speak": True,
+            "reason": "interval_in_target_sustained",
+            "event_type": "interval_in_target_sustained",
+            "primary_event_type": "interval_in_target_sustained",
+            "priority": 55,
+            "text": "Hold it there.",
+            "phrase_id": "interval.motivate.s2.1",
+            "coach_text": "Hold it there.",
+            "max_silence_text": "Hold it there.",
+            "events": [
+                {
+                    "event_type": "interval_in_target_sustained",
+                    "priority": 55,
+                    "phrase_id": "interval.motivate.s2.1",
+                    "ts": 0.0,
+                    "payload": {
+                        "motivation_basis": "structure_progress",
+                    },
+                }
+            ],
+            "meta": {},
+            "phase_id": 2,
+            "sensor_mode": "NO_SENSORS",
+            "sensor_fusion_mode": "TIMING_ONLY",
+            "movement_available": False,
+            "phase": "work",
+            "zone_status": "timing_control",
+            "zone_state": "none",
+            "delta_to_band": None,
+            "motivation_basis": "structure_progress",
+            "target_zone_label": "Easy",
+            "target_hr_low": None,
+            "target_hr_high": None,
+            "target_source": "none",
+            "target_hr_enforced": False,
+            "remaining_phase_seconds": 120,
+            "interval_template": "4x4",
+            "segment": "work",
+            "segment_key": "rep2_work",
+            "heart_rate": 0,
+            "hr_delta_bpm": None,
+            "hr_quality": "poor",
+            "score_confidence": "low",
+            "time_in_target_pct": None,
+            "zone_time_in_target_pct": None,
+            "zone_compliance": None,
+            "zone_overshoots": 0,
+            "workout_context_summary": "Rep 2 work",
+            "session_end_seconds": None,
+            "elapsed_seconds": 1225,
+            "wait_seconds": 15.0,
+            "countdown_event": None,
+            "selected_countdown_phase": None,
+        },
+    )
+
+    session_id = main.session_manager.create_session(user_id="motivation_basis_user", persona="personal_trainer")
+    main.session_manager.init_workout_state(session_id, phase="intense")
+    state = main.session_manager.get_workout_state(session_id)
+    state["is_first_breath"] = False
+
+    client = main.app.test_client()
+    response = client.post(
+        "/coach/continuous",
+        data={
+            "audio": (io.BytesIO(b"\0" * 9000), "chunk.wav"),
+            "session_id": session_id,
+            "phase": "intense",
+            "elapsed_seconds": "1225",
+            "language": "en",
+            "persona": "personal_trainer",
+            "workout_mode": "interval",
+            "coaching_style": "normal",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["motivation_basis"] == "structure_progress"
+    assert payload["events"][0]["payload"]["motivation_basis"] == "structure_progress"
 
 
 

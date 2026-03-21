@@ -322,6 +322,7 @@ struct ContinuousCoachResponse: Codable {
     let zoneState: String?
     let deltaToBand: Int?
     let workoutContextSummary: WorkoutContextSummary?
+    let motivationBasis: String?
 
     enum CodingKeys: String, CodingKey {
         case contractVersion = "contract_version"
@@ -381,6 +382,19 @@ struct ContinuousCoachResponse: Codable {
         case zoneState = "zone_state"
         case deltaToBand = "delta_to_band"
         case workoutContextSummary = "workout_context_summary"
+        case motivationBasis = "motivation_basis"
+    }
+}
+
+struct ClientSpokenCue: Codable {
+    let cueID: String
+    let eventType: String
+    let spokenElapsedSeconds: Int
+
+    enum CodingKeys: String, CodingKey {
+        case cueID = "cue_id"
+        case eventType = "event_type"
+        case spokenElapsedSeconds = "spoken_elapsed_s"
     }
 }
 
@@ -658,6 +672,7 @@ struct CoachingEventPayload: Codable {
     let elapsedSeconds: Int
     let remainingPhaseSeconds: Int?
     let phaseId: Int
+    let motivationBasis: String?
 
     enum CodingKeys: String, CodingKey {
         case sessionId = "session_id"
@@ -673,6 +688,7 @@ struct CoachingEventPayload: Codable {
         case elapsedSeconds = "elapsed_seconds"
         case remainingPhaseSeconds = "remaining_phase_seconds"
         case phaseId = "phase_id"
+        case motivationBasis = "motivation_basis"
     }
 }
 

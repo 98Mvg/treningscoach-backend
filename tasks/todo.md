@@ -1522,3 +1522,23 @@ Updated: 2026-03-17
   - backend delete through [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift) -> `DELETE /auth/me`
 - Restored the visible delete-account entry under `Your profile -> Personal profile`
 - Kept the actual destructive confirmation and deletion logic unchanged inside the existing `DeleteAccountInfoView`
+
+## Review — 2026-03-21 Startup / transition coordination regression fix
+
+- Kept the single existing continuous coaching path:
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [BackendAPIService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/BackendAPIService.swift)
+  - [main.py](/Users/mariusgaarder/Documents/treningscoach/main.py)
+  - [zone_event_motor.py](/Users/mariusgaarder/Documents/treningscoach/zone_event_motor.py)
+- Fixed the startup/normal-loop coordination bug by sending a minimal `client_spoken_cue` handshake on the existing `/coach/continuous` request when a local startup fallback actually plays
+- Made local startup fallback update the same iOS spoken-memory and collision fields as normal runtime speech:
+  - `lastEventSpeechAt`
+  - `lastEventSpeechPriority`
+  - `lastResolvedUtteranceID`
+  - `lastResolvedEventType`
+- Ingested startup local speech into backend runtime state before normal event selection so the next tick knows a startup transition cue already happened
+- Tightened `structure_instruction_work` / recovery / steady / finish so they only fire on real segment transitions, not mid-segment after HR loss or loop resumption
+- Added additive `motivation_basis` metadata for sustained motivation events so no-HR motivation is logged and returned as `structure_progress` instead of looking like verified HR-target sustain
+- Hardened nearby motivation phrase dedupe with a larger recent-history window plus per-phrase reuse cooldowns to stop obvious repeats
+- Verification passed:
+  - focused regression suite: `174 passed`

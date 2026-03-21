@@ -2761,6 +2761,7 @@ def _build_continuous_zone_tick_degraded_response(
                 "recovery_seconds": zone_tick.get("recovery_seconds"),
                 "recovery_avg_seconds": zone_tick.get("recovery_avg_seconds"),
                 "workout_context_summary": zone_tick.get("workout_context_summary"),
+                "motivation_basis": zone_tick.get("motivation_basis"),
             }
         )
 
@@ -3334,6 +3335,13 @@ def coach_continuous():
         contract_version = normalized_contract["contract_version"]
         normalized_plan = normalized_contract["workout_plan"]
         normalized_tick_state = normalized_contract["workout_state"]
+        client_spoken_cue = None
+        if normalized_tick_state.client_spoken_cue is not None:
+            client_spoken_cue = {
+                "cue_id": normalized_tick_state.client_spoken_cue.cue_id,
+                "event_type": normalized_tick_state.client_spoken_cue.event_type,
+                "spoken_elapsed_s": normalized_tick_state.client_spoken_cue.spoken_elapsed_s,
+            }
 
         session_id = normalized_tick_state.session_id or request.form.get('session_id')
         phase = normalized_tick_state.phase or request.form.get('phase', 'intense')
@@ -3791,6 +3799,7 @@ def coach_continuous():
                 breath_summary=breath_timeline_summary,
                 session_id=session_id,
                 paused=paused_raw,
+                client_spoken_cue=client_spoken_cue,
             )
             zone_tick = _call_evaluate_zone_tick_compat(**zone_tick_kwargs)
             if isinstance(zone_tick, dict):
@@ -4252,6 +4261,7 @@ def coach_continuous():
                     "target_source": zone_tick.get("target_source"),
                     "target_hr_enforced": zone_tick.get("target_hr_enforced"),
                     "remaining_phase_seconds": zone_tick.get("remaining_phase_seconds"),
+                    "motivation_basis": zone_tick.get("motivation_basis"),
                     "hr_quality": zone_tick.get("hr_quality"),
                     "hr_quality_reasons": zone_tick.get("hr_quality_reasons"),
                     "hr_delta_bpm": zone_tick.get("hr_delta_bpm"),

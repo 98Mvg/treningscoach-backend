@@ -91,6 +91,14 @@ class WorkoutTickState:
     cadence_spm: Optional[float] = None
     breath_quality: Optional[float] = None
     breath_reliable: Optional[bool] = None
+    client_spoken_cue: Optional["ClientSpokenCue"] = None
+
+
+@dataclass
+class ClientSpokenCue:
+    cue_id: str
+    event_type: str
+    spoken_elapsed_s: int
 
 
 @dataclass
@@ -160,6 +168,19 @@ def normalize_continuous_contract(form, payload: Optional[dict] = None) -> dict:
     plan_raw = _parse_jsonish(_pick(form, payload, "workout_plan"))
     state_raw = _parse_jsonish(_pick(form, payload, "workout_state"))
     profile_raw = _parse_jsonish(_pick(form, payload, "user_profile"))
+    client_spoken_cue_raw = state_raw.get("client_spoken_cue") if isinstance(state_raw.get("client_spoken_cue"), dict) else {}
+
+    client_spoken_cue: Optional[ClientSpokenCue] = None
+    if client_spoken_cue_raw:
+        cue_id = str(client_spoken_cue_raw.get("cue_id") or "").strip()
+        event_type = str(client_spoken_cue_raw.get("event_type") or "").strip().lower()
+        spoken_elapsed_s = _coerce_int(client_spoken_cue_raw.get("spoken_elapsed_s"))
+        if cue_id and event_type and spoken_elapsed_s is not None:
+            client_spoken_cue = ClientSpokenCue(
+                cue_id=cue_id,
+                event_type=event_type,
+                spoken_elapsed_s=max(0, int(spoken_elapsed_s)),
+            )
 
     workout_type = (
         _pick(form, payload, "workout_type")
@@ -222,6 +243,7 @@ def normalize_continuous_contract(form, payload: Optional[dict] = None) -> dict:
             if _pick(form, payload, "breath_reliable") is not None
             else _coerce_bool(state_raw.get("breath_reliable"))
         ),
+        client_spoken_cue=client_spoken_cue,
     )
 
     profile = UserProfilePayload(

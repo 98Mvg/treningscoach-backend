@@ -1319,7 +1319,7 @@ class WorkoutViewModel: ObservableObject {
     private var lastResolvedUtteranceID: String?
     private var lastResolvedEventType: String?
     private var startupCoachingRequestPending = false
-    private var startupContextCueHandledEventType: String?
+    private var pendingStartupSpokenCue: ClientSpokenCue?
     private let maxSpeechTranscriptEntries = 120
     private var talkCaptureTask: Task<Void, Never>?
     private let workoutTalkCaptureSeconds: TimeInterval = 4.0
@@ -2220,7 +2220,7 @@ class WorkoutViewModel: ObservableObject {
         }
 
         if isStartupContextCue(selected.eventType),
-           startupContextCueHandledEventType == selected.eventType {
+           pendingStartupSpokenCue?.eventType == selected.eventType {
             print("🔇 EVENT_SUPPRESSED reason=startup_context_cue_already_handled event=\(selected.eventType)")
             lastResolvedUtteranceID = nil
             lastResolvedEventType = nil
@@ -2242,19 +2242,11 @@ class WorkoutViewModel: ObservableObject {
             return (false, "event_router_collision")
         }
 
-        if selected.eventType == "workout_finished" {
-            // Clear scheduler state at session end to avoid stale suppression on next workout.
-            lastEventSpeechAt = nil
-            lastEventSpeechPriority = -1
-        } else {
-            lastEventSpeechAt = now
-            lastEventSpeechPriority = selectedPriority
-        }
-        if isStartupContextCue(selected.eventType) {
-            startupContextCueHandledEventType = selected.eventType
-        }
-        lastResolvedUtteranceID = utteranceID
-        lastResolvedEventType = selected.eventType
+        registerSpokenCueMemory(
+            utteranceID: utteranceID,
+            eventType: selected.eventType,
+            priority: selectedPriority
+        )
         print("🎙️ EVENT_SELECTED event=\(selected.eventType) utterance=\(utteranceID) priority=\(selectedPriority) priority_source=\(selectedPriorityInfo.source) selection_source=\(selection.selectionSource)")
         return (true, "event_router")
     }
@@ -2969,7 +2961,7 @@ class WorkoutViewModel: ObservableObject {
             continuousSessionGeneration = UUID()
             coachingInterval = AppConfig.ContinuousCoaching.defaultInterval
             startupCoachingRequestPending = true
-            startupContextCueHandledEventType = nil
+            pendingStartupSpokenCue = nil
 
             // Generate unique session ID
             sessionId = "session_\(UUID().uuidString)"
@@ -3189,6 +3181,32 @@ class WorkoutViewModel: ObservableObject {
         eventType == "warmup_started" || eventType == "main_started"
     }
 
+    private func registerSpokenCueMemory(
+        utteranceID: String,
+        eventType: String,
+        priority: Int,
+        spokenElapsedSeconds: Int? = nil,
+        startupCueID: String? = nil
+    ) {
+        if eventType == "workout_finished" {
+            lastEventSpeechAt = nil
+            lastEventSpeechPriority = -1
+        } else {
+            lastEventSpeechAt = Date()
+            lastEventSpeechPriority = priority
+        }
+        lastResolvedUtteranceID = utteranceID
+        lastResolvedEventType = eventType
+
+        if let startupCueID, let spokenElapsedSeconds {
+            pendingStartupSpokenCue = ClientSpokenCue(
+                cueID: startupCueID,
+                eventType: eventType,
+                spokenElapsedSeconds: max(0, spokenElapsedSeconds)
+            )
+        }
+    }
+
     private func startupFallbackCue() -> GuestFallbackCue {
         if currentPhase == .warmup {
             return GuestFallbackCue(
@@ -3205,12 +3223,9 @@ class WorkoutViewModel: ObservableObject {
     }
 
     private func playStartupFallbackCueIfNeeded(reason: String) async {
-        guard startupContextCueHandledEventType == nil else { return }
+        guard pendingStartupSpokenCue == nil else { return }
 
         let fallback = startupFallbackCue()
-        startupContextCueHandledEventType = fallback.eventType
-        lastResolvedEventType = fallback.eventType
-        lastResolvedUtteranceID = fallback.utteranceID
 
         let didPlay = await playCoachAudio(
             nil,
@@ -3223,6 +3238,13 @@ class WorkoutViewModel: ObservableObject {
         coachMessage = fallback.transcriptText
         coachingStatusLine = nil
         if didPlay {
+            registerSpokenCueMemory(
+                utteranceID: fallback.utteranceID,
+                eventType: fallback.eventType,
+                priority: eventPriority(for: fallback.eventType),
+                spokenElapsedSeconds: Int(workoutDuration),
+                startupCueID: "startup_\(fallback.eventType)_\(Int(workoutDuration))"
+            )
             print("🛟 STARTUP_LOCAL_FALLBACK reason=\(reason) utterance=\(fallback.utteranceID) event=\(fallback.eventType)")
         } else {
             print("🤐 STARTUP_LOCAL_FALLBACK_MISSING reason=\(reason) utterance=\(fallback.utteranceID)")
@@ -3479,7 +3501,7 @@ class WorkoutViewModel: ObservableObject {
         lastResolvedUtteranceID = nil
         lastResolvedEventType = nil
         startupCoachingRequestPending = false
-        startupContextCueHandledEventType = nil
+        pendingStartupSpokenCue = nil
         resetGuestBackendSuppression()
         // Update final workout duration and save to history
         var finalDurationSeconds: Int?
@@ -3657,7 +3679,8 @@ class WorkoutViewModel: ObservableObject {
                     age: storedAge,
                     allowGuestPreview: shouldAllowGuestPreviewBackendRequests(at: tickElapsedSeconds),
                     breathAnalysisEnabled: useBreathingMicCues,
-                    micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted
+                    micPermissionGranted: AVAudioApplication.shared.recordPermission == .granted,
+                    clientSpokenCue: pendingStartupSpokenCue
                 )
 
                 guard self.isCurrentCoachingSession(sessionID: tickSessionID, generation: tickSessionGeneration) else {
@@ -3786,9 +3809,13 @@ class WorkoutViewModel: ObservableObject {
                     print("🤐 Coach silent via \(eventSpeechDecision.reason)")
                 }
                 if isStartupTick,
-                   startupContextCueHandledEventType == nil,
+                   pendingStartupSpokenCue == nil,
                    (response.reason == "continuous_failsafe" || response.brainSource == "failsafe") {
                     await playStartupFallbackCueIfNeeded(reason: "startup_backend_failsafe")
+                }
+                if let pendingStartupSpokenCue {
+                    print("✅ STARTUP_CUE_SYNCED cue_id=\(pendingStartupSpokenCue.cueID) event=\(pendingStartupSpokenCue.eventType)")
+                    self.pendingStartupSpokenCue = nil
                 }
 
                 // 5. Adjust next interval dynamically

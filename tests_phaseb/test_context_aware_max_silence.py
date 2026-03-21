@@ -230,7 +230,7 @@ def test_event_group_breath_guide():
     assert _event_group("max_silence_breath_guide") == "instruction"
 
 
-def test_max_silence_uses_structure_instruction_when_no_hr_and_no_breath():
+def test_max_silence_uses_motivation_when_no_hr_and_no_breath():
     state = {}
 
     evaluate_zone_tick(**_base_tick(workout_state=state, elapsed_seconds=0, heart_rate=145))
@@ -268,11 +268,12 @@ def test_max_silence_uses_structure_instruction_when_no_hr_and_no_breath():
             breath_signal_quality=None,
         )
     )
-    assert forced["event_type"] == "structure_instruction_steady"
+    assert forced["event_type"] == "max_silence_motivation"
+    assert forced["phrase_id"].startswith("easy_run.motivate.")
     assert forced["should_speak"] is True
 
 
-def test_max_silence_uses_structure_instruction_when_hr_missing_breath_reliable():
+def test_max_silence_uses_motivation_when_hr_missing_breath_reliable():
     state = {}
 
     # Build stable, reliable breath signal first.
@@ -311,7 +312,8 @@ def test_max_silence_uses_structure_instruction_when_hr_missing_breath_reliable(
             breath_signal_quality=0.8,
         )
     )
-    assert forced["event_type"] == "structure_instruction_steady"
+    assert forced["event_type"] == "max_silence_motivation"
+    assert forced["phrase_id"].startswith("easy_run.motivate.")
     assert forced["should_speak"] is True
 
 
@@ -344,7 +346,7 @@ def test_max_silence_uses_motivation_when_targets_not_enforced():
     assert forced["should_speak"] is True
 
 
-def test_max_silence_uses_structure_instruction_when_hr_missing_without_targets():
+def test_max_silence_uses_motivation_when_hr_missing_without_targets():
     state = {}
 
     evaluate_zone_tick(
@@ -387,11 +389,12 @@ def test_max_silence_uses_structure_instruction_when_hr_missing_without_targets(
             breath_signal_quality=None,
         )
     )
-    assert forced["event_type"] == "structure_instruction_steady"
+    assert forced["event_type"] == "max_silence_motivation"
+    assert forced["phrase_id"].startswith("easy_run.motivate.")
     assert forced["should_speak"] is True
 
 
-def test_structure_driven_easy_run_can_switch_to_staged_motivation_after_first_structure_cue():
+def test_structure_driven_easy_run_rotates_motivation_without_late_structure_entry():
     state = {}
 
     evaluate_zone_tick(
@@ -426,7 +429,8 @@ def test_structure_driven_easy_run_can_switch_to_staged_motivation_after_first_s
             breath_signal_quality=None,
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_steady"
+    assert first_forced["event_type"] == "max_silence_motivation"
+    assert first_forced["phrase_id"].startswith("easy_run.motivate.")
 
     second_forced = evaluate_zone_tick(
         **_base_tick(
@@ -439,12 +443,13 @@ def test_structure_driven_easy_run_can_switch_to_staged_motivation_after_first_s
             breath_signal_quality=None,
         )
     )
-    assert second_forced["event_type"] == "easy_run_in_target_sustained"
+    assert second_forced["event_type"] == "max_silence_motivation"
     assert second_forced["phrase_id"].startswith("easy_run.motivate.")
+    assert second_forced["phrase_id"] != first_forced["phrase_id"]
     assert second_forced["should_speak"] is True
 
 
-def test_structure_driven_easy_run_uses_go_by_feel_tone_after_first_structure_cue():
+def test_structure_driven_easy_run_uses_go_by_feel_tone_after_startup_motivation():
     state = {}
 
     evaluate_zone_tick(
@@ -479,7 +484,7 @@ def test_structure_driven_easy_run_uses_go_by_feel_tone_after_first_structure_cu
             breath_signal_quality=None,
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_steady"
+    assert first_forced["event_type"] == "max_silence_motivation"
 
     engine_state = state.setdefault("zone_engine", {})
     engine_state["last_motivation_spoken_elapsed"] = 200.0
@@ -548,7 +553,11 @@ def test_structure_driven_easy_run_medium_breath_confidence_keeps_phase_neutral_
             breath_summary=medium_conf_breath_summary,
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_steady"
+    assert first_forced["event_type"] == "max_silence_motivation"
+    assert first_forced["phrase_id"] in {
+        "easy_run.motivate.s3.1",
+        "easy_run.motivate.s3.2",
+    }
 
     engine_state = state.setdefault("zone_engine", {})
     engine_state["last_motivation_spoken_elapsed"] = 200.0
@@ -621,7 +630,12 @@ def test_structure_driven_easy_run_high_confidence_heavy_breath_uses_breath_tone
             breath_intensity="intense",
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_steady"
+    assert first_forced["event_type"] == "max_silence_motivation"
+    assert first_forced["phrase_id"] in {
+        "easy_run.motivate.s1.1",
+        "easy_run.motivate.s1.2",
+        "easy_run.motivate.s4.1",
+    }
 
     engine_state = state.setdefault("zone_engine", {})
     engine_state["last_motivation_spoken_elapsed"] = 200.0
@@ -715,12 +729,14 @@ def test_structure_driven_interval_work_high_confidence_stable_breath_keeps_phas
             phase="intense",
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_work"
+    assert first_forced["event_type"] == "max_silence_motivation"
+    assert first_forced["phrase_id"] in {
+        "interval.motivate.s3.1",
+        "interval.motivate.s3.2",
+        "interval.motivate.s4.1",
+        "interval.motivate.s4.2",
+    }
 
-    engine_state = state.setdefault("zone_engine", {})
-    engine_state["last_motivation_spoken_elapsed"] = 720.0
-    engine_state["motivation_phase_2"] = {"count": 3, "used_slots": {0, 1, 2}}
-    engine_state["last_motivation_phase_id"] = 2
     second_forced = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
@@ -736,12 +752,7 @@ def test_structure_driven_interval_work_high_confidence_stable_breath_keeps_phas
             phase="intense",
         )
     )
-    assert second_forced["event_type"] == "max_silence_go_by_feel"
-    assert second_forced["phrase_id"] in {
-        "zone.silence.work.1",
-        "zone.silence.default.1",
-    }
-    assert second_forced["should_speak"] is True
+    assert second_forced["event_type"] != "structure_instruction_work"
 
 
 def test_structure_driven_interval_work_high_confidence_heavy_breath_uses_control_tone():
@@ -812,12 +823,13 @@ def test_structure_driven_interval_work_high_confidence_heavy_breath_uses_contro
             phase="intense",
         )
     )
-    assert first_forced["event_type"] == "structure_instruction_work"
+    assert first_forced["event_type"] == "max_silence_motivation"
+    assert first_forced["phrase_id"] in {
+        "interval.motivate.s1.1",
+        "interval.motivate.s2.2",
+        "interval.motivate.s3.2",
+    }
 
-    engine_state = state.setdefault("zone_engine", {})
-    engine_state["last_motivation_spoken_elapsed"] = 720.0
-    engine_state["motivation_phase_2"] = {"count": 3, "used_slots": {0, 1, 2}}
-    engine_state["last_motivation_phase_id"] = 2
     second_forced = evaluate_zone_tick(
         **_base_tick(
             workout_state=state,
@@ -833,12 +845,7 @@ def test_structure_driven_interval_work_high_confidence_heavy_breath_uses_contro
             phase="intense",
         )
     )
-    assert second_forced["event_type"] == "max_silence_breath_guide"
-    assert second_forced["phrase_id"] in {
-        "zone.silence.rest.1",
-        "zone.silence.default.1",
-    }
-    assert second_forced["should_speak"] is True
+    assert second_forced["event_type"] != "structure_instruction_work"
 
 
 def test_easy_run_max_silence_budget_blocks_repeated_forced_cue():
@@ -937,7 +944,11 @@ def test_timeline_summary_caps_max_silence_only_with_high_confidence_breath():
         )
     )
     assert forced["should_speak"] is True
-    assert forced["event_type"] == "structure_instruction_steady"
+    assert forced["event_type"] == "max_silence_go_by_feel"
+    assert forced["phrase_id"] in {
+        "zone.silence.work.1",
+        "zone.silence.default.1",
+    }
 
 
 def test_timeline_summary_does_not_cap_max_silence_at_medium_breath_confidence():

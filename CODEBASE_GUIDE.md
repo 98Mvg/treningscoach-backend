@@ -5,7 +5,7 @@
 > Regenerate with: `python3 scripts/generate_codebase_guide.py`
 > Verify sync with: `pytest -q tests_phaseb/test_codebase_guide_sync.py`
 
-Last generated: 2026-03-19
+Last generated: 2026-03-21
 Repository: `/Users/mariusgaarder/Documents/treningscoach`
 
 ## Agent Quickstart

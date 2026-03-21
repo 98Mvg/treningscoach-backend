@@ -128,7 +128,13 @@ def test_startup_failure_falls_back_immediately_and_deduplicates_context_cues():
     assert 'reason: "startup_request_failed"' in text
     assert 'reason: "startup_response_stale"' in text
     assert 'reason: "startup_backend_failsafe"' in text
-    assert "startupContextCueHandledEventType == selected.eventType" in text
+    assert "private var pendingStartupSpokenCue: ClientSpokenCue?" in text
+    assert "private func registerSpokenCueMemory(" in text
+    assert "lastEventSpeechAt = Date()" in text
+    assert "lastEventSpeechPriority = priority" in text
+    assert "pendingStartupSpokenCue?.eventType == selected.eventType" in text
+    assert "clientSpokenCue: pendingStartupSpokenCue" in text
+    assert 'print("✅ STARTUP_CUE_SYNCED cue_id=' in text
     assert '"startup_context_cue_already_handled"' in text
 
 
