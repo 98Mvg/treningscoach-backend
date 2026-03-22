@@ -131,7 +131,8 @@ struct WorkoutCompleteView: View {
     private var actionButtonWidth: CGFloat { UIScreen.main.bounds.width < 390 ? 120 : 136 }
     private var shareURL: URL { URL(string: AppConfig.Share.coachiWebsiteURLString)! }
     private var liveVoiceLanguageCode: String {
-        authManager.currentUser?.language.rawValue ?? L10n.current.rawValue
+        // Voice coach currently supports English only
+        "en"
     }
     private var liveVoiceUserName: String {
         authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name
@@ -1184,7 +1185,7 @@ private struct WorkoutSummarySheet: View {
 
             Text(
                 isNorwegian
-                    ? "Få en kort Coachi-samtale om akkurat denne økten."
+                    ? "Få en kort Coachi-samtale om akkurat denne økten. (Kun engelsk)"
                     : "Get a short Coachi follow-up about this exact workout."
             )
             .font(.system(size: 14, weight: .medium))
