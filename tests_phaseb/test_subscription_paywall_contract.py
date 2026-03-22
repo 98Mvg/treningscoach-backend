@@ -67,8 +67,8 @@ def test_paywall_exposes_restore_and_manage_subscription_buttons():
     assert ".safeAreaInset(edge: .bottom)" in content
     assert "bottomActionSection" in content
     assert "subscriptionManager.restorePurchases()" in content
-    assert '"https://coachi.no/terms"' in content
-    assert '"https://coachi.no/privacy"' in content
+    assert "NavigationLink {\n                TermsOfUseView()" in content
+    assert "NavigationLink {\n                PrivacyPolicyView()" in content
     assert ".background(CoachiTheme.backgroundGradient.ignoresSafeArea())" in content
     assert ".fill(CoachiTheme.bg.opacity(0.94))" in content
     assert 'Color(hex: "F7F7FB")' not in content
@@ -115,8 +115,8 @@ def test_profile_premium_section_exposes_reviewer_visible_subscription_actions()
     assert "Continue to your Premium Dashboard" not in content
     assert '.frame(maxWidth: 320)' in content
     assert '.background(Color(hex: "22C55E"))' in content
-    assert 'Button(isNorwegian ? "Brukervilkår" : "Terms")' in content
-    assert 'Button(isNorwegian ? "personvernerklæring" : "privacy policy")' in content
+    assert "NavigationLink {\n                TermsOfUseView()" in content
+    assert "NavigationLink {\n                PrivacyPolicyView()" in content
     assert 'title: isNorwegian ? "Guidede økter" : "Guided workouts"' in onboarding
     assert 'title: isNorwegian ? "Coaching ved å analysere puls" : "Coaching by analysing puls"' in onboarding
     assert 'title: isNorwegian ? "Talk to Coach Live" : "Talk to Coach Live"' in onboarding

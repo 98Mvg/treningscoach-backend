@@ -29,6 +29,7 @@ class AuthManager: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var productFlags: ProductFlags = .launchDefaults
+    @Published private(set) var lastAuthCreatedNewUser: Bool?
 
     // MARK: - Token
 
@@ -97,7 +98,7 @@ class AuthManager: ObservableObject {
 
     func signInWithGoogle() async -> Bool {
         guard AppConfig.Auth.googleSignInFeatureEnabled else {
-            markUnsupportedProvider(label: L10n.registerWithGoogle)
+            markUnsupportedProvider(label: L10n.continueWithGoogle)
             return false
         }
         guard let clientID = AppConfig.Auth.googleClientID, !clientID.isEmpty else {
@@ -542,6 +543,11 @@ class AuthManager: ObservableObject {
                     authLogger.notice("AUTH_PROFILE_AVATAR stale_session=true status=404 action=sign_out")
                     signOut()
                 }
+                if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data),
+                   case let backendMessage = errorResponse.error.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !backendMessage.isEmpty {
+                    return backendMessage
+                }
                 return L10n.current == .no
                     ? "Kunne ikke oppdatere profilbildet."
                     : "Could not update the profile photo."
@@ -789,6 +795,7 @@ class AuthManager: ObservableObject {
 
     private func handleAuthSuccess(_ response: AuthResponse) {
         saveTokenBundle(response)
+        lastAuthCreatedNewUser = response.isNewUser
 
         // Update state
         applyAuthenticatedProfile(response.user)
@@ -849,6 +856,22 @@ class AuthManager: ObservableObject {
 
     private func persistIdentityDefaults(from user: UserProfile) {
         let defaults = UserDefaults.standard
+        if let profileName = user.profileName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !profileName.isEmpty {
+            persistResolvedName(profileName, defaults: defaults)
+            return
+        }
+
+        guard !hasAuthoritativeStoredDisplayName(defaults: defaults),
+              let displayName = user.displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !displayName.isEmpty else {
+            return
+        }
+
+        persistResolvedName(displayName, defaults: defaults)
+    }
+
+    private func hasAuthoritativeStoredDisplayName(defaults: UserDefaults = .standard) -> Bool {
         let existingFirst = defaults.string(forKey: "user_first_name")?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let existingLast = defaults.string(forKey: "user_last_name")?
@@ -858,20 +881,7 @@ class AuthManager: ObservableObject {
         let existingCombined = [existingFirst, existingLast]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-
-        if let profileName = user.profileName?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !profileName.isEmpty {
-            persistResolvedName(profileName, defaults: defaults)
-            return
-        }
-
-        guard existingCombined.isEmpty, existingDisplayName.isEmpty,
-              let displayName = user.displayName?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !displayName.isEmpty else {
-            return
-        }
-
-        persistResolvedName(displayName, defaults: defaults)
+        return !existingCombined.isEmpty || !existingDisplayName.isEmpty
     }
 
     private func persistResolvedName(_ fullName: String, defaults: UserDefaults = .standard) {
@@ -925,6 +935,7 @@ class AuthManager: ObservableObject {
         clearStoredTokens()
         isAuthenticated = false
         currentUser = nil
+        lastAuthCreatedNewUser = nil
         errorMessage = nil
     }
 

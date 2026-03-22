@@ -161,9 +161,48 @@ private struct CoachScoreSection: View {
     let coachScore: Int
     let xpProgress: Double
     let xpLine: String
+    @State private var selectedDay: Date?
 
     private var streakDays: Int {
         scoreHistory.currentWorkoutStreak()
+    }
+
+    private var calendar: Calendar {
+        Calendar.autoupdatingCurrent
+    }
+
+    private var scoreByDay: [Date: Int] {
+        var latestScoreByDay: [Date: Int] = [:]
+        for record in scoreHistory.sorted(by: { $0.date > $1.date }) {
+            let day = calendar.startOfDay(for: record.date)
+            if latestScoreByDay[day] == nil {
+                latestScoreByDay[day] = record.score
+            }
+        }
+        return latestScoreByDay
+    }
+
+    private var defaultSelectedDay: Date {
+        let today = calendar.startOfDay(for: Date())
+        if scoreByDay[today] != nil {
+            return today
+        }
+
+        if let latestScoredDay = scoreHistory
+            .sorted(by: { $0.date > $1.date })
+            .first {
+            return calendar.startOfDay(for: latestScoredDay.date)
+        }
+
+        return today
+    }
+
+    private var activeSelectedDay: Date {
+        selectedDay ?? defaultSelectedDay
+    }
+
+    private var displayedCoachScore: Int {
+        scoreByDay[activeSelectedDay] ?? coachScore
     }
 
     var body: some View {
@@ -190,36 +229,41 @@ private struct CoachScoreSection: View {
 
                 HStack(spacing: 8) {
                     ForEach(weekSlots) { slot in
-                        VStack(spacing: 4) {
-                            Text(slot.label)
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(slot.isToday ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
+                        Button {
+                            selectedDay = slot.date
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text(slot.label)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(slot.isSelected ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
 
-                            Text(slot.dateNumber)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(slot.isToday ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
+                                Text(slot.dateNumber)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(slot.isSelected ? CoachiTheme.textPrimary : CoachiTheme.textSecondary)
 
-                            ZStack {
-                                Circle()
-                                    .stroke(
-                                        slot.isToday ? CoachiTheme.primary : CoachiTheme.borderSubtle,
-                                        lineWidth: 2
-                                    )
-                                    .frame(width: 44, height: 44)
-                                    .background(slot.isToday ? CoachiTheme.primary : Color.clear)
-                                    .clipShape(Circle())
+                                ZStack {
+                                    Circle()
+                                        .stroke(
+                                            slot.isSelected ? CoachiTheme.primary : CoachiTheme.borderSubtle,
+                                            lineWidth: slot.isSelected ? 2.5 : 2
+                                        )
+                                        .frame(width: 44, height: 44)
+                                        .background(slot.isSelected ? CoachiTheme.primary : Color.clear)
+                                        .clipShape(Circle())
 
-                                Text("\(slot.value)")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundColor(slot.isToday ? .white : CoachiTheme.textPrimary)
+                                    Text("\(slot.value)")
+                                        .font(.system(size: 22, weight: .bold))
+                                        .foregroundColor(slot.isSelected ? .white : CoachiTheme.textPrimary)
+                                }
                             }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.plain)
                     }
                 }
 
                 GamifiedCoachScoreRingView(
-                    score: coachScore,
+                    score: displayedCoachScore,
                     label: L10n.current == .no ? "Score" : "Score",
                     size: 216,
                     lineWidth: 12,
@@ -262,16 +306,8 @@ private struct CoachScoreSection: View {
     }
 
     private var weekSlots: [CoachScoreWeekSlot] {
-        let calendar = Calendar.autoupdatingCurrent
         let today = calendar.startOfDay(for: Date())
-        var latestScoreByDay: [Date: Int] = [:]
-
-        for record in scoreHistory.sorted(by: { $0.date > $1.date }) {
-            let day = calendar.startOfDay(for: record.date)
-            if latestScoreByDay[day] == nil {
-                latestScoreByDay[day] = record.score
-            }
-        }
+        let selectedDay = activeSelectedDay
 
         return (0..<7).map { index in
             let offset = 6 - index
@@ -279,7 +315,14 @@ private struct CoachScoreSection: View {
             let isToday = offset == 0
             let label = isToday ? L10n.today : weekDayLabel(for: date)
             let dateNumber = String(calendar.component(.day, from: date))
-            return CoachScoreWeekSlot(label: label, dateNumber: dateNumber, value: latestScoreByDay[date] ?? 0, isToday: isToday)
+            return CoachScoreWeekSlot(
+                date: date,
+                label: label,
+                dateNumber: dateNumber,
+                value: scoreByDay[date] ?? 0,
+                isToday: isToday,
+                isSelected: calendar.isDate(date, inSameDayAs: selectedDay)
+            )
         }
     }
 
@@ -292,9 +335,12 @@ private struct CoachScoreSection: View {
 }
 
 private struct CoachScoreWeekSlot: Identifiable {
-    let id = UUID()
+    let date: Date
     let label: String
     let dateNumber: String
     let value: Int
     let isToday: Bool
+    let isSelected: Bool
+
+    var id: Date { date }
 }

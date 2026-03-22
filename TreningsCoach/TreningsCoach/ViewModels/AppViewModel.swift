@@ -470,23 +470,13 @@ class AppViewModel: ObservableObject {
     /// Any existing backend profile data is re-synced in the background after the transition.
     func completeOnboardingForReturningUser(displayName: String, languageCode: String) {
         let defaults = UserDefaults.standard
-        let storedFirst = defaults.string(forKey: "user_first_name")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let storedLast = defaults.string(forKey: "user_last_name")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let storedCombinedName = [storedFirst, storedLast]
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        let storedDisplayName = defaults.string(forKey: "user_display_name")?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let incomingDisplayName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let preferredDisplayName = [storedCombinedName, storedDisplayName, incomingDisplayName]
-            .first(where: { !$0.isEmpty }) ?? ""
+        let preferredDisplayName = authoritativeStoredDisplayName(defaults: defaults) ?? incomingDisplayName
 
         if !preferredDisplayName.isEmpty {
             userName = preferredDisplayName
             defaults.set(preferredDisplayName, forKey: "user_display_name")
-            if storedCombinedName.isEmpty {
+            if defaults.string(forKey: "user_first_name")?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
                 let parts = preferredDisplayName
                     .split(separator: " ", omittingEmptySubsequences: true)
                     .map(String.init)
@@ -508,6 +498,23 @@ class AppViewModel: ObservableObject {
                 metadata: ["language": languageCode]
             )
         }
+    }
+
+    private func authoritativeStoredDisplayName(defaults: UserDefaults = .standard) -> String? {
+        let storedFirst = defaults.string(forKey: "user_first_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storedLast = defaults.string(forKey: "user_last_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storedCombinedName = [storedFirst, storedLast]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !storedCombinedName.isEmpty {
+            return storedCombinedName
+        }
+
+        let storedDisplayName = defaults.string(forKey: "user_display_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return storedDisplayName.isEmpty ? nil : storedDisplayName
     }
 
     func resetOnboarding() {

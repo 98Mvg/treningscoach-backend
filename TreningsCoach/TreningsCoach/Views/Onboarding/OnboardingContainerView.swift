@@ -91,6 +91,51 @@ private enum HardestIntensityOption: String, CaseIterable, Identifiable {
                 : "You get clearly out of breath, have to work hard, and can only hold the intensity for short bursts."
         }
     }
+
+    var followUpQuestion: String {
+        switch self {
+        case .low:
+            return L10n.current == .no
+                ? "Hvor ofte og hvor lenge trener du vanligvis med lav intensitet?"
+                : "How often and how long do you usually train at low intensity?"
+        case .moderate:
+            return L10n.current == .no
+                ? "Hvor ofte og hvor lenge trener du vanligvis med moderat intensitet?"
+                : "How often and how long do you usually train at moderate intensity?"
+        case .high:
+            return L10n.current == .no
+                ? "Hvor ofte og hvor lenge trener du vanligvis med høy intensitet?"
+                : "How often and how long do you usually train at high intensity?"
+        }
+    }
+
+    var followUpExplanationTitle: String {
+        switch self {
+        case .low:
+            return L10n.current == .no ? "Hva mener vi med lav intensitet?" : "What do we mean by low intensity?"
+        case .moderate:
+            return L10n.current == .no ? "Hva mener vi med moderat intensitet?" : "What do we mean by moderate intensity?"
+        case .high:
+            return L10n.current == .no ? "Hva mener vi med høy intensitet?" : "What do we mean by high intensity?"
+        }
+    }
+
+    var followUpExplanationMessage: String {
+        switch self {
+        case .low:
+            return L10n.current == .no
+                ? "Lav intensitet er tempoet der du holder det rolig, puster kontrollert og kan fortsette lenge uten å bli veldig sliten."
+                : "Low intensity is the pace where you keep it easy, breathe comfortably, and can continue for a long time without getting very tired."
+        case .moderate:
+            return L10n.current == .no
+                ? "Moderat intensitet er tempoet der du puster raskere og kjenner at du jobber, men fortsatt kan holde det gående en stund."
+                : "Moderate intensity is the pace where you breathe harder and feel the effort, but can still keep going for a while."
+        case .high:
+            return L10n.current == .no
+                ? "Høy intensitet er tempoet der du blir tydelig andpusten, må jobbe hardt og bare kan holde det i korte drag."
+                : "High intensity is the pace where you get clearly out of breath, have to work hard, and can only hold it for short bursts."
+        }
+    }
 }
 
 private enum ModerateFrequencyOption: String, CaseIterable, Identifiable {
@@ -350,6 +395,7 @@ struct OnboardingContainerView: View {
 
                 case .frequencyAndDuration:
                     FrequencyDurationStepView(
+                        hardestIntensity: $formState.hardestIntensity,
                         moderateFrequency: $formState.moderateFrequency,
                         moderateDuration: $formState.moderateDuration,
                         onBack: { move(to: .enduranceHabits) },
@@ -1302,6 +1348,7 @@ private struct EnduranceHabitStepView: View {
 }
 
 private struct FrequencyDurationStepView: View {
+    @Binding var hardestIntensity: HardestIntensityOption
     @Binding var moderateFrequency: ModerateFrequencyOption
     @Binding var moderateDuration: ModerateDurationOption
     let onBack: () -> Void
@@ -1310,9 +1357,7 @@ private struct FrequencyDurationStepView: View {
     var body: some View {
         OnboardingScaffold(
             title: L10n.aboutYou,
-            subtitle: L10n.current == .no
-                ? "Hvor ofte og hvor lenge trener du vanligvis med moderat intensitet?"
-                : "How often and how long do you usually train at moderate intensity?",
+            subtitle: hardestIntensity.followUpQuestion,
             onBack: onBack,
             primaryTitle: L10n.continueButton,
             canContinue: true,
@@ -1320,10 +1365,8 @@ private struct FrequencyDurationStepView: View {
         ) {
             VStack(spacing: 16) {
                 OnboardingExplanationCard(
-                    title: L10n.current == .no ? "Hva mener vi med moderat intensitet?" : "What do we mean by moderate intensity?",
-                    message: L10n.current == .no
-                        ? "Moderat intensitet er tempoet der du puster raskere og kjenner at du jobber, men fortsatt kan holde det gående en stund."
-                        : "Moderate intensity is the pace where you breathe harder and feel the effort, but can still keep going for a while."
+                    title: hardestIntensity.followUpExplanationTitle,
+                    message: hardestIntensity.followUpExplanationMessage
                 )
 
                 VStack(alignment: .leading, spacing: 8) {

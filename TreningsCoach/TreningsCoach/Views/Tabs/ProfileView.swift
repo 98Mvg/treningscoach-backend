@@ -5,7 +5,6 @@
 //  Settings-first profile tab styled after the native list layout
 //
 
-import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -317,28 +316,24 @@ struct ProfileView: View {
 
             settingsDivider
 
-            // Privacy Policy — opens website
-            Button {
-                if let url = URL(string: coachiPrivacyURL) { openURL(url) }
+            NavigationLink {
+                PrivacyPolicyView()
             } label: {
                 SettingsListRow(
                     icon: "hand.raised",
-                    title: L10n.privacyPolicy,
-                    trailingIcon: "arrow.up.right.square"
+                    title: L10n.privacyPolicy
                 )
             }
             .buttonStyle(.plain)
 
             settingsDivider
 
-            // Terms of Use — opens website
-            Button {
-                if let url = URL(string: coachiTermsURL) { openURL(url) }
+            NavigationLink {
+                TermsOfUseView()
             } label: {
                 SettingsListRow(
                     icon: "doc.text",
-                    title: L10n.termsOfUse,
-                    trailingIcon: "arrow.up.right.square"
+                    title: L10n.termsOfUse
                 )
             }
             .buttonStyle(.plain)
@@ -670,16 +665,20 @@ private struct ManageSubscriptionView: View {
                 .frame(maxWidth: .infinity)
 
                 HStack(spacing: 8) {
-                    Button(isNorwegian ? "Brukervilkår" : "Terms") {
-                        if let url = URL(string: coachiTermsURL) { openURL(url) }
+                    NavigationLink {
+                        TermsOfUseView()
+                    } label: {
+                        Text(isNorwegian ? "Brukervilkår" : "Terms")
                     }
                     .buttonStyle(.plain)
 
                     Text(isNorwegian ? "og" : "and")
                         .foregroundColor(CoachiTheme.textSecondary)
 
-                    Button(isNorwegian ? "personvernerklæring" : "privacy policy") {
-                        if let url = URL(string: coachiPrivacyURL) { openURL(url) }
+                    NavigationLink {
+                        PrivacyPolicyView()
+                    } label: {
+                        Text(isNorwegian ? "personvernerklæring" : "privacy policy")
                     }
                     .buttonStyle(.plain)
                 }
@@ -889,8 +888,6 @@ private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @AppStorage("app_language") private var appLanguageCode: String = "en"
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var photoUploadErrorMessage: String?
 
     private var isGuestMode: Bool {
         appViewModel.hasCompletedOnboarding && !authManager.isAuthenticated
@@ -905,46 +902,28 @@ private struct PersonalProfileSettingsView: View {
             VStack(spacing: 0) {
                 sectionHeader(L10n.personalProfile)
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    HStack(spacing: 16) {
-                        CoachiProfileAvatarView(avatarURL: currentAvatarURL)
+                HStack(spacing: 16) {
+                    CoachiProfileAvatarView(avatarURL: currentAvatarURL)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(CoachiTheme.primary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.current == .no ? "Profilbilde" : "Profile photo")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(CoachiTheme.primary)
 
-                            Text(
-                                isAuthenticated
-                                    ? (L10n.current == .no ? "Velg et bilde fra bildebiblioteket ditt" : "Choose a photo from your library")
-                                    : (L10n.current == .no ? "Logg inn for a synkronisere profilbildet ditt" : "Sign in to sync your profile photo")
-                            )
+                        Text(profilePhotoStatusLine(isAuthenticated: isAuthenticated, currentAvatarURL: currentAvatarURL))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(CoachiTheme.textSecondary)
-                        }
-
-                        Spacer()
-
-                        if isLoading {
-                            ProgressView()
-                                .tint(CoachiTheme.primary)
-                        }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 18)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!isAuthenticated || isLoading)
 
-                if let photoUploadErrorMessage, !photoUploadErrorMessage.isEmpty {
-                    Text(photoUploadErrorMessage)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(CoachiTheme.danger)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 14)
+                    Spacer()
+
+                    if isLoading {
+                        ProgressView()
+                            .tint(CoachiTheme.primary)
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 18)
 
                 settingsDivider
 
@@ -1046,10 +1025,6 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: selectedPhotoItem) { _, newValue in
-            guard let newValue else { return }
-            Task { await uploadSelectedPhoto(newValue) }
-        }
     }
 
     private var emailDisplayLine: String {
@@ -1065,25 +1040,20 @@ private struct PersonalProfileSettingsView: View {
             : (L10n.current == .no ? "Ikke tilgjengelig" : "Not available")
     }
 
-    private func uploadSelectedPhoto(_ item: PhotosPickerItem) async {
-        photoUploadErrorMessage = nil
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data),
-                  let jpegData = image.jpegData(compressionQuality: 0.85) else {
-                photoUploadErrorMessage = L10n.current == .no
-                    ? "Kunne ikke lese bildet du valgte."
-                    : "Could not read the selected photo."
-                return
-            }
-
-            photoUploadErrorMessage = await authManager.updateProfileAvatar(imageData: jpegData)
-            selectedPhotoItem = nil
-        } catch {
-            photoUploadErrorMessage = L10n.current == .no
-                ? "Kunne ikke laste opp profilbildet. Prov igjen."
-                : "Could not upload the profile photo. Try again."
+    private func profilePhotoStatusLine(isAuthenticated: Bool, currentAvatarURL: String?) -> String {
+        if let avatarURL = currentAvatarURL?.trimmingCharacters(in: .whitespacesAndNewlines), !avatarURL.isEmpty {
+            return L10n.current == .no
+                ? "Profilbildet styres av innloggingsleverandøren din."
+                : "Your profile photo is managed by your sign-in provider."
         }
+        if !isAuthenticated {
+            return L10n.current == .no
+                ? "Logg inn for å synkronisere kontoopplysningene dine."
+                : "Sign in to sync your account details."
+        }
+        return L10n.current == .no
+            ? "Egendefinerte profilbilder er midlertidig deaktivert ved lansering."
+            : "Custom profile photo uploads are temporarily unavailable at launch."
     }
 
     private var settingsDivider: some View {
@@ -1832,7 +1802,8 @@ private struct SupportRequestFormView: View {
     @State private var accountStatus: String
     @State private var category: String
     @State private var watchType = ""
-    @State private var phoneType = ""
+    @State private var countryDialCode: SupportDialCodeOption = .norway
+    @State private var phoneNumber = ""
     @State private var description = ""
 
     private var isNorwegian: Bool { L10n.current == .no }
@@ -1851,6 +1822,7 @@ private struct SupportRequestFormView: View {
             && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -1912,10 +1884,10 @@ private struct SupportRequestFormView: View {
                     keyboardType: .default
                 )
 
-                SupportFormField(
-                    title: isNorwegian ? "Telefontype" : "Phone type",
-                    text: $phoneType,
-                    keyboardType: .default
+                SupportPhoneField(
+                    title: isNorwegian ? "Telefonnummer" : "Phone number",
+                    countryDialCode: $countryDialCode,
+                    phoneNumber: $phoneNumber
                 )
 
                 SupportTextEditorField(
@@ -1978,6 +1950,12 @@ private struct SupportRequestFormView: View {
         if category.isEmpty || !categoryOptions.contains(category) {
             category = Self.defaultCategory(isNorwegian: isNorwegian)
         }
+        if phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            phoneNumber = ""
+        }
+        if !SupportDialCodeOption.allCases.contains(countryDialCode) {
+            countryDialCode = .norway
+        }
     }
 
     private func openSupportDraft() {
@@ -1989,7 +1967,7 @@ private struct SupportRequestFormView: View {
             "\(isNorwegian ? "Kontostatus" : "Account status"): \(accountLine)",
             "\(isNorwegian ? "Kategori" : "Category"): \(categoryLine)",
             "\(isNorwegian ? "Klokkemerke/type" : "Watch brand / type"): \(watchType)",
-            "\(isNorwegian ? "Telefontype" : "Phone type"): \(phoneType)",
+            "\(isNorwegian ? "Telefonnummer" : "Phone number"): \(countryDialCode.dialCode) \(phoneNumber)",
             "",
             "\(isNorwegian ? "Beskrivelse" : "Description"):",
             description,
@@ -2383,6 +2361,91 @@ private struct SupportPickerField: View {
             .pickerStyle(.menu)
             .tint(CoachiTheme.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(CoachiTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(CoachiTheme.borderSubtle.opacity(0.45), lineWidth: 1)
+            )
+        }
+    }
+}
+
+private enum SupportDialCodeOption: String, CaseIterable, Identifiable {
+    case norway = "+47"
+    case sweden = "+46"
+    case denmark = "+45"
+    case finland = "+358"
+    case unitedKingdom = "+44"
+    case germany = "+49"
+    case netherlands = "+31"
+    case france = "+33"
+    case spain = "+34"
+    case italy = "+39"
+    case unitedStates = "+1"
+    case australia = "+61"
+
+    var id: String { rawValue }
+
+    var countryLabel: String {
+        switch self {
+        case .norway: return "Norway"
+        case .sweden: return "Sweden"
+        case .denmark: return "Denmark"
+        case .finland: return "Finland"
+        case .unitedKingdom: return "United Kingdom"
+        case .germany: return "Germany"
+        case .netherlands: return "Netherlands"
+        case .france: return "France"
+        case .spain: return "Spain"
+        case .italy: return "Italy"
+        case .unitedStates: return "United States"
+        case .australia: return "Australia"
+        }
+    }
+
+    var displayLabel: String {
+        "\(countryLabel) \(dialCode)"
+    }
+
+    var dialCode: String {
+        rawValue
+    }
+}
+
+private struct SupportPhoneField: View {
+    let title: String
+    @Binding var countryDialCode: SupportDialCodeOption
+    @Binding var phoneNumber: String
+
+    private var isNorwegian: Bool { L10n.current == .no }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(CoachiTheme.textPrimary)
+
+            HStack(spacing: 10) {
+                Picker(isNorwegian ? "Landekode" : "Country code", selection: $countryDialCode) {
+                    ForEach(SupportDialCodeOption.allCases) { option in
+                        Text(option.displayLabel).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(CoachiTheme.textPrimary)
+                .frame(width: 160, alignment: .leading)
+
+                TextField(isNorwegian ? "Telefonnummer" : "Phone number", text: $phoneNumber)
+                    .keyboardType(.phonePad)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundColor(CoachiTheme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(CoachiTheme.surface)

@@ -201,7 +201,7 @@ class WorkoutViewModel: ObservableObject {
     @Published var selectedEasyRunMinutes: Int = 30
     @Published var selectedIntervalSets: Int = 6
     @Published var selectedIntervalWorkMinutes: Int = 2
-    @Published var selectedIntervalBreakMinutes: Int = 1
+    @Published var selectedIntervalBreakSeconds: Int = 60
     @Published var selectedIntervalTemplate: IntervalTemplate = .fourByFour
     @Published var coachingStyle: CoachingStyle = .medium {
         didSet {
@@ -1160,7 +1160,7 @@ class WorkoutViewModel: ObservableObject {
 
         let repeats = max(1, effectiveSessionPlan.intervalRepeats ?? max(2, selectedIntervalSets))
         let workSeconds = TimeInterval(max(1, effectiveSessionPlan.intervalWorkSeconds ?? max(1, selectedIntervalWorkMinutes) * 60))
-        let recoverySeconds = TimeInterval(max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakMinutes) * 60))
+        let recoverySeconds = TimeInterval(max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakSeconds)))
         let mainPhaseStart = max(0, mainSegmentStartElapsedTime)
         let intenseDuration = configuredIntenseDuration
         let elapsedInIntense = max(0, elapsedTime - mainPhaseStart)
@@ -1210,7 +1210,7 @@ class WorkoutViewModel: ObservableObject {
 
         let repeats = max(1, effectiveSessionPlan.intervalRepeats ?? max(2, selectedIntervalSets))
         let workSeconds = max(1, effectiveSessionPlan.intervalWorkSeconds ?? max(1, selectedIntervalWorkMinutes) * 60)
-        let recoverySeconds = max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakMinutes) * 60)
+        let recoverySeconds = max(0, effectiveSessionPlan.intervalRecoverySeconds ?? max(0, selectedIntervalBreakSeconds))
         let warmupSeconds = Int(configuredWarmupDuration)
         let elapsedInIntense = max(0, Int(elapsedTime) - warmupSeconds)
 
@@ -1797,7 +1797,7 @@ class WorkoutViewModel: ObservableObject {
         case .intervals:
             let repeats = max(2, min(10, selectedIntervalSets))
             let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60
-            let recoverySeconds = max(0, min(10, selectedIntervalBreakMinutes)) * 60
+            let recoverySeconds = max(0, min(600, selectedIntervalBreakSeconds))
             let mainSeconds = (repeats * workSeconds) + (max(0, repeats - 1) * recoverySeconds)
             return WorkoutSessionPlan(
                 workoutMode: .intervals,
@@ -3318,6 +3318,88 @@ class WorkoutViewModel: ObservableObject {
         return cue
     }
 
+    private func guestCountdownCueIfNeeded() -> GuestFallbackCue? {
+        guard !isEasyRunFreeRunActive else { return nil }
+
+        let remainingSeconds = currentPhaseRemainingSeconds
+        guard remainingSeconds > 0 else { return nil }
+
+        func cue(
+            utteranceID: String,
+            eventType: String,
+            transcriptText: String
+        ) -> GuestFallbackCue {
+            GuestFallbackCue(
+                utteranceID: utteranceID,
+                eventType: eventType,
+                transcriptText: transcriptText
+            )
+        }
+
+        let phaseKey = resolvedPhaseKey
+        let useWarmupRecoveryFamily = currentPhase == .warmup || currentPhase == .cooldown || phaseKey == "recovery"
+
+        if useWarmupRecoveryFamily {
+            switch remainingSeconds {
+            case 30:
+                return cue(
+                    utteranceID: "zone.countdown.warmup_recovery.30.1",
+                    eventType: "interval_countdown_30",
+                    transcriptText: currentLanguage == "no" ? "30 sekunder igjen. Gjør deg klar." : "30 seconds left. Get ready."
+                )
+            case 10:
+                return cue(
+                    utteranceID: "zone.countdown.warmup_recovery.10.1",
+                    eventType: "interval_countdown_10",
+                    transcriptText: currentLanguage == "no" ? "Gjør deg klar. Starter snart." : "Get ready. Starting soon."
+                )
+            case 5:
+                return cue(
+                    utteranceID: "zone.countdown.warmup_recovery.5.1",
+                    eventType: "interval_countdown_5",
+                    transcriptText: currentLanguage == "no" ? "Fem." : "Five."
+                )
+            case 0 ... 1:
+                return cue(
+                    utteranceID: "zone.countdown.warmup_recovery.start.1",
+                    eventType: "interval_countdown_start",
+                    transcriptText: currentLanguage == "no" ? "Start." : "Start."
+                )
+            default:
+                return nil
+            }
+        }
+
+        switch remainingSeconds {
+        case 30:
+            return cue(
+                utteranceID: "zone.countdown.30",
+                eventType: "interval_countdown_30",
+                transcriptText: currentLanguage == "no" ? "30 sekunder." : "30 seconds left."
+            )
+        case 15:
+            return cue(
+                utteranceID: "zone.countdown.15",
+                eventType: "interval_countdown_15",
+                transcriptText: currentLanguage == "no" ? "15." : "15."
+            )
+        case 5:
+            return cue(
+                utteranceID: "zone.countdown.5",
+                eventType: "interval_countdown_5",
+                transcriptText: currentLanguage == "no" ? "Fem." : "Five."
+            )
+        case 0 ... 1:
+            return cue(
+                utteranceID: "zone.countdown.start",
+                eventType: "interval_countdown_start",
+                transcriptText: currentLanguage == "no" ? "Start." : "Start."
+            )
+        default:
+            return nil
+        }
+    }
+
     private func easyRunGuestFallbackCue() -> GuestFallbackCue? {
         let recentUtteranceIDs = Set([lastResolvedUtteranceID, previousGuestFallbackUtteranceID].compactMap { $0 })
         let candidates = [
@@ -3351,6 +3433,16 @@ class WorkoutViewModel: ObservableObject {
         guard age < cooldown else { return false }
         print("🔇 GUEST_LOCAL_FALLBACK_SUPPRESSED reason=duplicate utterance=\(fallback.utteranceID) age_s=\(Int(age))")
         return true
+    }
+
+    private func guestFallbackMinimumGapSeconds(for fallback: GuestFallbackCue) -> Int? {
+        if phaseEntryKey(for: fallback.eventType) != nil {
+            return nil
+        }
+        if fallback.eventType.hasPrefix("interval_countdown_") {
+            return nil
+        }
+        return guestLocalFallbackMinimumGapSeconds
     }
 
     private func registerGuestLocalFallbackPlayback(
@@ -3405,6 +3497,10 @@ class WorkoutViewModel: ObservableObject {
             return entryCue
         }
 
+        if let countdownCue = guestCountdownCueIfNeeded() {
+            return countdownCue
+        }
+
         switch currentPhase {
         case .warmup, .cooldown:
             return nil
@@ -3438,12 +3534,12 @@ class WorkoutViewModel: ObservableObject {
         coachingStatusLine = guestCoachingLimitReason.map(guestCoachingStatusLine(for:))
             ?? nil
 
-        if let lastGuestFallbackCueElapsedSeconds {
-            let gap = elapsedSeconds - lastGuestFallbackCueElapsedSeconds
-            guard gap >= guestLocalFallbackMinimumGapSeconds else { return }
-        }
-
         guard let fallback = guestFallbackCue(for: elapsedSeconds) else { return }
+        if let minimumGap = guestFallbackMinimumGapSeconds(for: fallback),
+           let lastGuestFallbackCueElapsedSeconds {
+            let gap = elapsedSeconds - lastGuestFallbackCueElapsedSeconds
+            guard gap >= minimumGap else { return }
+        }
         guard !shouldSuppressGuestFallbackReplay(fallback) else { return }
         let didPlay = await playCoachAudio(
             nil,

@@ -55,7 +55,8 @@ def test_guest_continuous_start_keeps_summary_flow_clean_and_prompt_free() -> No
     assert "guestCoachingPaywallPresented = false" in text
     assert '?? nil' in text
     assert "elapsedSeconds - (lastGuestFallbackCueElapsedSeconds ?? .min)" not in text
-    assert "if let lastGuestFallbackCueElapsedSeconds {" in text
+    assert "private func guestFallbackMinimumGapSeconds(for fallback: GuestFallbackCue) -> Int?" in text
+    assert "if let minimumGap = guestFallbackMinimumGapSeconds(for: fallback)," in text
 
 
 def test_guest_local_fallback_shares_playback_memory_and_does_not_reuse_entry_cues_as_generic_silence_breakers() -> None:
@@ -63,13 +64,20 @@ def test_guest_local_fallback_shares_playback_memory_and_does_not_reuse_entry_cu
     assert "private var lastAnnouncedGuestPhaseEntryKey: String?" in text
     assert "private func phaseEntryKey(for eventType: String) -> String?" in text
     assert "private func currentGuestPhaseEntryCueIfNeeded() -> GuestFallbackCue?" in text
+    assert "private func guestCountdownCueIfNeeded() -> GuestFallbackCue?" in text
     assert "private func registerGuestLocalFallbackPlayback(" in text
+    assert "private func guestFallbackMinimumGapSeconds(for fallback: GuestFallbackCue) -> Int?" in text
     assert "private func shouldSuppressGuestFallbackReplay(_ fallback: GuestFallbackCue) -> Bool {" in text
     assert "registerGuestLocalFallbackPlayback(" in text
     assert "if let entryCue = currentGuestPhaseEntryCueIfNeeded() {" in text
+    assert "if let countdownCue = guestCountdownCueIfNeeded() {" in text
     assert "guard let fallback = guestFallbackCue(for: elapsedSeconds) else { return }" in text
+    assert "if let minimumGap = guestFallbackMinimumGapSeconds(for: fallback)," in text
     assert "guard !shouldSuppressGuestFallbackReplay(fallback) else { return }" in text
     assert "if elapsedSeconds <= 20 {" not in text
+    assert "zone.countdown.warmup_recovery.30.1" in text
+    assert "zone.countdown.15" in text
+    assert "zone.countdown.start" in text
 
 
 def test_active_workout_view_still_uses_existing_auth_and_paywall_surfaces_when_explicitly_requested() -> None:

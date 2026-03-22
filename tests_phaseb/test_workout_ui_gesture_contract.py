@@ -176,6 +176,8 @@ def test_workout_launch_uses_staged_wheel_setup_for_easy_run() -> None:
     assert "case easyDuration" in text
     assert "valueRange: 0...120" in text
     assert "Confirm duration" in text
+    assert "setupSummaryCard(title: L10n.warmupTime" in text
+    assert 'Text(L10n.current == .no ? "Rediger oppsett" : "Edit setup")' in text
     assert "let canStartAction = canStartWorkout &&" in text
     assert ".disabled(!canStartAction)" in text
 
@@ -187,9 +189,12 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
     assert "case intervalDuration" in text
     assert "case intervalBreak" in text
     assert "selectedIntervalSets" in text
-    assert "selectedIntervalBreakMinutes" in text
+    assert "selectedIntervalBreakSeconds" in text
     assert "selectedIntervalWorkMinutes" in text
-    assert "Total interval time" in text
+    assert "valueRange: 0...600" in text
+    assert "stepSize: 15" in text
+    assert "valueLabelFormatter: intervalBreakDialLabel" in text
+    assert "intervalTotalDurationText" in text
     assert "intervalBreakSelector" not in text
     assert "dialSize: 124" not in text
 
@@ -197,6 +202,7 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
 def test_workout_launch_surfaces_intensity_before_advanced_options() -> None:
     text = _workout_launch_view_text()
     assert 'launchSection(title: "Step B"' not in text
+    assert "if showsPostSetupSections {" in text
     assert "Text(L10n.workoutIntensityPrompt)" in text
     assert "intensityOptionCard(" in text
     assert "title: L10n.workoutIntensityEasyDetail" in text
@@ -288,10 +294,10 @@ def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     text = _workout_view_model_text()
     assert "@Published var selectedIntervalSets: Int = 6" in text
     assert "@Published var selectedIntervalWorkMinutes: Int = 2" in text
-    assert "@Published var selectedIntervalBreakMinutes: Int = 1" in text
+    assert "@Published var selectedIntervalBreakSeconds: Int = 60" in text
     assert "let repeats = max(2, min(10, selectedIntervalSets))" in text
     assert "let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60" in text
-    assert "let recoverySeconds = max(0, min(10, selectedIntervalBreakMinutes)) * 60" in text
+    assert "let recoverySeconds = max(0, min(600, selectedIntervalBreakSeconds))" in text
 
 
 def test_view_model_interval_progress_supports_recovery_start_countdown_and_done_left() -> None:

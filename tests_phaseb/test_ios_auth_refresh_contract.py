@@ -57,6 +57,7 @@ def test_auth_manager_persists_and_clears_full_token_bundle() -> None:
     assert "applyAuthenticatedProfile(profileResponse.user)" in text
     assert "private func applyAuthenticatedProfile(_ user: UserProfile)" in text
     assert "private func persistIdentityDefaults(from user: UserProfile)" in text
+    assert "private func hasAuthoritativeStoredDisplayName(defaults: UserDefaults = .standard) -> Bool" in text
     assert "private func persistResolvedName(_ fullName: String, defaults: UserDefaults = .standard)" in text
     assert 'defaults.set(trimmed, forKey: "user_display_name")' in text
     assert 'defaults.set(first, forKey: "user_first_name")' in text
@@ -94,6 +95,9 @@ def test_backend_api_service_guards_best_effort_and_primary_requests_during_back
     assert 'guard !shouldSkipBestEffortRequest(path: "/health") else { return }' in text
     assert 'performRequestWithBackendAvailability(request, path: "/health")' in text
     assert 'performRequestWithBackendAvailability(request, path: "/app/runtime")' in text
+    assert 'request.setValue(mobileAnalyticsAnonymousID(), forHTTPHeaderField: "X-Coachi-Anonymous-ID")' in text
+    assert "persistGuestPreview(runtime.guestPreview)" in text
+    assert "func refreshGuestPreviewTokenIfNeeded(force: Bool = false) async" in text
     assert 'path: "/coach/continuous"' in text
     assert 'path: "/coach/talk"' in text
     assert 'path: "/voice/session"' in text
@@ -143,9 +147,10 @@ def test_auth_view_gates_google_sign_in_when_provider_disabled() -> None:
     assert "let mode: AuthFlowMode" in view_text
     assert "private var requiresAcceptedTerms: Bool {" in view_text
     assert "mode == .register" in view_text
-    assert "mode == .login ? L10n.loginWithApple : L10n.registerWithApple" in view_text
-    assert "mode == .login ? L10n.loginWithGoogle : L10n.registerWithGoogle" in view_text
-    assert "mode == .login ? L10n.loginWithEmail" in view_text
+    assert "L10n.continueWithApple" in view_text
+    assert "L10n.continueWithGoogle" in view_text
+    assert "L10n.continueWithEmail" in view_text
+    assert 'L10n.current == .no ? "Fortsett med e-postadressen din" : "Continue with your email address"' in view_text
     assert "guard hasAcceptedRequiredTerms else {" in view_text.split("private var googleButton: some View {", 1)[1]
     assert "let signedIn = await authManager.signInWithGoogle()" in view_text
     assert "title: L10n.emailAddress" in view_text
@@ -171,6 +176,8 @@ def test_auth_manager_supports_passwordless_email_sign_in() -> None:
     assert "private func performAuthNetworkRequest(_ request: URLRequest) async throws -> (Data, URLResponse)" in text
     assert "private func shouldRetryAuthRequest(after error: Error) -> Bool" in text
     assert "BackendAPIService.shared.wakeBackend()" in text
+    assert "@Published private(set) var lastAuthCreatedNewUser: Bool?" in text
+    assert "lastAuthCreatedNewUser = response.isNewUser" in text
 
 
 def test_auth_manager_routes_profile_reads_and_updates_through_backend_api_service() -> None:

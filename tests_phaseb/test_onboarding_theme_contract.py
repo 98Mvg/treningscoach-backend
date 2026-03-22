@@ -353,11 +353,9 @@ def test_auth_view_supports_register_and_login_modes() -> None:
     assert "case register" in text
     assert "case login" in text
     assert "let mode: AuthFlowMode" in text
-    assert "L10n.registerWithApple" in text
-    assert "L10n.loginWithApple" in text
-    assert "L10n.registerWithGoogle" in text
-    assert "L10n.loginWithGoogle" in text
-    assert "L10n.loginWithEmail" in text
+    assert "L10n.continueWithApple" in text
+    assert "L10n.continueWithGoogle" in text
+    assert "L10n.continueWithEmail" in text
     assert 'badge: L10n.current == .no ? "Kommer snart" : "Coming soon"' in text
     assert "disabled: authManager.isLoading" in text
     assert "header(contentWidth: contentWidth)" not in text

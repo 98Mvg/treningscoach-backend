@@ -1661,3 +1661,45 @@ Updated: 2026-03-17
   - reuse the same spoken-memory registration path for startup and periodic guest fallback
   - suppress replay of nearby guest-local fallback utterances and rotate easy-run fallback between the existing local variants
   - prefer silence in warmup/cooldown once the real entry cue has already been spoken instead of using entry cues as generic anti-silence filler
+
+## Review — 2026-03-22 Continuous wheel motion polish
+
+- Unified the custom workout setup wheels under one interaction rule in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift):
+  - visual motion stays continuous while dragging
+  - quantization applies only to the selected value when the drag settles
+  - haptics fire only when crossing a meaningful snapped boundary
+- Root cause:
+  - the shared `CircularDialPicker` arc fill was driven by a snapped preview integer instead of the live drag angle
+  - the knob rotated continuously but the progress ring advanced in hard steps, which made the wheel feel sticky and cheap
+  - haptics also fired too eagerly because they were tied to drag start plus every immediate snapped preview change
+- Fix:
+  - render drag-time ring progress directly from the live angle
+  - keep all existing ranges and allowed values, but snap only the committed selection on release
+  - use boundary-crossing haptics keyed to snapped step changes instead of per-frame feedback
+  - leave native system `DatePicker(.wheel)` controls unchanged, since they are UIKit wheels rather than the app's custom dynamic wheel component
+
+## Review — 2026-03-22 Workout setup flow, onboarding intensity, and local legal/support polish
+
+- Extended the existing workout setup and onboarding paths without adding a parallel architecture:
+  - [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift)
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+  - [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift)
+  - [AppViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/AppViewModel.swift)
+  - [AuthManager.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/AuthManager.swift)
+  - [HomeView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/HomeView.swift)
+  - [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
+  - [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift)
+- Workout setup fixes:
+  - interval recovery selection now uses seconds with 15-second snapping instead of minute-only values
+  - completed setup stages collapse into gray summary cards so users can see what is done before intensity/watch/advanced options appear
+  - the old metallic dial knob/dot was removed; the ring now uses glow and arc-head effects only
+- Onboarding/name fixes:
+  - the follow-up endurance page now reflects the selected hardest intensity instead of always saying `moderate intensity`
+  - stored onboarding name now wins over Apple/provider display name once the user has typed a real name
+- Home/profile/legal/support fixes:
+  - Coachi Score week slots are tappable and drive the main score ring
+  - support now collects `Phone number` with a country dial-code picker defaulting to `+47`
+  - app-visible terms/privacy entry points now route to the local in-app legal views instead of opening the external website
+- Guest workout parity:
+  - local guest fallback now allows transition-safe countdown cues and a slightly richer local cue schedule without reintroducing protected backend coaching calls
+  - phase-entry cues still fire only once per real transition and duplicate replay remains suppressed

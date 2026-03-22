@@ -260,10 +260,11 @@ def test_app_viewmodel_persists_backend_relevant_profile_keys() -> None:
     text = _app_viewmodel_text()
     assert "func completeOnboarding(profile: OnboardingProfileDraft)" in text
     assert "func completeOnboardingForReturningUser(displayName: String, languageCode: String)" in text
+    assert "private func authoritativeStoredDisplayName(defaults: UserDefaults = .standard) -> String?" in text
     assert 'defaults.string(forKey: "user_first_name")' in text
     assert 'defaults.string(forKey: "user_last_name")' in text
     assert 'defaults.string(forKey: "user_display_name")' in text
-    assert "let preferredDisplayName = [storedCombinedName, storedDisplayName, incomingDisplayName]" in text
+    assert "let preferredDisplayName = authoritativeStoredDisplayName(defaults: defaults) ?? incomingDisplayName" in text
     assert 'defaults.set(preferredDisplayName, forKey: "user_display_name")' in text
     assert 'defaults.set(profile.hrMax, forKey: "hr_max")' in text
     assert 'defaults.set(profile.restingHR, forKey: "resting_hr")' in text
@@ -308,6 +309,15 @@ def test_onboarding_explains_hr_endurance_and_intensity_in_coachi_copy() -> None
     assert "Du blir bare lett andpusten og kan holde samme tempo lenge uten problemer." in text
     assert "Du puster raskere og kjenner at du jobber, men du har fortsatt kontroll og kan holde på en god stund." in text
     assert "Du blir tydelig andpusten, må jobbe hardt og klarer bare å holde intensiteten i korte drag." in text
+    assert "hardestIntensity.followUpQuestion" in text
+    assert "hardestIntensity.followUpExplanationTitle" in text
+    assert "hardestIntensity.followUpExplanationMessage" in text
+    assert "Hvor ofte og hvor lenge trener du vanligvis med lav intensitet?" in text
+    assert "Hvor ofte og hvor lenge trener du vanligvis med høy intensitet?" in text
+    assert "Hva mener vi med lav intensitet?" in text
+    assert "Hva mener vi med høy intensitet?" in text
+    assert "Low intensity is the pace where you keep it easy, breathe comfortably, and can continue for a long time without getting very tired." in text
+    assert "High intensity is the pace where you get clearly out of breath, have to work hard, and can only hold it for short bursts." in text
     assert "Tap any value if you want to update it before continuing." in text
     assert "onEditField: { field in" in text
     assert "move(to: field.targetStep(doesEnduranceTraining: formState.doesEnduranceTraining))" in text

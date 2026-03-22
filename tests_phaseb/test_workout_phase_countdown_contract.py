@@ -62,20 +62,31 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "valueRange: 2...10" in text
     assert "valueRange: 1...20" in text
+    assert "valueRange: 0...600" in text
     assert "dragSensitivity: 1.55" in text
     assert "dragSensitivity: 1.45" in text
     assert "var dragSensitivity: Double = 1.0" in text
+    assert "var stepSize: Int = 1" in text
+    assert "stepSize: 15" in text
 
 
 def test_circular_dial_visual_progress_is_value_synced():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "private var displayProgress: Double {" in text
-    assert "normalizedProgress(for: displayValue)" in text
-    assert "private func nearestValue(forVisualAngle angle: Double, previousValue: Int? = nil) -> Int" in text
-    assert "let normalized = min(1.0, max(0.0, angle / 360.0))" in text
+    assert "return min(1.0, max(0.0, safeAngle / 360.0))" in text
+    assert "return normalizedProgress(for: displayValue)" in text
+    assert "private func rawValue(forVisualAngle angle: Double) -> Double" in text
+    assert "private func snappedValue(forRawValue rawValue: Double) -> Int" in text
+    assert "private func snappedValue(forVisualAngle angle: Double) -> Int" in text
     assert "private func snapToNearestStepAndCommit()" in text
     assert "selectedValue = snapped" in text
     assert "currentAngle = normalizedProgress(for: snapped) * 360.0" in text
     assert ".stroke(CoachiTheme.dialMagenta" in text
-    assert "let newPreview = nearestValue(forVisualAngle: angle, previousValue: oldPreview)" in text
+    assert ".shadow(color: CoachiTheme.dialMagenta.opacity(isDragging ? 0.42 : 0.18)" in text
+    assert "let newPreview = snappedValue(forVisualAngle: angle)" in text
     assert "currentAngle = angle" in text
+    assert "lastHapticStepValue = committedValue" in text
+    assert "if lastHapticStepValue != newPreview {" in text
+    assert "var valueLabelFormatter: ((Int) -> (String, String))? = nil" in text
+    assert "private var displayValueText: String {" in text
+    assert "knobView" not in text

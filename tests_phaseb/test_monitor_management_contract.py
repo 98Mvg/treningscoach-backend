@@ -24,6 +24,11 @@ def test_home_connect_watch_routes_to_manage_monitors_and_shows_coach_score() ->
     assert "HeartRateMonitorsView()" in text
     assert "CoachScoreSection(" in text
     assert "coachScore: workoutViewModel.homeCoachScore" in text
+    assert "@State private var selectedDay: Date?" in text
+    assert "selectedDay = slot.date" in text
+    assert "displayedCoachScore" in text
+    assert "ForEach(weekSlots)" in text
+    assert "slot.isSelected" in text
     assert "Text(L10n.coachScore)" in text
     assert "L10n.connectHeartRateMonitorTitle" in text
     assert "ConnectMonitorNoticeCard" not in text
@@ -59,6 +64,8 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "FAQView()" not in text
     assert "NavigationLink {\n                FAQGuideView()" in text
     assert "NavigationLink {\n                ContactSupportView()" in text
+    assert "NavigationLink {\n                PrivacyPolicyView()" in text
+    assert "NavigationLink {\n                TermsOfUseView()" in text
     assert "title: L10n.contactSupport" in text
     assert "title: L10n.faqTitle" in text
     assert "title: L10n.privacyPolicy" in text
@@ -85,12 +92,13 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
 def test_personal_profile_static_rows_do_not_show_misleading_chevrons() -> None:
     text = PROFILE_VIEW.read_text(encoding="utf-8")
     personal_slice = text[text.index("private struct PersonalProfileSettingsView: View"):text.index("private struct AboutCoachiView: View")]
-    assert "import PhotosUI" in text
+    assert "import PhotosUI" not in text
     assert "private struct CoachiProfileAvatarView: View" in text
     assert "AsyncImage(url: resolvedURL)" in text
-    assert "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" in text
-    assert 'Text(L10n.current == .no ? "Legg til profilbilde" : "Add profile photo")' in text
-    assert "authManager.updateProfileAvatar(imageData: jpegData)" in text
+    assert "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" not in text
+    assert 'Text(L10n.current == .no ? "Profilbilde" : "Profile photo")' in text
+    assert "private func profilePhotoStatusLine(isAuthenticated: Bool, currentAvatarURL: String?) -> String {" in personal_slice
+    assert "authManager.updateProfileAvatar(imageData: jpegData)" not in text
     assert 'title: L10n.current == .no ? "Navn" : "Name",' in text
     assert 'title: L10n.current == .no ? "E-post" : "Email",' in text
     assert 'Text(L10n.current == .no ? "Slett brukerkontoen din" : "Delete your account")' in personal_slice
@@ -144,8 +152,6 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "DeleteAccountInfoView()" in text
     assert "coachiSupportURL" in text
     assert "coachiDownloadURL" in text
-    assert '"https://coachi.no/privacy"' in text
-    assert '"https://coachi.no/terms"' in text
     assert "AI.Coachi@hotmail.com" in text
     assert "Selskapsdetaljer fylles inn senere." not in text
     assert "showManageSubscription = true" in text
@@ -182,9 +188,18 @@ def test_profile_support_center_exposes_launch_critical_support_and_legal_surfac
     assert "@State private var category: String" in text
     assert "_accountStatus = State(initialValue: Self.defaultAccountStatus(isNorwegian: isNorwegian))" in text
     assert "_category = State(initialValue: Self.defaultCategory(isNorwegian: isNorwegian))" in text
+    assert "@State private var countryDialCode: SupportDialCodeOption = .norway" in text
+    assert "@State private var phoneNumber = \"\"" in text
     assert "if accountStatus.isEmpty || !accountStatusOptions.contains(accountStatus)" in text
     assert "if category.isEmpty || !categoryOptions.contains(category)" in text
     assert "authManager.currentUser?.resolvedDisplayName ?? appViewModel.userProfile.name" in text
+    assert "SupportPhoneField(" in text
+    assert "SupportDialCodeOption" in text
+    assert 'case norway = "+47"' in text
+    assert "Telefonnummer" in text
+    assert "Phone number" in text
+    assert "ForEach(SupportDialCodeOption.allCases)" in text
+    assert "countryDialCode.dialCode" in text
 
 
 def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_header() -> None:
@@ -221,8 +236,8 @@ def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_heade
     assert '.frame(maxWidth: 320)' in profile_text
     assert '.background(Color(hex: "22C55E"))' in profile_text
     assert "min(max(UIScreen.main.bounds.height * 0.86, 760), 920)" in profile_text
-    assert 'Button(isNorwegian ? "Brukervilkår" : "Terms")' in profile_text
-    assert 'Button(isNorwegian ? "personvernerklæring" : "privacy policy")' in profile_text
+    assert "NavigationLink {\n                TermsOfUseView()" in profile_text
+    assert "NavigationLink {\n                PrivacyPolicyView()" in profile_text
     assert "@Binding var isManageSubscriptionPresented: Bool" in profile_text
     assert "ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)" in profile_text
     assert "isManageSubscriptionPresented = true" in profile_text

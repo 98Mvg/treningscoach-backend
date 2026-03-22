@@ -26,25 +26,50 @@ struct WorkoutLaunchView: View {
     @State private var easyRunConfigured = false
     @State private var intervalsConfigured = false
 
-    private var canStartWorkout: Bool {
+    private var setupDetailsComplete: Bool {
         switch viewModel.selectedWorkoutMode {
         case .easyRun:
-            if viewModel.selectedEasyRunSessionMode == .freeRun {
-                return setupStage == .easyDuration
-            }
-            return setupStage == .easyDuration && easyRunConfigured
+            return viewModel.selectedEasyRunSessionMode == .freeRun || easyRunConfigured
         case .intervals:
-            return setupStage == .intervalBreak && intervalsConfigured
+            return intervalsConfigured
         case .standard:
             return true
         }
     }
 
-    private var intervalTotalMinutes: Int {
+    private var canStartWorkout: Bool {
+        switch viewModel.selectedWorkoutMode {
+        case .easyRun:
+            return setupDetailsComplete
+        case .intervals:
+            return setupDetailsComplete
+        case .standard:
+            return true
+        }
+    }
+
+    private var showsPostSetupSections: Bool {
+        launchStep == 2 && setupDetailsComplete
+    }
+
+    private var intervalTotalSeconds: Int {
         let sets = max(1, viewModel.selectedIntervalSets)
         let work = max(0, viewModel.selectedIntervalWorkMinutes)
-        let pause = max(0, viewModel.selectedIntervalBreakMinutes)
-        return (sets * work) + (max(0, sets - 1) * pause)
+        let pause = max(0, viewModel.selectedIntervalBreakSeconds)
+        return (sets * work * 60) + (max(0, sets - 1) * pause)
+    }
+
+    private var intervalTotalDurationText: String {
+        let totalMinutes = intervalTotalSeconds / 60
+        let totalSeconds = intervalTotalSeconds % 60
+        if totalSeconds == 0 {
+            return L10n.current == .no
+                ? "Total intervalltid: \(totalMinutes) min"
+                : "Total interval time: \(totalMinutes) min"
+        }
+        return L10n.current == .no
+            ? "Total intervalltid: \(totalMinutes) min \(totalSeconds) sek"
+            : "Total interval time: \(totalMinutes) min \(totalSeconds) sec"
     }
 
     var body: some View {
@@ -144,53 +169,55 @@ struct WorkoutLaunchView: View {
                             }
                         }
 
-                        launchSection(title: "", subtitle: "") {
-                            intensitySelectionSection
-                        }
+                        if showsPostSetupSections {
+                            launchSection(title: "", subtitle: "") {
+                                intensitySelectionSection
+                            }
 
-                        watchStatusSection
+                            watchStatusSection
 
-                        DisclosureGroup(
-                            isExpanded: $showAdvancedOptions,
-                            content: {
-                                VStack(spacing: 14) {
-                                    Toggle(isOn: $viewModel.useBreathingMicCues) {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(L10n.breathAnalysisTitle)
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundColor(CoachiTheme.textPrimary)
-                                            Text(L10n.breathAnalysisSubtitle)
-                                                .font(.system(size: 12, weight: .medium))
-                                                .foregroundColor(CoachiTheme.textSecondary)
-                                                .fixedSize(horizontal: false, vertical: true)
+                            DisclosureGroup(
+                                isExpanded: $showAdvancedOptions,
+                                content: {
+                                    VStack(spacing: 14) {
+                                        Toggle(isOn: $viewModel.useBreathingMicCues) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(L10n.breathAnalysisTitle)
+                                                    .font(.system(size: 13, weight: .semibold))
+                                                    .foregroundColor(CoachiTheme.textPrimary)
+                                                Text(L10n.breathAnalysisSubtitle)
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(CoachiTheme.textSecondary)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                            }
                                         }
-                                    }
-                                    .tint(CoachiTheme.primary)
+                                        .tint(CoachiTheme.primary)
 
-                                    VStack(spacing: 12) {
-                                        Text(L10n.selectCoach.uppercased())
-                                            .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
-                                            .tracking(1)
-                                        HStack(spacing: 12) {
-                                            ForEach(CoachPersonality.allCases) { persona in
-                                                PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
-                                                    withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                                        VStack(spacing: 12) {
+                                            Text(L10n.selectCoach.uppercased())
+                                                .font(.system(size: 13, weight: .semibold)).foregroundColor(CoachiTheme.textTertiary)
+                                                .tracking(1)
+                                            HStack(spacing: 12) {
+                                                ForEach(CoachPersonality.allCases) { persona in
+                                                    PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
+                                                        withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
+                                    .padding(.top, 8)
+                                },
+                                label: {
+                                    Text("Advanced options")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(CoachiTheme.textSecondary)
                                 }
-                                .padding(.top, 8)
-                            },
-                            label: {
-                                Text("Advanced options")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(CoachiTheme.textSecondary)
-                            }
-                        )
-                        .padding(14)
-                        .background(CoachiTheme.surface.opacity(0.9))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            )
+                            .padding(14)
+                            .background(CoachiTheme.surface.opacity(0.9))
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
 
                         HStack(spacing: 10) {
                             Button {
@@ -506,37 +533,14 @@ struct WorkoutLaunchView: View {
 
             if viewModel.selectedEasyRunSessionMode == .freeRun {
                 VStack(spacing: 12) {
-                    Text(L10n.current == .no ? "FRI LØP" : "FREE RUN")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .tracking(1)
-
-                    CircularDialPicker(
-                        selectedValue: $viewModel.selectedWarmupMinutes,
-                        valueRange: 0...40,
-                        unitLabel: L10n.minutesUpper,
-                        zeroLabel: L10n.skipWarmup
+                    setupSummaryCard(
+                        title: L10n.current == .no ? "Fri løp" : "Free run",
+                        value: L10n.current == .no ? "Åpen økt uten fast sluttid" : "Open session with no fixed finish time"
                     )
-                    .opacity(0.42)
-                    .allowsHitTesting(false)
-
-                    CircularDialPicker(
-                        selectedValue: $viewModel.selectedEasyRunMinutes,
-                        valueRange: 0...120,
-                        unitLabel: L10n.minutesUpper,
-                        zeroLabel: L10n.current == .no ? "0 MIN" : "0 MIN"
+                    setupSummaryCard(
+                        title: L10n.warmupTime,
+                        value: L10n.skipWarmup
                     )
-                    .opacity(0.42)
-                    .allowsHitTesting(false)
-
-                    Text(
-                        L10n.current == .no
-                            ? "Tid og oppvarming er låst i Free Run."
-                            : "Duration and warm-up are locked in Free Run."
-                    )
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .multilineTextAlignment(.center)
                 }
             } else if setupStage == .easyWarmup {
                 VStack(spacing: 10) {
@@ -562,8 +566,20 @@ struct WorkoutLaunchView: View {
                         }
                     }
                 }
+            } else if setupDetailsComplete {
+                VStack(spacing: 10) {
+                    setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
+                    setupSummaryCard(title: L10n.current == .no ? "Varighet" : "Duration", value: formattedMinutesValue(viewModel.selectedEasyRunMinutes))
+                    summaryEditButton {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                            setupStage = .easyDuration
+                            easyRunConfigured = false
+                        }
+                    }
+                }
             } else {
                 VStack(spacing: 10) {
+                    setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
                     CircularDialPicker(
                         selectedValue: $viewModel.selectedEasyRunMinutes,
                         valueRange: 0...120,
@@ -623,6 +639,7 @@ struct WorkoutLaunchView: View {
             }
         } else if setupStage == .intervalSets {
             VStack(spacing: 12) {
+                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
                 Text((L10n.current == .no ? "DRAG" : "DRAG"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
@@ -662,6 +679,8 @@ struct WorkoutLaunchView: View {
             }
         } else if setupStage == .intervalDuration {
             VStack(spacing: 12) {
+                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
+                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
                 Text((L10n.current == .no ? "TID" : "TIME"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
@@ -699,26 +718,45 @@ struct WorkoutLaunchView: View {
                     }
                 }
             }
+        } else if setupDetailsComplete {
+            VStack(spacing: 12) {
+                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
+                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
+                setupSummaryCard(title: L10n.current == .no ? "Tid" : "Time", value: formattedMinutesValue(viewModel.selectedIntervalWorkMinutes))
+                setupSummaryCard(title: L10n.current == .no ? "Pauser" : "Breaks", value: formattedIntervalBreak(viewModel.selectedIntervalBreakSeconds))
+
+                Text(intervalTotalDurationText)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+
+                summaryEditButton {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                        setupStage = .intervalBreak
+                        intervalsConfigured = false
+                    }
+                }
+            }
         } else {
             VStack(spacing: 12) {
+                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
+                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
+                setupSummaryCard(title: L10n.current == .no ? "Tid" : "Time", value: formattedMinutesValue(viewModel.selectedIntervalWorkMinutes))
                 Text((L10n.current == .no ? "PAUSER" : "BREAKS"))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CoachiTheme.textTertiary)
                     .tracking(1)
 
                 CircularDialPicker(
-                    selectedValue: $viewModel.selectedIntervalBreakMinutes,
-                    valueRange: 0...10,
+                    selectedValue: $viewModel.selectedIntervalBreakSeconds,
+                    valueRange: 0...600,
+                    stepSize: 15,
                     unitLabel: L10n.minutesUpper,
-                    zeroLabel: L10n.current == .no ? "INGEN" : "NONE",
-                    dragSensitivity: 1.35
+                    zeroLabel: nil,
+                    dragSensitivity: 1.35,
+                    valueLabelFormatter: intervalBreakDialLabel
                 )
 
-                Text(
-                    L10n.current == .no
-                        ? "Total intervalltid: \(intervalTotalMinutes) min"
-                        : "Total interval time: \(intervalTotalMinutes) min"
-                )
+                Text(intervalTotalDurationText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(CoachiTheme.textPrimary)
 
@@ -759,6 +797,90 @@ struct WorkoutLaunchView: View {
             .frame(maxWidth: .infinity, minHeight: 42)
             .background(CoachiTheme.primaryGradient)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func setupSummaryCard(title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(CoachiTheme.textSecondary)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(CoachiTheme.textTertiary)
+                    .tracking(0.8)
+                Text(value)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textPrimary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(CoachiTheme.bgDeep.opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(CoachiTheme.borderSubtle.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func formattedMinutesValue(_ minutes: Int, zeroLabel: String? = nil) -> String {
+        let clamped = max(0, minutes)
+        if clamped == 0, let zeroLabel {
+            return zeroLabel
+        }
+        return L10n.current == .no ? "\(clamped) min" : "\(clamped) min"
+    }
+
+    private func formattedIntervalBreak(_ seconds: Int) -> String {
+        let clamped = max(0, seconds)
+        if clamped == 0 {
+            return L10n.current == .no ? "Ingen pause" : "No break"
+        }
+        let minutes = clamped / 60
+        let remainingSeconds = clamped % 60
+        if minutes == 0 {
+            return L10n.current == .no ? "\(remainingSeconds) sek" : "\(remainingSeconds) sec"
+        }
+        if remainingSeconds == 0 {
+            return L10n.current == .no ? "\(minutes) min" : "\(minutes) min"
+        }
+        return L10n.current == .no
+            ? "\(minutes) min \(remainingSeconds) sek"
+            : "\(minutes) min \(remainingSeconds) sec"
+    }
+
+    private func intervalBreakDialLabel(_ seconds: Int) -> (String, String) {
+        let clamped = max(0, seconds)
+        if clamped == 0 {
+            return (L10n.current == .no ? "INGEN" : "NONE", "")
+        }
+
+        let minutes = clamped / 60
+        let remainingSeconds = clamped % 60
+        if minutes == 0 {
+            return ("\(remainingSeconds)", L10n.current == .no ? "SEK" : "SEC")
+        }
+        if remainingSeconds == 0 {
+            return ("\(minutes)", L10n.minutesUpper)
+        }
+        return (String(format: "%d:%02d", minutes, remainingSeconds), L10n.current == .no ? "MIN:SEK" : "MIN:SEC")
+    }
+
+    private func summaryEditButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(L10n.current == .no ? "Rediger oppsett" : "Edit setup")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(CoachiTheme.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(CoachiTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -834,23 +956,26 @@ struct CircularDialPicker: View {
     @Binding var selectedValue: Int
 
     var valueRange: ClosedRange<Int> = 0...40
+    var stepSize: Int = 1
     var unitLabel: String = L10n.minutesUpper
     var zeroLabel: String? = L10n.skipWarmup
     var dialSize: CGFloat = 220
     var trackWidth: CGFloat = 18
-    var knobSize: CGFloat = 30
     var dragSensitivity: Double = 1.0
+    var valueLabelFormatter: ((Int) -> (String, String))? = nil
 
     // Internal drag state (continuous, not snapped)
     @State private var currentAngle: Double = 0 // 0-360 degrees, 0 = 12 o'clock
     @State private var isDragging = false
     @State private var previewValue: Int?
+    @State private var lastHapticStepValue: Int?
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
 
     private var minValue: Int { valueRange.lowerBound }
     private var maxValue: Int { valueRange.upperBound }
     private var valueSpan: CGFloat { CGFloat(max(1, maxValue - minValue)) }
-    private var containerSize: CGFloat { dialSize + max(30, trackWidth + knobSize) }
+    private var safeStepSize: Int { max(1, stepSize) }
+    private var containerSize: CGFloat { dialSize + max(28, trackWidth + 12) }
 
     private var safeAngle: Double {
         guard currentAngle.isFinite else { return 0 }
@@ -869,14 +994,23 @@ struct CircularDialPicker: View {
     }
 
     private var displayProgress: Double {
-        normalizedProgress(for: displayValue)
+        if isDragging {
+            return min(1.0, max(0.0, safeAngle / 360.0))
+        }
+        return normalizedProgress(for: displayValue)
     }
 
-    private var displayAngle: Double {
-        isDragging ? safeAngle : (displayProgress * 360.0)
+    private var displayValueText: String {
+        if let valueLabelFormatter {
+            return valueLabelFormatter(displayValue).0
+        }
+        return "\(displayValue)"
     }
 
     private var valueUnitText: String {
+        if let valueLabelFormatter {
+            return valueLabelFormatter(displayValue).1
+        }
         if displayValue == 0, let zeroLabel {
             return zeroLabel
         }
@@ -902,11 +1036,21 @@ struct CircularDialPicker: View {
                     .stroke(CoachiTheme.dialMagenta, style: StrokeStyle(lineWidth: trackWidth, lineCap: .round))
                     .frame(width: dialSize, height: dialSize)
                     .rotationEffect(.degrees(-90))
+                    .shadow(color: CoachiTheme.dialMagenta.opacity(isDragging ? 0.42 : 0.18), radius: isDragging ? 10 : 4)
+            }
+
+            if displayProgress > 0.03 {
+                Circle()
+                    .trim(from: CGFloat(max(0, displayProgress - 0.065)), to: CGFloat(min(displayProgress, 1.0)))
+                    .stroke(CoachiTheme.dialMagenta.opacity(isDragging ? 0.42 : 0.2), style: StrokeStyle(lineWidth: trackWidth + 6, lineCap: .round))
+                    .frame(width: dialSize, height: dialSize)
+                    .rotationEffect(.degrees(-90))
+                    .blur(radius: isDragging ? 5 : 3)
             }
 
             // Center content
             VStack(spacing: 2) {
-                Text("\(displayValue)")
+                Text(displayValueText)
                     .font(.system(size: max(36, dialSize * 0.25), weight: .bold, design: .rounded))
                     .foregroundColor(CoachiTheme.textPrimary)
                     .contentTransition(.numericText())
@@ -917,11 +1061,6 @@ struct CircularDialPicker: View {
                     .foregroundColor(CoachiTheme.textTertiary)
                     .tracking(2)
             }
-
-            // Draggable knob
-            knobView
-                .offset(y: -dialSize / 2)
-                .rotationEffect(.degrees(displayAngle))
         }
         .frame(width: containerSize, height: containerSize)
         .contentShape(Circle()) // Make entire dial tappable
@@ -935,39 +1074,6 @@ struct CircularDialPicker: View {
         }
     }
 
-    // MARK: - Knob
-
-    private var knobView: some View {
-        ZStack {
-            // Outer glow
-            Circle()
-                .fill(CoachiTheme.dialMagenta.opacity(isDragging ? 0.4 : 0.2))
-                .frame(width: knobSize + 12, height: knobSize + 12)
-                .blur(radius: 6)
-
-            // Metallic knob
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white, Color(hex: "C0C0C0"), Color(hex: "888888")],
-                        center: .init(x: 0.4, y: 0.35),
-                        startRadius: 0,
-                        endRadius: knobSize / 2
-                    )
-                )
-                .frame(width: knobSize, height: knobSize)
-                .shadow(color: .black.opacity(0.5), radius: 4, y: 2)
-
-            // Inner highlight
-            Circle()
-                .fill(Color.white.opacity(0.3))
-                .frame(width: knobSize * 0.4, height: knobSize * 0.4)
-                .offset(x: -2, y: -2)
-        }
-        .scaleEffect(isDragging ? 1.15 : 1.0)
-        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
-    }
-
     // MARK: - Gesture
 
     private var dialDragGesture: some Gesture {
@@ -976,7 +1082,7 @@ struct CircularDialPicker: View {
                 if !isDragging {
                     isDragging = true
                     hapticGenerator.prepare()
-                    hapticGenerator.impactOccurred()
+                    lastHapticStepValue = committedValue
                 }
                 updateAngle(from: value.location, in: containerSize)
             }
@@ -999,13 +1105,15 @@ struct CircularDialPicker: View {
         var angle = atan2(dx, -dy) * 180 / .pi // degrees, 0 = 12 o'clock, clockwise positive
         if angle < 0 { angle += 360 }
 
-        let oldPreview = previewValue ?? committedValue
-        let newPreview = nearestValue(forVisualAngle: angle, previousValue: oldPreview)
-        previewValue = newPreview
         currentAngle = angle
+        let newPreview = snappedValue(forVisualAngle: angle)
+        previewValue = newPreview
 
-        if newPreview != oldPreview {
-            hapticGenerator.impactOccurred(intensity: 0.4)
+        if lastHapticStepValue != newPreview {
+            if lastHapticStepValue != nil {
+                hapticGenerator.impactOccurred(intensity: 0.35)
+            }
+            lastHapticStepValue = newPreview
         }
     }
 
@@ -1015,28 +1123,31 @@ struct CircularDialPicker: View {
         return Double(clamped - minValue) / Double(span)
     }
 
-    private func nearestValue(forVisualAngle angle: Double, previousValue: Int? = nil) -> Int {
+    private func rawValue(forVisualAngle angle: Double) -> Double {
         let normalized = min(1.0, max(0.0, angle / 360.0))
-        let raw = normalized * Double(valueSpan)
+        return Double(minValue) + (normalized * Double(valueSpan))
+    }
 
-        let adjustedRaw: Double
-        if let previousValue {
-            let previousRaw = Double(max(minValue, min(maxValue, previousValue)) - minValue)
-            let smoothingFactor = max(1.0, dragSensitivity)
-            adjustedRaw = previousRaw + ((raw - previousRaw) / smoothingFactor)
-        } else {
-            adjustedRaw = raw
-        }
+    private func snappedValue(forRawValue rawValue: Double) -> Int {
+        let clamped = max(Double(minValue), min(Double(maxValue), rawValue))
+        let snappedOffset = ((clamped - Double(minValue)) / Double(safeStepSize)).rounded() * Double(safeStepSize)
+        let snapped = Double(minValue) + snappedOffset
+        let rounded = Int(snapped.rounded())
+        return max(minValue, min(maxValue, rounded))
+    }
 
-        let rounded = Int(round(adjustedRaw))
-        return max(minValue, min(maxValue, minValue + rounded))
+    private func snappedValue(forVisualAngle angle: Double) -> Int {
+        snappedValue(forRawValue: rawValue(forVisualAngle: angle))
     }
 
     private func snapToNearestStepAndCommit() {
-        let snapped = nearestValue(forVisualAngle: safeAngle)
+        let snapped = snappedValue(forVisualAngle: safeAngle)
         previewValue = nil
-        selectedValue = snapped
-        currentAngle = normalizedProgress(for: snapped) * 360.0
+        lastHapticStepValue = nil
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+            selectedValue = snapped
+            currentAngle = normalizedProgress(for: snapped) * 360.0
+        }
     }
 
     private func syncAngleFromMinutes() {
