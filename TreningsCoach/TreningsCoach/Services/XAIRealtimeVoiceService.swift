@@ -236,8 +236,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
             try await sendInitialAssistantKickoff()
             appendSystemMessage(
                 languageCode == "no"
-                    ? "Live voice er koblet til. Still et sporsmal om den siste okten."
-                    : "Live voice is connected. Ask about the workout you just completed."
+                    ? "Live voice er koblet til. Coachen oppsummerer økten din."
+                    : "Live voice is connected. Coach is summarising your workout."
             )
 
             sessionTimerTask = Task { [weak self] in
@@ -363,8 +363,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         let instructions = languageCode == "no"
-            ? "Lever den påkrevde åpningsoppsummeringen nå. Følg de aktive sesjonsinstruksjonene nøyaktig."
-            : "Deliver the required opening recap now. Follow the active session instructions exactly."
+            ? "Start med treningsoppsummeringen nå. Nevn treningstype, varighet og nøkkelstatistikk. Ikke si 'hva kan jeg hjelpe deg med'."
+            : "Start with the workout summary now. Name the workout, duration, and key stats. Do not say 'what can I help you with'."
         let payload: [String: Any] = [
             "type": "response.create",
             "response": [

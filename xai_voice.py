@@ -631,9 +631,9 @@ def build_post_workout_voice_session_update(
         ),
         "turn_detection": {
             "type": "server_vad",
-            "threshold": float(getattr(config, "XAI_VOICE_AGENT_VAD_THRESHOLD", 0.5) or 0.5),
+            "threshold": float(getattr(config, "XAI_VOICE_AGENT_VAD_THRESHOLD", 0.4) or 0.4),
             "prefix_padding_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_PREFIX_PADDING_MS", 300) or 300),
-            "silence_duration_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 300) or 300),
+            "silence_duration_ms": int(getattr(config, "XAI_VOICE_AGENT_VAD_SILENCE_DURATION_MS", 500) or 500),
             "create_response": True,
         },
         "input_audio_format": "pcm16",
