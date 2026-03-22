@@ -60,6 +60,7 @@ def test_home_uses_gamified_score_ring_for_coach_score() -> None:
     assert "xpProgress: appViewModel.coachiXPProgressFraction" in text
     assert "xpLine: appViewModel.coachiXPLine" in text
     assert "GamifiedCoachScoreRingView(" in text
+    assert "fullSweepBeforeSettling: false" in text
     assert "showsOuterXPRing: true" in text
     assert 'title: L10n.streak' in text
     assert 'title: "XP"' in text
@@ -107,7 +108,7 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert "Jeg fullførte \\(workoutLabel) med Coachi." in text
     assert "@State private var showShareOptions = false" in text
     assert "WorkoutShareDestinationsSheet(" in text
-    assert ".presentationDetents([.height(330)])" in text
+    assert ".presentationDetents([.height(420)])" in text
     assert 'performShareSelection { openGenericShareSheet(destination: "x") }' in text
     assert 'shareButton(label: "Instagram"' in text
     assert 'shareButton(label: "Snapchat"' in text
@@ -115,7 +116,7 @@ def test_workout_complete_uses_gamified_score_ring() -> None:
     assert 'shareButton(label: "X"' in text
     assert 'shareButton(label: languageCode == "no" ? "Kopier lenke" : "Copy Link"' in text
     assert "WorkoutSummaryShareCardView(" in text
-    assert "SummarySurfaceButtonStyle(variant: .primary)" in text
+    assert "SummarySurfaceButtonStyle(variant: .hero)" in text
     assert "SummarySurfaceButtonStyle(variant: .utility)" in text
     assert "SummarySurfaceButtonStyle(variant: .outline)" in text
     assert "showProgressToast" not in text

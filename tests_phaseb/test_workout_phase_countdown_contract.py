@@ -62,7 +62,7 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "valueRange: 2...10" in text
     assert "valueRange: 1...20" in text
-    assert "valueRange: 0...600" in text
+    assert "valueRange: 0...300" in text
     assert "dragSensitivity: 1.55" in text
     assert "dragSensitivity: 1.45" in text
     assert "var dragSensitivity: Double = 1.0" in text
@@ -83,6 +83,10 @@ def test_circular_dial_visual_progress_is_value_synced():
     assert "currentAngle = normalizedProgress(for: snapped) * 360.0" in text
     assert ".stroke(CoachiTheme.dialMagenta" in text
     assert ".shadow(color: CoachiTheme.dialMagenta.opacity(isDragging ? 0.42 : 0.18)" in text
+    assert ".fill(Color.white)" in text
+    assert "private var indicatorAngle: Double {" in text
+    assert "private var indicatorOffset: CGFloat {" in text
+    assert "private var indicatorSize: CGFloat {" in text
     assert "let newPreview = snappedValue(forVisualAngle: angle)" in text
     assert "currentAngle = angle" in text
     assert "lastHapticStepValue = committedValue" in text

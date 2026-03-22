@@ -1797,7 +1797,7 @@ class WorkoutViewModel: ObservableObject {
         case .intervals:
             let repeats = max(2, min(10, selectedIntervalSets))
             let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60
-            let recoverySeconds = max(0, min(600, selectedIntervalBreakSeconds))
+            let recoverySeconds = max(0, min(300, selectedIntervalBreakSeconds))
             let mainSeconds = (repeats * workSeconds) + (max(0, repeats - 1) * recoverySeconds)
             return WorkoutSessionPlan(
                 workoutMode: .intervals,

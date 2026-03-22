@@ -191,9 +191,10 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
     assert "selectedIntervalSets" in text
     assert "selectedIntervalBreakSeconds" in text
     assert "selectedIntervalWorkMinutes" in text
-    assert "valueRange: 0...600" in text
+    assert "valueRange: 0...300" in text
     assert "stepSize: 15" in text
     assert "valueLabelFormatter: intervalBreakDialLabel" in text
+    assert 'unitLabel: L10n.current == .no ? "SEK" : "SEC"' in text
     assert "intervalTotalDurationText" in text
     assert "intervalBreakSelector" not in text
     assert "dialSize: 124" not in text
@@ -297,7 +298,7 @@ def test_view_model_interval_duration_uses_custom_sets_work_and_break() -> None:
     assert "@Published var selectedIntervalBreakSeconds: Int = 60" in text
     assert "let repeats = max(2, min(10, selectedIntervalSets))" in text
     assert "let workSeconds = max(1, min(20, selectedIntervalWorkMinutes)) * 60" in text
-    assert "let recoverySeconds = max(0, min(600, selectedIntervalBreakSeconds))" in text
+    assert "let recoverySeconds = max(0, min(300, selectedIntervalBreakSeconds))" in text
 
 
 def test_view_model_interval_progress_supports_recovery_start_countdown_and_done_left() -> None:

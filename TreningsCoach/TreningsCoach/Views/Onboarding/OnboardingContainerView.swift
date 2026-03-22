@@ -273,6 +273,7 @@ struct OnboardingContainerView: View {
     @State private var selectedLanguage: AppLanguage = L10n.current
     @State private var notificationBackStep: OnboardingStep = .sensorConnect
     @State private var finishingOnboarding = false
+    @State private var editingFromSummary = false
 
     var body: some View {
         ZStack {
@@ -336,8 +337,8 @@ struct OnboardingContainerView: View {
                     IdentityStepView(
                         firstName: $formState.firstName,
                         lastName: $formState.lastName,
-                        onBack: { move(to: skipAccountStepAfterLanguage ? .language : .auth) },
-                        onContinue: { dismissKeyboardAndMove(to: .features) }
+                        onBack: { move(to: backDestination(from: .identity, default: skipAccountStepAfterLanguage ? .language : .auth)) },
+                        onContinue: { dismissKeyboardAndMove(to: continueDestination(from: .identity, default: .features)) }
                     )
                     .transition(stepTransition)
 
@@ -345,12 +346,12 @@ struct OnboardingContainerView: View {
                     BirthGenderStepView(
                         birthDate: $formState.birthDate,
                         gender: $formState.gender,
-                        onBack: { move(to: .features) },
+                        onBack: { move(to: backDestination(from: .birthAndGender, default: .features)) },
                         onContinue: {
                             if formState.hrMax == 192 {
                                 formState.hrMax = formState.calculatedHRMaxFromAge
                             }
-                            move(to: .bodyMetrics)
+                            move(to: continueDestination(from: .birthAndGender, default: .bodyMetrics))
                         }
                     )
                     .transition(stepTransition)
@@ -359,8 +360,8 @@ struct OnboardingContainerView: View {
                     BodyMetricsStepView(
                         heightCm: $formState.heightCm,
                         weightKg: $formState.weightKg,
-                        onBack: { move(to: .birthAndGender) },
-                        onContinue: { move(to: .maxHeartRate) }
+                        onBack: { move(to: backDestination(from: .bodyMetrics, default: .birthAndGender)) },
+                        onContinue: { move(to: continueDestination(from: .bodyMetrics, default: .maxHeartRate)) }
                     )
                     .transition(stepTransition)
 
@@ -368,19 +369,19 @@ struct OnboardingContainerView: View {
                     MaxHeartRateStepView(
                         age: formState.age,
                         hrMax: $formState.hrMax,
-                        onBack: { move(to: .bodyMetrics) },
+                        onBack: { move(to: backDestination(from: .maxHeartRate, default: .bodyMetrics)) },
                         onRecalculate: {
                             formState.hrMax = formState.calculatedHRMaxFromAge
                         },
-                        onContinue: { move(to: .restingHeartRate) }
+                        onContinue: { move(to: continueDestination(from: .maxHeartRate, default: .restingHeartRate)) }
                     )
                     .transition(stepTransition)
 
                 case .restingHeartRate:
                     RestingHeartRateStepView(
                         restingHR: $formState.restingHR,
-                        onBack: { move(to: .maxHeartRate) },
-                        onContinue: { move(to: .enduranceHabits) }
+                        onBack: { move(to: backDestination(from: .restingHeartRate, default: .maxHeartRate)) },
+                        onContinue: { move(to: continueDestination(from: .restingHeartRate, default: .enduranceHabits)) }
                     )
                     .transition(stepTransition)
 
@@ -388,8 +389,8 @@ struct OnboardingContainerView: View {
                     EnduranceHabitStepView(
                         doesEnduranceTraining: $formState.doesEnduranceTraining,
                         hardestIntensity: $formState.hardestIntensity,
-                        onBack: { move(to: .restingHeartRate) },
-                        onContinue: { move(to: nextStepAfterEnduranceHabits) }
+                        onBack: { move(to: backDestination(from: .enduranceHabits, default: .restingHeartRate)) },
+                        onContinue: { move(to: continueDestination(from: .enduranceHabits, default: nextStepAfterEnduranceHabits)) }
                     )
                     .transition(stepTransition)
 
@@ -398,8 +399,8 @@ struct OnboardingContainerView: View {
                         hardestIntensity: $formState.hardestIntensity,
                         moderateFrequency: $formState.moderateFrequency,
                         moderateDuration: $formState.moderateDuration,
-                        onBack: { move(to: .enduranceHabits) },
-                        onContinue: { move(to: .summary) }
+                        onBack: { move(to: backDestination(from: .frequencyAndDuration, default: .enduranceHabits)) },
+                        onContinue: { move(to: continueDestination(from: .frequencyAndDuration, default: .summary)) }
                     )
                     .transition(stepTransition)
 
@@ -408,6 +409,7 @@ struct OnboardingContainerView: View {
                         state: formState,
                         onBack: { move(to: summaryBackStep) },
                         onEditField: { field in
+                            editingFromSummary = true
                             move(to: field.targetStep(doesEnduranceTraining: formState.doesEnduranceTraining))
                         },
                         onContinue: { move(to: .sensorConnect) }
@@ -582,6 +584,9 @@ struct OnboardingContainerView: View {
 
     private func move(to step: OnboardingStep) {
         withAnimation(AppConfig.Anim.transitionSpring) {
+            if step == .summary {
+                editingFromSummary = false
+            }
             currentStep = step
         }
     }
@@ -591,6 +596,14 @@ struct OnboardingContainerView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             move(to: step)
         }
+    }
+
+    private func continueDestination(from _: OnboardingStep, default defaultStep: OnboardingStep) -> OnboardingStep {
+        editingFromSummary ? .summary : defaultStep
+    }
+
+    private func backDestination(from _: OnboardingStep, default defaultStep: OnboardingStep) -> OnboardingStep {
+        editingFromSummary ? .summary : defaultStep
     }
 
     private func requestNotificationsAndFinish() {

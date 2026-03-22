@@ -88,6 +88,7 @@ def test_post_auth_explainer_starts_with_personalized_hello_page() -> None:
 def test_onboarding_routes_to_profile_completion_path() -> None:
     text = _onboarding_text()
     assert "@State private var skipAccountStepAfterLanguage = false" in text
+    assert "@State private var editingFromSummary = false" in text
     assert "primaryTitle: L10n.continueButton" in text
     assert "secondaryTitle: L10n.continueWithoutAccount" in text
     assert "skipAccountStepAfterLanguage = false" in text
@@ -100,16 +101,20 @@ def test_onboarding_routes_to_profile_completion_path() -> None:
     assert "authManager.currentUser?.resolvedDisplayName ?? \"\"" in text
     assert "move(to: .identity)" in text
     assert "} onContinueWithoutAccount: {" in text
-    assert "onBack: { move(to: skipAccountStepAfterLanguage ? .language : .auth) }" in text
-    assert "onContinue: { dismissKeyboardAndMove(to: .features) }" in text
+    assert 'onBack: { move(to: backDestination(from: .identity, default: skipAccountStepAfterLanguage ? .language : .auth)) }' in text
+    assert 'onContinue: { dismissKeyboardAndMove(to: continueDestination(from: .identity, default: .features)) }' in text
     assert "onSecondary: { move(to: .identity) }" in text
     assert "onPrimary: { move(to: .birthAndGender) }" in text
-    assert "onBack: { move(to: .features) }" in text
-    assert "onContinue: { move(to: nextStepAfterEnduranceHabits) }" in text
+    assert "onBack: { move(to: backDestination(from: .birthAndGender, default: .features)) }" in text
+    assert "onContinue: { move(to: continueDestination(from: .enduranceHabits, default: nextStepAfterEnduranceHabits)) }" in text
     assert "private var nextStepAfterEnduranceHabits: OnboardingStep" in text
     assert "private var summaryBackStep: OnboardingStep" in text
     assert "onContinue: { move(to: .sensorConnect) }" in text
     assert "onBack: { move(to: summaryBackStep) }" in text
+    assert "editingFromSummary = true" in text
+    assert "private func continueDestination(from _: OnboardingStep, default defaultStep: OnboardingStep) -> OnboardingStep {" in text
+    assert "private func backDestination(from _: OnboardingStep, default defaultStep: OnboardingStep) -> OnboardingStep {" in text
+    assert "editingFromSummary ? .summary : defaultStep" in text
     assert "onContinue: { watchConnected in" in text
     assert "if !subscriptionManager.hasPremiumAccess {" in text
     assert "notificationBackStep = .premiumOffer" in text

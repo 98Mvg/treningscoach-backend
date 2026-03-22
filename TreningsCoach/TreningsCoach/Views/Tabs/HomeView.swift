@@ -267,7 +267,7 @@ private struct CoachScoreSection: View {
                     label: L10n.current == .no ? "Score" : "Score",
                     size: 216,
                     lineWidth: 12,
-                    fullSweepBeforeSettling: true,
+                    fullSweepBeforeSettling: false,
                     xpProgress: xpProgress,
                     showsOuterXPRing: true
                 )

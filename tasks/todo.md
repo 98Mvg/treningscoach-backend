@@ -1703,3 +1703,24 @@ Updated: 2026-03-17
 - Guest workout parity:
   - local guest fallback now allows transition-safe countdown cues and a slightly richer local cue schedule without reintroducing protected backend coaching calls
   - phase-entry cues still fire only once per real transition and duplicate replay remains suppressed
+
+## Review — 2026-03-22 Onboarding summary edit return path
+
+- Fixed the onboarding summary edit round-trip on the existing onboarding flow in [OnboardingContainerView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Onboarding/OnboardingContainerView.swift).
+- Root cause:
+  - tapping a summary row correctly jumped back to the underlying onboarding step
+  - but that step still used the normal onboarding `onContinue` and `onBack` routing, so the user rejoined the main sequence instead of returning to summary
+- Fix:
+  - added a lightweight `editingFromSummary` state in the container
+  - summary edits now set that state before moving to the selected field step
+  - edited steps route `continue` and `back` back to `.summary` while edit mode is active
+  - edit mode clears automatically when the summary screen is reached again
+
+## Review — 2026-03-22 Workout wheel indicator and break cap polish
+
+- Tightened the existing workout setup wheel path in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift), [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift), and [HomeView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/HomeView.swift).
+- Fixes:
+  - added a standard white indicator dot to the shared custom dial and positioned it slightly outside the ring so all workout wheels keep one clear active marker
+  - capped interval breaks at `5 minutes / 300 seconds` across the wheel and session-plan clamp instead of allowing `600`
+  - kept break selection and wheel labeling in seconds throughout the dial experience instead of switching to minute-style labels
+  - disabled the Home page Coach Score full-sweep visual so it no longer spins all the way to 100 before settling

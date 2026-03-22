@@ -55,7 +55,7 @@ struct WorkoutLaunchView: View {
     private var intervalTotalSeconds: Int {
         let sets = max(1, viewModel.selectedIntervalSets)
         let work = max(0, viewModel.selectedIntervalWorkMinutes)
-        let pause = max(0, viewModel.selectedIntervalBreakSeconds)
+        let pause = max(0, min(300, viewModel.selectedIntervalBreakSeconds))
         return (sets * work * 60) + (max(0, sets - 1) * pause)
     }
 
@@ -748,9 +748,9 @@ struct WorkoutLaunchView: View {
 
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalBreakSeconds,
-                    valueRange: 0...600,
+                    valueRange: 0...300,
                     stepSize: 15,
-                    unitLabel: L10n.minutesUpper,
+                    unitLabel: L10n.current == .no ? "SEK" : "SEC",
                     zeroLabel: nil,
                     dragSensitivity: 1.35,
                     valueLabelFormatter: intervalBreakDialLabel
@@ -838,38 +838,19 @@ struct WorkoutLaunchView: View {
     }
 
     private func formattedIntervalBreak(_ seconds: Int) -> String {
-        let clamped = max(0, seconds)
+        let clamped = max(0, min(300, seconds))
         if clamped == 0 {
             return L10n.current == .no ? "Ingen pause" : "No break"
         }
-        let minutes = clamped / 60
-        let remainingSeconds = clamped % 60
-        if minutes == 0 {
-            return L10n.current == .no ? "\(remainingSeconds) sek" : "\(remainingSeconds) sec"
-        }
-        if remainingSeconds == 0 {
-            return L10n.current == .no ? "\(minutes) min" : "\(minutes) min"
-        }
-        return L10n.current == .no
-            ? "\(minutes) min \(remainingSeconds) sek"
-            : "\(minutes) min \(remainingSeconds) sec"
+        return L10n.current == .no ? "\(clamped) sek" : "\(clamped) sec"
     }
 
     private func intervalBreakDialLabel(_ seconds: Int) -> (String, String) {
-        let clamped = max(0, seconds)
+        let clamped = max(0, min(300, seconds))
         if clamped == 0 {
             return (L10n.current == .no ? "INGEN" : "NONE", "")
         }
-
-        let minutes = clamped / 60
-        let remainingSeconds = clamped % 60
-        if minutes == 0 {
-            return ("\(remainingSeconds)", L10n.current == .no ? "SEK" : "SEC")
-        }
-        if remainingSeconds == 0 {
-            return ("\(minutes)", L10n.minutesUpper)
-        }
-        return (String(format: "%d:%02d", minutes, remainingSeconds), L10n.current == .no ? "MIN:SEK" : "MIN:SEC")
+        return ("\(clamped)", L10n.current == .no ? "SEK" : "SEC")
     }
 
     private func summaryEditButton(action: @escaping () -> Void) -> some View {
@@ -1017,6 +998,18 @@ struct CircularDialPicker: View {
         return unitLabel
     }
 
+    private var indicatorAngle: Double {
+        (displayProgress * 360.0) - 90.0
+    }
+
+    private var indicatorOffset: CGFloat {
+        (dialSize / 2) + 6
+    }
+
+    private var indicatorSize: CGFloat {
+        max(trackWidth + 8, 22)
+    }
+
     var body: some View {
         ZStack {
             // Outer dark background circle
@@ -1047,6 +1040,13 @@ struct CircularDialPicker: View {
                     .rotationEffect(.degrees(-90))
                     .blur(radius: isDragging ? 5 : 3)
             }
+
+            Circle()
+                .fill(Color.white)
+                .frame(width: indicatorSize, height: indicatorSize)
+                .shadow(color: Color.white.opacity(isDragging ? 0.46 : 0.28), radius: isDragging ? 10 : 5)
+                .offset(y: -indicatorOffset)
+                .rotationEffect(.degrees(indicatorAngle))
 
             // Center content
             VStack(spacing: 2) {
