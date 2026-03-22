@@ -689,6 +689,138 @@ def build_post_workout_voice_instructions(
     return common_intro
 
 
+def _v2_workout_type_label(context: Mapping[str, Any]) -> str | None:
+    """Return the workout type label if clearly known, else None."""
+    mode = str(context.get("workout_mode") or "").strip().lower()
+    label = str(context.get("workout_label") or "").strip()
+    label_lower = label.lower()
+    generic = {"", "workout", "standard", "økt", "okt"}
+
+    if mode == "easy_run" or "easy" in label_lower or "rolig" in label_lower:
+        return "Easy Run"
+    if mode == "interval" or "intervall" in label_lower or "interval" in label_lower:
+        return "Intervals"
+    if mode == "standard" or label_lower in generic:
+        return None
+    return label if label and label_lower not in generic else None
+
+
+def _v2_trustworthy_duration(context: Mapping[str, Any]) -> str | None:
+    """Return a human-readable duration string if trustworthy, else None."""
+    elapsed_s = context.get("elapsed_s")
+    if isinstance(elapsed_s, (int, float)) and int(elapsed_s) > 0:
+        return _spoken_duration_from_seconds(int(elapsed_s), "en")
+
+    parsed = _duration_seconds_from_context(context)
+    if parsed is not None and parsed > 0:
+        return _spoken_duration_from_seconds(parsed, "en")
+
+    return None
+
+
+def _v2_context_lines(context: Mapping[str, Any]) -> list[str]:
+    """Build a facts-only context block. Only include values that are
+    present, positive, and clearly not placeholders."""
+    lines: list[str] = []
+
+    workout_type = _v2_workout_type_label(context)
+    if workout_type:
+        lines.append(f"Workout type: {workout_type}")
+
+    duration = _v2_trustworthy_duration(context)
+    if duration:
+        lines.append(f"Duration: {duration}")
+
+    avg_hr = context.get("average_heart_rate")
+    if avg_hr is not None and int(avg_hr) > 0:
+        lines.append(f"Average heart rate: {int(avg_hr)} BPM")
+
+    final_hr = str(context.get("final_heart_rate_text") or "").strip()
+    if final_hr and final_hr not in ("0 BPM", "0", "—", ""):
+        if avg_hr is None or int(avg_hr) == 0:
+            lines.append(f"Final heart rate: {final_hr}")
+
+    zone_pct = _format_zone_pct(context.get("zone_time_in_target_pct"))
+    if zone_pct:
+        lines.append(f"Time in target zone: {zone_pct}")
+
+    coach_score = context.get("coach_score")
+    if coach_score is not None and int(coach_score) > 0:
+        lines.append(f"Coach score: {int(coach_score)}")
+
+    distance_m = context.get("distance_meters")
+    if distance_m is not None and float(distance_m) > 0:
+        lines.append(f"Distance: {float(distance_m) / 1000.0:.2f} km")
+
+    coaching_style = str(context.get("coaching_style") or "").strip()
+    if coaching_style:
+        lines.append(f"Chosen intensity: {coaching_style}")
+
+    return lines
+
+
+def _build_v2_instructions(
+    *,
+    summary_context: Mapping[str, Any] | None,
+    history_context: Mapping[str, Any] | None,
+    language: str,
+    user_name: str | None = None,
+) -> str:
+    """V2 instruction builder — minimal prompt, facts-only context,
+    workout-type-agnostic personal trainer."""
+    context = sanitize_post_workout_summary_context(summary_context)
+    is_norwegian = str(language or "").strip().lower().startswith("no")
+    language_name = "Norwegian" if is_norwegian else "English"
+    athlete_name = str(user_name or "").strip()
+
+    persona = (
+        "You are Coachi, a personal trainer reviewing a finished workout.\n"
+        "Use only the workout context provided below.\n"
+        "If something is missing, uncertain, or a placeholder value (0, empty, unavailable), ignore it.\n"
+        "\n"
+        "Do not invent:\n"
+        "- stats\n"
+        "- workout type\n"
+        "- exercises or movements\n"
+        "- conclusions not supported by the data\n"
+        "\n"
+        "Adapt to the workout:\n"
+        "- If the workout type is clear, use that context (running, intervals, strength, etc.)\n"
+        "- If the workout type is unclear, stay general and call it a workout\n"
+        "\n"
+        "First reply:\n"
+        "- Name the workout type if known, otherwise say 'workout'\n"
+        "- Mention duration if available\n"
+        "- Ask one simple question\n"
+        "\n"
+        "After that:\n"
+        "- Keep responses short (1-2 sentences)\n"
+        "- Ask one question at a time\n"
+        "- Do not over-analyze unless the athlete asks\n"
+        "- Stay grounded in the provided context\n"
+        "- Do not mention stats unless they are explicitly present below"
+    )
+
+    context_lines = _v2_context_lines(context)
+    if context_lines:
+        context_block = "Workout context:\n" + "\n".join(f"- {line}" for line in context_lines)
+    else:
+        context_block = "Workout context:\n- No workout data was provided. Do not guess."
+
+    parts = [persona]
+    parts.append(f"\nSpeak in {language_name}.")
+    if athlete_name:
+        parts.append(f"The athlete's name is {athlete_name}.")
+    parts.append("")
+    parts.append(context_block)
+
+    return "\n".join(parts)
+
+
+def _resolve_prompt_version() -> str:
+    return str(getattr(config, "XAI_VOICE_AGENT_PROMPT_VERSION", "v1") or "v1").strip().lower()
+
+
 def build_post_workout_voice_session_update(
     *,
     summary_context: Mapping[str, Any] | None,
@@ -696,14 +828,24 @@ def build_post_workout_voice_session_update(
     language: str,
     user_name: str | None = None,
 ) -> dict[str, Any]:
-    session_payload: dict[str, Any] = {
-        "voice": str(getattr(config, "XAI_VOICE_AGENT_VOICE", "Rex") or "Rex").strip() or "Rex",
-        "instructions": build_post_workout_voice_instructions(
+    prompt_version = _resolve_prompt_version()
+    if prompt_version == "v2":
+        instructions = _build_v2_instructions(
             summary_context=summary_context,
             history_context=history_context,
             language=language,
             user_name=user_name,
-        ),
+        )
+    else:
+        instructions = build_post_workout_voice_instructions(
+            summary_context=summary_context,
+            history_context=history_context,
+            language=language,
+            user_name=user_name,
+        )
+    session_payload: dict[str, Any] = {
+        "voice": str(getattr(config, "XAI_VOICE_AGENT_VOICE", "Rex") or "Rex").strip() or "Rex",
+        "instructions": instructions,
         "turn_detection": {
             "type": "server_vad",
             "threshold": float(getattr(config, "XAI_VOICE_AGENT_VAD_THRESHOLD", 0.4) or 0.4),
@@ -800,12 +942,14 @@ def bootstrap_post_workout_voice_session(
         language=language,
         user_name=user_name,
     )
+    prompt_version = _resolve_prompt_version()
     instructions_text = session_update.get("session", {}).get("instructions", "")
     _log = logger or __import__("logging").getLogger(__name__)
-    _log.info("[voice bootstrap] instructions length=%d", len(instructions_text))
+    _log.info("[voice bootstrap] prompt_version=%s instructions length=%d", prompt_version, len(instructions_text))
     _log.info("[voice bootstrap] instructions:\n%s", instructions_text)
     return {
         "voice_session_id": str(voice_session_id or f"voice_{uuid.uuid4().hex}"),
+        "prompt_version": prompt_version,
         "websocket_url": str(
             getattr(config, "XAI_VOICE_AGENT_WEBSOCKET_URL", "wss://api.x.ai/v1/realtime")
             or "wss://api.x.ai/v1/realtime"

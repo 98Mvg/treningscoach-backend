@@ -177,6 +177,10 @@ XAI_VOICE_AGENT_WEBSOCKET_URL = (
 ).strip()
 XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT = _env_int("XAI_VOICE_AGENT_HISTORY_RECENT_WORKOUT_LIMIT", 12)
 XAI_VOICE_AGENT_CLIENT_SECRET_TIMEOUT_SECONDS = _env_float("XAI_VOICE_AGENT_CLIENT_SECRET_TIMEOUT_SECONDS", 20.0)
+# Voice prompt version — switch between V1 (running-specific) and V2 (workout-agnostic personal trainer).
+# Rollback: set to "v1" on Render to restore previous behavior.
+XAI_VOICE_AGENT_PROMPT_VERSION = (os.getenv("XAI_VOICE_AGENT_PROMPT_VERSION", "v1") or "v1").strip().lower()
+
 # VAD turn detection — silence_duration_ms controls how long the server waits
 # after the user stops speaking before triggering an AI response.
 # 500ms balances responsiveness with natural speech pauses; tune via env var.
