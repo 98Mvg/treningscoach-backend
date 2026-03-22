@@ -1873,3 +1873,13 @@ Updated: 2026-03-17
 - Fix:
   - when advancing from workout-type selection into Easy Run setup, the app now resets Easy Run mode to `timed`
   - that prevents an old persisted `free run` preference from skipping the warm-up step before the user chooses it this time
+
+## Review — 2026-03-22 Center and simplify workout setup step titles
+
+- Tightened the active wheel-step header in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - the setup title should sit as the main centered focus above the wheel
+  - the wording should be short and action-specific instead of `Select ...`
+- Fix:
+  - changed setup step titles to `Warm up`, `Sets`, `Duration`, and `Rest`
+  - centered the active setup title and increased its font size while keeping the rest of the screen structure unchanged

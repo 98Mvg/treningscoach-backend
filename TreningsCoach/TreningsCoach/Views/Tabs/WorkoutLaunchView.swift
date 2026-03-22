@@ -435,13 +435,16 @@ struct WorkoutLaunchView: View {
 
     @ViewBuilder
     private func launchSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+        let isCurrentSetupAction = showsSetupSelectionSection && !title.isEmpty && subtitle.isEmpty
         VStack(alignment: .leading, spacing: 10) {
             if !title.isEmpty || !subtitle.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: isCurrentSetupAction ? .center : .leading, spacing: 4) {
                     if !title.isEmpty {
                         Text(title)
-                            .font(.system(size: 19, weight: .bold))
+                            .font(.system(size: isCurrentSetupAction ? 30 : 19, weight: .bold))
                             .foregroundColor(CoachiTheme.textPrimary)
+                            .multilineTextAlignment(isCurrentSetupAction ? .center : .leading)
+                            .frame(maxWidth: .infinity, alignment: isCurrentSetupAction ? .center : .leading)
                     }
                     if !subtitle.isEmpty {
                         Text(subtitle)
@@ -449,6 +452,7 @@ struct WorkoutLaunchView: View {
                             .foregroundColor(CoachiTheme.textSecondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: isCurrentSetupAction ? .center : .leading)
             }
             content()
         }
@@ -560,15 +564,15 @@ struct WorkoutLaunchView: View {
     private var stepATitle: String {
         switch setupStage {
         case .easyWarmup, .intervalWarmup:
-            return L10n.current == .no ? "Velg oppvarming" : "Select warm-up"
+            return L10n.current == .no ? "Oppvarming" : "Warm up"
         case .easyDuration:
-            return L10n.current == .no ? "Velg løpetid" : "Select work time"
+            return L10n.current == .no ? "Varighet" : "Duration"
         case .intervalSets:
-            return L10n.current == .no ? "Velg drag" : "Select sets"
+            return L10n.current == .no ? "Drag" : "Sets"
         case .intervalDuration:
-            return L10n.current == .no ? "Velg tid" : "Select work time"
+            return L10n.current == .no ? "Varighet" : "Duration"
         case .intervalBreak:
-            return L10n.current == .no ? "Velg pause" : "Select break time"
+            return L10n.current == .no ? "Pause" : "Rest"
         }
     }
 

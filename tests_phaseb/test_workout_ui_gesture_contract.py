@@ -216,7 +216,7 @@ def test_workout_launch_surfaces_intensity_before_advanced_options() -> None:
     assert '"Choose your coaching intensity before you start."' not in text
     assert '"Velg ønsket coachingintensitet før du starter."' not in text
     assert "Text(title)" in text
-    assert '.font(.system(size: 19, weight: .bold))' in text
+    assert '.font(.system(size: isCurrentSetupAction ? 30 : 19, weight: .bold))' in text
     assert "if let setupCompletionDurationText {" in text
     assert "handleBottomBackAction()" in text
     assert "intensityOptionCard(" in text
@@ -290,15 +290,19 @@ def test_workout_start_sets_immediate_startup_status_line() -> None:
 def test_workout_launch_uses_single_large_current_action_header() -> None:
     text = _workout_launch_view_text()
     assert "private var stepATitle: String {" in text
-    assert 'return L10n.current == .no ? "Velg oppvarming" : "Select warm-up"' in text
-    assert 'return L10n.current == .no ? "Velg drag" : "Select sets"' in text
-    assert 'return L10n.current == .no ? "Velg tid" : "Select work time"' in text
-    assert 'return L10n.current == .no ? "Velg pause" : "Select break time"' in text
+    assert 'return L10n.current == .no ? "Oppvarming" : "Warm up"' in text
+    assert 'return L10n.current == .no ? "Drag" : "Sets"' in text
+    assert 'return L10n.current == .no ? "Varighet" : "Duration"' in text
+    assert 'return L10n.current == .no ? "Pause" : "Rest"' in text
     assert 'return "\\(L10n.warmupTime) · \\(L10n.intensityEasy)"' not in text
     assert "Text(L10n.warmupEasyBPMCue)" not in text
     assert 'Text((L10n.current == .no ? "DRAG" : "DRAG"))' not in text
     assert 'Text((L10n.current == .no ? "TID" : "TIME"))' not in text
     assert 'Text((L10n.current == .no ? "PAUSER" : "BREAKS"))' not in text
+    assert "let isCurrentSetupAction = showsSetupSelectionSection && !title.isEmpty && subtitle.isEmpty" in text
+    assert '.font(.system(size: isCurrentSetupAction ? 30 : 19, weight: .bold))' in text
+    assert '.multilineTextAlignment(isCurrentSetupAction ? .center : .leading)' in text
+    assert '.frame(maxWidth: .infinity, alignment: isCurrentSetupAction ? .center : .leading)' in text
 
 
 def test_active_workout_hr_fallback_is_zero_bpm() -> None:
