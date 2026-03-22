@@ -4762,7 +4762,12 @@ def profile_upsert():
 # ============================================
 
 
-def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
+def _build_live_voice_history_context(*, user_id: str, is_premium: bool = False) -> dict[str, object]:
+    # Free users: no history (current session context only).
+    # Premium users: last 7 days of history.
+    if not is_premium:
+        return {}
+
     recent_limit = max(
         1,
         min(
