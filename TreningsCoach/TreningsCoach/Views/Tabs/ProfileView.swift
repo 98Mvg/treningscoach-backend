@@ -316,8 +316,9 @@ struct ProfileView: View {
 
             settingsDivider
 
-            NavigationLink {
-                PrivacyPolicyView()
+            Button {
+                guard let url = URL(string: coachiPrivacyURL) else { return }
+                openURL(url)
             } label: {
                 SettingsListRow(
                     icon: "hand.raised",
@@ -328,8 +329,9 @@ struct ProfileView: View {
 
             settingsDivider
 
-            NavigationLink {
-                TermsOfUseView()
+            Button {
+                guard let url = URL(string: coachiTermsURL) else { return }
+                openURL(url)
             } label: {
                 SettingsListRow(
                     icon: "doc.text",
@@ -665,8 +667,9 @@ private struct ManageSubscriptionView: View {
                 .frame(maxWidth: .infinity)
 
                 HStack(spacing: 8) {
-                    NavigationLink {
-                        TermsOfUseView()
+                    Button {
+                        guard let url = URL(string: coachiTermsURL) else { return }
+                        openURL(url)
                     } label: {
                         Text(isNorwegian ? "Brukervilkår" : "Terms")
                     }
@@ -675,8 +678,9 @@ private struct ManageSubscriptionView: View {
                     Text(isNorwegian ? "og" : "and")
                         .foregroundColor(CoachiTheme.textSecondary)
 
-                    NavigationLink {
-                        PrivacyPolicyView()
+                    Button {
+                        guard let url = URL(string: coachiPrivacyURL) else { return }
+                        openURL(url)
                     } label: {
                         Text(isNorwegian ? "personvernerklæring" : "privacy policy")
                     }

@@ -64,8 +64,11 @@ def test_profile_hides_placeholder_settings_sections_in_launch_runtime() -> None
     assert "FAQView()" not in text
     assert "NavigationLink {\n                FAQGuideView()" in text
     assert "NavigationLink {\n                ContactSupportView()" in text
-    assert "NavigationLink {\n                PrivacyPolicyView()" in text
-    assert "NavigationLink {\n                TermsOfUseView()" in text
+    assert 'private let coachiPrivacyURL = "https://coachi.no/privacy"' in text
+    assert 'private let coachiTermsURL = "https://coachi.no/terms"' in text
+    assert "guard let url = URL(string: coachiPrivacyURL) else { return }" in text
+    assert "guard let url = URL(string: coachiTermsURL) else { return }" in text
+    assert "openURL(url)" in text
     assert "title: L10n.contactSupport" in text
     assert "title: L10n.faqTitle" in text
     assert "title: L10n.privacyPolicy" in text
@@ -236,8 +239,9 @@ def test_manage_subscription_embeds_inline_offer_swiper_without_onboarding_heade
     assert '.frame(maxWidth: 320)' in profile_text
     assert '.background(Color(hex: "22C55E"))' in profile_text
     assert "min(max(UIScreen.main.bounds.height * 0.86, 760), 920)" in profile_text
-    assert "NavigationLink {\n                TermsOfUseView()" in profile_text
-    assert "NavigationLink {\n                PrivacyPolicyView()" in profile_text
+    assert 'guard let url = URL(string: coachiTermsURL) else { return }' in profile_text
+    assert 'guard let url = URL(string: coachiPrivacyURL) else { return }' in profile_text
+    assert "openURL(url)" in profile_text
     assert "@Binding var isManageSubscriptionPresented: Bool" in profile_text
     assert "ManageSubscriptionView(isManageSubscriptionPresented: $isManageSubscriptionPresented)" in profile_text
     assert "isManageSubscriptionPresented = true" in profile_text

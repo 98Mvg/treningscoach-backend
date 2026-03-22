@@ -92,6 +92,7 @@ enum PaywallPlanSelectionOption {
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
@@ -104,6 +105,8 @@ struct PaywallView: View {
     private var hasPremiumAccess: Bool {
         subscriptionManager.hasPremiumAccess
     }
+    private var termsURL: URL? { URL(string: "https://coachi.no/terms") }
+    private var privacyURL: URL? { URL(string: "https://coachi.no/privacy") }
 
     init(context: PaywallContext, initialPlan: PaywallPlanSelectionOption = .yearly) {
         self.context = context
@@ -315,8 +318,9 @@ struct PaywallView: View {
 
     private var termsAndPrivacyFooter: some View {
         HStack(spacing: 8) {
-            NavigationLink {
-                TermsOfUseView()
+            Button {
+                guard let termsURL else { return }
+                openURL(termsURL)
             } label: {
                 Text(isNorwegian ? "Brukervilkår" : "Terms")
             }
@@ -325,8 +329,9 @@ struct PaywallView: View {
             Text(isNorwegian ? "og" : "and")
                 .foregroundColor(CoachiTheme.textSecondary)
 
-            NavigationLink {
-                PrivacyPolicyView()
+            Button {
+                guard let privacyURL else { return }
+                openURL(privacyURL)
             } label: {
                 Text(isNorwegian ? "personvernerklæring" : "privacy policy")
             }
