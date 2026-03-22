@@ -2132,7 +2132,6 @@ struct WatchConnectedPremiumOfferStepView: View {
         let cornerRadius: CGFloat = 28
         let contentSpacing: CGFloat = denseLayout ? 12 : 18
         let featureSpacing: CGFloat = denseLayout ? 10 : 14
-        let footerSpacing: CGFloat = denseLayout ? 6 : 10
         let headerHeight: CGFloat = {
             switch plan {
             case .free:

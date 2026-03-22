@@ -890,6 +890,7 @@ private struct HealthProfileView: View {
 private struct PersonalProfileSettingsView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var authManager: AuthManager
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("app_language") private var appLanguageCode: String = "en"
     @AppStorage("app_dark_mode_enabled") private var darkModeEnabled: Bool = true
 
@@ -1029,6 +1030,9 @@ private struct PersonalProfileSettingsView: View {
         .background(CoachiTheme.bg.ignoresSafeArea())
         .navigationTitle(L10n.personalProfile)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: authManager.isAuthenticated) {
+            if !authManager.isAuthenticated { dismiss() }
+        }
     }
 
     private var emailDisplayLine: String {

@@ -363,8 +363,8 @@ final class XAIRealtimeVoiceService: NSObject, ObservableObject {
         }
 
         let instructions = languageCode == "no"
-            ? "Lever den påkrevde treningsoppsummeringen nå. Følg de aktive øktinstruksjonene nøyaktig."
-            : "Deliver the required opening recap now. Follow the active session instructions exactly."
+            ? "Start med treningsoppsummeringen nå. Nevn treningstype og varighet hvis tilgjengelig."
+            : "Start with the workout summary now. Name the workout type and duration if available."
         let payload: [String: Any] = [
             "type": "response.create",
             "response": [
