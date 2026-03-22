@@ -4885,6 +4885,8 @@ def create_voice_session():
         else str(user.display_name or "").strip()
     )
 
+    logger.info("[voice/session] sanitized_context=%s history_keys=%s language=%s", summary_context, list(history_context.keys()) if history_context else "empty", language)
+
     try:
         bootstrap = bootstrap_post_workout_voice_session(
             summary_context=summary_context,

@@ -581,6 +581,39 @@ def build_post_workout_voice_instructions(
         )
 
     activity_anchor = f"{activity_line}\n" if activity_line else ""
+    has_real_stats = bool(opening_stats)
+    has_duration = bool(opening_brief.get("duration"))
+    if has_real_stats:
+        opening_rules = (
+            "YOUR FIRST RESPONSE — opening recap (up to 45 words, 3 sentences):\n"
+            "1. Name the workout and duration.\n"
+            "2. Mention one or two stats from the recap brief below.\n"
+            "3. End with a short insight or one question.\n\n"
+            f"{opening_reference_rule}\n"
+            "Interpret timer strings literally (00:07 = 7 seconds, not 7 minutes).\n"
+            f"{short_duration_guard}"
+            "If average heart rate is available, prefer it over final heart rate.\n"
+            "If distance is available, you can estimate pace.\n\n"
+            "Opening recap brief:\n"
+            f"- Workout: {opening_workout_line}\n"
+            f"- Duration: {opening_duration_line}\n"
+            "- Stats (pick one or two):\n"
+            f"{opening_stats_block}\n"
+            f"- Insight cue: {opening_brief['insight_cue']}\n\n"
+        )
+    elif has_duration:
+        opening_rules = (
+            "YOUR FIRST RESPONSE — opening recap (up to 30 words, 2 sentences):\n"
+            f"1. Acknowledge the {opening_workout_line} lasting {opening_duration_line}.\n"
+            "2. Ask how the athlete felt.\n"
+            "No stats are available — do NOT mention heart rate, steps, distance, score, or any numbers.\n\n"
+        )
+    else:
+        opening_rules = (
+            "YOUR FIRST RESPONSE — opening (up to 20 words, 1-2 sentences):\n"
+            "Acknowledge the workout is done and ask how the athlete felt.\n"
+            "No stats are available — do NOT mention heart rate, steps, distance, duration, score, or any numbers.\n\n"
+        )
     common_intro = (
         f"{persona_text}\n\n"
         "You are in post-workout review mode. "
@@ -588,21 +621,7 @@ def build_post_workout_voice_instructions(
         f"{mode_awareness}\n"
         f"Speak in {language_name}. "
         f"{athlete_line}\n\n"
-        "YOUR FIRST RESPONSE — opening recap (up to 45 words, 3 sentences):\n"
-        "1. Name the workout and duration.\n"
-        "2. Mention one or two stats from the recap brief below.\n"
-        "3. End with a short insight or one question.\n\n"
-        f"{opening_reference_rule}\n"
-        "Interpret timer strings literally (00:07 = 7 seconds, not 7 minutes).\n"
-        f"{short_duration_guard}"
-        "If average heart rate is available, prefer it over final heart rate.\n"
-        "If distance is available, you can estimate pace.\n\n"
-        "Opening recap brief:\n"
-        f"- Workout: {opening_workout_line}\n"
-        f"- Duration: {opening_duration_line}\n"
-        "- Stats (pick one or two):\n"
-        f"{opening_stats_block}\n"
-        f"- Insight cue: {opening_brief['insight_cue']}\n\n"
+        f"{opening_rules}"
         "Workout summary:\n"
         f"{summary_block}\n"
         "Workout history:\n"
@@ -726,6 +745,10 @@ def bootstrap_post_workout_voice_session(
         language=language,
         user_name=user_name,
     )
+    instructions_text = session_update.get("session", {}).get("instructions", "")
+    _log = logger or __import__("logging").getLogger(__name__)
+    _log.info("[voice bootstrap] instructions length=%d", len(instructions_text))
+    _log.info("[voice bootstrap] instructions:\n%s", instructions_text)
     return {
         "voice_session_id": str(voice_session_id or f"voice_{uuid.uuid4().hex}"),
         "websocket_url": str(
