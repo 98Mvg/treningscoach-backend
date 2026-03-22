@@ -211,12 +211,12 @@ def _opening_metric_candidates(summary_context: Mapping[str, Any], language: str
         candidates.append(f"{label}: {zone_pct}")
 
     coach_score = summary_context.get("coach_score")
-    if coach_score is not None:
+    if coach_score is not None and int(coach_score) > 0:
         label = "Coach score" if is_norwegian else "Coach score"
         candidates.append(f"{label}: {coach_score}")
 
     final_hr = str(summary_context.get("final_heart_rate_text") or "").strip()
-    if final_hr:
+    if final_hr and final_hr not in ("0 BPM", "0", "—", ""):
         label = "Sluttpuls" if is_norwegian else "Final heart rate"
         candidates.append(f"{label}: {final_hr}")
 
@@ -308,12 +308,12 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
         lines.append(f"{prefix}: {duration_text}")
 
     final_hr = str(summary_context.get("final_heart_rate_text") or "").strip()
-    if final_hr:
+    if final_hr and final_hr not in ("0 BPM", "0", "—", ""):
         prefix = "Final heart rate" if not is_norwegian else "Sluttpuls"
         lines.append(f"{prefix}: {final_hr}")
 
     coach_score = summary_context.get("coach_score")
-    if coach_score is not None:
+    if coach_score is not None and int(coach_score) > 0:
         prefix = "Coach score" if not is_norwegian else "Coach score"
         lines.append(f"{prefix}: {coach_score}")
 
@@ -581,9 +581,19 @@ def build_post_workout_voice_instructions(
         )
 
     activity_anchor = f"{activity_line}\n" if activity_line else ""
-    has_real_stats = bool(opening_stats)
+    is_short_workout = duration_seconds is not None and duration_seconds < 60
+    has_real_stats = bool(opening_stats) and not is_short_workout
     has_duration = bool(opening_brief.get("duration"))
-    if has_real_stats:
+    if is_short_workout and has_duration:
+        spoken_dur = opening_duration_line
+        opening_rules = (
+            "YOUR FIRST RESPONSE — one short sentence only:\n"
+            f"Say: \"That was a very short {opening_workout_line} — about {spoken_dur}.\"\n"
+            "Do NOT analyze performance. Do NOT mention heart rate, score, zones, or any stats.\n"
+            "After that, you may continue the conversation normally and answer questions.\n"
+            "Do not force insights or coaching conclusions from this workout.\n\n"
+        )
+    elif has_real_stats:
         opening_rules = (
             "YOUR FIRST RESPONSE — opening recap (up to 45 words, 3 sentences):\n"
             "1. Name the workout and duration.\n"
@@ -614,6 +624,8 @@ def build_post_workout_voice_instructions(
             "Acknowledge the workout is done and ask how the athlete felt.\n"
             "No stats are available — do NOT mention heart rate, steps, distance, duration, score, or any numbers.\n\n"
         )
+    summary_section = "" if is_short_workout else f"Workout summary:\n{summary_block}\n"
+    history_section = f"Workout history:\n{history_block}" if history_block and not is_short_workout else ""
     common_intro = (
         f"{persona_text}\n\n"
         "You are in post-workout review mode. "
@@ -622,10 +634,8 @@ def build_post_workout_voice_instructions(
         f"Speak in {language_name}. "
         f"{athlete_line}\n\n"
         f"{opening_rules}"
-        "Workout summary:\n"
-        f"{summary_block}\n"
-        "Workout history:\n"
-        f"{history_block}"
+        f"{summary_section}"
+        f"{history_section}"
     )
 
     if is_norwegian:
