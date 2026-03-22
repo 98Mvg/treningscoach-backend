@@ -58,3 +58,29 @@ def test_post_workout_voice_instructions_keep_generic_workout_running_only() -> 
     assert "- Average heart rate: 148 BPM" in instructions
     assert "- Distance: 2.20 km" in instructions
     assert "- Insight cue:" in instructions
+
+
+def test_post_workout_voice_instructions_filter_zero_value_summary_stats_and_gate_history() -> None:
+    instructions = xai_voice.build_post_workout_voice_instructions(
+        summary_context={
+            "workout_mode": "standard",
+            "workout_label": "Workout",
+            "duration_text": "12:30",
+            "elapsed_s": 750,
+            "coach_score": 0,
+            "coach_score_summary_line": "Coach score: 0 — Build on it.",
+            "zone_overshoots": 0,
+        },
+        history_context={
+            "total_workouts": 42,
+            "total_duration_minutes": 1234,
+        },
+        language="en",
+        user_name="Marius",
+    )
+
+    assert "No stats are available — do NOT mention heart rate, steps, distance, score, or any numbers." in instructions
+    assert "Coach summary: Coach score: 0" not in instructions
+    assert "Coach score: 0" not in instructions
+    assert "Zone overshoots: 0" not in instructions
+    assert "Workout history (background for later turns only — never cite it or infer missing stats from it in the opening recap):" in instructions

@@ -1883,3 +1883,14 @@ Updated: 2026-03-17
 - Fix:
   - changed setup step titles to `Warm up`, `Sets`, `Duration`, and `Rest`
   - centered the active setup title and increased its font size while keeping the rest of the screen structure unchanged
+
+## Review — 2026-03-22 Stop live voice workout-context hallucinations in the opening recap
+
+- Tightened the single existing live `Talk to Coach` bootstrap path in [xai_voice.py](/Users/mariusgaarder/Documents/treningscoach/xai_voice.py) and [XAIRealtimeVoiceService.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Services/XAIRealtimeVoiceService.swift).
+- Product correction:
+  - the opening recap should not invent workout stats when the summary is sparse
+  - zero-value score/zone placeholders should not leak into the live voice prompt as if they were meaningful workout facts
+- Fix:
+  - filtered `Coach score: 0` summary lines and `Zone overshoots: 0` out of the backend prompt helpers
+  - marked workout history as later-turn background only instead of opening-recap material
+  - changed the realtime kickoff to follow the active session instructions instead of always asking for `key stats`

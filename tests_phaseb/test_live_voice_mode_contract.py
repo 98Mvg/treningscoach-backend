@@ -185,6 +185,7 @@ def test_voice_service_uses_realtime_socket_and_session_cap() -> None:
     assert "connectionState = .connecting" in text
     assert "Live voice is taking longer than expected to connect" in text
     assert "Deliver the required opening recap now. Follow the active session instructions exactly." in text
+    assert "Name the workout, duration, and key stats." not in text
     assert "outboundAudioSender.updateSocket(socket)" in text
     assert "outboundAudioSender.enqueue(payload)" in text
     assert "pendingPayloads.count >= self.maxDepth" in text
@@ -211,7 +212,7 @@ def test_live_voice_prompt_uses_structured_workout_history_without_chat_memory()
     assert "def _opening_recap_brief(" in text
     assert "def _opening_metric_candidates(" in text
     assert "def _opening_insight_cue(" in text
-    assert "Workout history:" in text
+    assert "Workout history (background for later turns only" in text
     assert "post_workout_voice" in text
     assert "sanitize_post_workout_summary_context" in text
     assert "def _canonical_workout_reference(" in text

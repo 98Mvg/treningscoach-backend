@@ -137,6 +137,47 @@ def _format_zone_pct(raw_value: float | None) -> str | None:
     return f"{pct:.0f}%"
 
 
+def _meaningful_coach_score(summary_context: Mapping[str, Any]) -> int | None:
+    raw_score = summary_context.get("coach_score")
+    if raw_score is None:
+        return None
+    try:
+        parsed = int(raw_score)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _meaningful_coach_score_summary_line(summary_context: Mapping[str, Any]) -> str | None:
+    raw_line = str(summary_context.get("coach_score_summary_line") or "").strip()
+    if not raw_line:
+        return None
+
+    if _meaningful_coach_score(summary_context) is not None:
+        return raw_line
+
+    normalized = " ".join(raw_line.lower().split())
+    if normalized.startswith("coach score: 0"):
+        return None
+    return raw_line
+
+
+def _meaningful_zone_overshoots(summary_context: Mapping[str, Any]) -> int | None:
+    raw_overshoots = summary_context.get("zone_overshoots")
+    if raw_overshoots is None:
+        return None
+    try:
+        parsed = int(raw_overshoots)
+    except (TypeError, ValueError):
+        return None
+
+    if parsed <= 0:
+        return None
+    if _format_zone_pct(summary_context.get("zone_time_in_target_pct")) is None:
+        return None
+    return parsed
+
+
 def _duration_seconds_from_context(summary_context: Mapping[str, Any]) -> int | None:
     elapsed_s = summary_context.get("elapsed_s")
     if elapsed_s is not None:
@@ -210,8 +251,8 @@ def _opening_metric_candidates(summary_context: Mapping[str, Any], language: str
         label = "Tid i målsonen" if is_norwegian else "Time in target zone"
         candidates.append(f"{label}: {zone_pct}")
 
-    coach_score = summary_context.get("coach_score")
-    if coach_score is not None and int(coach_score) > 0:
+    coach_score = _meaningful_coach_score(summary_context)
+    if coach_score is not None:
         label = "Coach score" if is_norwegian else "Coach score"
         candidates.append(f"{label}: {coach_score}")
 
@@ -226,19 +267,19 @@ def _opening_metric_candidates(summary_context: Mapping[str, Any], language: str
 def _opening_insight_cue(summary_context: Mapping[str, Any], language: str) -> str:
     is_norwegian = str(language or "").strip().lower().startswith("no")
     zone_pct = _format_zone_pct(summary_context.get("zone_time_in_target_pct"))
-    overshoots = summary_context.get("zone_overshoots")
+    overshoots = _meaningful_zone_overshoots(summary_context)
     average_hr = summary_context.get("average_heart_rate")
     coaching_style = str(summary_context.get("coaching_style") or "").strip()
     distance_m = summary_context.get("distance_meters")
     duration_seconds = _duration_seconds_from_context(summary_context)
-    coach_score_summary_line = str(summary_context.get("coach_score_summary_line") or "").strip()
+    coach_score_summary_line = _meaningful_coach_score_summary_line(summary_context)
 
     if zone_pct:
-        if overshoots is not None and int(overshoots) > 0:
+        if overshoots is not None:
             return (
-                f"Comment briefly on zone control using {zone_pct} time in zone and {int(overshoots)} overshoots."
+                f"Comment briefly on zone control using {zone_pct} time in zone and {overshoots} overshoots."
                 if not is_norwegian
-                else f"Kommenter kort sonekontrollen med {zone_pct} tid i sonen og {int(overshoots)} overshoots."
+                else f"Kommenter kort sonekontrollen med {zone_pct} tid i sonen og {overshoots} overshoots."
             )
         return (
             f"Comment briefly on steady zone control using {zone_pct} time in zone."
@@ -312,12 +353,12 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
         prefix = "Final heart rate" if not is_norwegian else "Sluttpuls"
         lines.append(f"{prefix}: {final_hr}")
 
-    coach_score = summary_context.get("coach_score")
-    if coach_score is not None and int(coach_score) > 0:
+    coach_score = _meaningful_coach_score(summary_context)
+    if coach_score is not None:
         prefix = "Coach score" if not is_norwegian else "Coach score"
         lines.append(f"{prefix}: {coach_score}")
 
-    score_line = str(summary_context.get("coach_score_summary_line") or "").strip()
+    score_line = _meaningful_coach_score_summary_line(summary_context)
     if score_line:
         prefix = "Coach summary" if not is_norwegian else "Coach-oppsummering"
         lines.append(f"{prefix}: {score_line}")
@@ -327,7 +368,7 @@ def _summary_lines(summary_context: Mapping[str, Any], language: str) -> list[st
         prefix = "Time in target zone" if not is_norwegian else "Tid i målsonen"
         lines.append(f"{prefix}: {zone_pct}")
 
-    overshoots = summary_context.get("zone_overshoots")
+    overshoots = _meaningful_zone_overshoots(summary_context)
     if overshoots is not None:
         prefix = "Zone overshoots" if not is_norwegian else "Sone-overshoots"
         lines.append(f"{prefix}: {overshoots}")
@@ -624,7 +665,12 @@ def build_post_workout_voice_instructions(
             "No stats are available — do NOT mention heart rate, steps, distance, duration, score, or any numbers.\n\n"
         )
     summary_section = f"Workout summary:\n{summary_block}\n"
-    history_section = f"Workout history:\n{history_block}" if history_block else ""
+    history_section = (
+        "Workout history (background for later turns only — never cite it or infer missing stats from it in the opening recap):\n"
+        f"{history_block}"
+        if history_block
+        else ""
+    )
     common_intro = (
         f"{persona_text}\n\n"
         "You are in post-workout review mode. "
