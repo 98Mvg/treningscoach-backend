@@ -1840,3 +1840,36 @@ Updated: 2026-03-17
 - Fix:
   - removed total duration from the top header subtitle
   - kept total duration only once inside the intensity section
+
+## Review — 2026-03-22 Remove intensity-header subtext
+
+- Simplified the post-setup intensity state in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - after setup completion, `Choose your workout intensity` should stand on its own without helper text under the title
+- Fix:
+  - removed the post-setup subtitle line entirely
+  - kept the setup-state helper text for the pre-intensity step unchanged
+
+## Review — 2026-03-22 Align timed easy run setup and gate Performance Mode
+
+- Tightened the single existing workout setup path in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift) and [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift).
+- Product correction:
+  - timed Easy Run should require a real duration step just like the interval flow
+  - only Free Run should skip warm-up / duration setup
+  - the setup wheel area needed more vertical presence
+  - `Performance Mode` should open Premium paywall instead of selecting for free users
+- Fix:
+  - changed timed Easy Run duration wheel from `0...120` to `1...120`
+  - clamped timed Easy Run runtime duration to at least `1` minute in the session-plan path
+  - increased setup-section vertical padding and dial size on the shared wheel path
+  - added a paywall gate when free users tap the `Performance Mode` persona chip
+
+## Review — 2026-03-22 Easy Run should not silently inherit Free Run skip
+
+- Corrected Easy Run entry behavior in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - Easy Run should include the warm-up step by default
+  - only an explicit Free Run choice in the current setup should skip warm-up/duration
+- Fix:
+  - when advancing from workout-type selection into Easy Run setup, the app now resets Easy Run mode to `timed`
+  - that prevents an old persisted `free run` preference from skipping the warm-up step before the user chooses it this time

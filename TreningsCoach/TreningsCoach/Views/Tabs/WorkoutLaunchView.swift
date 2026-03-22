@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct WorkoutLaunchView: View {
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
+
     private enum SetupStage {
         case easyWarmup
         case easyDuration
@@ -22,6 +24,7 @@ struct WorkoutLaunchView: View {
     @State private var appeared = false
     @State private var launchStep = 1
     @State private var showAdvancedOptions = false
+    @State private var showPerformanceModePaywall = false
     @State private var setupStage: SetupStage = .easyWarmup
     @State private var easyRunConfigured = false
     @State private var intervalsConfigured = false
@@ -96,6 +99,10 @@ struct WorkoutLaunchView: View {
         }
     }
 
+    private var launchSectionVerticalPadding: CGFloat {
+        showsSetupSelectionSection ? 18 : 14
+    }
+
     var body: some View {
         ZStack {
             CoachiTheme.backgroundGradient.ignoresSafeArea()
@@ -149,6 +156,9 @@ struct WorkoutLaunchView: View {
                         )
 
                         Button {
+                            if viewModel.selectedWorkoutMode == .easyRun {
+                                viewModel.selectedEasyRunSessionMode = .timed
+                            }
                             resetSetupFlowForSelectedMode()
                             withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
                                 launchStep = 2
@@ -179,13 +189,11 @@ struct WorkoutLaunchView: View {
                             Text(showsPostSetupSections ? L10n.workoutIntensityPrompt : "Quick setup")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(CoachiTheme.textPrimary)
-                            Text(
-                                showsPostSetupSections
-                                    ? (L10n.current == .no ? "Velg ønsket coachingintensitet før du starter." : "Choose your coaching intensity before you start.")
-                                    : "Session details, wheels, and coaching options."
-                            )
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(CoachiTheme.textSecondary)
+                            if !showsPostSetupSections {
+                                Text("Session details, wheels, and coaching options.")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(CoachiTheme.textSecondary)
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -230,7 +238,13 @@ struct WorkoutLaunchView: View {
                                             HStack(spacing: 12) {
                                                 ForEach(CoachPersonality.allCases) { persona in
                                                     PersonaChipView(persona: persona, isSelected: viewModel.activePersonality == persona) {
-                                                        withAnimation(AppConfig.Anim.buttonSpring) { viewModel.selectPersonality(persona) }
+                                                        guard !(persona == .toxicMode && !subscriptionManager.hasPremiumAccess) else {
+                                                            showPerformanceModePaywall = true
+                                                            return
+                                                        }
+                                                        withAnimation(AppConfig.Anim.buttonSpring) {
+                                                            viewModel.selectPersonality(persona)
+                                                        }
                                                     }
                                                 }
                                             }
@@ -348,6 +362,10 @@ struct WorkoutLaunchView: View {
             resetSetupFlowForSelectedMode()
             withAnimation(.easeOut(duration: 0.7).delay(0.15)) { appeared = true }
         }
+        .sheet(isPresented: $showPerformanceModePaywall) {
+            PaywallView(context: .general)
+                .environmentObject(subscriptionManager)
+        }
     }
 
     @ViewBuilder
@@ -434,7 +452,8 @@ struct WorkoutLaunchView: View {
             }
             content()
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, launchSectionVerticalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(CoachiTheme.surface.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -555,11 +574,11 @@ struct WorkoutLaunchView: View {
 
     @ViewBuilder
     private var easyRunSetupContent: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 14) {
             easyRunModeToggle
 
             if viewModel.selectedEasyRunSessionMode != .freeRun, setupStage == .easyWarmup {
-                VStack(spacing: 10) {
+                VStack(spacing: 14) {
                     CircularDialPicker(
                         selectedValue: $viewModel.selectedWarmupMinutes,
                         valueRange: 0...40,
@@ -574,12 +593,12 @@ struct WorkoutLaunchView: View {
                     }
                 }
             } else if viewModel.selectedEasyRunSessionMode != .freeRun {
-                VStack(spacing: 10) {
+                VStack(spacing: 14) {
                     CircularDialPicker(
                         selectedValue: $viewModel.selectedEasyRunMinutes,
-                        valueRange: 0...120,
+                        valueRange: 1...120,
                         unitLabel: L10n.minutesUpper,
-                        zeroLabel: L10n.current == .no ? "0 MIN" : "0 MIN"
+                        zeroLabel: nil
                     )
                     HStack(spacing: 10) {
                         Button {
@@ -597,19 +616,19 @@ struct WorkoutLaunchView: View {
                         }
                         .buttonStyle(.plain)
 
-                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
-                        easyRunConfigured = true
+                        stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                            easyRunConfigured = true
+                        }
                     }
                 }
             }
-        }
         }
     }
 
     @ViewBuilder
     private var intervalsSetupContent: some View {
         if setupStage == .intervalWarmup {
-            VStack(spacing: 10) {
+            VStack(spacing: 14) {
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedWarmupMinutes,
                     valueRange: 0...40,
@@ -887,7 +906,7 @@ struct CircularDialPicker: View {
     var stepSize: Int = 1
     var unitLabel: String = L10n.minutesUpper
     var zeroLabel: String? = L10n.skipWarmup
-    var dialSize: CGFloat = 220
+    var dialSize: CGFloat = 236
     var trackWidth: CGFloat = 18
     var dragSensitivity: Double = 1.0
     var valueLabelFormatter: ((Int) -> (String, String))? = nil

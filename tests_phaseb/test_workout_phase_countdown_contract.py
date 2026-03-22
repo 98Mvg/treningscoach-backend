@@ -62,12 +62,14 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "valueRange: 2...10" in text
     assert "valueRange: 1...20" in text
+    assert "valueRange: 1...120" in text
     assert "valueRange: 0...120" in text
     assert "dragSensitivity: 1.55" in text
     assert "dragSensitivity: 1.45" in text
     assert "var dragSensitivity: Double = 1.0" in text
     assert "var stepSize: Int = 1" in text
     assert "stepSize: 15" in text
+    assert "var dialSize: CGFloat = 236" in text
 
 
 def test_circular_dial_visual_progress_is_value_synced():

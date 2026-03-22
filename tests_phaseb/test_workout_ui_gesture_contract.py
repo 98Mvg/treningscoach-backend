@@ -174,7 +174,7 @@ def test_workout_launch_uses_staged_wheel_setup_for_easy_run() -> None:
     assert "private enum SetupStage" in text
     assert "case easyWarmup" in text
     assert "case easyDuration" in text
-    assert "valueRange: 0...120" in text
+    assert "valueRange: 1...120" in text
     assert 'stageCheckButton(title: L10n.current == .no ? "Fortsett" : "Continue")' in text
     assert 'stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm")' in text
     assert "setupSummaryCard(" not in text
@@ -212,6 +212,9 @@ def test_workout_launch_surfaces_intensity_before_advanced_options() -> None:
     assert "if showsSetupSelectionSection {" in text
     assert "if showsPostSetupSections {" in text
     assert 'Text(showsPostSetupSections ? L10n.workoutIntensityPrompt : "Quick setup")' in text
+    assert "if !showsPostSetupSections {" in text
+    assert '"Choose your coaching intensity before you start."' not in text
+    assert '"Velg ønsket coachingintensitet før du starter."' not in text
     assert "Text(title)" in text
     assert '.font(.system(size: 19, weight: .bold))' in text
     assert "if let setupCompletionDurationText {" in text
@@ -222,6 +225,8 @@ def test_workout_launch_surfaces_intensity_before_advanced_options() -> None:
     assert "title: L10n.workoutIntensityHardDetail" in text
     assert "Text(L10n.breathAnalysisTitle)" in text
     assert "DisclosureGroup(" in text
+    assert "private var launchSectionVerticalPadding: CGFloat {" in text
+    assert "showsSetupSelectionSection ? 18 : 14" in text
 
 
 def test_workout_launch_omits_step_b_input_sources_section() -> None:
@@ -248,6 +253,12 @@ def test_performance_mode_chip_is_marked_pro() -> None:
     ).read_text(encoding="utf-8")
     assert "CoachPersonality.allCases" in text
     assert 'Text("PRO")' in chip_text
+    assert "@EnvironmentObject private var subscriptionManager: SubscriptionManager" in text
+    assert "@State private var showPerformanceModePaywall = false" in text
+    assert '.sheet(isPresented: $showPerformanceModePaywall)' in text
+    assert "PaywallView(context: .general)" in text
+    assert "guard !(persona == .toxicMode && !subscriptionManager.hasPremiumAccess) else {" in text
+    assert "showPerformanceModePaywall = true" in text
 
 
 def test_workout_launch_start_cta_is_watch_adaptive_and_pending_safe() -> None:

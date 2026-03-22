@@ -1782,7 +1782,7 @@ class WorkoutViewModel: ObservableObject {
             if easyMode == .freeRun {
                 mainSeconds = 0
             } else {
-                mainSeconds = max(0, selectedEasyRunMinutes * 60)
+                mainSeconds = max(1, selectedEasyRunMinutes) * 60
             }
             return WorkoutSessionPlan(
                 workoutMode: .easyRun,
@@ -1827,7 +1827,7 @@ class WorkoutViewModel: ObservableObject {
         switch mode {
         case .timed:
             let restoreWarmup = max(0, timedEasyRunWarmupBackup)
-            let restoreDuration = max(0, timedEasyRunDurationBackup)
+            let restoreDuration = max(1, timedEasyRunDurationBackup)
             if selectedWarmupMinutes == 0 && restoreWarmup > 0 {
                 selectedWarmupMinutes = restoreWarmup
             }
