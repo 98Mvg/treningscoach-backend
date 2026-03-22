@@ -850,7 +850,20 @@ struct WorkoutLaunchView: View {
         if clamped == 0 {
             return (L10n.current == .no ? "INGEN" : "NONE", "")
         }
+        if clamped > 60 {
+            return (formattedBreakMinutesValue(for: clamped), L10n.minutesUpper)
+        }
         return ("\(clamped)", L10n.current == .no ? "SEK" : "SEC")
+    }
+
+    private func formattedBreakMinutesValue(for seconds: Int) -> String {
+        let minutes = Double(seconds) / 60.0
+        let roundedToQuarter = (minutes * 4.0).rounded() / 4.0
+        if roundedToQuarter.rounded() == roundedToQuarter {
+            return String(Int(roundedToQuarter))
+        }
+        return String(format: "%.2f", roundedToQuarter)
+            .replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
     }
 
     private func summaryEditButton(action: @escaping () -> Void) -> some View {
@@ -998,16 +1011,20 @@ struct CircularDialPicker: View {
         return unitLabel
     }
 
-    private var indicatorAngle: Double {
-        (displayProgress * 360.0) - 90.0
-    }
-
-    private var indicatorOffset: CGFloat {
+    private var indicatorRadius: CGFloat {
         (dialSize / 2) + 6
     }
 
     private var indicatorSize: CGFloat {
         max(trackWidth + 8, 22)
+    }
+
+    private var indicatorPosition: CGSize {
+        let theta = (displayProgress * 2.0 * .pi)
+        return CGSize(
+            width: CGFloat(sin(theta)) * indicatorRadius,
+            height: CGFloat(-cos(theta)) * indicatorRadius
+        )
     }
 
     var body: some View {
@@ -1045,8 +1062,7 @@ struct CircularDialPicker: View {
                 .fill(Color.white)
                 .frame(width: indicatorSize, height: indicatorSize)
                 .shadow(color: Color.white.opacity(isDragging ? 0.46 : 0.28), radius: isDragging ? 10 : 5)
-                .offset(y: -indicatorOffset)
-                .rotationEffect(.degrees(indicatorAngle))
+                .offset(x: indicatorPosition.width, y: indicatorPosition.height)
 
             // Center content
             VStack(spacing: 2) {
@@ -1070,7 +1086,10 @@ struct CircularDialPicker: View {
             syncAngleFromMinutes()
         }
         .onChange(of: selectedValue) { _, _ in
-            if !isDragging { syncAngleFromMinutes() }
+            if !isDragging {
+                previewValue = nil
+                syncAngleFromMinutes()
+            }
         }
     }
 
@@ -1142,7 +1161,6 @@ struct CircularDialPicker: View {
 
     private func snapToNearestStepAndCommit() {
         let snapped = snappedValue(forVisualAngle: safeAngle)
-        previewValue = nil
         lastHapticStepValue = nil
         withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
             selectedValue = snapped

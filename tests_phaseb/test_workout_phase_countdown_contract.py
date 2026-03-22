@@ -78,15 +78,23 @@ def test_circular_dial_visual_progress_is_value_synced():
     assert "private func rawValue(forVisualAngle angle: Double) -> Double" in text
     assert "private func snappedValue(forRawValue rawValue: Double) -> Int" in text
     assert "private func snappedValue(forVisualAngle angle: Double) -> Int" in text
+    assert ".onChange(of: selectedValue) { _, _ in" in text
+    assert "previewValue = nil" in text
     assert "private func snapToNearestStepAndCommit()" in text
     assert "selectedValue = snapped" in text
     assert "currentAngle = normalizedProgress(for: snapped) * 360.0" in text
+    snap_section = text.split("private func snapToNearestStepAndCommit() {", 1)[1].split("private func syncAngleFromMinutes()", 1)[0]
+    assert "previewValue = nil" not in snap_section
     assert ".stroke(CoachiTheme.dialMagenta" in text
     assert ".shadow(color: CoachiTheme.dialMagenta.opacity(isDragging ? 0.42 : 0.18)" in text
     assert ".fill(Color.white)" in text
-    assert "private var indicatorAngle: Double {" in text
-    assert "private var indicatorOffset: CGFloat {" in text
+    assert "private var indicatorRadius: CGFloat {" in text
     assert "private var indicatorSize: CGFloat {" in text
+    assert "private var indicatorPosition: CGSize {" in text
+    assert "let theta = (displayProgress * 2.0 * .pi)" in text
+    assert "width: CGFloat(sin(theta)) * indicatorRadius" in text
+    assert "height: CGFloat(-cos(theta)) * indicatorRadius" in text
+    assert ".offset(x: indicatorPosition.width, y: indicatorPosition.height)" in text
     assert "let newPreview = snappedValue(forVisualAngle: angle)" in text
     assert "currentAngle = angle" in text
     assert "lastHapticStepValue = committedValue" in text
@@ -94,3 +102,13 @@ def test_circular_dial_visual_progress_is_value_synced():
     assert "var valueLabelFormatter: ((Int) -> (String, String))? = nil" in text
     assert "private var displayValueText: String {" in text
     assert "knobView" not in text
+
+
+def test_interval_break_dial_switches_to_minutes_above_sixty_seconds():
+    text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
+    assert "private func intervalBreakDialLabel(_ seconds: Int) -> (String, String) {" in text
+    assert "if clamped > 60 {" in text
+    assert 'return (formattedBreakMinutesValue(for: clamped), L10n.minutesUpper)' in text
+    assert "private func formattedBreakMinutesValue(for seconds: Int) -> String {" in text
+    assert "let minutes = Double(seconds) / 60.0" in text
+    assert 'String(format: "%.2f", roundedToQuarter)' in text

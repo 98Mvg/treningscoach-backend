@@ -1724,3 +1724,45 @@ Updated: 2026-03-17
   - capped interval breaks at `5 minutes / 300 seconds` across the wheel and session-plan clamp instead of allowing `600`
   - kept break selection and wheel labeling in seconds throughout the dial experience instead of switching to minute-style labels
   - disabled the Home page Coach Score full-sweep visual so it no longer spins all the way to 100 before settling
+
+## Review — 2026-03-22 Terms and Privacy web redirect
+
+- Reverted app-visible Terms/Privacy entry points back to the website from the existing settings/paywall UI:
+  - [ProfileView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/ProfileView.swift)
+  - [PaywallView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/PaywallView.swift)
+- Product correction:
+  - the previous change routed those buttons to local in-app legal views
+  - the desired product behavior is web redirect, matching the older flow
+- Fix:
+  - switched Terms/Privacy buttons back to `openURL(...)` with `https://coachi.no/terms` and `https://coachi.no/privacy`
+  - kept the existing local legal SwiftUI views in the codebase, but they are no longer the visible entry path
+
+## Review — 2026-03-22 Workout wheel dot alignment correction
+
+- Corrected the shared workout wheel indicator placement in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Root cause:
+  - the white dot was orbiting via `rotationEffect` on an offset view
+  - that made its visible position depend on transform direction instead of explicit clockwise-from-top math, so low values like `7 min` warmup could appear visually behind the start line
+- Fix:
+  - replaced the transform-based placement with explicit `sin/cos` positioning from the same clockwise progress used by the ring
+  - the dot now sits at the true ring head for low and high values alike
+
+## Review — 2026-03-22 Workout wheel release snap flicker
+
+- Fixed a release-time value jump in the shared `CircularDialPicker` inside [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Root cause:
+  - when the drag ended, the dial cleared `previewValue` before writing the snapped `selectedValue`
+  - that briefly made the UI fall back to the old committed value, which looked like the wheel clipped to another value on release
+- Fix:
+  - keep the preview active through the release commit
+  - clear `previewValue` only after the `selectedValue` change path runs
+
+## Review — 2026-03-22 Interval break wheel minute display rule
+
+- Adjusted the interval break spinning-wheel display rule in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product rule:
+  - keep the stored value and stepping in seconds
+  - but once the selected break goes above `60` seconds, show the wheel value in minutes instead of raw seconds
+- Fix:
+  - `0...60` stays on the wheel as `SEC`
+  - `75...300` now renders as minute values on the wheel using the existing 15-second steps

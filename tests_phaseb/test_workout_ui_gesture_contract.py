@@ -195,6 +195,8 @@ def test_workout_launch_uses_sets_break_duration_for_intervals() -> None:
     assert "stepSize: 15" in text
     assert "valueLabelFormatter: intervalBreakDialLabel" in text
     assert 'unitLabel: L10n.current == .no ? "SEK" : "SEC"' in text
+    assert "if clamped > 60 {" in text
+    assert "formattedBreakMinutesValue(for: clamped)" in text
     assert "intervalTotalDurationText" in text
     assert "intervalBreakSelector" not in text
     assert "dialSize: 124" not in text
