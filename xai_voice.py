@@ -15,7 +15,6 @@ from typing import Any, Mapping
 import requests
 
 import config
-from persona_manager import PersonaManager
 
 
 def voice_runtime_available() -> bool:
@@ -555,11 +554,13 @@ def build_post_workout_voice_instructions(
         or ("No duration provided" if not is_norwegian else "Ingen varighet oppgitt")
     )
 
-    persona_text = PersonaManager.get_system_prompt(
-        persona="post_workout_voice",
-        language=language,
-        emotional_mode="supportive",
-        safety_override=False,
+    # Inline persona — single source of truth for post-workout voice coach.
+    # Keep short: the model gets this + workout data + history in one prompt.
+    persona_text = (
+        "You are a personal trainer reviewing a running workout that just ended.\n"
+        "Calm, direct, disciplined. Short sentences — max 2 per reply, under 25 words.\n"
+        "Only reference stats explicitly provided below. Do not invent numbers, workout types, or step counts.\n"
+        "One question at a time, then wait for the athlete to answer."
     )
 
     # Build workout-mode awareness block

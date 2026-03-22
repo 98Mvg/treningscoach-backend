@@ -4772,7 +4772,6 @@ def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
     )
     now = _utcnow_naive()
     seven_days_ago = now - timedelta(days=7)
-    thirty_days_ago = now - timedelta(days=30)
 
     aggregate_row = (
         db.session.query(
@@ -4791,14 +4790,11 @@ def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
             WorkoutHistory.date >= seven_days_ago,
         ).count()
     )
-    workouts_last_30_days = (
+    recent_workouts = (
         WorkoutHistory.query.filter(
             WorkoutHistory.user_id == user_id,
-            WorkoutHistory.date >= thirty_days_ago,
-        ).count()
-    )
-    recent_workouts = (
-        WorkoutHistory.query.filter_by(user_id=user_id)
+            WorkoutHistory.date >= seven_days_ago,
+        )
         .order_by(WorkoutHistory.date.desc())
         .limit(recent_limit)
         .all()
@@ -4820,7 +4816,6 @@ def _build_live_voice_history_context(*, user_id: str) -> dict[str, object]:
         "total_workouts": total_workouts,
         "total_duration_minutes": max(0, round(total_duration_seconds / 60)),
         "workouts_last_7_days": int(workouts_last_7_days or 0),
-        "workouts_last_30_days": int(workouts_last_30_days or 0),
         "recent_workouts": recent_history,
     })
 
@@ -4876,7 +4871,8 @@ def create_voice_session():
         )
 
     summary_context = sanitize_post_workout_summary_context(payload.get("summary_context"))
-    history_context = _build_live_voice_history_context(user_id=user_id)
+    is_premium = subscription_tier == "premium"
+    history_context = _build_live_voice_history_context(user_id=user_id, is_premium=is_premium)
     language = normalize_language_code(payload.get("language") or user.language or getattr(config, "DEFAULT_LANGUAGE", "en"))
     user_name = (
         str(payload.get("user_name") or user.display_name or "").strip()
