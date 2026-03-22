@@ -585,13 +585,11 @@ def build_post_workout_voice_instructions(
     has_real_stats = bool(opening_stats) and not is_short_workout
     has_duration = bool(opening_brief.get("duration"))
     if is_short_workout and has_duration:
-        spoken_dur = opening_duration_line
         opening_rules = (
-            "YOUR FIRST RESPONSE — one short sentence only:\n"
-            f"Say: \"That was a very short {opening_workout_line} — about {spoken_dur}.\"\n"
+            "YOUR FIRST RESPONSE — state only the workout type and duration. Nothing else.\n"
+            f"Workout type: {opening_workout_line}. Duration: {opening_duration_line}.\n"
             "Do NOT analyze performance. Do NOT mention heart rate, score, zones, or any stats.\n"
-            "After that, you may continue the conversation normally and answer questions.\n"
-            "Do not force insights or coaching conclusions from this workout.\n\n"
+            "After that, answer questions normally. Do not force insights from this workout.\n\n"
         )
     elif has_real_stats:
         opening_rules = (
