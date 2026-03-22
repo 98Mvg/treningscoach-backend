@@ -435,14 +435,23 @@ def _canonical_workout_reference(workout_mode: str, workout_label: str, is_norwe
     return label or _general_running_reference(is_norwegian)
 
 
-def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegian: bool) -> str:
-    """Return a context paragraph that tells the AI exactly what kind of workout this was."""
+def _workout_mode_description(
+    workout_mode: str, workout_label: str, is_norwegian: bool, *, duration_seconds: float | None = None
+) -> str:
+    """Return a context paragraph that tells the AI exactly what kind of workout this was.
+
+    When *duration_seconds* < 60 the workout is too short for mode-specific
+    analysis framing (e.g. interval work/rest ratios), so we fall through to
+    the generic description instead.
+    """
     mode = str(workout_mode or "").strip().lower()
     label = _canonical_workout_reference(workout_mode, workout_label, is_norwegian)
     label_lower = label.lower()
     general_reference = _general_running_reference(is_norwegian)
 
-    if mode == "easy_run" or "easy" in label_lower or "rolig" in label_lower:
+    too_short_for_analysis = duration_seconds is not None and duration_seconds < 60
+
+    if not too_short_for_analysis and (mode == "easy_run" or "easy" in label_lower or "rolig" in label_lower):
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — en rolig løpetur med lavt tempo. "
@@ -453,7 +462,7 @@ def _workout_mode_description(workout_mode: str, workout_label: str, is_norwegia
             "Start with aerobic base building, breathing control, and steady effort."
         )
 
-    if mode == "interval" or "intervall" in label_lower or "interval" in label_lower:
+    if not too_short_for_analysis and (mode == "interval" or "intervall" in label_lower or "interval" in label_lower):
         if is_norwegian:
             return (
                 f"Utøveren valgte '{label}' — intervalltrening med vekslende høy- og lavinnsats. "
@@ -564,7 +573,7 @@ def build_post_workout_voice_instructions(
     )
 
     # Build workout-mode awareness block
-    mode_awareness = _workout_mode_description(workout_mode, raw_workout_label, is_norwegian)
+    mode_awareness = _workout_mode_description(workout_mode, raw_workout_label, is_norwegian, duration_seconds=duration_seconds)
     if workout_reference == general_reference:
         opening_reference_rule = (
             "I åpningen skal du omtale økten som 'generell løpeøkt'. "
@@ -581,17 +590,9 @@ def build_post_workout_voice_instructions(
         )
 
     activity_anchor = f"{activity_line}\n" if activity_line else ""
-    is_short_workout = duration_seconds is not None and duration_seconds < 60
-    has_real_stats = bool(opening_stats) and not is_short_workout
+    has_real_stats = bool(opening_stats)
     has_duration = bool(opening_brief.get("duration"))
-    if is_short_workout and has_duration:
-        opening_rules = (
-            "YOUR FIRST RESPONSE — state only the workout type and duration. Nothing else.\n"
-            f"Workout type: {opening_workout_line}. Duration: {opening_duration_line}.\n"
-            "Do NOT analyze performance. Do NOT mention heart rate, score, zones, or any stats.\n"
-            "After that, answer questions normally. Do not force insights from this workout.\n\n"
-        )
-    elif has_real_stats:
+    if has_real_stats:
         opening_rules = (
             "YOUR FIRST RESPONSE — opening recap (up to 45 words, 3 sentences):\n"
             "1. Name the workout and duration.\n"
@@ -622,8 +623,8 @@ def build_post_workout_voice_instructions(
             "Acknowledge the workout is done and ask how the athlete felt.\n"
             "No stats are available — do NOT mention heart rate, steps, distance, duration, score, or any numbers.\n\n"
         )
-    summary_section = "" if is_short_workout else f"Workout summary:\n{summary_block}\n"
-    history_section = f"Workout history:\n{history_block}" if history_block and not is_short_workout else ""
+    summary_section = f"Workout summary:\n{summary_block}\n"
+    history_section = f"Workout history:\n{history_block}" if history_block else ""
     common_intro = (
         f"{persona_text}\n\n"
         "You are in post-workout review mode. "
