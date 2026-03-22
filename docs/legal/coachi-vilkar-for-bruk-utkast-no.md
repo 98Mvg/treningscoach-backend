@@ -92,6 +92,5 @@ Spørsmål om vilkårene kan sendes til:
 **GAARDER (enkeltpersonforetak)**  
 Organisasjonsnummer: 937 327 412  
 Merke/app: Coachi  
-Adresse: Brenneribakken 10, 2815 Gjøvik  
 E-post: AI.Coachi@hotmail.com  
 Nettside: https://coachi.no
