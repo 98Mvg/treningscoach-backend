@@ -1766,3 +1766,77 @@ Updated: 2026-03-17
 - Fix:
   - `0...60` stays on the wheel as `SEC`
   - `75...300` now renders as minute values on the wheel using the existing 15-second steps
+
+## Review — 2026-03-22 Workout wheel release preview authority
+
+- Fixed a remaining release-time snap-back in the shared `CircularDialPicker` in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Root cause:
+  - the dial ended the drag before the snapped selection commit landed
+  - once `isDragging` flipped to `false`, the view stopped trusting `previewValue` and briefly rendered from the old committed value again
+  - that made the white dot and ring appear to jump back to the previous selection, such as `7`, before settling on the new value, such as `25`
+- Fix:
+  - treat an active `previewValue` as authoritative even after drag end until the snapped `selectedValue` has been committed
+  - keep ring progress and the white dot driven by the live preview/release angle through the commit boundary
+
+## Review — 2026-03-22 Interval break wheel clock display
+
+- Refined the interval break wheel display in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - decimal minute labels like `1.25` were technically derived from `75` seconds, but they read like a bug in the wheel UI
+  - the desired wheel format above `60` seconds is clock-style `m:ss`, such as `1:15`, `1:30`, or `5:00`
+- Fix:
+  - kept stored values and 15-second stepping in seconds
+  - changed only the wheel formatter above `60` seconds from decimal-minute math to `m:ss`
+
+## Review — 2026-03-22 Collapse completed workout setup before intensity
+
+- Tightened the existing staged setup flow in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift) without introducing a new screen or parallel UI path.
+- Product correction:
+  - after the last setup confirm, the completed interval/timed-run setup block was still sitting above intensity as a full summary section
+  - the desired behavior is to collapse that setup block away, keep total duration visible, and move the visual focus to workout intensity
+- Fix:
+  - hide the setup selection section once `easyRunConfigured` or `intervalsConfigured` is complete
+  - keep total duration visible in the intensity section header area
+  - repurpose the existing bottom-left `Back` button so it reopens the last setup step instead of immediately kicking the user back to workout-type selection
+  - use `Continue` for intermediate setup steps and `Confirm` only for the final setup step
+
+## Review — 2026-03-22 Remove completed-step checkmarks from setup rows
+
+- Simplified the finished-step summary rows in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - completed setup rows were still rendering a checkmark icon, which made the finished steps feel noisier than needed once the flow already implied completion
+- Fix:
+  - removed the checkmark icon from `setupSummaryCard(...)`
+  - kept the text, value, spacing, and collapsed setup flow unchanged
+
+## Review — 2026-03-22 Use one large current-action setup header
+
+- Simplified the setup-step heading in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - the setup block was still showing a mixed label pattern like `Step A`, `Warmup time`, and `Easy`, plus duplicate inline stage labels inside the content
+  - the desired UI is one clear current-action heading such as `Select warm-up`, `Select sets`, or `Select break time`
+- Fix:
+  - replaced the small Step A/subtitle combo with a single larger current-action title
+  - removed the duplicate inline stage labels from the wheel content so the header is the only action label the user sees
+
+## Review — 2026-03-22 Interval break max reduced to 2 minutes
+
+- Tightened the interval recovery cap on the existing setup/runtime path:
+  - [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift)
+  - [WorkoutViewModel.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/ViewModels/WorkoutViewModel.swift)
+- Product correction:
+  - break time should top out at `2 minutes`
+  - the UI wheel and the actual session-plan clamp need to agree, or stale longer pauses can still leak into the workout runtime
+- Fix:
+  - changed the break wheel range from `0...300` to `0...120`
+  - changed all break display/clamp helpers from `min(300, ...)` to `min(120, ...)`
+  - changed the interval session-plan recovery clamp to `120` seconds
+
+## Review — 2026-03-22 Remove duplicated total-duration header copy
+
+- Cleaned up duplicated total-duration text in [WorkoutLaunchView.swift](/Users/mariusgaarder/Documents/treningscoach/TreningsCoach/TreningsCoach/Views/Tabs/WorkoutLaunchView.swift).
+- Product correction:
+  - after setup completion, total duration was visible both under the main title and again inside the intensity section
+- Fix:
+  - removed total duration from the top header subtitle
+  - kept total duration only once inside the intensity section

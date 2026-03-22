@@ -62,7 +62,7 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "valueRange: 2...10" in text
     assert "valueRange: 1...20" in text
-    assert "valueRange: 0...300" in text
+    assert "valueRange: 0...120" in text
     assert "dragSensitivity: 1.55" in text
     assert "dragSensitivity: 1.45" in text
     assert "var dragSensitivity: Double = 1.0" in text
@@ -72,7 +72,12 @@ def test_interval_picker_caps_and_sensitivity_are_applied():
 
 def test_circular_dial_visual_progress_is_value_synced():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
+    assert "private var hasActivePreview: Bool {" in text
+    assert "previewValue != nil" in text
+    assert "private var displayValue: Int {" in text
+    assert "if let previewValue {" in text
     assert "private var displayProgress: Double {" in text
+    assert "if isDragging || hasActivePreview {" in text
     assert "return min(1.0, max(0.0, safeAngle / 360.0))" in text
     assert "return normalizedProgress(for: displayValue)" in text
     assert "private func rawValue(forVisualAngle angle: Double) -> Double" in text
@@ -107,8 +112,10 @@ def test_circular_dial_visual_progress_is_value_synced():
 def test_interval_break_dial_switches_to_minutes_above_sixty_seconds():
     text = WORKOUT_LAUNCH_VIEW.read_text(encoding="utf-8")
     assert "private func intervalBreakDialLabel(_ seconds: Int) -> (String, String) {" in text
+    assert "let clamped = max(0, min(120, seconds))" in text
     assert "if clamped > 60 {" in text
-    assert 'return (formattedBreakMinutesValue(for: clamped), L10n.minutesUpper)' in text
-    assert "private func formattedBreakMinutesValue(for seconds: Int) -> String {" in text
-    assert "let minutes = Double(seconds) / 60.0" in text
-    assert 'String(format: "%.2f", roundedToQuarter)' in text
+    assert 'return (formattedBreakClockValue(for: clamped), L10n.minutesUpper)' in text
+    assert "private func formattedBreakClockValue(for seconds: Int) -> String {" in text
+    assert "let minutes = clamped / 60" in text
+    assert "let remainingSeconds = clamped % 60" in text
+    assert 'String(format: "%d:%02d", minutes, remainingSeconds)' in text

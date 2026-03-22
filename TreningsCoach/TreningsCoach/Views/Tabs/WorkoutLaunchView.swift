@@ -52,11 +52,23 @@ struct WorkoutLaunchView: View {
         launchStep == 2 && setupDetailsComplete
     }
 
+    private var showsSetupSelectionSection: Bool {
+        launchStep == 2 && !showsPostSetupSections
+    }
+
     private var intervalTotalSeconds: Int {
         let sets = max(1, viewModel.selectedIntervalSets)
         let work = max(0, viewModel.selectedIntervalWorkMinutes)
-        let pause = max(0, min(300, viewModel.selectedIntervalBreakSeconds))
+        let pause = max(0, min(120, viewModel.selectedIntervalBreakSeconds))
         return (sets * work * 60) + (max(0, sets - 1) * pause)
+    }
+
+    private var intervalSessionTotalSeconds: Int {
+        (max(0, viewModel.selectedWarmupMinutes) * 60) + intervalTotalSeconds
+    }
+
+    private var easyRunSessionTotalSeconds: Int {
+        (max(0, viewModel.selectedWarmupMinutes) + max(0, viewModel.selectedEasyRunMinutes)) * 60
     }
 
     private var intervalTotalDurationText: String {
@@ -70,6 +82,18 @@ struct WorkoutLaunchView: View {
         return L10n.current == .no
             ? "Total intervalltid: \(totalMinutes) min \(totalSeconds) sek"
             : "Total interval time: \(totalMinutes) min \(totalSeconds) sec"
+    }
+
+    private var setupCompletionDurationText: String? {
+        switch viewModel.selectedWorkoutMode {
+        case .easyRun:
+            guard viewModel.selectedEasyRunSessionMode != .freeRun else { return nil }
+            return totalDurationText(for: easyRunSessionTotalSeconds)
+        case .intervals:
+            return totalDurationText(for: intervalSessionTotalSeconds)
+        case .standard:
+            return nil
+        }
     }
 
     var body: some View {
@@ -152,20 +176,26 @@ struct WorkoutLaunchView: View {
                             viewModel.canInitiateWorkoutStart
 
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Quick setup")
+                            Text(showsPostSetupSections ? L10n.workoutIntensityPrompt : "Quick setup")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(CoachiTheme.textPrimary)
-                            Text("Session details, wheels, and coaching options.")
+                            Text(
+                                showsPostSetupSections
+                                    ? (L10n.current == .no ? "Velg ønsket coachingintensitet før du starter." : "Choose your coaching intensity before you start.")
+                                    : "Session details, wheels, and coaching options."
+                            )
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(CoachiTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        launchSection(title: stepATitle, subtitle: stepASubtitle) {
-                            if viewModel.selectedWorkoutMode == .easyRun {
-                                easyRunSetupContent
-                            } else {
-                                intervalsSetupContent
+                        if showsSetupSelectionSection {
+                            launchSection(title: stepATitle, subtitle: stepASubtitle) {
+                                if viewModel.selectedWorkoutMode == .easyRun {
+                                    easyRunSetupContent
+                                } else {
+                                    intervalsSetupContent
+                                }
                             }
                         }
 
@@ -221,9 +251,7 @@ struct WorkoutLaunchView: View {
 
                         HStack(spacing: 10) {
                             Button {
-                                withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
-                                    launchStep = 1
-                                }
+                                handleBottomBackAction()
                             } label: {
                                 Text("Back")
                                     .font(.system(size: 16, weight: .semibold))
@@ -325,9 +353,11 @@ struct WorkoutLaunchView: View {
     @ViewBuilder
     private var intensitySelectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.workoutIntensityPrompt)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(CoachiTheme.textPrimary)
+            if let setupCompletionDurationText {
+                Text(setupCompletionDurationText)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(CoachiTheme.textSecondary)
+            }
 
             VStack(spacing: 10) {
                 intensityOptionCard(
@@ -389,11 +419,11 @@ struct WorkoutLaunchView: View {
     private func launchSection<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if !title.isEmpty || !subtitle.isEmpty {
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     if !title.isEmpty {
-                        Text(title.uppercased())
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(CoachiTheme.primary)
+                        Text(title)
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundColor(CoachiTheme.textPrimary)
                     }
                     if !subtitle.isEmpty {
                         Text(subtitle)
@@ -505,25 +535,22 @@ struct WorkoutLaunchView: View {
     }
 
     private var stepASubtitle: String {
-        if viewModel.selectedWorkoutMode == .easyRun {
-            return ""
-        }
-        switch setupStage {
-        case .easyWarmup, .intervalWarmup:
-            return "\(L10n.warmupTime) · \(L10n.intensityEasy)"
-        case .easyDuration:
-            return L10n.current == .no ? "Løpsvarighet" : "Run duration"
-        case .intervalSets:
-            return L10n.current == .no ? "Drag" : "Drag"
-        case .intervalDuration:
-            return L10n.current == .no ? "Tid" : "Time"
-        case .intervalBreak:
-            return L10n.current == .no ? "Pauser" : "Breaks"
-        }
+        ""
     }
 
     private var stepATitle: String {
-        viewModel.selectedWorkoutMode == .easyRun ? "" : "Step A"
+        switch setupStage {
+        case .easyWarmup, .intervalWarmup:
+            return L10n.current == .no ? "Velg oppvarming" : "Select warm-up"
+        case .easyDuration:
+            return L10n.current == .no ? "Velg løpetid" : "Select work time"
+        case .intervalSets:
+            return L10n.current == .no ? "Velg drag" : "Select sets"
+        case .intervalDuration:
+            return L10n.current == .no ? "Velg tid" : "Select work time"
+        case .intervalBreak:
+            return L10n.current == .no ? "Velg pause" : "Select break time"
+        }
     }
 
     @ViewBuilder
@@ -531,55 +558,23 @@ struct WorkoutLaunchView: View {
         VStack(spacing: 10) {
             easyRunModeToggle
 
-            if viewModel.selectedEasyRunSessionMode == .freeRun {
-                VStack(spacing: 12) {
-                    setupSummaryCard(
-                        title: L10n.current == .no ? "Fri løp" : "Free run",
-                        value: L10n.current == .no ? "Åpen økt uten fast sluttid" : "Open session with no fixed finish time"
-                    )
-                    setupSummaryCard(
-                        title: L10n.warmupTime,
-                        value: L10n.skipWarmup
-                    )
-                }
-            } else if setupStage == .easyWarmup {
+            if viewModel.selectedEasyRunSessionMode != .freeRun, setupStage == .easyWarmup {
                 VStack(spacing: 10) {
-                    Text(L10n.warmupTime.uppercased())
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(CoachiTheme.textTertiary)
-                        .tracking(1)
-                    Text(L10n.warmupEasyBPMCue)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(CoachiTheme.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 6)
                     CircularDialPicker(
                         selectedValue: $viewModel.selectedWarmupMinutes,
                         valueRange: 0...40,
                         unitLabel: L10n.minutesUpper,
                         zeroLabel: L10n.skipWarmup
                     )
-                    stageCheckButton(title: L10n.current == .no ? "Bekreft oppvarming" : "Confirm warm-up") {
+                    stageCheckButton(title: L10n.current == .no ? "Fortsett" : "Continue") {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                             setupStage = .easyDuration
                             easyRunConfigured = false
                         }
                     }
                 }
-            } else if setupDetailsComplete {
+            } else if viewModel.selectedEasyRunSessionMode != .freeRun {
                 VStack(spacing: 10) {
-                    setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
-                    setupSummaryCard(title: L10n.current == .no ? "Varighet" : "Duration", value: formattedMinutesValue(viewModel.selectedEasyRunMinutes))
-                    summaryEditButton {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                            setupStage = .easyDuration
-                            easyRunConfigured = false
-                        }
-                    }
-                }
-            } else {
-                VStack(spacing: 10) {
-                    setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
                     CircularDialPicker(
                         selectedValue: $viewModel.selectedEasyRunMinutes,
                         valueRange: 0...120,
@@ -602,12 +597,12 @@ struct WorkoutLaunchView: View {
                         }
                         .buttonStyle(.plain)
 
-                        stageCheckButton(title: L10n.current == .no ? "Bekreft varighet" : "Confirm duration") {
-                            easyRunConfigured = true
-                        }
+                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                        easyRunConfigured = true
                     }
                 }
             }
+        }
         }
     }
 
@@ -615,22 +610,13 @@ struct WorkoutLaunchView: View {
     private var intervalsSetupContent: some View {
         if setupStage == .intervalWarmup {
             VStack(spacing: 10) {
-                Text(L10n.warmupTime.uppercased())
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .tracking(1)
-                Text(L10n.warmupEasyBPMCue)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(CoachiTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 6)
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedWarmupMinutes,
                     valueRange: 0...40,
                     unitLabel: L10n.minutesUpper,
                     zeroLabel: L10n.skipWarmup
                 )
-                stageCheckButton(title: L10n.current == .no ? "Bekreft oppvarming" : "Confirm warm-up") {
+                stageCheckButton(title: L10n.current == .no ? "Fortsett" : "Continue") {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                         setupStage = .intervalSets
                         intervalsConfigured = false
@@ -639,12 +625,6 @@ struct WorkoutLaunchView: View {
             }
         } else if setupStage == .intervalSets {
             VStack(spacing: 12) {
-                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
-                Text((L10n.current == .no ? "DRAG" : "DRAG"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .tracking(1)
-
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalSets,
                     valueRange: 2...10,
@@ -669,7 +649,7 @@ struct WorkoutLaunchView: View {
                     }
                     .buttonStyle(.plain)
 
-                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                    stageCheckButton(title: L10n.current == .no ? "Fortsett" : "Continue") {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                             setupStage = .intervalDuration
                             intervalsConfigured = false
@@ -679,13 +659,6 @@ struct WorkoutLaunchView: View {
             }
         } else if setupStage == .intervalDuration {
             VStack(spacing: 12) {
-                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
-                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
-                Text((L10n.current == .no ? "TID" : "TIME"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .tracking(1)
-
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalWorkMinutes,
                     valueRange: 1...20,
@@ -710,7 +683,7 @@ struct WorkoutLaunchView: View {
                     }
                     .buttonStyle(.plain)
 
-                    stageCheckButton(title: L10n.current == .no ? "Bekreft" : "Confirm") {
+                    stageCheckButton(title: L10n.current == .no ? "Fortsett" : "Continue") {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
                             setupStage = .intervalBreak
                             intervalsConfigured = false
@@ -718,37 +691,11 @@ struct WorkoutLaunchView: View {
                     }
                 }
             }
-        } else if setupDetailsComplete {
-            VStack(spacing: 12) {
-                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
-                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
-                setupSummaryCard(title: L10n.current == .no ? "Tid" : "Time", value: formattedMinutesValue(viewModel.selectedIntervalWorkMinutes))
-                setupSummaryCard(title: L10n.current == .no ? "Pauser" : "Breaks", value: formattedIntervalBreak(viewModel.selectedIntervalBreakSeconds))
-
-                Text(intervalTotalDurationText)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-
-                summaryEditButton {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                        setupStage = .intervalBreak
-                        intervalsConfigured = false
-                    }
-                }
-            }
         } else {
             VStack(spacing: 12) {
-                setupSummaryCard(title: L10n.warmupTime, value: formattedMinutesValue(viewModel.selectedWarmupMinutes, zeroLabel: L10n.skipWarmup))
-                setupSummaryCard(title: L10n.current == .no ? "Drag" : "Sets", value: "\(viewModel.selectedIntervalSets)")
-                setupSummaryCard(title: L10n.current == .no ? "Tid" : "Time", value: formattedMinutesValue(viewModel.selectedIntervalWorkMinutes))
-                Text((L10n.current == .no ? "PAUSER" : "BREAKS"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .tracking(1)
-
                 CircularDialPicker(
                     selectedValue: $viewModel.selectedIntervalBreakSeconds,
-                    valueRange: 0...300,
+                    valueRange: 0...120,
                     stepSize: 15,
                     unitLabel: L10n.current == .no ? "SEK" : "SEC",
                     zeroLabel: nil,
@@ -801,44 +748,22 @@ struct WorkoutLaunchView: View {
         .buttonStyle(.plain)
     }
 
-    private func setupSummaryCard(title: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(CoachiTheme.textSecondary)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title.uppercased())
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(CoachiTheme.textTertiary)
-                    .tracking(0.8)
-                Text(value)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(CoachiTheme.textPrimary)
-            }
-
-            Spacer()
+    private func totalDurationText(for totalSeconds: Int) -> String {
+        let clamped = max(0, totalSeconds)
+        let totalMinutes = clamped / 60
+        let remainingSeconds = clamped % 60
+        if remainingSeconds == 0 {
+            return L10n.current == .no
+                ? "Total varighet: \(totalMinutes) min"
+                : "Total duration: \(totalMinutes) min"
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(CoachiTheme.bgDeep.opacity(0.42))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(CoachiTheme.borderSubtle.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private func formattedMinutesValue(_ minutes: Int, zeroLabel: String? = nil) -> String {
-        let clamped = max(0, minutes)
-        if clamped == 0, let zeroLabel {
-            return zeroLabel
-        }
-        return L10n.current == .no ? "\(clamped) min" : "\(clamped) min"
+        return L10n.current == .no
+            ? "Total varighet: \(totalMinutes) min \(remainingSeconds) sek"
+            : "Total duration: \(totalMinutes) min \(remainingSeconds) sec"
     }
 
     private func formattedIntervalBreak(_ seconds: Int) -> String {
-        let clamped = max(0, min(300, seconds))
+        let clamped = max(0, min(120, seconds))
         if clamped == 0 {
             return L10n.current == .no ? "Ingen pause" : "No break"
         }
@@ -846,37 +771,46 @@ struct WorkoutLaunchView: View {
     }
 
     private func intervalBreakDialLabel(_ seconds: Int) -> (String, String) {
-        let clamped = max(0, min(300, seconds))
+        let clamped = max(0, min(120, seconds))
         if clamped == 0 {
             return (L10n.current == .no ? "INGEN" : "NONE", "")
         }
         if clamped > 60 {
-            return (formattedBreakMinutesValue(for: clamped), L10n.minutesUpper)
+            return (formattedBreakClockValue(for: clamped), L10n.minutesUpper)
         }
         return ("\(clamped)", L10n.current == .no ? "SEK" : "SEC")
     }
 
-    private func formattedBreakMinutesValue(for seconds: Int) -> String {
-        let minutes = Double(seconds) / 60.0
-        let roundedToQuarter = (minutes * 4.0).rounded() / 4.0
-        if roundedToQuarter.rounded() == roundedToQuarter {
-            return String(Int(roundedToQuarter))
-        }
-        return String(format: "%.2f", roundedToQuarter)
-            .replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
+    private func formattedBreakClockValue(for seconds: Int) -> String {
+        let clamped = max(0, min(120, seconds))
+        let minutes = clamped / 60
+        let remainingSeconds = clamped % 60
+        return String(format: "%d:%02d", minutes, remainingSeconds)
     }
 
-    private func summaryEditButton(action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(L10n.current == .no ? "Rediger oppsett" : "Edit setup")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(CoachiTheme.primary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(CoachiTheme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    private func handleBottomBackAction() {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+            guard showsPostSetupSections else {
+                launchStep = 1
+                return
+            }
+
+            showAdvancedOptions = false
+            switch viewModel.selectedWorkoutMode {
+            case .easyRun:
+                if viewModel.selectedEasyRunSessionMode == .freeRun {
+                    launchStep = 1
+                } else {
+                    setupStage = .easyDuration
+                    easyRunConfigured = false
+                }
+            case .intervals:
+                setupStage = .intervalBreak
+                intervalsConfigured = false
+            case .standard:
+                launchStep = 1
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private func resetSetupFlowForSelectedMode() {
@@ -980,15 +914,19 @@ struct CircularDialPicker: View {
         max(minValue, min(maxValue, selectedValue))
     }
 
+    private var hasActivePreview: Bool {
+        previewValue != nil
+    }
+
     private var displayValue: Int {
-        if isDragging, let previewValue {
+        if let previewValue {
             return previewValue
         }
         return committedValue
     }
 
     private var displayProgress: Double {
-        if isDragging {
+        if isDragging || hasActivePreview {
             return min(1.0, max(0.0, safeAngle / 360.0))
         }
         return normalizedProgress(for: displayValue)
